@@ -1,0 +1,66 @@
+# Development stack: `make dev` (or `docker compose up`).
+# Admin app: http://localhost:5173 · Driver app: http://localhost:5174 · API: http://localhost:8000/api/v1/health
+name: frutti
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: frutti
+      POSTGRES_PASSWORD: frutti
+      POSTGRES_DB: frutti
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frutti -d frutti"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  backend:
+    image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    working_dir: /app/backend
+    command: >
+      sh -c "uv sync --frozen &&
+             uv run python manage.py migrate &&
+             uv run python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DATABASE_URL: postgres://frutti:frutti@db:5432/frutti
+      UV_LINK_MODE: copy
+      UV_PROJECT_ENVIRONMENT: /venv
+    ports: ["8000:8000"]
+    volumes:
+      - ./backend:/app/backend
+      - backend-venv:/venv
+    depends_on:
+      db: { condition: service_healthy }
+
+  frontend:
+    image: node:22-bookworm-slim
+    working_dir: /app/frontend
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm dev"
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    ports: ["5173:5173", "5174:5174"]
+    volumes:
+      - ./frontend:/app/frontend
+      # Keep Linux node_modules inside Docker so they never clash with the host's.
+      - fe-root-modules:/app/frontend/node_modules
+      - fe-admin-modules:/app/frontend/apps/admin/node_modules
+      - fe-truck-modules:/app/frontend/apps/truck/node_modules
+      - fe-ui-modules:/app/frontend/packages/ui/node_modules
+    depends_on: [backend]
+
+volumes:
+  pgdata:
+  backend-venv:
+  fe-root-modules:
+  fe-admin-modules:
+  fe-truck-modules:
+  fe-ui-modules:
