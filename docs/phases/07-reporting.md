@@ -1,0 +1,29 @@
+# Phase 7 · Reporting & dashboards
+
+**Goal:** the owner sees how the business is doing without asking anyone.
+**Depends on:** Phase 6. Load the `dataviz` skill before building any chart.
+_Coarse plan: detail each task when the phase starts._
+
+---
+
+### P7-T01 · Dashboard · M
+- [ ] KPIs from the prototype: sales, cash collected, receivables, net operating result, stock value;
+      alerts list. Clearly separate profit from cash.
+
+### P7-T02 · Commercial reports · M
+- [ ] Sales by customer, product, truck, driver, supplier, period, payment method.
+
+### P7-T03 · Stock reports · S
+- [ ] Stock value by location; batch history; losses and weight differences; slow-moving stock.
+
+### P7-T04 · Financial reports · M
+- [ ] Monthly result, expenses by category, cash flow, customer and supplier balances, unpaid salaries.
+
+### P7-T05 · Partnership reports · S
+- [ ] Capital invested/recovered/outstanding, shares allocated/paid/due per partner over time.
+
+### P7-T06 · Exports · S
+- [ ] Every report exports to Excel and PDF (Celery job for large ones).
+
+### P7-T07 · Alerts and notifications · S
+- [ ] Low stock, overdue customers, cash differences, expiring batches. In-app first; SMS/WhatsApp in Phase 8.
