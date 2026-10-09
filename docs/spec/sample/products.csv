@@ -1,0 +1,13 @@
+reference,name_fr,name_ar,category,unit,storage,sale_price_dt,min_stock_kg,market_price_dt,market_price_source
+CR-001,Crevette Royale,قمرون ملكي,Crustacés,kg,frais 0-4 °C,42.000,20,12.000-28.000 (crevettes toutes tailles),S1 S2 S3
+CD-002,Crevette décortiquée,قمرون مقشّر,Crustacés,kg,congelé -18 °C,38.000,15,,non sourcé
+DO-003,Dorade royale,وراطة,Poissons,kg,frais 0-4 °C,24.500,25,20.000-23.000,S1 S2 S3
+LO-004,Loup de mer,قاروص,Poissons,kg,frais 0-4 °C,27.000,20,23.000-40.000,S1 S2 S3 S4
+CA-005,Calamar,كلمار,Céphalopodes,kg,congelé -18 °C,29.000,12,,non sourcé
+PO-006,Poulpe,قرنيط,Céphalopodes,kg,frais 0-4 °C,31.500,10,41.000-54.000,S5
+MO-007,Moules,بلح البحر,Coquillages,kg,frais 0-4 °C,9.500,15,,non sourcé
+SY-008,Symphonie Marine,سمفونية البحر,Mélanges,kg,congelé -18 °C,33.000,8,,non sourcé
+RO-009,Rouget,تريليا,Poissons,kg,frais 0-4 °C,14.000,15,12.000,S2
+SA-010,Sardine,سردينة,Poissons,kg,frais 0-4 °C,7.500,30,5.000-7.000,S2 S6
+MU-011,Mulet,بوري,Poissons,kg,frais 0-4 °C,13.500,15,11.800,S4
+SE-012,Seiche,شوابي,Céphalopodes,kg,frais 0-4 °C,26.000,10,,non sourcé

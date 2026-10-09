@@ -6,16 +6,16 @@ hands early instead of at the very end. Detailed tasks are in `docs/phases/`.
 | # | Phase | Delivers | Blocked by questions |
 |---|---|---|---|
 | 0 | [Discovery & foundations](phases/00-foundations.md) | Client answers, running skeleton, login, CI, design system | none |
-| 1 | [Catalogue, suppliers & stock](phases/01-stock-core.md) | Products, cold room + truck stock, batches, receipts, transfers, losses | Q4, Q8, Q10, Q12 (defaults OK to start) |
-| 2 | [Customers, quotes, sales & invoicing](phases/02-sales-invoicing.md) | Quotes → sales → invoices, payments, customer balances, PDFs | Q5, Q7, Q16 |
-| 3 | [Driver app](phases/03-driver-app.md) | Phone app: day start, sales, payments, expenses, losses, day close, offline | Q13, Q14 |
-| 4 | [Go-live: daily operations](phases/04-go-live.md) | Data import, production, backups, monitoring, training | Q15 |
+| 1 | [Catalogue, suppliers & stock](phases/01-stock-core.md) | Products, cold room + truck stock, batches, receipts, transfers, losses | none |
+| 2 | [Customers, quotes, sales & invoicing](phases/02-sales-invoicing.md) | Quotes → sales → invoices, payments, customer balances, PDFs | none |
+| 3 | [Driver app](phases/03-driver-app.md) | Phone app: day start, sales, payments, expenses, losses, day close, offline, Arabic, receipt printer | none (printer model to choose) |
+| 4 | [Go-live: daily operations](phases/04-go-live.md) | Data entry from paper notebooks, production, backups, monitoring, training | none |
 | | **Milestone A** | **The client runs daily operations in the app** | |
-| 5 | [Expenses, payroll & assets](phases/05-expenses-payroll.md) | Expenses with approval, salaries, depreciation | Q6 |
-| 6 | [Partnerships, closing & profit sharing](phases/06-profit-sharing.md) | Agreements, month-end closing, supplier shares, statements | Q1, Q2, Q3, Q9, Q11 |
+| 5 | [Expenses, payroll & assets](phases/05-expenses-payroll.md) | Expenses with approval, salaries, depreciation | none |
+| 6 | [Partnerships, closing & profit sharing](phases/06-profit-sharing.md) | Agreements, month-end closing, supplier shares, statements | P0-T02 (worked example) |
 | | **Milestone B** | **First month closed and partners paid from the app** | |
 | 7 | [Reporting & dashboards](phases/07-reporting.md) | Dashboards, reports, Excel/PDF exports, alerts | none |
-| 8 | [Scale & integrations](phases/08-scale.md) | E-invoicing, accounting export, Arabic, native app, multi-company | Q5, Q17 |
+| 8 | [Scale & integrations](phases/08-scale.md) | Multi-company (confirmed goal), TTN e-invoicing (on hold), accounting export, customer portal | Q18 |
 
 ## Why this order
 

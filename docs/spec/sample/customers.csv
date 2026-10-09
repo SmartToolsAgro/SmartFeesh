@@ -1,0 +1,10 @@
+reference,name,type,city,tax_id,phone,credit_limit_dt,payment_terms_days,opening_balance_dt
+C-001,Restaurant Le Corail,Restaurant,Sfax centre,0000101A/A/M/000,+216 74 000 201,2000.000,30,420.000
+C-002,Hôtel Thyna,Hôtel,Thyna,0000102B/A/M/000,+216 74 000 202,5000.000,45,1850.000
+C-003,Poissonnerie El Bahr,Poissonnerie,Sakiet Ezzit,0000103C/A/M/000,+216 74 000 203,1500.000,15,0.000
+C-004,Café-Resto Sidi Mansour,Restaurant,Sidi Mansour,0000104D/A/M/000,+216 74 000 204,800.000,15,135.500
+C-005,Supermarché Ennour,Supermarché,Route Gremda,0000105E/A/M/000,+216 74 000 205,6000.000,60,0.000
+C-006,Restaurant Dar El Hout,Restaurant,Sakiet Eddaier,0000106F/A/M/000,+216 74 000 206,1500.000,30,0.000
+C-007,Marée du Sud,Grossiste,Mahrès,0000107G/A/M/000,+216 74 000 207,8000.000,30,0.000
+C-008,Traiteur Les Saveurs,Traiteur,Route de Tunis,0000108H/A/M/000,+216 74 000 208,1000.000,15,0.000
+C-009,Client de passage,Particulier,,,,0.000,0,0.000

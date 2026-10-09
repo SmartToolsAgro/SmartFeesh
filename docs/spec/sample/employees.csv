@@ -1,0 +1,10 @@
+reference,name,position,role_in_app,gross_monthly_salary_dt,employer_cnss_rate_percent,employer_cnss_dt,truck
+E-001,Le gérant,Gérant,owner,,,,
+E-002,Rim K.,Responsable administrative,manager,1600.000,17.07,273.120,
+E-003,Sami B.,Chauffeur-vendeur,driver,1250.000,17.07,213.375,L-003
+E-004,Anis M.,Chauffeur-vendeur,driver,1250.000,17.07,213.375,L-004
+E-005,Walid G.,Chauffeur-vendeur,driver,1250.000,17.07,213.375,L-005
+E-006,Hedi Z.,Magasinier chambre froide,none,1100.000,17.07,187.770,
+E-007,Mouna T.,Vendeuse comptoir,manager,1000.000,17.07,170.700,
+E-008,Karim S.,Manutentionnaire,none,950.000,17.07,162.165,
+X-001,Cabinet comptable (externe),Comptable,accountant,,,,

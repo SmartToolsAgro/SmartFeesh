@@ -1,0 +1,6 @@
+reference,name,type,temperature,plate,driver_reference,sells_over_the_counter
+L-001,Chambre froide 1 (frais),cold_room,0 à 4 °C,,,oui
+L-002,Chambre froide 2 (congelé),cold_room,-18 °C,,,oui
+L-003,Camion 1,truck,réfrigéré,101 TU 2001,E-003,
+L-004,Camion 2,truck,réfrigéré,102 TU 2002,E-004,
+L-005,Camion 3,truck,réfrigéré,103 TU 2003,E-005,

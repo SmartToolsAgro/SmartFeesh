@@ -10,15 +10,17 @@ each sees only their own area; CI is green; staging is reachable; P0-T01 and P0-
 
 ### P0-T01 · Client workshop with the prototype · owner: human · S
 - [ ] Walk the client through `prototype/index.html` (both views).
-- [ ] Ask every question in `docs/OPEN_QUESTIONS.md`; write answers in the table.
-- [ ] Collect: product list with units and prices, suppliers, customers, trucks, employees, a sample
+- [x] Ask every question in `docs/OPEN_QUESTIONS.md`; write answers in the table.
+- [ ] Collect (until then, use the stand-in data in `docs/spec/sample/`, built from public Tunisian
+      sources on 2026-10-10): product list with units and prices, suppliers, customers, trucks, employees, a sample
       supplier contract, a sample invoice they issue today, real product photos.
 - [ ] Note any screen the client wants changed.
 
 **Acceptance:** Q1–Q4 answered or explicitly marked "client unsure"; materials stored in `docs/spec/client/`.
 
 ### P0-T02 · Profit-sharing worked example on one real month · owner: human + agent · M
-- [ ] Take one real past month: sales, purchases, stock left, every expense, salaries.
+- [ ] Take one real past month: sales, purchases, stock left, every expense, salaries. No numbers are
+      available yet (2026-10-10); invented numbers cannot replace them for this task.
 - [ ] For one partner supplier, compute their share by hand (spreadsheet) the way the client does today.
 - [ ] Compare with what was actually paid to them. Explain any difference.
 - [ ] Write it up in `docs/spec/profit-sharing-worked-example.md` with every number and rule.
@@ -57,7 +59,8 @@ session). First person with Docker: run `make dev` once and report._
 Read: ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
 - [ ] **Custom `User` model in the first migration** (cannot be changed cheaply later).
 - [ ] `Organization`; `OrganizationScopedModel` abstract base (FK + scoped manager); `TimeStampedModel`.
-- [ ] Roles: `owner`, `manager`, `driver` (membership: user ↔ organization ↔ role).
+- [ ] Roles: `owner`, `manager`, `driver`, `accountant` (membership: user ↔ organization ↔ role).
+      The accountant reviews the month-end closing before the owner approves it (Q9).
 - [ ] `Money` and `Quantity` helpers (Decimal, 3 places, ROUND_HALF_UP) with unit tests.
 - [ ] `AuditLog` model + `audit.record(...)` service.
 - [ ] Seed command: one organization, one owner, one driver (dev only).
@@ -83,7 +86,9 @@ Read: ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
 
 ### P0-T08 · Internationalisation · owner: agent · S
 - [ ] Django i18n + i18next; French default; all UI strings through translation functions.
-- [ ] RTL support switch (`dir="rtl"`) tested with a dummy Arabic string. No translation yet.
+- [ ] RTL support switch (`dir="rtl"`) tested with a dummy Arabic string. No translation yet
+      (the driver app is translated in P3-T09).
+- [ ] `language` preference on the user (fr | ar); both apps follow it. Drivers choose theirs (Q14).
 - [ ] Number/date formatting helpers: `1 250,000 DT`, `dd/mm/yyyy`.
 
 ### P0-T09 · API contract & generated client · owner: agent · S
@@ -96,7 +101,7 @@ Read: ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
 
 ### P0-T11 · Staging deployment · owner: agent + human · M
 - [ ] Production Dockerfile (gunicorn, static files, both front ends built).
-- [ ] Deploy to a staging host (choice to be made with the owner: VPS or managed platform; record in DECISIONS).
+- [ ] Deploy to a staging VPS at OVH running the Docker stack (D-017, D-019). Size still to choose (human).
 - [ ] Automatic deploy from `main`; HTTPS; Sentry connected.
 
 **Acceptance:** the client can open staging on their phone and log in as a demo driver.

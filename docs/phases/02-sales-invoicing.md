@@ -3,7 +3,8 @@
 **Goal:** sell from the cold room or a truck, invoice correctly for Tunisia, and always know who owes what.
 **Done when:** a quote can become a sale and an invoice; stock and customer balance update in one
 transaction; partial payments and returns work; quote/invoice/receipt PDFs look professional.
-**Depends on:** Phase 1. **Questions:** Q5 (blocks P2-T05), Q7, Q16.
+**Depends on:** Phase 1. **Questions:** Q5, Q7 and Q16 are answered; nothing is open for this phase.
+TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only keeps a hook for it.
 
 ---
 
@@ -12,7 +13,15 @@ transaction; partial payments and returns work; quote/invoice/receipt PDFs look 
       credit limit; payment terms; active). "Walk-in customer" default record.
 - [ ] Admin list/detail with balance and history.
 
-### P2-T02 · Prices · S
+### P2-T02 · Prices · M
+- [ ] "Prix du jour" screen: the owner or manager sets the sale price for every product in one go,
+      prefilled with the current one. Each row shows the cost of the batches in stock and the margin,
+      since purchase costs also change daily (P1-T07).
+- [ ] A price can be changed again at any time of the day; the change applies from that moment, and
+      the screen shows the day's earlier prices with who changed them and when.
+- [ ] A sale uses the price in force at the moment it is made.
+- [ ] A sale line keeps the price actually charged; later price changes never touch past sales,
+      invoices or profit. A quote keeps its own prices until its validity date.
 - [ ] Price lists and customer-specific prices; minimum price per product; warning (not block) below it,
       logged in audit.
 
@@ -25,16 +34,30 @@ transaction; partial payments and returns work; quote/invoice/receipt PDFs look 
 - [ ] Each line stores price, discount, tax, **batch, unit cost** (snapshot) → COGS per line.
 - [ ] `sales.services.confirm_sale(...)` posts sale movements, creates the receivable, all in one transaction.
 - [ ] Cancel = reversal document, never deletion.
+- [ ] Counter sale at a cold room is a first-class flow (regular, Q8): same service, location = cold room.
 
-### P2-T05 · Invoices · M · blocked by Q5
+### P2-T05 · Invoices · M
 - [ ] Gap-free numbering per organization per year.
-- [ ] Tax configuration per product (VAT rate), fiscal stamp, withholding tax if Q5 says so.
+- [ ] Finance settings per organization, with a valid-from date (Q5, D-018): one VAT rate for all
+      products (19 %), fiscal stamp (1.000 DT per invoice), whether sale prices include VAT, withholding
+      rate. Editable by the owner from a finance settings screen; never hard-coded.
+- [ ] Optional VAT rate per product (including exempt) that overrides the company default: Tunisian
+      fishing products appear as VAT-exempt in the VAT code, to check with the accountant
+      (`docs/spec/sample/README.md`).
+- [ ] Withholding tax (retenue à la source): optional per invoice, chosen before it is issued, at the
+      rate from the finance settings. When the rate is 0 % nothing about it appears on the invoice.
+      It reduces the amount to collect and is tracked in P2-T06.
 - [ ] Issued invoice is immutable; corrections via `CreditNote`.
-- [ ] Leave a clear hook for TTN e-invoicing (Phase 8, or earlier if mandatory).
+- [ ] Leave a clear hook for TTN e-invoicing (Phase 8 backlog, D-016). Nothing is sent to TTN for now.
 
 ### P2-T06 · Customer payments and balances · M
 - [ ] `CustomerPayment` (cash, cheque, transfer, card) allocated to invoices; unallocated credit kept.
-- [ ] Customer balance, ageing (0–30, 31–60, 60+ days), credit-limit warning at sale time.
+- [ ] Customer balance, ageing (0–30, 31–60, 60+ days).
+- [ ] Credit limit per customer, enforced on the server at sale time for every seller, drivers included
+      (Q16). Above the limit the behaviour is a company setting (D-018): block the sale, ask the owner or
+      manager for approval, or warn and log.
+- [ ] Withholding tax: the amount withheld is recorded against the invoice with its certificate (number,
+      date, file); the receivable is reduced; totals per period are available to the accountant.
 
 ### P2-T07 · Customer returns · S
 - [ ] Return → stock movement back (or to loss) + credit note.
@@ -45,6 +68,8 @@ transaction; partial payments and returns work; quote/invoice/receipt PDFs look 
 
 ### P2-T09 · Admin screens · M
 - [ ] Quotes, sales, invoices, customers, payments screens. Customer page shows balance + history.
+- [ ] Quick counter-sale screen for the cold room.
 
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
-210.000 + fiscal stamp → customer pays 100.000 → balance shows the rest; stock and batch updated; PDF correct.
+210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
+100.000 → balance shows the rest; stock and batch updated; PDF correct.

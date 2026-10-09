@@ -58,3 +58,42 @@ a compromised fresh release. TypeScript stays on 6.0 because typescript-eslint s
 **D-013 · uv for Python, pnpm for JavaScript** · accepted · 2026-10-09
 Both are fast, produce lockfiles, and are already used in CI images. Dev Docker images run the same
 tools (`ghcr.io/astral-sh/uv`, `node:22` + corepack).
+
+**D-014 · Batch-level FIFO costing confirmed** · accepted · 2026-10-10
+Confirms D-009, which is no longer provisional. Q4: the same product can come from several suppliers in
+one month and their batches are tracked separately. Q7: a sold kilo is valued at its own batch cost,
+oldest batch first.
+
+**D-015 · Plan changed after the client answers** · accepted · 2026-10-10
+TTN / El Fatoora e-invoicing moves from the Phase 8 backlog to P2-T10 (Q5: required now). Arabic for the
+driver app moves to P3-T09 (Q14) and Bluetooth receipt printing to P3-T10 (Q13). Printing on iPhone may
+force a native wrapper, so the PWA choice in D-002 and D-003 is re-examined by the P3-T10 spike. An
+`accountant` role is added in P0-T05 (Q9). Tax rate and fiscal stamp are organization settings, not
+constants, because selling to other distributors is a confirmed goal (Q17).
+
+**D-016 · TTN / El Fatoora e-invoicing on hold** · accepted · 2026-10-10
+Changes D-015: P2-T10 is removed and its task list is kept in the Phase 8 backlog. Q5 says e-invoicing is
+required now, but Mahmoud decided not to implement it for now. P2-T05 keeps a hook; the app issues PDF
+invoices only until this is picked up again.
+
+**D-017 · Staging and production on a VPS** · accepted · 2026-10-10
+One rented server running the Docker stack: cheapest and fully under our control. We maintain the
+server and the backups ourselves (P4-T03). Provider and size are still to choose.
+
+**D-018 · Rules that may vary are organization finance settings** · accepted · 2026-10-10
+VAT rate, fiscal stamp, whether sale prices include VAT, the withholding rate (hidden on invoices when
+0 %) and the behaviour above a customer's credit limit (block, approval, warn) are settings per
+organization with a valid-from date, editable by the owner. Other distributors will need other values
+(Q17), and several of these were not fixed by the client.
+
+**D-019 · OVH as VPS provider; stand-in data until the client's materials arrive** · accepted · 2026-10-10
+Completes D-017: staging and production run on OVH. Separately, `docs/spec/sample/` holds example
+products, suppliers, customers, locations, employees, an invoice and a partner agreement, built from
+public Tunisian sources with invented companies and people. It feeds seeds, tests and demos only; real
+client data replaces it at go-live. It does not replace P0-T02, which needs one real month.
+
+**D-020 · Prices are dated, never fixed** · accepted · 2026-10-10
+Purchase and sale prices both change from one day to the next. Purchase cost belongs to the batch
+created by each receipt, with no supplier price list. Sale price is a `ProductPrice` with a valid-from
+date and time, because it can change several times in one day; it is set from a "Prix du jour" screen. Sale lines snapshot the price charged and the batch cost, so past sales and
+closed months never move when a price changes.

@@ -3,7 +3,9 @@
 **Goal:** a driver runs a whole working day from their phone, even with weak mobile signal.
 **Done when:** one real driver uses it for a full week alongside their usual method, and the evening
 totals match.
-**Depends on:** Phases 1–2. **Questions:** Q13 (phones, printer), Q14 (language), Q16 (who may sell on credit).
+**Depends on:** Phases 1–2. **Questions:** Q13, Q14 and Q16 are answered: Android and iPhone, some dead
+zones on the routes, printed and digital receipts, French or Arabic chosen by each driver, credit sales up
+to a limit. Receipts are in French. The printer model is chosen in the P3-T10 spike.
 Look and feel: the "Camion" view of `prototype/index.html`.
 
 ---
@@ -13,13 +15,19 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [ ] Opens a `DriverDay` (truck, driver, date, status).
 
 ### P3-T02 · My stock · S
-- [ ] Truck stock list with product pictures, kg, price; read-only.
+- [ ] Truck stock list with product pictures, kg, today's price; read-only.
+- [ ] Prices are downloaded at the start of day and refreshed whenever the phone is online; a price
+      changed during the day reaches the driver at the next refresh, with a visible notice.
+      Offline, the driver sells at the last prices received, and the screen shows their date and time.
+      The server keeps the price the driver charged; it never recalculates an offline sale.
 
 ### P3-T03 · Sale on the road · M
 - [ ] Choose customer (search, recent first; create if allowed), products, weight, payment amount and
       method → calls the same `confirm_sale` service as the admin app.
-- [ ] Partial payment → remainder on customer credit; credit-limit warning.
-- [ ] Receipt: on screen + share (and Bluetooth print later if Q13 says so).
+- [ ] Partial payment → remainder on customer credit, up to the customer's credit limit (Q16). Offline,
+      the limit is checked against the last synced balance and checked again by the server at sync.
+      Above the limit the app follows the company setting from P2-T06 (block, approval, or warn).
+- [ ] Receipt: on screen + share. Printing is P3-T10.
 
 ### P3-T04 · Expenses on the road · S
 - [ ] Fuel, tolls, ice… with a photo of the receipt; status "waiting for approval"; paid from the cash box.
@@ -41,4 +49,25 @@ Read: ARCHITECTURE §4 rule 7.
 - [ ] Offline sales can only use the truck's own stock, which only that driver changes.
 
 ### P3-T08 · Field test · human · M
+Runs last, after P3-T09 and P3-T10.
 - [ ] One driver, one week, in parallel with the current method. Collect issues into the next tasks.
+
+### P3-T09 · Arabic for the driver app · M
+Moved here from the Phase 8 backlog (Q14: each driver chooses French or Arabic).
+- [ ] Language choice on the login screen and in the driver's profile; remembered per user (P0-T08).
+- [ ] All truck-app strings translated to Arabic; translation reviewed by a native speaker (human).
+- [ ] Right-to-left layout checked on every screen; weights and amounts stay readable.
+- [ ] Server messages (validation errors) come back in the driver's language.
+
+The admin app stays in French for now.
+
+### P3-T10 · Bluetooth receipt printing · L → split before starting
+Moved here from the Phase 8 backlog (Q13: printed and digital receipts, Android and iPhone).
+- [ ] **Spike first:** print from the PWA on a real Android phone and a real iPhone with the chosen
+      printer. If the browser cannot print on iPhone, wrap the truck app as a native app (Capacitor,
+      ARCHITECTURE §5). Record the result in DECISIONS; it revisits D-002 and D-003.
+- [ ] No printer is chosen yet (Q13): propose two or three models, pick one with the client and buy it
+      for testing (human).
+- [ ] Receipt layout for the paper width; works offline; reprint from the sale screen.
+- [ ] The receipt is in French (Q13), whatever language the driver uses in the app.
+- [ ] If native: store accounts, builds, and getting the app onto the drivers' phones (human + agent).
