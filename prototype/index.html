@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Frutti Del Mare ERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: cold-chain console. Sidebar of modules on the left, work surface on the right;
+   the truck view is a phone in the driver's hand. Ice blues for the cold chain, shrimp coral for action. */
+:root{
+  --bg:#EEF4F7;          /* frosted ice */
+  --surface:#FFFFFF;
+  --surface-2:#F5F9FB;
+  --ink:#0C2633;         /* deep water */
+  --ink-2:#4A6573;
+  --line:#D6E3EA;
+  --sea:#0F5E7A;         /* harbour blue */
+  --sea-soft:#D7ECF3;
+  --coral:#E8604C;       /* crevette royale */
+  --coral-soft:#FCE3DE;
+  --good:#1F8A5B; --good-soft:#DDF2E7;
+  --warn:#B7791F; --warn-soft:#FBEFD5;
+  --bad:#C2413A;  --bad-soft:#F8DEDC;
+  --tile-a:#CFE6EF; --tile-b:#A9D2E2;
+  --font-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r:14px; --r-sm:9px;
+  --shadow:0 1px 2px rgba(12,38,51,.06), 0 8px 24px -12px rgba(12,38,51,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#071A23; --surface:#0D2530; --surface-2:#10303D; --ink:#E4F1F6; --ink-2:#93B1BE; --line:#1D4352;
+    --sea:#5DC1E0; --sea-soft:#123E4E; --coral:#FF7A66; --coral-soft:#3D2120;
+    --good:#4CC58D; --good-soft:#123A2A; --warn:#E6AD4E; --warn-soft:#3A2E14; --bad:#F07068; --bad-soft:#3E1C1B;
+    --tile-a:#123B4A; --tile-b:#0B2C38; --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#071A23; --surface:#0D2530; --surface-2:#10303D; --ink:#E4F1F6; --ink-2:#93B1BE; --line:#1D4352;
+  --sea:#5DC1E0; --sea-soft:#123E4E; --coral:#FF7A66; --coral-soft:#3D2120;
+  --good:#4CC58D; --good-soft:#123A2A; --warn:#E6AD4E; --warn-soft:#3A2E14; --bad:#F07068; --bad-soft:#3E1C1B;
+  --tile-a:#123B4A; --tile-b:#0B2C38; --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--font-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:1.75rem;font-weight:800}
+h2{font-size:1.15rem;font-weight:700}
+h3{font-size:1rem;font-weight:700}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--sea);outline-offset:2px;border-radius:6px}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.muted{color:var(--ink-2)}
+svg.i{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;gap:16px;padding:12px 20px;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:1.15rem;white-space:nowrap}
+.brand-mark{width:36px;height:36px;border-radius:10px;background:var(--sea);display:grid;place-items:center}
+.brand small{display:block;font:500 .7rem/1 var(--font-body);color:var(--ink-2);letter-spacing:.06em;text-transform:uppercase;margin-top:3px}
+.spacer{flex:1}
+.switch{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px}
+.switch button{border:0;background:none;padding:7px 14px;border-radius:999px;display:flex;align-items:center;gap:7px;font-weight:600;font-size:.9rem;color:var(--ink-2)}
+.switch button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.switch svg.i{width:17px;height:17px}
+.sample{font-size:.75rem;font-weight:600;color:var(--warn);background:var(--warn-soft);padding:4px 10px;border-radius:999px;white-space:nowrap}
+
+/* ---------- admin layout ---------- */
+.admin{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:calc(100vh - 62px)}
+.side{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px;background:var(--surface)}
+.side .grp{margin:14px 10px 6px}
+.side button{display:flex;align-items:center;gap:11px;border:0;background:none;padding:9px 12px;border-radius:10px;text-align:left;font-weight:500;color:var(--ink-2)}
+.side button:hover{background:var(--surface-2);color:var(--ink)}
+.side button[aria-current="page"]{background:var(--sea-soft);color:var(--sea);font-weight:700}
+.side button .tag{margin-left:auto;font-size:.68rem;font-weight:700;background:var(--coral);color:#fff;border-radius:999px;padding:1px 7px}
+.main{padding:28px 32px 48px;display:flex;flex-direction:column;gap:22px;min-width:0}
+.head{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.head .spacer{min-width:8px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:9px 15px;border-radius:10px;font-weight:600;font-size:.9rem}
+.btn.primary{background:var(--coral);border-color:var(--coral);color:#fff}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn svg.i{width:17px;height:17px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);min-width:0}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.kpi{display:flex;flex-direction:column;gap:6px}
+.kpi .row{display:flex;align-items:center;gap:10px}
+.kpi .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--sea-soft);color:var(--sea)}
+.kpi .ic.coral{background:var(--coral-soft);color:var(--coral)}
+.kpi .val{font:700 1.55rem/1.1 var(--font-display);font-variant-numeric:tabular-nums}
+.kpi .val small{font-size:.8rem;color:var(--ink-2);font-weight:600;margin-left:3px}
+.delta{font-size:.8rem;font-weight:600}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+
+.two{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.sea{background:var(--sea-soft);color:var(--sea)}
+.pill.coral{background:var(--coral-soft);color:var(--coral)}
+
+.hero{position:relative;overflow:hidden;border-radius:var(--r);background:linear-gradient(120deg,#0C3B4E,#0F5E7A 60%,#2A8BA8);color:#fff;padding:24px 28px;display:flex;align-items:center;gap:24px;min-height:150px}
+.hero h1{color:#fff}
+.hero p{color:#CDE7F0;max-width:46ch}
+.hero .art{margin-left:auto;width:250px;max-width:40%;flex:none}
+.hero .waves{position:absolute;left:0;bottom:0;width:100%;height:40px;opacity:.25}
+
+.alerts{display:flex;flex-direction:column;gap:10px}
+.alert{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:var(--r-sm);background:var(--surface-2)}
+.alert .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+.alert b{display:block;font-weight:600}
+.alert span{font-size:.85rem;color:var(--ink-2)}
+
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-2);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:0}
+.tablewrap{overflow-x:auto}
+.who{display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.75rem;background:var(--sea-soft);color:var(--sea);flex:none}
+
+/* product "photos" */
+.products{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.prod{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.photo{aspect-ratio:16/10;max-width:100%;background:radial-gradient(120% 90% at 30% 20%,var(--tile-a),var(--tile-b));display:grid;place-items:center;position:relative}
+.photo svg{width:72%;height:80%}
+.photo .lot{position:absolute;top:10px;left:10px;font:500 .7rem var(--font-mono);background:var(--surface);color:var(--ink-2);padding:2px 7px;border-radius:6px}
+.photo .temp{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:3px;font:600 .72rem var(--font-mono);color:var(--sea);background:var(--surface);padding:2px 7px;border-radius:6px}
+.photo .temp svg{width:13px;height:13px}
+.prod .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.prod .title{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.loc{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.loc div{background:var(--surface-2);border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;min-width:0}
+.loc .eyebrow{font-size:.62rem;white-space:nowrap}
+.loc b{font:600 .9rem var(--font-mono)}
+.bar{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+
+/* chart */
+.chart svg{width:100%;height:280px;display:block}
+.legend{display:flex;gap:16px;font-size:.8rem;color:var(--ink-2);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* stock location cards */
+.places{grid-template-columns:repeat(3,minmax(0,1fr))}
+.place{display:flex;gap:14px;align-items:center}
+.place .pic{width:86px;height:64px;flex:none;border-radius:10px;background:var(--surface-2);display:grid;place-items:center}
+.place .pic svg{width:80px;height:58px}
+
+/* closing */
+.waterfall td{padding:9px 10px}
+.waterfall tr.total td{font-weight:700;border-top:2px solid var(--ink)}
+.wbar{height:10px;border-radius:4px}
+.steps{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:2px}
+.steps li{display:flex;align-items:center;gap:12px;padding:9px 6px;border-bottom:1px dashed var(--line)}
+.steps li:last-child{border-bottom:0}
+.steps .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:600 .75rem var(--font-mono);background:var(--surface-2);color:var(--ink-2);flex:none}
+.steps li.done .n{background:var(--good);color:#fff}
+.steps li.now .n{background:var(--coral);color:#fff}
+.steps li span{flex:1;min-width:0}
+.share{display:flex;flex-direction:column;gap:12px}
+.formula{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-family:var(--font-mono);font-size:.95rem;background:var(--surface-2);padding:14px;border-radius:var(--r-sm)}
+.formula b{font-size:1.15rem;color:var(--coral)}
+.balances{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.balances div{background:var(--surface-2);border-radius:var(--r-sm);padding:10px 12px}
+.balances b{display:block;font:600 1rem var(--font-mono)}
+
+/* quote document */
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:28px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.doc .stamp{position:absolute;top:22px;right:-38px;transform:rotate(35deg);background:var(--warn-soft);color:var(--warn);font-weight:700;font-size:.72rem;letter-spacing:.1em;padding:4px 44px}
+.doc header{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:16px}
+.doc .totals{margin-left:auto;width:min(300px,100%);display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.doc .totals div{display:flex;justify-content:space-between}
+.doc .totals .grand{border-top:2px solid var(--ink);padding-top:6px;font-weight:700;font-size:1.05rem}
+
+/* ---------- truck (phone) ---------- */
+.truckstage{min-height:calc(100vh - 62px);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:40px;align-items:center;padding:32px max(20px,5vw);background:radial-gradient(60% 70% at 70% 40%,var(--sea-soft),transparent)}
+.pitch{max-width:420px;display:flex;flex-direction:column;gap:14px}
+.pitch ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.pitch li{display:flex;gap:10px;align-items:flex-start}
+.pitch li svg{color:var(--coral);margin-top:2px}
+.phone{width:min(380px,100%);height:min(780px,calc(100vh - 110px));min-height:600px;border-radius:44px;background:var(--ink);padding:12px;box-shadow:0 30px 60px -20px rgba(12,38,51,.45)}
+.screen{width:100%;height:100%;border-radius:34px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.ph-top{background:linear-gradient(150deg,#0C3B4E,#0F5E7A);color:#fff;padding:22px 18px 18px}
+.ph-top .eyebrow{color:#9FD0E0}
+.ph-top h2{color:#fff;font-size:1.25rem}
+.ph-top .chips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.ph-top .chips span{background:rgba(255,255,255,.14);border-radius:999px;padding:4px 10px;font-size:.78rem;display:flex;align-items:center;gap:5px}
+.ph-top .chips svg{width:14px;height:14px}
+.ph-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.ph-nav{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 4px 10px}
+.ph-nav button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.7rem;font-weight:600;color:var(--ink-2);padding:6px 0}
+.ph-nav button[aria-current="page"]{color:var(--coral)}
+.ph-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.big-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big-actions button{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;font-weight:700;text-align:left;font-size:.9rem}
+.big-actions button .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--sea-soft);color:var(--sea)}
+.big-actions button.hot{background:var(--coral);border-color:var(--coral);color:#fff}
+.big-actions button.hot .ic{background:rgba(255,255,255,.2);color:#fff}
+.stock-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.stock-row:last-child{border-bottom:0}
+.thumb{width:52px;height:42px;border-radius:10px;background:radial-gradient(120% 90% at 30% 20%,var(--tile-a),var(--tile-b));display:grid;place-items:center;flex:none}
+.thumb svg{width:44px;height:34px}
+.stock-row .nm{flex:1;min-width:0}
+.stock-row .nm b{display:block;font-size:.92rem}
+.stock-row .nm span{font-size:.78rem;color:var(--ink-2)}
+.kg{font:600 .95rem var(--font-mono);text-align:right}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:.78rem;font-weight:600;color:var(--ink-2)}
+.field input,.field select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;width:100%}
+.prodpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.prodpick button{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;font-weight:600;line-height:1.2;text-align:center}
+.prodpick button svg{width:46px;height:34px}
+.prodpick button[aria-pressed="true"]{border-color:var(--coral);background:var(--coral-soft)}
+.prodpick button:disabled{opacity:.4;cursor:not-allowed}
+.sumline{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}
+.sumline.big{font-size:1.1rem;font-weight:700}
+.wide{width:100%;justify-content:center;padding:13px}
+.toast{position:absolute;left:14px;right:14px;bottom:78px;background:var(--ink);color:var(--surface);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;font-size:.88rem;font-weight:600;transition:transform .25s,opacity .25s}
+.toast[hidden]{display:none!important}
+.diff{font:700 1.6rem var(--font-display)}
+.lines li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:.88rem}
+.lines{list-style:none;margin:0;padding:0}
+
+.soon{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.soon svg.art{width:200px;max-width:100%;height:auto}
+
+@media (max-width:1100px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .two{grid-template-columns:minmax(0,1fr)}
+  .balances{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  .admin{grid-template-columns:minmax(0,1fr)}
+  .side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px 16px;gap:6px}
+  .side .grp{display:none}
+  .side button{white-space:nowrap;flex:none}
+  .main{padding:20px 16px 40px}
+  .places{grid-template-columns:minmax(0,1fr)}
+  .truckstage{grid-template-columns:minmax(0,1fr);justify-items:center;padding:20px 16px}
+  .pitch{display:none}
+  .hero .art{display:none}
+}
+@media (max-width:560px){
+  .top{padding:10px 16px;gap:10px;flex-wrap:wrap}
+  .brand small,.sample{display:none}
+  .switch button span{display:none}
+  .kpis{grid-template-columns:minmax(0,1fr)}
+  .phone{border-radius:0;padding:0;height:auto;min-height:640px;background:none;box-shadow:none}
+  .screen{border-radius:16px;border:1px solid var(--line);height:720px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ icon sprite ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6.5 6.5 0 0 0-3-5.5"/></symbol>
+    <symbol id="i-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 7.5V21M8 11h8"/><path d="M4 14a8 8 0 0 0 16 0"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.5L21 8H6"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><circle cx="16.5" cy="13.5" r="1.2"/></symbol>
+    <symbol id="i-badge" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="9" cy="11.5" r="2.3"/><path d="M5.8 17a3.4 3.4 0 0 1 6.4 0M15 10h3M15 14h3M9 5V3h6v2"/></symbol>
+    <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></symbol>
+    <symbol id="i-calcheck" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="m9 15 2 2 4-4"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24"><path d="M2 5h12v11H2zM14 9h4l4 4v3h-8"/><circle cx="6.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></symbol>
+    <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 2v20M3.3 7l17.4 10M20.7 7 3.3 17"/><path d="m9 4 3 2 3-2M9 20l3-2 3 2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 4 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/></symbol>
+    <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><path d="M4 20h16l-1.5-10h-13z"/><circle cx="12" cy="6" r="2.5"/><path d="M12 13v3"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></symbol>
+    <symbol id="i-return" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-fuel" viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M4 10h10"/><path d="M14 13h2a2 2 0 0 1 2 2v2a1.5 1.5 0 0 0 3 0V8l-3-3"/></symbol>
+
+    <!-- ===== seafood illustrations (the product "photos") ===== -->
+    <symbol id="p-shrimp" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="96" rx="52" ry="6" fill="#0C2633" opacity=".12"/>
+      <path d="M40 36c18-22 64-24 84 2 14 18 8 46-14 54-14 5-27-2-30-12" fill="none" stroke="#E8604C" stroke-width="26" stroke-linecap="round"/>
+      <path d="M40 36c18-22 64-24 84 2 14 18 8 46-14 54-14 5-27-2-30-12" fill="none" stroke="#F59A7F" stroke-width="12" stroke-linecap="round" opacity=".6"/>
+      <g stroke="#B9412F" stroke-width="2.2" fill="none" opacity=".7"><path d="M60 22c2 8 1 14-3 22"/><path d="M78 17c2 9 1 16-2 24"/><path d="M96 19c1 9-1 16-5 23"/><path d="M112 28c-2 8-5 14-11 19"/><path d="M122 46c-5 5-10 8-17 9"/><path d="M121 66c-6 2-12 2-18 0"/></g>
+      <path d="M80 80l-22 14 6-20 -18 2 20-12z" fill="#D9503D"/>
+      <circle cx="36" cy="32" r="4.5" fill="#0C2633"/><circle cx="35" cy="31" r="1.4" fill="#fff"/>
+      <path d="M30 30C14 22 8 12 6 2M32 36C14 40 6 52 4 62" fill="none" stroke="#B9412F" stroke-width="1.8" stroke-linecap="round"/>
+      <g stroke="#D9503D" stroke-width="2.5" stroke-linecap="round"><path d="M58 52l-6 14M72 56l-4 15M86 56l-1 15M100 54l3 14"/></g>
+    </symbol>
+    <symbol id="p-peeled" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="96" rx="52" ry="6" fill="#0C2633" opacity=".12"/>
+      <g fill="none" stroke-linecap="round">
+        <path d="M34 50c10-20 46-22 56 0 6 14-2 28-16 28" stroke="#F4A38C" stroke-width="20"/>
+        <path d="M34 50c10-20 46-22 56 0" stroke="#FBD0C2" stroke-width="7"/>
+        <path d="M76 40c10-20 46-22 56 0 6 14-2 28-16 28" stroke="#F09178" stroke-width="20"/>
+        <path d="M76 40c10-20 46-22 56 0" stroke="#FBD0C2" stroke-width="7"/>
+      </g>
+      <g fill="#7DC1D6" opacity=".7"><rect x="20" y="78" width="14" height="10" rx="2" transform="rotate(-12 27 83)"/><rect x="118" y="80" width="12" height="9" rx="2" transform="rotate(14 124 84)"/><rect x="60" y="84" width="10" height="8" rx="2"/></g>
+    </symbol>
+    <symbol id="p-fish" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="98" rx="56" ry="6" fill="#0C2633" opacity=".12"/>
+      <path d="M118 54l30-24-8 24 8 24z" fill="#7E97A3"/>
+      <path d="M12 54c18-30 70-38 108 0-38 38-90 30-108 0z" fill="#A9BCC5"/>
+      <path d="M12 54c18-30 70-38 108 0H12z" fill="#C8D6DC"/>
+      <path d="M50 30c10-10 30-12 44-4" fill="none" stroke="#7E97A3" stroke-width="7" stroke-linecap="round"/>
+      <path d="M24 49c4-3 10-4 14-2" fill="none" stroke="#E5B94A" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="30" cy="52" r="5" fill="#fff"/><circle cx="31" cy="52" r="2.8" fill="#0C2633"/>
+      <path d="M44 42c4 8 4 16 0 24" fill="none" stroke="#7E97A3" stroke-width="2.4"/>
+      <g fill="#fff" opacity=".35"><circle cx="66" cy="50" r="2"/><circle cx="78" cy="46" r="2"/><circle cx="90" cy="52" r="2"/><circle cx="74" cy="58" r="2"/></g>
+    </symbol>
+    <symbol id="p-bass" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="98" rx="58" ry="6" fill="#0C2633" opacity=".12"/>
+      <path d="M124 54l28-20-6 20 6 20z" fill="#5E7884"/>
+      <path d="M8 56c14-26 74-34 116-2-42 32-102 26-116 2z" fill="#8FA7B2"/>
+      <path d="M8 56c14-26 74-34 116-2H8z" fill="#6E8B98"/>
+      <path d="M56 32l8-12 6 11 6-10 6 12" fill="#5E7884"/>
+      <path d="M30 57h92" stroke="#C8D6DC" stroke-width="2"/>
+      <circle cx="24" cy="53" r="4.6" fill="#fff"/><circle cx="25" cy="53" r="2.6" fill="#0C2633"/>
+      <path d="M8 58c5 2 10 2 14 0" stroke="#4A6573" stroke-width="2" fill="none"/>
+    </symbol>
+    <symbol id="p-squid" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="100" rx="50" ry="5" fill="#0C2633" opacity=".12"/>
+      <g transform="rotate(-90 80 55)">
+        <path d="M80 -2c16 16 22 40 18 60H62c-4-20 2-44 18-60z" fill="#F2D9CF"/>
+        <path d="M80 -2 64 22c-6-2-10-2-14 0zM80 -2l16 24c6-2 10-2 14 0z" fill="#E9C4B6"/>
+        <g fill="#C98A7A" opacity=".55"><circle cx="74" cy="22" r="2.3"/><circle cx="86" cy="30" r="2"/><circle cx="76" cy="40" r="2.4"/><circle cx="88" cy="46" r="1.8"/></g>
+        <circle cx="72" cy="60" r="3.6" fill="#0C2633"/><circle cx="88" cy="60" r="3.6" fill="#0C2633"/>
+        <g fill="none" stroke="#E9C4B6" stroke-width="5" stroke-linecap="round"><path d="M66 62c-2 16 -8 24 -4 36"/><path d="M74 64c0 14-2 22 2 34"/><path d="M86 64c0 14 2 22-2 34"/><path d="M94 62c2 16 8 24 4 36"/></g>
+        <g fill="none" stroke="#DDB0A1" stroke-width="3" stroke-linecap="round"><path d="M70 64c-10 18-18 30-8 46"/><path d="M90 64c10 18 18 30 8 46"/></g>
+      </g>
+    </symbol>
+    <symbol id="p-octopus" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="102" rx="56" ry="5" fill="#0C2633" opacity=".12"/>
+      <g fill="none" stroke="#B5546F" stroke-width="10" stroke-linecap="round">
+        <path d="M60 60c-14 8-26 20-40 18-8-1-10-10-4-12"/>
+        <path d="M68 66c-8 14-12 26-24 30"/>
+        <path d="M80 68c0 14 0 22-6 30"/>
+        <path d="M92 66c8 14 14 24 26 26"/>
+        <path d="M100 60c14 8 26 18 38 14 7-3 6-11 0-11"/>
+      </g>
+      <g fill="#F2C9D4"><circle cx="30" cy="77" r="2"/><circle cx="50" cy="90" r="2"/><circle cx="76" cy="90" r="2"/><circle cx="108" cy="88" r="2"/><circle cx="128" cy="74" r="2"/></g>
+      <path d="M50 46c0-26 18-40 30-40s30 14 30 40c0 14-12 22-30 22s-30-8-30-22z" fill="#C9637F"/>
+      <path d="M58 26c6-12 16-16 24-16" fill="none" stroke="#E08AA2" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="70" cy="48" r="5" fill="#fff"/><circle cx="90" cy="48" r="5" fill="#fff"/>
+      <rect x="67" y="46" width="6" height="4" rx="2" fill="#0C2633"/><rect x="87" y="46" width="6" height="4" rx="2" fill="#0C2633"/>
+    </symbol>
+    <symbol id="p-mussel" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="98" rx="54" ry="6" fill="#0C2633" opacity=".12"/>
+      <g transform="rotate(-24 60 58)"><path d="M34 58c0-20 18-34 40-36 12 12 12 50 0 72-22-2-40-16-40-36z" fill="#243B4A"/><path d="M74 22c12 12 12 50 0 72" stroke="#3E6274" stroke-width="3" fill="none"/><path d="M44 50c6-10 16-16 26-18M42 62c6 10 16 16 26 18" stroke="#3E6274" stroke-width="2.4" fill="none"/></g>
+      <g transform="rotate(20 104 56)"><path d="M84 56c0-20 18-34 40-36 12 12 12 50 0 72-22-2-40-16-40-36z" fill="#2F4A5A"/><path d="M90 58c4-14 18-24 30-26 6 10 6 40 0 52-12-2-26-12-30-26z" fill="#F0A35E"/><path d="M124 20c12 12 12 50 0 72" stroke="#4D7486" stroke-width="3" fill="none"/></g>
+    </symbol>
+    <symbol id="p-mix" viewBox="0 0 160 110">
+      <ellipse cx="80" cy="100" rx="62" ry="6" fill="#0C2633" opacity=".12"/>
+      <path d="M20 58h120l-10 38H30z" fill="#E8EEF1"/><path d="M20 58h120" stroke="#9FB4BE" stroke-width="3"/>
+      <use href="#p-shrimp" x="6" y="8" width="70" height="48"/>
+      <use href="#p-squid" x="54" y="4" width="62" height="52"/>
+      <use href="#p-mussel" x="96" y="16" width="56" height="42"/>
+      <g fill="#7DC1D6" opacity=".7"><rect x="34" y="74" width="10" height="8" rx="2"/><rect x="74" y="78" width="9" height="7" rx="2"/><rect x="110" y="72" width="10" height="8" rx="2"/></g>
+      <path d="M44 66h72" stroke="#C7D5DB" stroke-width="2" stroke-dasharray="4 5"/>
+    </symbol>
+
+    <!-- places -->
+    <symbol id="p-fridge" viewBox="0 0 120 86">
+      <rect x="18" y="6" width="84" height="74" rx="6" fill="#DCEAF0" stroke="#0F5E7A" stroke-width="3"/>
+      <path d="M60 6v74" stroke="#0F5E7A" stroke-width="3"/>
+      <rect x="50" y="34" width="4" height="16" rx="2" fill="#0F5E7A"/><rect x="66" y="34" width="4" height="16" rx="2" fill="#0F5E7A"/>
+      <g stroke="#5DB4D3" stroke-width="2.4" stroke-linecap="round"><path d="M34 18v14M27 21l14 8M41 21l-14 8"/></g>
+      <rect x="74" y="16" width="20" height="10" rx="2" fill="#0C2633"/><text x="84" y="24" font-size="7" text-anchor="middle" fill="#7FE0B0" font-family="monospace">-2°C</text>
+    </symbol>
+    <symbol id="p-truck" viewBox="0 0 120 86">
+      <rect x="6" y="18" width="70" height="46" rx="4" fill="#F4F8FA" stroke="#0F5E7A" stroke-width="3"/>
+      <path d="M76 32h22l14 16v16H76z" fill="#E8604C" stroke="#0F5E7A" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M82 37h14l8 10H82z" fill="#CDE7F0"/>
+      <g stroke="#5DB4D3" stroke-width="2.4" stroke-linecap="round"><path d="M41 30v20M32 35l18 10M50 35l-18 10"/></g>
+      <circle cx="26" cy="68" r="9" fill="#0C2633"/><circle cx="26" cy="68" r="3.5" fill="#9FB4BE"/>
+      <circle cx="94" cy="68" r="9" fill="#0C2633"/><circle cx="94" cy="68" r="3.5" fill="#9FB4BE"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="brand">
+    <div class="brand-mark"><svg class="i" style="color:#fff"><use href="#i-snow"/></svg></div>
+    <div>Frutti Del Mare<small>Gestion &amp; distribution</small></div>
+  </div>
+  <div class="spacer"></div>
+  <span class="sample">Prototype · données d'exemple</span>
+  <div class="switch" role="group" aria-label="Choisir la vue">
+    <button id="sw-admin" aria-pressed="true"><svg class="i"><use href="#i-grid"/></svg><span>Administration</span></button>
+    <button id="sw-truck" aria-pressed="false"><svg class="i"><use href="#i-truck"/></svg><span>Camion</span></button>
+  </div>
+</header>
+
+<!-- ============ ADMIN ============ -->
+<div id="admin" class="admin">
+  <nav class="side" id="side" aria-label="Modules"></nav>
+  <main class="main" id="main"></main>
+</div>
+
+<!-- ============ TRUCK ============ -->
+<div id="truck" class="truckstage" hidden>
+  <div class="pitch">
+    <span class="eyebrow">Vue chauffeur-vendeur</span>
+    <h1>Tout ce qu'il faut sur la route, rien de plus.</h1>
+    <p class="muted">Le chauffeur voit seulement le stock de son camion, ses clients et sa caisse du jour. Les marges, les accords fournisseurs et les autres camions restent côté administration.</p>
+    <ul>
+      <li><svg class="i"><use href="#i-check"/></svg><span>Une vente met à jour le stock du camion, la caisse et le solde client en même temps.</span></li>
+      <li><svg class="i"><use href="#i-check"/></svg><span>Paiement partiel : le reste passe automatiquement en crédit client.</span></li>
+      <li><svg class="i"><use href="#i-check"/></svg><span>Clôture du soir : caisse attendue comparée à la caisse déclarée.</span></li>
+    </ul>
+    <p class="muted" style="font-size:.85rem">Essayez : onglet <b>Vente</b>, choisissez un client et un produit, puis validez.</p>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="ph-top">
+      <span class="eyebrow">Camion 1 · TU 214 · 5873</span>
+      <h2 id="ph-title">Bonjour Karim</h2>
+      <div class="chips">
+        <span><svg class="i"><use href="#i-snow"/></svg>Caisson 1,8 °C</span>
+        <span><svg class="i"><use href="#i-pin"/></svg>Tournée Sfax centre</span>
+      </div>
+    </div>
+    <div class="ph-body" id="ph-body"></div>
+    <div class="toast" id="toast" hidden role="status"><svg class="i"><use href="#i-check"/></svg><span id="toast-msg"></span></div>
+    <nav class="ph-nav" id="ph-nav" aria-label="Navigation camion"></nav>
+  </div></div>
+</div>
+
+<script>
+/* ---------------- sample data (fictitious) ---------------- */
+const PRODUCTS = [
+  {id:'cr', name:'Crevette Royale', art:'p-shrimp', price:42, unit:'kg', lot:'L-0912', supplier:'Pêcherie Kerkennah', stock:{frigo:46.5, c1:18.2, c2:12.0}, min:20},
+  {id:'cd', name:'Crevette décortiquée', art:'p-peeled', price:38, unit:'kg', lot:'L-0915', supplier:'Pêcherie Kerkennah', stock:{frigo:22.0, c1:6.4, c2:4.0}, min:15},
+  {id:'do', name:'Dorade royale', art:'p-fish', price:24.5, unit:'kg', lot:'L-0918', supplier:'Mareyeur Port de Sfax', stock:{frigo:61.0, c1:14.5, c2:16.8}, min:25},
+  {id:'lo', name:'Loup de mer', art:'p-bass', price:27, unit:'kg', lot:'L-0919', supplier:'Mareyeur Port de Sfax', stock:{frigo:12.3, c1:3.1, c2:0}, min:20},
+  {id:'ca', name:'Calamar', art:'p-squid', price:29, unit:'kg', lot:'L-0907', supplier:'Aqua Monastir', stock:{frigo:28.0, c1:7.5, c2:9.0}, min:12},
+  {id:'po', name:'Poulpe', art:'p-octopus', price:31.5, unit:'kg', lot:'L-0910', supplier:'Pêcherie Kerkennah', stock:{frigo:19.4, c1:5.0, c2:6.2}, min:10},
+  {id:'mo', name:'Moules', art:'p-mussel', price:9.5, unit:'kg', lot:'L-0921', supplier:'Aqua Monastir', stock:{frigo:35.0, c1:10.0, c2:8.0}, min:15},
+  {id:'sy', name:'Symphonie Marine', art:'p-mix', price:33, unit:'kg', lot:'L-0920', supplier:'Mélange maison', stock:{frigo:14.0, c1:4.0, c2:3.5}, min:8},
+];
+const CLIENTS = [
+  {name:'Restaurant Le Corail', type:'Restaurant', balance:420},
+  {name:'Hôtel Thyna', type:'Hôtel', balance:1850},
+  {name:'Poissonnerie El Bahr', type:'Poissonnerie', balance:0},
+  {name:'Café-Resto Sidi Mansour', type:'Restaurant', balance:135.5},
+  {name:'Client de passage', type:'Particulier', balance:0},
+];
+const fmt = (n, d=3) => n.toLocaleString('fr-FR',{minimumFractionDigits:d, maximumFractionDigits:d});
+const dt = n => fmt(n) + ' DT';
+const kg = n => fmt(n,1) + ' kg';
+const icon = (id, cls='i') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
+const art = (id, w, h) => `<svg viewBox="0 0 160 110" ${w?`width="${w}" height="${h}"`:''} aria-hidden="true"><use href="#${id}"/></svg>`;
+const total = p => p.stock.frigo + p.stock.c1 + p.stock.c2;
+
+/* ---------------- admin screens ---------------- */
+const NAV = [
+  {grp:'Pilotage'},
+  {id:'dash', label:'Tableau de bord', ic:'i-grid'},
+  {grp:'Commercial'},
+  {id:'devis', label:'Devis', ic:'i-quote', tag:'2'},
+  {id:'ventes', label:'Ventes & factures', ic:'i-receipt'},
+  {id:'clients', label:'Clients', ic:'i-users'},
+  {grp:'Marchandise'},
+  {id:'stock', label:'Stock frigo & camions', ic:'i-box'},
+  {id:'achats', label:'Achats', ic:'i-cart'},
+  {id:'fourn', label:'Fournisseurs', ic:'i-anchor'},
+  {grp:'Finances'},
+  {id:'charges', label:'Charges', ic:'i-wallet'},
+  {id:'salaires', label:'Personnel & salaires', ic:'i-badge'},
+  {id:'partenariats', label:'Partage des bénéfices', ic:'i-percent'},
+  {id:'cloture', label:'Clôture mensuelle', ic:'i-calcheck'},
+];
+let current = 'dash';
+
+function renderSide(){
+  document.getElementById('side').innerHTML = NAV.map(n => n.grp
+    ? `<div class="grp eyebrow">${n.grp}</div>`
+    : `<button data-go="${n.id}" ${n.id===current?'aria-current="page"':''}>${icon(n.ic)}<span>${n.label}</span>${n.tag?`<span class="tag">${n.tag}</span>`:''}</button>`).join('');
+}
+
+function salesChart(){
+  // 30 days of sample sales, refrigerator (counter) vs trucks
+  const days = 30, W = 640, H = 220, padL = 44, padB = 26, padT = 10;
+  let seed = 7; const rnd = () => (seed = (seed*9301+49297)%233280)/233280;
+  const data = Array.from({length:days},(_,i)=>{
+    const wk = (i%7===5)?0.55:1; // calmer Sundays
+    return {frigo: Math.round((520+rnd()*380)*wk), truck: Math.round((900+rnd()*700)*wk)};
+  });
+  const max = 2500, ih = H-padB-padT, bw = (W-padL-8)/days;
+  const y = v => padT + ih - v/max*ih;
+  let g = '';
+  [0,500,1000,1500,2000,2500].forEach(t=>{
+    g += `<line x1="${padL}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-width="1"/>`;
+    g += `<text x="${padL-8}" y="${y(t)+4}" text-anchor="end" font-size="10" fill="var(--ink-2)" font-family="IBM Plex Mono, monospace">${t.toLocaleString('fr-FR')}</text>`;
+  });
+  data.forEach((d,i)=>{
+    const x = padL + 4 + i*bw, w = bw*0.68;
+    g += `<rect x="${x}" y="${y(d.truck)}" width="${w}" height="${y(0)-y(d.truck)}" rx="2" fill="var(--sea)"><title>Jour ${i+1} · camions ${d.truck} DT</title></rect>`;
+    g += `<rect x="${x}" y="${y(d.truck+d.frigo)}" width="${w}" height="${y(0)-y(d.frigo)}" rx="2" fill="var(--coral)"><title>Jour ${i+1} · comptoir ${d.frigo} DT</title></rect>`;
+    if(i%5===0) g += `<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--ink-2)" font-family="IBM Plex Mono, monospace">${String(i+1).padStart(2,'0')}/09</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ventes journalières de septembre, camions et comptoir">${g}</svg>`;
+}
+
+const SCREENS = {
+dash: () => `
+  <section class="hero">
+    <div style="display:flex;flex-direction:column;gap:8px;position:relative;z-index:1">
+      <span class="eyebrow" style="color:#9FD0E0">Jeudi 9 octobre · Sakiet Ezzit</span>
+      <h1>Bonjour, voici la marée du jour.</h1>
+      <p>2 camions en tournée, 1 devis à relancer, et la clôture de septembre attend votre validation.</p>
+    </div>
+    <svg class="art" viewBox="0 0 250 120" aria-hidden="true">
+      <use href="#p-truck" x="0" y="20" width="130" height="94"/>
+      <use href="#p-shrimp" x="120" y="0" width="80" height="56"/>
+      <use href="#p-fish" x="150" y="54" width="100" height="66"/>
+    </svg>
+    <svg class="waves" viewBox="0 0 600 40" preserveAspectRatio="none" aria-hidden="true"><path d="M0 20c50-20 100 20 150 0s100 20 150 0 100 20 150 0 100 20 150 0v20H0z" fill="#fff"/></svg>
+  </section>
+
+  <section class="grid kpis">
+    <div class="card kpi"><div class="row"><div class="ic">${icon('i-receipt')}</div><span class="eyebrow">Ventes septembre</span></div><div class="val num">60 000<small>DT</small></div><span class="delta up">+8,4 % vs août</span></div>
+    <div class="card kpi"><div class="row"><div class="ic coral">${icon('i-cash')}</div><span class="eyebrow">Encaissé</span></div><div class="val num">45 000<small>DT</small></div><span class="delta down">15 000 DT à recevoir</span></div>
+    <div class="card kpi"><div class="row"><div class="ic">${icon('i-percent')}</div><span class="eyebrow">Résultat net d'exploitation</span></div><div class="val num">15 450<small>DT</small></div><span class="delta up">Après salaires et charges</span></div>
+    <div class="card kpi"><div class="row"><div class="ic">${icon('i-snow')}</div><span class="eyebrow">Valeur du stock</span></div><div class="val num">7 000<small>DT</small></div><span class="muted" style="font-size:.8rem">Frigo + 2 camions</span></div>
+  </section>
+
+  <section class="grid two">
+    <div class="card chart" style="display:flex;flex-direction:column;gap:12px">
+      <div class="head"><div><h2>Ventes de septembre</h2><p class="muted" style="font-size:.85rem">Par jour, en dinars</p></div><div class="spacer"></div>
+        <div class="legend"><span><i style="background:var(--sea)"></i>Camions</span><span><i style="background:var(--coral)"></i>Comptoir frigo</span></div></div>
+      <div class="tablewrap">${salesChart()}</div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+      <h2>À traiter</h2>
+      <div class="alerts">
+        <div class="alert"><div class="ic" style="background:var(--bad-soft);color:var(--bad)">${icon('i-alert')}</div><div><b>Loup de mer sous le seuil</b><span>15,4 kg au total pour un seuil de 20 kg. Camion 2 à zéro.</span></div></div>
+        <div class="alert"><div class="ic" style="background:var(--warn-soft);color:var(--warn)">${icon('i-cash')}</div><div><b>Écart de caisse, camion 2</b><span>Mercredi : attendu 1 250,000 DT, déclaré 1 200,000 DT. À vérifier avec Walid.</span></div></div>
+        <div class="alert"><div class="ic" style="background:var(--sea-soft);color:var(--sea)">${icon('i-calcheck')}</div><div><b>Clôture de septembre</b><span>Étape 8 sur 10 : revue avant approbation.</span></div></div>
+        <div class="alert"><div class="ic" style="background:var(--coral-soft);color:var(--coral)">${icon('i-users')}</div><div><b>Hôtel Thyna : 1 850,000 DT dus</b><span>Facture du 12/09 échue depuis 27 jours.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid places">
+    ${place('p-fridge','Chambre froide','Sakiet Ezzit', 'frigo')}
+    ${place('p-truck','Camion 1 · Karim','Tournée Sfax centre', 'c1')}
+    ${place('p-truck','Camion 2 · Walid','Tournée Mahrès', 'c2')}
+  </section>`,
+
+stock: () => `
+  <div class="head"><div><span class="eyebrow">Marchandise</span><h1>Stock frigo &amp; camions</h1></div><div class="spacer"></div>
+    <button class="btn">${icon('i-truck')}Transfert vers camion</button><button class="btn primary">${icon('i-plus')}Réception fournisseur</button></div>
+  <section class="grid places">
+    ${place('p-fridge','Chambre froide','Sakiet Ezzit', 'frigo')}
+    ${place('p-truck','Camion 1 · Karim','Tournée Sfax centre', 'c1')}
+    ${place('p-truck','Camion 2 · Walid','Tournée Mahrès', 'c2')}
+  </section>
+  <section class="grid products">
+    ${PRODUCTS.map(p=>{
+      const t = total(p), low = t < p.min;
+      return `<article class="card prod">
+        <div class="photo"><span class="lot">${p.lot}</span><span class="temp">${icon('i-snow')}0–2 °C</span>${art(p.art)}</div>
+        <div class="body">
+          <div class="title"><h3>${p.name}</h3><span class="num" style="font-weight:600">${fmt(p.price)}<span class="muted" style="font-size:.75rem"> DT/kg</span></span></div>
+          <div class="bar" title="Répartition">
+            <i style="width:${p.stock.frigo/t*100}%;background:var(--sea)"></i><i style="width:${p.stock.c1/t*100}%;background:var(--coral)"></i><i style="width:${p.stock.c2/t*100}%;background:var(--warn)"></i>
+          </div>
+          <div class="loc">
+            <div><span class="eyebrow">Frigo</span><b>${fmt(p.stock.frigo,1)}</b></div>
+            <div><span class="eyebrow">Camion 1</span><b>${fmt(p.stock.c1,1)}</b></div>
+            <div><span class="eyebrow">Camion 2</span><b>${fmt(p.stock.c2,1)}</b></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span class="muted" style="font-size:.8rem">${p.supplier}</span>
+            ${low?'<span class="pill bad">Sous le seuil</span>':'<span class="pill good">OK</span>'}
+          </div>
+        </div></article>`;}).join('')}
+  </section>
+  <section class="card">
+    <h2 style="margin-bottom:10px">Derniers mouvements</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Heure</th><th>Mouvement</th><th>Produit · lot</th><th>De → vers</th><th class="r">Quantité</th><th>Par</th></tr></thead>
+      <tbody>
+        <tr><td class="num">06:40</td><td><span class="pill sea">Transfert</span></td><td>Crevette Royale · L-0912</td><td>Frigo → Camion 1</td><td class="r num">20,0 kg</td><td>Karim</td></tr>
+        <tr><td class="num">07:05</td><td><span class="pill good">Réception</span></td><td>Dorade royale · L-0918</td><td>Fournisseur → Frigo</td><td class="r num">60,0 kg <span class="muted">(commandé 62,0)</span></td><td>Admin</td></tr>
+        <tr><td class="num">10:22</td><td><span class="pill coral">Vente</span></td><td>Calamar · L-0907</td><td>Camion 2 → Hôtel Thyna</td><td class="r num">8,0 kg</td><td>Walid</td></tr>
+        <tr><td class="num">11:48</td><td><span class="pill bad">Perte</span></td><td>Moules · L-0921</td><td>Camion 1</td><td class="r num">1,5 kg</td><td>Karim</td></tr>
+      </tbody></table></div>
+  </section>`,
+
+devis: () => `
+  <div class="head"><div><span class="eyebrow">Commercial</span><h1>Devis</h1></div><div class="spacer"></div><button class="btn primary">${icon('i-plus')}Nouveau devis</button></div>
+  <section class="grid two">
+    <div class="doc">
+      <div class="stamp">EXEMPLE</div>
+      <header>
+        <div><div class="brand" style="font-size:1.1rem"><div class="brand-mark" style="width:30px;height:30px">${icon('i-snow')}</div>Frutti Del Mare</div>
+          <p class="muted" style="font-size:.82rem;margin-top:6px">Fruits de mer ultra-frais · Sakiet Ezzit, Sfax</p></div>
+        <div style="text-align:right"><h2>Devis D-2026-047</h2><p class="muted num" style="font-size:.85rem">09/10/2026 · valable 3 jours</p></div>
+      </header>
+      <p style="margin-bottom:12px"><span class="eyebrow">Client</span><br><b>Restaurant Le Corail</b> · Route de la Corniche, Sfax</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">P.U.</th><th class="r">Total</th></tr></thead>
+        <tbody>
+          <tr><td>Crevette Royale (calibre 20/30)</td><td class="r num">5,000 kg</td><td class="r num">42,000</td><td class="r num">210,000</td></tr>
+          <tr><td>Calamar entier</td><td class="r num">3,000 kg</td><td class="r num">29,000</td><td class="r num">87,000</td></tr>
+          <tr><td>Symphonie Marine</td><td class="r num">2,500 kg</td><td class="r num">33,000</td><td class="r num">82,500</td></tr>
+        </tbody></table></div>
+      <div class="totals num">
+        <div><span>Total HT</span><span>379,500</span></div>
+        <div class="muted"><span>TVA (taux à confirmer)</span><span>—</span></div>
+        <div><span>Timbre fiscal</span><span>1,000</span></div>
+        <div class="grand"><span>Total TTC</span><span>380,500 DT</span></div>
+      </div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <h2>Devis en cours</h2>
+      ${[
+        ['D-2026-047','Restaurant Le Corail','380,500','Envoyé','sea'],
+        ['D-2026-046','Hôtel Thyna','2 140,000','À relancer','warn'],
+        ['D-2026-045','Café-Resto Sidi Mansour','296,000','Accepté','good'],
+        ['D-2026-044','Poissonnerie El Bahr','1 012,500','Refusé','bad'],
+      ].map(r=>`<div class="alert" style="align-items:center"><div class="ic" style="background:var(--surface);color:var(--sea)">${icon('i-quote')}</div>
+          <div style="flex:1;min-width:0"><b>${r[1]}</b><span class="num">${r[0]} · ${r[2]} DT</span></div><span class="pill ${r[4]}">${r[3]}</span></div>`).join('')}
+      <p class="muted" style="font-size:.85rem">Un devis accepté devient une vente en un clic, avec réservation du stock.</p>
+    </div>
+  </section>`,
+
+partenariats: () => `
+  <div class="head"><div><span class="eyebrow">Finances · septembre 2026</span><h1>Partage des bénéfices</h1></div><div class="spacer"></div><span class="pill warn">${icon('i-lock')} Non verrouillé</span></div>
+  <section class="grid two">
+    <div class="card">
+      <h2 style="margin-bottom:6px">Du chiffre d'affaires au résultat</h2>
+      <p class="muted" style="font-size:.85rem;margin-bottom:10px">Les salaires et toutes les charges sont déduits avant le calcul des parts.</p>
+      <div class="tablewrap"><table class="waterfall">${waterfall()}</table></div>
+    </div>
+    <div class="card share">
+      <div class="who"><div class="avatar" style="background:var(--coral-soft);color:var(--coral)">PK</div><div><h2>Pêcherie Kerkennah</h2><span class="muted" style="font-size:.85rem">Partenariat · 30 % du bénéfice net de ses lots</span></div></div>
+      <div class="formula"><span>Base attribuée</span><span class="num">5 000,000</span><span>×</span><span class="num">30 %</span><span>=</span><b class="num">1 500,000 DT</b></div>
+      <p class="muted" style="font-size:.85rem">Base = marge brute de ses lots (8 200 DT) − charges réparties selon leur nature (3 200 DT).</p>
+      <div class="grid balances">
+        <div><span class="eyebrow">Capital investi</span><b>20 000,000</b></div>
+        <div><span class="eyebrow">Capital récupéré</span><b>6 000,000</b></div>
+        <div><span class="eyebrow">Part à payer</span><b style="color:var(--coral)">1 500,000</b></div>
+        <div><span class="eyebrow">Déjà payé</span><b>0,000</b></div>
+      </div>
+      <p class="muted" style="font-size:.82rem">Capital, dettes fournisseur et parts de bénéfice sont trois soldes séparés.</p>
+    </div>
+  </section>
+  <section class="card">
+    <h2 style="margin-bottom:10px">Tous les accords</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Fournisseur</th><th>Type d'accord</th><th>Base de calcul</th><th class="r">%</th><th class="r">Base</th><th class="r">Part du mois</th></tr></thead>
+      <tbody>
+        <tr><td><div class="who"><div class="avatar">PK</div>Pêcherie Kerkennah</div></td><td><span class="pill coral">Partenariat</span></td><td>Bénéfice net de ses lots</td><td class="r num">30</td><td class="r num">5 000,000</td><td class="r num"><b>1 500,000</b></td></tr>
+        <tr><td><div class="who"><div class="avatar">AM</div>Aqua Monastir</div></td><td><span class="pill sea">Dépôt-vente</span></td><td>Prix convenu par kg vendu</td><td class="r num">—</td><td class="r num">3 410,000</td><td class="r num"><b>3 410,000</b></td></tr>
+        <tr><td><div class="who"><div class="avatar">MS</div>Mareyeur Port de Sfax</div></td><td><span class="pill good">Achat simple</span></td><td>Aucune part</td><td class="r num">—</td><td class="r num">—</td><td class="r num muted">0,000</td></tr>
+      </tbody></table></div>
+  </section>`,
+
+cloture: () => {
+  const steps = ['Revoir ventes, retours, avoirs et impayés','Revoir achats, stock restant et coût des ventes','Valider les charges, dont les salaires','Calculer les amortissements (camions, frigo)','Répartir les charges selon les règles','Calculer marge brute et résultat net','Appliquer le % de chaque accord','Revue et approbation','Verrouiller la clôture','Éditer les relevés fournisseurs'];
+  return `
+  <div class="head"><div><span class="eyebrow">Finances</span><h1>Clôture de septembre 2026</h1></div><div class="spacer"></div><button class="btn primary">${icon('i-check')}Approuver</button></div>
+  <section class="grid two">
+    <div class="card"><h2 style="margin-bottom:8px">Étapes</h2>
+      <ol class="steps">${steps.map((s,i)=>`<li class="${i<7?'done':i===7?'now':''}"><span class="n">${i<7?'✓':i+1}</span><span>${s}</span>${i===7?'<span class="pill coral">En cours</span>':''}</li>`).join('')}</ol></div>
+    <div class="card"><h2 style="margin-bottom:8px">Points à vérifier avant approbation</h2>
+      <div class="alerts">
+        <div class="alert"><div class="ic" style="background:var(--warn-soft);color:var(--warn)">${icon('i-cash')}</div><div><b>1 écart de caisse non justifié</b><span>Camion 2, mercredi : −50,000 DT.</span></div></div>
+        <div class="alert"><div class="ic" style="background:var(--warn-soft);color:var(--warn)">${icon('i-scale')}</div><div><b>Écart de poids à la réception</b><span>Dorade L-0918 : 60,0 kg reçus pour 62,0 kg facturés.</span></div></div>
+        <div class="alert"><div class="ic" style="background:var(--good-soft);color:var(--good)">${icon('i-badge')}</div><div><b>Salaires de septembre saisis</b><span>3 000,000 DT + 500,000 DT de charges patronales.</span></div></div>
+      </div></div>
+  </section>`;
+},
+};
+
+function waterfall(){
+  const rows = [
+    ['Ventes de produits de la mer', 60000, 'in'],
+    ['Coût des produits vendus', -38000],
+    ['Marge brute', 22000, 'sub'],
+    ['Salaires chauffeurs et ouvriers', -3000],
+    ['Charges patronales', -500],
+    ['Carburant', -800],
+    ['Amortissement camions', -500],
+    ['Électricité frigo', -650],
+    ['Maintenance', -450],
+    ['Emballage et glace', -350],
+    ['Autres charges', -300],
+    ['Résultat net d\'exploitation', 15450, 'total'],
+  ];
+  return '<tbody>' + rows.map(([l,v,k])=>{
+    const w = Math.max(2, Math.abs(v)/60000*100);
+    const c = k ? 'var(--sea)' : 'var(--coral)';
+    return `<tr class="${k==='total'?'total':''}"><td style="${k?'font-weight:700':''}">${l}</td><td style="width:34%"><div class="wbar" style="width:${w}%;background:${c}"></div></td><td class="r num">${v<0?'−':''}${fmt(Math.abs(v))}</td></tr>`;
+  }).join('') + '</tbody>';
+}
+
+function place(artId, title, sub, key){
+  const kgs = PRODUCTS.reduce((s,p)=>s+p.stock[key],0);
+  const val = PRODUCTS.reduce((s,p)=>s+p.stock[key]*p.price*0.62,0);
+  return `<div class="card place"><div class="pic"><svg viewBox="0 0 120 86" aria-hidden="true"><use href="#${artId}"/></svg></div>
+    <div style="min-width:0"><h3>${title}</h3><p class="muted" style="font-size:.82rem">${sub}</p>
+    <p style="margin-top:6px"><b class="num">${kg(kgs)}</b> <span class="muted" style="font-size:.82rem">· valeur ${fmt(val,0)} DT</span></p></div></div>`;
+}
+
+function soon(id){
+  const n = NAV.find(x=>x.id===id);
+  const what = {
+    ventes:'Factures, paiements partiels et reçus. Chaque facture garde le prix et le coût du jour.',
+    clients:'Fiches clients, historique, plafond de crédit et relances des impayés.',
+    achats:'Bon de commande, réception avec poids réel, facture fournisseur, paiement.',
+    fourn:'Fiches fournisseurs, soldes, et accords de dépôt-vente ou de partenariat.',
+    charges:'Carburant, électricité, glace, entretien… avec justificatif et validation.',
+    salaires:'Fiches employés, salaires du mois, primes et paiements.',
+  }[id];
+  return `<div class="head"><div><span class="eyebrow">Module</span><h1>${n.label}</h1></div></div>
+  <section class="card soon"><svg class="art" viewBox="0 0 160 110" aria-hidden="true"><use href="#p-mix"/></svg>
+    <div style="max-width:52ch;display:flex;flex-direction:column;gap:8px"><span class="pill sea" style="align-self:flex-start">Non maquetté dans ce prototype</span><p>${what}</p>
+    <p class="muted" style="font-size:.88rem">Les écrans maquettés : Tableau de bord, Devis, Stock, Partage des bénéfices et Clôture mensuelle.</p></div></section>`;
+}
+
+function go(id){
+  current = id; renderSide();
+  document.getElementById('main').innerHTML = (SCREENS[id] || (()=>soon(id)))();
+  try{ localStorage.setItem('fdm-screen', id) }catch(e){}
+}
+document.getElementById('side').addEventListener('click', e=>{const b=e.target.closest('[data-go]'); if(b) go(b.dataset.go)});
+
+/* ---------------- truck (phone) ---------------- */
+const truck = {tab:'jour', sales:[], pick:null, qty:'2', paid:'', client:0, declared:'', expenses:0};
+const START_CASH = 0;
+const TABS = [['jour','Ma journée','i-home'],['stock','Mon stock','i-box'],['vente','Vente','i-receipt'],['cloture','Clôture','i-lock']];
+
+function phNav(){
+  document.getElementById('ph-nav').innerHTML = TABS.map(([id,l,ic])=>`<button data-tab="${id}" ${truck.tab===id?'aria-current="page"':''}>${icon(ic)}${l}</button>`).join('');
+}
+const sold = () => truck.sales.reduce((s,x)=>s+x.total,0);
+const cash = () => truck.sales.reduce((s,x)=>s+x.paid,0);
+const credit = () => sold()-cash();
+const expenses = () => truck.expenses;
+
+const PH = {
+jour: () => `
+  <div class="ph-card" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div><span class="eyebrow">Vendu aujourd'hui</span><div class="num" style="font-weight:700;font-size:1.15rem">${dt(sold())}</div></div>
+    <div><span class="eyebrow">En caisse</span><div class="num" style="font-weight:700;font-size:1.15rem">${dt(cash()-expenses())}</div></div>
+  </div>
+  <div class="big-actions">
+    <button class="hot" data-tab="vente"><span class="ic">${icon('i-plus')}</span>Nouvelle vente</button>
+    <button data-tab="stock"><span class="ic">${icon('i-box')}</span>Mon stock</button>
+    <button data-expense="45"><span class="ic">${icon('i-fuel')}</span>Dépense</button>
+    <button data-toast="Perte signalée à l'administration"><span class="ic">${icon('i-trash')}</span>Perte / abîmé</button>
+  </div>
+  <div class="ph-card"><h3 style="margin-bottom:6px">Ventes du jour</h3>
+    ${truck.sales.length ? `<ul class="lines">${truck.sales.map(s=>`<li><span>${s.client}<br><span class="muted" style="font-size:.78rem">${s.prod} · ${kg(s.qty)}</span></span><span class="num" style="text-align:right">${dt(s.total)}${s.total>s.paid?`<br><span class="pill warn">reste ${fmt(s.total-s.paid)}</span>`:''}</span></li>`).join('')}</ul>`
+      : `<p class="muted" style="font-size:.88rem">Aucune vente pour l'instant. Touchez « Nouvelle vente » pour commencer.</p>`}
+  </div>`,
+stock: () => `
+  <div class="ph-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3>Stock du camion</h3><span class="pill sea">${kg(PRODUCTS.reduce((s,p)=>s+p.stock.c1,0))}</span></div>
+  ${PRODUCTS.map(p=>`<div class="stock-row"><div class="thumb">${art(p.art)}</div><div class="nm"><b>${p.name}</b><span>${fmt(p.price)} DT/kg · ${p.lot}</span></div><div class="kg">${p.stock.c1>0?kg(p.stock.c1):'<span class="pill bad">vide</span>'}</div></div>`).join('')}
+  </div>
+  <button class="btn wide" data-toast="Demande de retour au frigo envoyée">${icon('i-return')}Retourner au frigo</button>`,
+vente: () => {
+  const p = PRODUCTS.find(x=>x.id===truck.pick);
+  const q = parseFloat(String(truck.qty).replace(',','.'))||0;
+  const tot = p ? q*p.price : 0;
+  const paid = truck.paid===''? tot : (parseFloat(String(truck.paid).replace(',','.'))||0);
+  const over = p && q>p.stock.c1;
+  return `
+  <div class="field"><label for="ph-client">Client</label><select id="ph-client">${CLIENTS.map((c,i)=>`<option value="${i}" ${i==truck.client?'selected':''}>${c.name}</option>`).join('')}</select>
+    ${CLIENTS[truck.client].balance>0?`<span class="pill warn" style="align-self:flex-start">Doit déjà ${dt(CLIENTS[truck.client].balance)}</span>`:''}</div>
+  <div class="field"><label>Produit</label><div class="prodpick">${PRODUCTS.map(x=>`<button data-pick="${x.id}" aria-pressed="${x.id===truck.pick}" ${x.stock.c1<=0?'disabled':''}>${art(x.art)}<span>${x.name}</span><span class="muted num">${fmt(x.stock.c1,1)} kg</span></button>`).join('')}</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="field"><label for="ph-qty">Poids (kg)</label><input id="ph-qty" inputmode="decimal" value="${truck.qty}"></div>
+    <div class="field"><label for="ph-paid">Payé (DT)</label><input id="ph-paid" inputmode="decimal" placeholder="${p?fmt(tot):'—'}" value="${truck.paid}"></div>
+  </div>
+  <div class="ph-card">
+    <div class="sumline"><span class="muted">${p?`${fmt(q,3)} kg × ${fmt(p.price)}`:'Choisissez un produit'}</span><span class="num">${dt(tot)}</span></div>
+    <div class="sumline"><span class="muted">Payé maintenant</span><span class="num">${dt(Math.min(paid,tot))}</span></div>
+    <div class="sumline big"><span>Reste à payer</span><span class="num" style="color:${tot-paid>0?'var(--coral)':'var(--good)'}">${dt(Math.max(0,tot-paid))}</span></div>
+    ${over?`<p class="pill bad" style="margin-top:6px">Seulement ${kg(p.stock.c1)} dans le camion</p>`:''}
+  </div>
+  <button class="btn primary wide" id="ph-validate" ${!p||q<=0||over?'disabled style="opacity:.5"':''}>${icon('i-check')}Valider la vente</button>`;
+},
+cloture: () => {
+  const expected = START_CASH + cash() - expenses();
+  const decl = truck.declared===''? null : (parseFloat(String(truck.declared).replace(',','.'))||0);
+  const diff = decl===null? null : decl-expected;
+  return `
+  <div class="ph-card"><h3 style="margin-bottom:6px">Résumé de la journée</h3><ul class="lines">
+    <li><span>Ventes</span><span class="num">${dt(sold())}</span></li>
+    <li><span>Encaissé en espèces</span><span class="num">${dt(cash())}</span></li>
+    <li><span>Vendu à crédit</span><span class="num">${dt(credit())}</span></li>
+    <li><span>Dépenses (carburant)</span><span class="num">${expenses()?'−':''}${dt(expenses())}</span></li>
+    <li style="font-weight:700"><span>Caisse attendue</span><span class="num">${dt(expected)}</span></li></ul></div>
+  <div class="field"><label for="ph-declared">Espèces comptées (DT)</label><input id="ph-declared" inputmode="decimal" placeholder="Saisir le montant compté" value="${truck.declared}"></div>
+  ${diff===null?'':`<div class="ph-card" style="text-align:center"><span class="eyebrow">Écart</span><div class="diff num" style="color:${Math.abs(diff)<0.0005?'var(--good)':'var(--warn)'}">${diff>0?'+':diff<0?'−':''}${dt(Math.abs(diff))}</div>
+     <p class="muted" style="font-size:.82rem">${Math.abs(diff)<0.0005?'Caisse juste.':'L’écart sera vérifié par l’administration, avec une justification.'}</p></div>`}
+  <button class="btn primary wide" data-toast="Journée clôturée et envoyée à l'administration">${icon('i-lock')}Clôturer ma journée</button>`;
+},
+};
+
+function phRender(keepFocus){
+  const focusId = document.activeElement && document.activeElement.id;
+  const pos = focusId && document.activeElement.selectionStart;
+  phNav();
+  document.getElementById('ph-body').innerHTML = PH[truck.tab]();
+  document.getElementById('ph-title').textContent = {jour:'Bonjour Karim', stock:'Mon stock', vente:'Nouvelle vente', cloture:'Clôture du jour'}[truck.tab];
+  if(keepFocus && focusId){const el=document.getElementById(focusId); if(el){el.focus(); try{el.setSelectionRange(pos,pos)}catch(e){}}}
+}
+let toastT;
+function toast(msg){const t=document.getElementById('toast');document.getElementById('toast-msg').textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+
+document.getElementById('truck').addEventListener('click', e=>{
+  const tab = e.target.closest('[data-tab]'); if(tab){truck.tab=tab.dataset.tab; phRender(); return}
+  const pk = e.target.closest('[data-pick]'); if(pk){truck.pick=pk.dataset.pick; phRender(); return}
+  const ex = e.target.closest('[data-expense]'); if(ex){truck.expenses += +ex.dataset.expense; phRender(); toast('Carburant 45,000 DT payé de la caisse, en attente de validation'); return}
+  const ts = e.target.closest('[data-toast]'); if(ts){toast(ts.dataset.toast); return}
+  if(e.target.closest('#ph-validate')){
+    const p = PRODUCTS.find(x=>x.id===truck.pick); const q = parseFloat(String(truck.qty).replace(',','.'));
+    const tot = Math.round(q*p.price*1000)/1000;
+    const paid = truck.paid===''? tot : Math.min(tot, parseFloat(String(truck.paid).replace(',','.'))||0);
+    p.stock.c1 = Math.round((p.stock.c1-q)*10)/10;
+    const c = CLIENTS[truck.client]; c.balance += tot-paid;
+    truck.sales.unshift({client:c.name, prod:p.name, qty:q, total:tot, paid});
+    truck.pick=null; truck.qty='2'; truck.paid='';
+    toast(tot>paid?`Vente enregistrée. ${dt(tot-paid)} ajoutés au crédit client.`:'Vente enregistrée et payée.');
+    truck.tab='jour'; phRender();
+  }
+});
+document.getElementById('truck').addEventListener('input', e=>{
+  if(e.target.id==='ph-qty'){truck.qty=e.target.value; phRender(true)}
+  if(e.target.id==='ph-paid'){truck.paid=e.target.value; phRender(true)}
+  if(e.target.id==='ph-declared'){truck.declared=e.target.value; phRender(true)}
+});
+document.getElementById('truck').addEventListener('change', e=>{
+  if(e.target.id==='ph-client'){truck.client=+e.target.value; phRender()}
+});
+
+/* ---------------- view switch ---------------- */
+function view(v){
+  document.getElementById('admin').hidden = v!=='admin';
+  document.getElementById('truck').hidden = v!=='truck';
+  document.getElementById('sw-admin').setAttribute('aria-pressed', v==='admin');
+  document.getElementById('sw-truck').setAttribute('aria-pressed', v==='truck');
+  if(v==='admin') go(current); // refresh stock numbers after truck sales
+}
+document.getElementById('sw-admin').onclick=()=>view('admin');
+document.getElementById('sw-truck').onclick=()=>view('truck');
+
+let start='dash'; try{start=localStorage.getItem('fdm-screen')||'dash'}catch(e){}
+if(location.hash==='#camion'){view('truck')}
+current = NAV.some(n=>n.id===start)?start:'dash';
+go(current); phRender();
+</script>
+</body>
+</html>
