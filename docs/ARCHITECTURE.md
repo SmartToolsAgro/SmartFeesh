@@ -21,12 +21,12 @@ possible without a rewrite.
 
 | Layer | Choice |
 |---|---|
-| Backend | Python 3.12, Django 5.2 LTS, Django REST Framework, drf-spectacular (OpenAPI) |
+| Backend | Python 3.13 (3.12+ supported), uv for dependencies, Django 5.2 LTS, Django REST Framework, drf-spectacular (OpenAPI) |
 | Database | PostgreSQL 16+ |
 | Jobs | Celery + Redis, added when first needed (PDF generation in Phase 2) |
 | Files | django-storages → S3-compatible bucket (local folder in dev) |
 | PDFs | WeasyPrint (HTML templates → PDF) |
-| Frontend | React + TypeScript, Vite, pnpm workspaces + Turborepo |
+| Frontend | React 19 + TypeScript 6, Vite 8, pnpm workspaces + Turborepo |
 | Server state | TanStack Query |
 | Client state | Zustand (UI state, multi-step forms, offline queue) |
 | Forms / validation | React Hook Form + Zod (Zod schemas generated from OpenAPI with orval) |

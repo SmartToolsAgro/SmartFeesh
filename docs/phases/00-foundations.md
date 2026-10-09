@@ -28,16 +28,21 @@ test for the profit engine (P6-T05).
 
 ### P0-T03 · Monorepo scaffold · owner: agent · M
 Read: ARCHITECTURE §2–3.
-- [ ] `backend/`: Django 5.2 project with split settings (base/dev/test/prod), env vars via django-environ,
+- [x] `backend/`: Django 5.2 project with split settings (base/dev/test/prod), env vars via django-environ,
       DRF, drf-spectacular, `apps/` package, health endpoint `/api/v1/health`.
-- [ ] `frontend/`: pnpm workspace + Turborepo; `apps/admin`, `apps/truck` (Vite + React + TS),
+- [x] `frontend/`: pnpm workspace + Turborepo; `apps/admin`, `apps/truck` (Vite + React + TS),
       `packages/ui`, `packages/api` (empty for now).
-- [ ] `docker-compose.yml`: postgres, redis, backend, admin, truck. One `Makefile` (or `justfile`) with
+- [x] `docker-compose.yml`: postgres, redis, backend, admin, truck. One `Makefile` (or `justfile`) with
       `dev`, `test`, `lint`, `migrate`, `gen-api`.
-- [ ] `.env.example`, `.gitignore`, `.editorconfig`, top-level README with how to run.
-- [ ] Fill the **Commands** section of `CLAUDE.md`.
+- [x] `.env.example`, `.gitignore`, `.editorconfig`, top-level README with how to run.
+- [x] Fill the **Commands** section of `CLAUDE.md`.
 
 **Acceptance:** fresh clone → `make dev` → health endpoint returns 200, both front ends render a page.
+
+_Done 2026-10-09. Verified without Docker (local PostgreSQL + `make backend` / `make frontend`): health 200,
+both apps load and show "Serveur connecté" through the dev proxy, 2 backend tests pass, both apps build.
+`docker-compose.yml` passes `docker compose config` but was **not run** (no Docker daemon in the cloud
+session). First person with Docker: run `make dev` once and report._
 
 ### P0-T04 · Quality tooling & CI · owner: agent · S
 - [ ] Backend: ruff (lint + format), mypy with django-stubs, pytest + pytest-django + factory_boy,

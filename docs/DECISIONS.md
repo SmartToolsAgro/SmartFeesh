@@ -49,3 +49,12 @@ STATUS before ending. Tasks have IDs (`P1-T06`) so the pointer is exact.
 **D-011 · Third-party agent skill `find-skills` vendored in `.claude/skills/`** · accepted · 2026-10-09
 Installed at the user's request from vercel-labs/skills (commit 13e4063). It is committed to the repo
 (not installed user-level) because cloud sessions start from a fresh clone. Review any skill before adding it.
+
+**D-012 · Exact, two-week-old dependency versions; TypeScript 6.0 for now** · accepted · 2026-10-09
+JS packages are pinned to exact versions released at least two weeks earlier, which lowers the risk of
+a compromised fresh release. TypeScript stays on 6.0 because typescript-eslint supports `<6.1`; move to
+7.x when it is supported. Python dependencies are locked with uv (`backend/uv.lock`).
+
+**D-013 · uv for Python, pnpm for JavaScript** · accepted · 2026-10-09
+Both are fast, produce lockfiles, and are already used in CI images. Dev Docker images run the same
+tools (`ghcr.io/astral-sh/uv`, `node:22` + corepack).

@@ -41,4 +41,18 @@ dinars (DT) with 3 decimals.
 
 ## Commands
 
-Not scaffolded yet (task P0-T03). Fill this in when it exists: dev server, tests, lint, migrations.
+| What | Command |
+|---|---|
+| Whole stack in Docker | `make dev` (admin :5173, driver :5174, API :8000) |
+| Install locally | `make install` (backend: `uv sync`; frontend: `pnpm install`) |
+| Backend / frontend dev servers | `make backend`, `make frontend` (need PostgreSQL at `DATABASE_URL`) |
+| Tests | `make test` (pytest + TypeScript type checks) |
+| Migrations | `make makemigrations`, `make migrate` |
+| One backend test | `cd backend && uv run pytest apps/core/tests/test_health.py` |
+| Add a Python package | `cd backend && uv add <pkg>` (dev: `uv add --dev <pkg>`) |
+| Add a JS package | `cd frontend && pnpm --filter @frutti/admin add <pkg>` |
+
+Cloud sessions without Docker: PostgreSQL 16 is installed; start it with `pg_ctlcluster 16 main start`,
+then create the role/database from `.env.example` with `runuser -u postgres -- psql`.
+
+Pin new JS packages to an exact version that is at least two weeks old (see D-012).

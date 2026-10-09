@@ -10,4 +10,15 @@ invoicing, a phone app for drivers, expenses and payroll, and month-end profit s
 - **Questions for the client:** [`docs/OPEN_QUESTIONS.md`](docs/OPEN_QUESTIONS.md).
 - **Full business brief:** [`docs/spec/project-brief.md`](docs/spec/project-brief.md).
 
+## Run it
+
+```bash
+make dev          # Docker: database, API, admin (http://localhost:5173), driver app (http://localhost:5174)
+```
+
+Without Docker: copy `.env.example` to `.env`, start PostgreSQL, then `make install`, `make migrate`,
+and run `make backend` and `make frontend` in two terminals. Tests: `make test`.
+
+Requirements: Python 3.12+ with [uv](https://docs.astral.sh/uv/), Node 22.12+ with pnpm (via corepack).
+
 AI agents: start with [`CLAUDE.md`](CLAUDE.md).
