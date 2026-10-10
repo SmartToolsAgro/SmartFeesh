@@ -19,7 +19,7 @@ POSTGRES_PASSWORD=$(openssl rand -hex 24)
 DJANGO_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')
 DJANGO_ALLOWED_HOSTS=$PUBLIC_HOST
 DJANGO_CSRF_TRUSTED_ORIGINS=http://$PUBLIC_HOST:8095,http://$PUBLIC_HOST:8096
-DEMO_PASSWORD=$(openssl rand -base64 12 | tr -d '/+=\n')
+DEMO_PASSWORD=$(openssl rand -hex 12)
 SENTRY_DSN=
 EOF
 fi

@@ -40,8 +40,6 @@ class Command(BaseCommand):
             if not settings.DEBUG:
                 raise CommandError("Outside development, give the demo password with --password.")
             password = DEV_PASSWORD
-        elif len(password) < MIN_PASSWORD_LENGTH:
-            raise CommandError(f"The password must have at least {MIN_PASSWORD_LENGTH} characters.")
 
         organization = Organization.objects.filter(name=ORGANIZATION_NAME).first()
         if organization is None:
@@ -50,6 +48,9 @@ class Command(BaseCommand):
         for username, first_name, last_name, role in DEV_USERS:
             user = User.objects.filter(username=username).first()
             if user is None:
+                # Checked only for a new account: an existing one keeps its password, whatever is given.
+                if password != DEV_PASSWORD and len(password) < MIN_PASSWORD_LENGTH:
+                    raise CommandError(f"The password must have at least {MIN_PASSWORD_LENGTH} characters.")
                 user = services.create_user(
                     username=username, password=password, first_name=first_name, last_name=last_name
                 )
