@@ -38,7 +38,12 @@ services:
     depends_on:
       db: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      # Sends the public host name: Django refuses any Host not in DJANGO_ALLOWED_HOSTS.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request as r; r.urlopen(r.Request('http://127.0.0.1:8000/api/v1/health', headers={'Host': os.environ['DJANGO_ALLOWED_HOSTS'].split(',')[0]}))"
       interval: 10s
       timeout: 5s
       retries: 12
