@@ -287,3 +287,18 @@ dependencies and starts PostgreSQL with the `frutti` role.
 - Demo batches have no stock yet: the ledger (P1-T06) or the receipts (P1-T07) should give them an
   opening stock in the seed.
 
+**D-036 · One host name per app on staging; the apps re-read the session when refused** · accepted · 2026-10-10
+- Browsers keep cookies per host name, not per port. With both staging apps on 217.182.205.137, logging
+  in as `driver` on the driver app replaced the owner's session in the admin app, whose requests then
+  got 403. Staging now serves each app on its own name from sslip.io (a public DNS that answers the
+  address written in the name): `admin.217-182-205-137.sslip.io:8095` and
+  `chauffeur.217-182-205-137.sslip.io:8096`. The bare address redirects to the name. Production gets
+  one name per app on the real domain for the same reason.
+- `remote-deploy.sh` writes `DJANGO_ALLOWED_HOSTS` and `DJANGO_CSRF_TRUSTED_ORIGINS` on every deploy
+  (they are not secrets), so servers set up earlier follow. sslip.io is an outside service: if it is
+  down, staging is unreachable by name until the domain exists.
+- Both apps build their query client with `@frutti/auth`'s `createQueryClient()`: any 401 or 403 makes
+  them read `/me` again, so an ended session shows the login screen and a session replaced by another
+  account shows the wrong-app notice, instead of a screen whose saves fail with a generic error.
+- gunicorn runs with `--no-control-socket`: its control socket wanted to write in the `app` user's home
+  folder, which does not exist in the image, and logged an error at every start. Nothing used it.

@@ -1,5 +1,5 @@
 import { applyLanguage } from "@frutti/i18n";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -7,7 +7,9 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { LoginPage } from "./LoginPage";
 import { RequireRole } from "./RequireRole";
-import { type Role, type Session, useLogout } from "./session";
+import { apiFetch } from "@frutti/api";
+
+import { createQueryClient, type Role, type Session, useLogout } from "./session";
 
 function sessionFor(role: Role): Session {
   return {
@@ -28,6 +30,10 @@ function json(status: number, body: unknown) {
 /** A fake server: `/me` answers with the current session, login and logout change it. */
 function fakeServer(initial: Session | null, accounts: Record<string, Session> = {}) {
   let current = initial;
+  // Lets a test log another account in "from another tab": the cookie, hence the session, is replaced.
+  switchTo = (session) => {
+    current = session;
+  };
   const calls: { path: string; method: string; csrf: string | null }[] = [];
   const handler = vi.fn((input: string, init?: RequestInit) => {
     const path = input.replace("/api/v1", "");
@@ -50,6 +56,10 @@ function fakeServer(initial: Session | null, accounts: Record<string, Session> =
       current = account;
       return Promise.resolve(json(200, account));
     }
+    if (path === "/products/5") {
+      const allowed = current?.role === "owner";
+      return Promise.resolve(allowed ? json(200, {}) : json(current ? 403 : 401, { detail: "Refusé" }));
+    }
     if (path === "/auth/logout") {
       current = null;
       return Promise.resolve(json(204, null));
@@ -60,12 +70,18 @@ function fakeServer(initial: Session | null, accounts: Record<string, Session> =
   return calls;
 }
 
+let switchTo: (session: Session | null) => void = () => undefined;
+
 // The logout button lives in a child of the guard, as in the real apps.
 function Home({ session }: { session: Session }) {
   const logout = useLogout();
+  const save = useMutation({ mutationFn: () => apiFetch("/api/v1/products/5", { method: "PATCH" }) });
   return (
     <>
       <p>Bonjour {session.user.first_name}</p>
+      <button type="button" onClick={() => save.mutate()}>
+        Enregistrer
+      </button>
       <button type="button" onClick={() => logout.mutate()}>
         Quitter
       </button>
@@ -74,7 +90,7 @@ function Home({ session }: { session: Session }) {
 }
 
 function renderApp(allow: Role[], start = "/") {
-  const queryClient = new QueryClient();
+  const queryClient = createQueryClient();
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[start]}>
@@ -181,4 +197,28 @@ test("the app follows the language saved on the account, including the reading d
   expect(await screen.findByText("Bonjour Sami")).toBeDefined();
   await waitFor(() => expect(document.documentElement.dir).toBe("rtl"));
   expect(document.documentElement.lang).toBe("ar");
+});
+
+test("a login to another account in another tab shows at the next refused request", async () => {
+  fakeServer({ ...sessionFor("owner"), user: { ...sessionFor("owner").user, first_name: "Nadia" } });
+  const user = userEvent.setup();
+  renderApp(["owner", "manager", "accountant"]);
+  await screen.findByText("Bonjour Nadia");
+
+  switchTo(sessionFor("driver"));
+  await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+  expect((await screen.findByRole("alert")).textContent).toBe("Mauvaise application");
+});
+
+test("a session that ended shows the login screen at the next refused request", async () => {
+  fakeServer(sessionFor("owner"));
+  const user = userEvent.setup();
+  renderApp(["owner"]);
+  await screen.findByText("Bonjour Sami");
+
+  switchTo(null);
+  await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+  expect(await screen.findByRole("form", { name: "Connexion" })).toBeDefined();
 });
