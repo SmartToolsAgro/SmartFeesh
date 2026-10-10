@@ -15,8 +15,8 @@ revend. Le Partenaire reçoit une part du bénéfice net réalisé sur **ses pro
 **Article 2 · Apport.** Le Partenaire apporte un capital de **20 000,000 DT**, suivi dans un compte
 distinct des factures d'achat et des parts de bénéfice.
 
-**Article 3 · Part de bénéfice.** La part du Partenaire est de **30 %** du bénéfice net mensuel de ses
-produits.
+**Article 3 · Part de bénéfice.** Si le mois est bénéficiaire, la part du Partenaire est de **30 %** du
+bénéfice net mensuel de ses produits.
 
 **Article 4 · Calcul du bénéfice net.** Pour chaque mois :
 1. ventes du mois des produits du Partenaire (ventes réalisées, qu'elles soient encaissées ou non) ;
@@ -31,8 +31,10 @@ Le stock non vendu n'est pas une charge du mois : il reste valorisé à son coû
 **Article 5 · Remboursement du capital.** Les versements mensuels remboursent d'abord le capital. Une fois
 le capital entièrement remboursé, ils constituent la part de bénéfice du Partenaire.
 
-**Article 6 · Mois déficitaire.** Si le résultat du mois est une perte, le Partenaire en supporte **30 %**,
-déduits de son capital restant. _Cas d'une perte supérieure au capital restant : à définir._
+**Article 6 · Mois déficitaire.** Si le résultat du mois est une perte, le Partenaire en supporte **20 %**
+(taux de perte, distinct du taux de bénéfice), déduits de son capital restant. Si cette part dépasse le
+capital restant, l'excédent est dû par le Partenaire et se récupère sur ses prochaines parts de bénéfice
+_(règle provisoire, à confirmer par le client)_.
 
 **Article 7 · Clôture mensuelle.** Le comptable vérifie la clôture, puis le gérant l'approuve. Un relevé
 détaillé est remis au Partenaire : ventes, coûts, charges réparties, part, versements, soldes.
