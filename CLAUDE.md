@@ -46,7 +46,10 @@ dinars (DT) with 3 decimals.
 | Whole stack in Docker | `make dev` (admin :5173, driver :5174, API :8000) |
 | Install locally | `make install` (backend: `uv sync`; frontend: `pnpm install`) |
 | Backend / frontend dev servers | `make backend`, `make frontend` (need PostgreSQL at `DATABASE_URL`) |
-| Tests | `make test` (pytest + TypeScript type checks) |
+| Tests | `make test` (pytest + TypeScript type checks + vitest) |
+| Lint, format check, types, app boundaries | `make lint` (ruff, mypy, import-linter, eslint, prettier); CI runs the same |
+| Auto-format | `make format` |
+| Git hooks (once per clone) | `make hooks` |
 | Migrations | `make makemigrations`, `make migrate` |
 | One backend test | `cd backend && uv run pytest apps/core/tests/test_health.py` |
 | Add a Python package | `cd backend && uv add <pkg>` (dev: `uv add --dev <pkg>`) |

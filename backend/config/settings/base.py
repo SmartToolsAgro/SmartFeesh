@@ -64,9 +64,7 @@ TEMPLATES = [
 ]
 
 DATABASES = {
-    "default": env.db(
-        "DATABASE_URL", default="postgres://frutti:frutti@localhost:5432/frutti"
-    ),
+    "default": env.db("DATABASE_URL", default="postgres://frutti:frutti@localhost:5432/frutti"),
 }
 DATABASES["default"]["ATOMIC_REQUESTS"] = False  # transactions are explicit, in services
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

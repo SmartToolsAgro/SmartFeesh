@@ -47,13 +47,19 @@ both apps load and show "Serveur connecté" through the dev proxy, 2 backend tes
 session). First person with Docker: run `make dev` once and report._
 
 ### P0-T04 · Quality tooling & CI · owner: agent · S
-- [ ] Backend: ruff (lint + format), mypy with django-stubs, pytest + pytest-django + factory_boy,
+- [x] Backend: ruff (lint + format), mypy with django-stubs, pytest + pytest-django + factory_boy,
       import-linter contract (apps only use each other's `services`/`selectors`; `core` imports nothing).
-- [ ] Frontend: eslint, prettier, `tsc --noEmit`, vitest.
-- [ ] GitHub Actions: backend job (with Postgres service) and frontend job, on every push and PR.
-- [ ] pre-commit hooks for formatting.
+- [x] Frontend: eslint, prettier, `tsc --noEmit`, vitest.
+- [x] GitHub Actions: backend job (with Postgres service) and frontend job, on every push and PR.
+- [x] pre-commit hooks for formatting.
 
 **Acceptance:** CI green on the branch; a deliberate lint error fails CI.
+
+_Built 2026-10-10 (D-021). Verified locally on Windows: `ruff check`, `ruff format --check`, `mypy`,
+`lint-imports`, 12 backend tests against PostgreSQL 16, `eslint`, `prettier --check`, `tsc`, 2 vitest
+tests, pre-commit on all files; a deliberate error makes ruff, eslint and the boundary contract fail.
+**Not verified:** the GitHub Actions workflow itself has never run, because the branch is not pushed.
+First push: check that both jobs are green, and fix the workflow if an action input changed._
 
 ### P0-T05 · Core app: organization, users, roles, audit · owner: agent · M
 Read: ARCHITECTURE §4 rules 1, 2, 6, 8, 9.

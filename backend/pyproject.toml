@@ -14,8 +14,15 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "django-stubs>=6.1.2",
+    "djangorestframework-stubs>=3.18.1",
+    "factory-boy>=3.3.3",
+    "import-linter>=2.15",
+    "mypy>=2.4.0",
+    "pre-commit>=4.6.2",
     "pytest>=8.3",
     "pytest-django>=4.9",
+    "ruff>=0.17.0",
 ]
 
 [tool.uv]
@@ -25,3 +32,59 @@ package = false
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["migrations"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # import order
+    "UP",           # modern syntax
+    "B",            # likely bugs
+    "BLE",          # blind except
+    "C4",           # comprehensions
+    "DJ",           # Django
+    "DTZ",          # naive datetimes
+    "PT",           # pytest style
+    "SIM",          # simplifications
+    "T20",          # stray print
+    "RUF",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config", "tooling"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+warn_unreachable = true
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+# Tests stay readable without annotations on every fixture and test function.
+module = ["*.tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = ["environ.*", "factory.*", "grimp.*", "importlinter.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+[tool.importlinter]
+root_packages = ["apps"]
+exclude_type_checking_imports = true
+contract_types = ["app_boundaries: tooling.import_contracts.AppBoundariesContract"]
+
+[[tool.importlinter.contracts]]
+name = "Apps only use each other's services and selectors; core depends on no other app"
+type = "app_boundaries"

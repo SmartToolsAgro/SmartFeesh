@@ -5,17 +5,17 @@ _Last updated: 2026-10-10_
 ## Where we are
 
 - **Phase:** 0 · Discovery & foundations (`docs/phases/00-foundations.md`)
-- **Current task:** P0-T04 · Quality tooling & CI (owner: agent)
+- **Current task:** P0-T05 · Core app: organization, users, roles, audit (owner: agent)
 - **In parallel (human):** P0-T01 client workshop, P0-T02 profit-sharing worked example
 
 ## Next step (do this first)
 
-Agent: start **P0-T04**. Read only the P0-T04 section of the phase file. Add ruff, mypy + django-stubs,
-import-linter (backend) and eslint + prettier + vitest (frontend), then a GitHub Actions workflow with a
-Postgres service that runs `make test` plus the linters. Keep JS versions pinned per D-012.
-
-After P0-T04, do **P0-T05** (custom User model). It must be the **first migration** in the project:
-do not run `migrate` on a shared database before it exists. Roles now include `accountant` (Q9).
+1. **Push the branch `p0-t04-quality-ci` and check CI.** The workflow has never run. Both jobs must be
+   green; if an action input changed, fix `.github/workflows/ci.yml`. That closes P0-T04's acceptance.
+2. Agent: start **P0-T05**. Read only its section of the phase file and ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
+   The custom `User` model must be the **first migration** in the project: do not run `migrate` on a
+   shared database before it exists. Roles: `owner`, `manager`, `driver`, `accountant` (Q9). Add the
+   `language` preference (fr | ar) on the user now if convenient; P0-T08 needs it.
 
 ## Blockers / waiting on client
 
@@ -32,8 +32,11 @@ do not run `migrate` on a shared database before it exists. Roles now include `a
 
 ## Watch out
 
-- The Docker stack (`make dev`) has not been run yet: no Docker daemon in cloud sessions. Everything was
-  verified with a local PostgreSQL instead. Whoever has Docker: run it once and note the result here.
+- The Docker stack (`make dev`) has not been run yet. Whoever has Docker: run it once and note the result.
+- Mahmoud's Windows machine: no `make`, `pnpm`, `docker` or `psql` on the PATH; corepack cannot download
+  pnpm there, `npx -y pnpm@10.28.0 <command>` works. A PostgreSQL 18 service listens on 5432 but has no
+  `frutti` role yet: create it from `.env.example` to run the backend tests.
+- Run `make lint` before every commit (or `make hooks` once); CI runs the same checks.
 - P3-T10 (Bluetooth printing on iPhone) may force a native wrapper for the truck app. Its spike decides;
   until then the truck app stays a PWA (D-002, D-003, D-015).
 - VAT rate, stamp, prices with or without VAT, withholding rate and the over-credit-limit behaviour are
@@ -43,14 +46,15 @@ do not run `migrate` on a shared database before it exists. Roles now include `a
 
 ## Last session (2026-10-10)
 
-- Q1–Q17 answered by Mahmoud, with their details, and written in `docs/OPEN_QUESTIONS.md`. No code changed.
-- Plan updated for the answers: Arabic for drivers → P3-T09, Bluetooth receipt printing → P3-T10,
-  multi-company task list in Phase 8, Phases 0–6 adjusted, roadmap updated (D-015).
-- Decisions: D-014 FIFO costing confirmed, D-016 TTN on hold, D-017 VPS hosting, D-018 finance settings,
-  D-019 OVH and stand-in sample data (`docs/spec/sample/`, 6 CSV files, invoice and agreement models).
+- Q1–Q17 answered by Mahmoud and written in `docs/OPEN_QUESTIONS.md`; plan updated (D-014 to D-020);
+  stand-in sample data added in `docs/spec/sample/`.
+- **P0-T04 built** (D-021): ruff, mypy + django-stubs, a custom import-linter boundary contract, factory_boy,
+  eslint (type-aware), prettier, vitest with a first component test, GitHub Actions workflow, pre-commit
+  hooks, `make lint` / `make format` / `make hooks`, `.gitattributes` for LF. All checks pass locally,
+  including 12 backend tests on PostgreSQL 16. CI itself is unverified until the first push.
 
 ## Recently done
 
+- 2026-10-10 · P0-T04 quality tooling and CI (CI run pending)
 - 2026-10-10 · Client questions answered, plan updated
 - 2026-10-09 · P0-T03 monorepo scaffold
-- 2026-10-09 · Prototype + development plan + find-skills skill

@@ -1,0 +1,9 @@
+# LF everywhere, matching .editorconfig, so formatters agree on Windows, macOS and Linux.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff2 binary

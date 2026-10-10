@@ -17,7 +17,8 @@ make dev          # Docker: database, API, admin (http://localhost:5173), driver
 ```
 
 Without Docker: copy `.env.example` to `.env`, start PostgreSQL, then `make install`, `make migrate`,
-and run `make backend` and `make frontend` in two terminals. Tests: `make test`.
+and run `make backend` and `make frontend` in two terminals. Tests: `make test`. Lint, format and type
+checks: `make lint` (CI runs the same on every push); auto-format: `make format`; git hooks: `make hooks`.
 
 Requirements: Python 3.12+ with [uv](https://docs.astral.sh/uv/), Node 22.12+ with pnpm (via corepack).
 

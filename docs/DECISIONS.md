@@ -97,3 +97,17 @@ Purchase and sale prices both change from one day to the next. Purchase cost bel
 created by each receipt, with no supplier price list. Sale price is a `ProductPrice` with a valid-from
 date and time, because it can change several times in one day; it is set from a "Prix du jour" screen. Sale lines snapshot the price charged and the batch cost, so past sales and
 closed months never move when a price changes.
+
+**D-021 · Quality tooling choices (P0-T04)** · accepted · 2026-10-10
+- Line length 120 for Python (ruff) and TypeScript (prettier): the scaffold already used long lines.
+- ESLint runs the type-aware rules, so an un-awaited promise is an error.
+- The app boundary rule is a custom import-linter contract (`backend/tooling/import_contracts.py`), so
+  new apps are covered without editing the config. Interpretation of ARCHITECTURE §3: `core` is the
+  shared kernel and may be imported whole by every app; other apps expose only `services` and
+  `selectors`; tests and `TYPE_CHECKING` imports are exempt.
+- Python is pinned to 3.13 (`backend/.python-version`), the version of the Docker image.
+- GitHub Actions are pinned to the commit of a release at least two weeks old, like JS packages (D-012).
+- `.gitattributes` forces LF line endings so formatters give the same result on Windows.
+- Known gap: D-012 covers direct JS dependencies only. pnpm's `minimumReleaseAge` would also cover
+  transitive ones, but it rejects the current lockfile (rolldown 1.2.13, two days old on 2026-10-10).
+  Turn it on the next time the lockfile is refreshed.

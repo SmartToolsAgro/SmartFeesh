@@ -1,0 +1,20 @@
+# Formatting hooks, run on the files of each commit. Install once with `make hooks`.
+# They use the tools already installed by `make install`, so versions match CI.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format (backend)
+        entry: uv run --project backend ruff format --force-exclude
+        language: system
+        files: ^backend/.*\.py$
+      - id: ruff-check
+        name: ruff check (backend)
+        entry: uv run --project backend ruff check --fix --force-exclude
+        language: system
+        files: ^backend/.*\.py$
+      - id: prettier
+        name: prettier (frontend)
+        entry: node frontend/node_modules/prettier/bin/prettier.cjs --write --ignore-unknown --ignore-path frontend/.prettierignore
+        language: system
+        files: ^frontend/
