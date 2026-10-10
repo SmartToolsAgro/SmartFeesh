@@ -6,8 +6,8 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  // packages/api is generated from the OpenAPI schema (make gen-api); never lint or edit it by hand.
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/.turbo/**", "packages/api/**"] },
+  // packages/api/src/generated comes from the OpenAPI schema (make gen-api); never lint or edit it by hand.
+  { ignores: ["**/dist/**", "**/node_modules/**", "**/.turbo/**", "packages/api/src/generated/**"] },
   js.configs.recommended,
   {
     files: ["**/*.{ts,tsx}"],

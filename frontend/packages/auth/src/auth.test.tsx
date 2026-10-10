@@ -172,8 +172,8 @@ test("logging out from the protected page returns to the login screen", async ()
 });
 
 test("the app follows the language saved on the account, including the reading direction", async () => {
-  const arabicDriver = sessionFor("driver");
-  arabicDriver.user.language = "ar";
+  const driver = sessionFor("driver");
+  const arabicDriver: Session = { ...driver, user: { ...driver.user, language: "ar" } };
   fakeServer(arabicDriver);
 
   renderApp(["driver"]);

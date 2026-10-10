@@ -13,7 +13,8 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e": "pnpm --filter @frutti/e2e e2e"
+    "e2e": "pnpm --filter @frutti/e2e e2e",
+    "gen-api": "pnpm --filter @frutti/api generate"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

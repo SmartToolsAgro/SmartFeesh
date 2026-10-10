@@ -2,4 +2,5 @@ pnpm-lock.yaml
 dist/
 .turbo/
 # Generated from the OpenAPI schema (make gen-api).
-packages/api/src/
+packages/api/src/generated/
+packages/api/openapi.yaml

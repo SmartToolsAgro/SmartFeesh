@@ -165,3 +165,13 @@ closed months never move when a price changes.
   `fr-TN` and `ar-TN` (Western digits in both). No JavaScript number is created for an amount.
 - Layout uses logical CSS (`ms-`, `me-`, `border-e`, `text-start`) so it mirrors in Arabic.
 - Server messages are written in French in the code; translations go in `backend/locale/`.
+
+**D-026 · API contract choices (P0-T09)** · accepted · 2026-10-10
+- The OpenAPI schema is committed (`frontend/packages/api/openapi.yaml`) next to the client generated
+  from it, so a pull request shows every change of the contract. CI regenerates both and fails on a
+  difference.
+- orval generates plain functions, TanStack Query hooks, types and Zod schemas. All of them go through
+  one hand-written transport, `packages/api/src/http.ts` (session cookie, CSRF token, `ApiError`).
+- Every endpoint gets an explicit `operation_id` (`login`, `getSession`, `listMembers`...): it becomes
+  the function name in the client.
+- A backend test fails on any schema warning, because a warning means a wrong type in the client.

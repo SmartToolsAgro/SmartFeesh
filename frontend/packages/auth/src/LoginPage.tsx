@@ -1,9 +1,9 @@
+import { ApiError } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import { Brand, Button, Card, Field, Input, ThemeToggle } from "@frutti/ui";
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation } from "react-router";
 
-import { ApiError } from "./api";
 import { useLogin, useSession } from "./session";
 
 /** Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"). */

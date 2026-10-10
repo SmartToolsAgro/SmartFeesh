@@ -13,6 +13,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
+    "@frutti/api": "workspace:*",
     "@frutti/i18n": "workspace:*",
     "@frutti/ui": "workspace:*",
     "@tanstack/react-query": "5.103.2",

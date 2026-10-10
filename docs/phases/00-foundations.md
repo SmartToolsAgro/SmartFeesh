@@ -116,8 +116,11 @@ looking at the screens: nobody has checked the layout in right-to-left yet. No `
 server messages, because GNU gettext was not installed where this was built._
 
 ### P0-T09 · API contract & generated client · owner: agent · S
-- [ ] drf-spectacular schema at `/api/v1/schema`; orval generates TS client + Zod schemas into `packages/api`.
-- [ ] `make gen-api`; CI fails if the generated client is out of date.
+- [x] drf-spectacular schema at `/api/v1/schema`; orval generates TS client + Zod schemas into `packages/api`.
+- [x] `make gen-api`; CI fails if the generated client is out of date.
+
+_Done 2026-10-10 (D-026). `packages/auth` already uses the generated functions and types. Generating
+twice gives identical files locally; the CI job itself has not run yet._
 
 ### P0-T10 · Cloud session hook · owner: agent · S
 - [ ] Use the `session-start-hook` skill to add a SessionStart hook that installs dependencies so tests

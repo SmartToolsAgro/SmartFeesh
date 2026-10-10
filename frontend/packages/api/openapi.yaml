@@ -1,0 +1,289 @@
+openapi: 3.0.3
+info:
+  title: Frutti Del Mare ERP API
+  version: 1.0.0
+paths:
+  /api/v1/auth/csrf:
+    get:
+      operationId: getCsrfCookie
+      description: Sets the CSRF cookie. The apps call it once before the first POST
+        (D-008).
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+        '401':
+          description: Wrong username or password
+        '403':
+          description: The account has no active role in an organization
+        '429':
+          description: Too many attempts
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      description: Liveness + database check, used by Docker, the load balancer and
+        uptime monitoring.
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/me:
+    get:
+      operationId: getSession
+      description: The logged-in user, their organization and their role.
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+    patch:
+      operationId: setLanguage
+      description: Change the language of the apps for the logged-in user.
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLanguage'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLanguage'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLanguage'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/v1/members:
+    get:
+      operationId: listMembers
+      description: Users of the organization and their roles. Owners and managers
+        only.
+      tags:
+      - members
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+          description: ''
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+        database:
+          type: string
+      required:
+      - database
+      - status
+    LanguageEnum:
+      enum:
+      - fr
+      - ar
+      type: string
+      description: |-
+        * `fr` - Français
+        * `ar` - العربية
+    Login:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+      required:
+      - password
+      - username
+    Member:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - is_active
+      - role
+      - user
+    Organization:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    PatchedLanguage:
+      type: object
+      properties:
+        language:
+          $ref: '#/components/schemas/LanguageEnum'
+    RoleEnum:
+      enum:
+      - owner
+      - manager
+      - driver
+      - accountant
+      type: string
+      description: |-
+        * `owner` - Propriétaire
+        * `manager` - Gestionnaire
+        * `driver` - Chauffeur
+        * `accountant` - Comptable
+    Session:
+      type: object
+      description: 'Who is logged in and what they may do: the answer of `/me` and
+        of a successful login.'
+      properties:
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        organization:
+          allOf:
+          - $ref: '#/components/schemas/Organization'
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        truck:
+          allOf:
+          - $ref: '#/components/schemas/TruckRef'
+          nullable: true
+          readOnly: true
+      required:
+      - organization
+      - role
+      - truck
+      - user
+    TruckRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+      - id
+      - name
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: Nom d’utilisateur
+          description: Requis. 150 caractères maximum. Uniquement des lettres, nombres
+            et les caractères « @ », « . », « + », « - » et « _ ».
+        first_name:
+          type: string
+          readOnly: true
+          title: Prénom
+        last_name:
+          type: string
+          readOnly: true
+          title: Nom
+        language:
+          allOf:
+          - $ref: '#/components/schemas/LanguageEnum'
+          readOnly: true
+      required:
+      - first_name
+      - id
+      - language
+      - last_name
+      - username
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

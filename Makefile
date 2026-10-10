@@ -1,6 +1,6 @@
 # Common commands. Docker path: `make dev`. Without Docker: `make install`, then `make backend` and
 # `make frontend` in two terminals (needs a local PostgreSQL matching DATABASE_URL in .env).
-.PHONY: dev down install hooks backend frontend migrate makemigrations seed test e2e lint format build
+.PHONY: dev down install hooks backend frontend migrate makemigrations seed gen-api test e2e lint format build
 
 dev:            ## Run the whole stack in Docker
 	docker compose up
@@ -29,6 +29,10 @@ makemigrations: ## Create migrations after model changes
 
 seed:           ## Dev data: one organization, logins owner and driver (password frutti-dev)
 	cd backend && uv run python manage.py seed_dev
+
+gen-api:        ## Regenerate the TypeScript API client after changing an endpoint or a serializer
+	cd backend && uv run python manage.py spectacular --lang fr --validate --fail-on-warn --file ../frontend/packages/api/openapi.yaml
+	cd frontend && pnpm gen-api
 
 test:           ## Backend tests + frontend type checks and tests
 	cd backend && uv run pytest

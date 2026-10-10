@@ -1,23 +1,24 @@
-import type { Language } from "@frutti/i18n";
+import {
+  ApiError,
+  getSession,
+  type LanguageEnum,
+  login,
+  type Login,
+  logout,
+  type RoleEnum,
+  type Session,
+  setLanguage,
+} from "@frutti/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ApiError, apiFetch } from "./api";
-
-export type Role = "owner" | "manager" | "driver" | "accountant";
-
-/** Answer of `/api/v1/me`: who is logged in and what they may do. */
-export interface Session {
-  user: { id: number; username: string; first_name: string; last_name: string; language: Language };
-  organization: { id: number; name: string };
-  role: Role;
-  truck: { id: number; name: string } | null;
-}
+export type Role = RoleEnum;
+export type { Session };
 
 const SESSION_KEY = ["session"] as const;
 
 async function fetchSession(): Promise<Session | null> {
   try {
-    return await apiFetch<Session>("/me");
+    return await getSession();
   } catch (error) {
     // 401: nobody is logged in. 403: logged in but without an active role. Both mean "no session".
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return null;
@@ -33,8 +34,7 @@ export function useSession() {
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (credentials: { username: string; password: string }) =>
-      apiFetch<Session>("/auth/login", { method: "POST", body: credentials }),
+    mutationFn: (credentials: Login) => login(credentials),
     onSuccess: (session) => queryClient.setQueryData(SESSION_KEY, session),
   });
 }
@@ -42,7 +42,7 @@ export function useLogin() {
 export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => apiFetch<void>("/auth/logout", { method: "POST" }),
+    mutationFn: () => logout(),
     onSuccess: () => {
       // Update the session in place so every mounted guard sees the logout at once.
       queryClient.setQueryData(SESSION_KEY, null);
@@ -56,7 +56,7 @@ export function useLogout() {
 export function useSetLanguage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (language: Language) => apiFetch<Session>("/me", { method: "PATCH", body: { language } }),
+    mutationFn: (language: LanguageEnum) => setLanguage({ language }),
     onSuccess: (session) => queryClient.setQueryData(SESSION_KEY, session),
   });
 }

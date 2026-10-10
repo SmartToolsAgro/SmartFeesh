@@ -4,21 +4,21 @@ _Last updated: 2026-10-10_
 
 ## Where we are
 
-- **Phase:** 0 · Discovery & foundations (`docs/phases/00-foundations.md`)
-- **Current task:** P0-T09 · API contract & generated client (owner: agent)
+- **Phase:** 0 · Discovery & foundations (`docs/phases/00-foundations.md`): every agent task that could
+  be done alone is done (P0-T03 to P0-T09). Left: P0-T01, P0-T02 (human), P0-T10, P0-T11 (blocked, below).
+- **Current task:** P1-T01 · Units and conversions (`docs/phases/01-stock-core.md`), once CI is confirmed
 - **In parallel (human):** P0-T01 client workshop, P0-T02 profit-sharing worked example
 
 ## Next step (do this first)
 
-1. **Check CI on GitHub (Actions tab), then open the pull requests.** Five stacked branches were pushed
+1. **Check CI on GitHub (Actions tab), then open the pull requests.** Six stacked branches were pushed
    on 2026-10-10: `p0-t04-quality-ci` → `p0-t05-core-app` → `p0-t06-auth` → `p0-t07-design-system` →
-   `p0-t08-i18n`. Nobody has looked at the result yet: the repository is private and the session had no
-   GitHub access. All jobs (backend, frontend, e2e) must be green; if an action input changed, fix
-   `.github/workflows/ci.yml`. That closes P0-T04's acceptance. Merge in order, oldest first.
-2. Agent: start **P0-T09**. Read only its section of the phase file. Generate the TypeScript client and
-   Zod schemas into `packages/api` with orval from the schema (`manage.py spectacular`), add
-   `make gen-api`, and make CI fail when the generated client is out of date. Then replace the
-   hand-written `Session` type and calls in `packages/auth` with the generated ones (D-023).
+   `p0-t08-i18n` → `p0-t09-api-client`. Nobody has looked at the result yet: the repository is private
+   and the session had no GitHub access. All jobs (backend, frontend, api-contract, e2e) must be green;
+   if an action input changed, fix `.github/workflows/ci.yml`. That closes P0-T04's acceptance.
+   Merge in order, oldest first.
+2. Agent: start **P1-T01**. Read only its section of the phase file. New Django apps follow
+   ARCHITECTURE §3; after adding an endpoint run `make gen-api` and commit the result.
 
 ## Blockers / waiting on client
 
@@ -41,10 +41,11 @@ _Last updated: 2026-10-10_
   but has no `frutti` role yet: create it from `.env.example` to run the backend and browser tests.
 - Run `make lint` before every commit (or `make hooks` once); CI runs the same checks.
 - API: 401 = not logged in, 403 = role not allowed (D-023). Every view sets a permission class from
-  `apps/core/permissions.py` and scopes its queryset with `.for_organization(org)` (D-022).
-- UI: no hard-coded text. Add the key to `packages/i18n/src/fr.ts` and use `t()`; amounts, weights and
-  dates go through `formatMoney`, `formatQuantity`, `formatDate`; use `ms-`/`me-`/`text-start`, never
-  left/right classes (D-025). Colours come from the tokens, never `dark:` variants (D-024).
+  `apps/core/permissions.py`, scopes its queryset with `.for_organization(org)` (D-022) and names its
+  operation with `operation_id` (D-026).
+- UI: no hard-coded text (`packages/i18n/src/fr.ts` + `t()`); amounts, weights and dates go through
+  `formatMoney`, `formatQuantity`, `formatDate`; logical CSS classes only (D-025); colours from the
+  tokens, never `dark:` variants (D-024); API calls through `@frutti/api`, never a hand-written fetch.
 - Login throttling counts per server process until Redis arrives (D-023).
 - VAT rate, stamp, prices with or without VAT, withholding rate and the over-credit-limit behaviour are
   organization settings (D-018). Purchase and sale prices change daily (D-020).
@@ -52,13 +53,14 @@ _Last updated: 2026-10-10_
 ## Last session (2026-10-10)
 
 - Q1–Q17 answered; plan updated (D-014 to D-020); stand-in data in `docs/spec/sample/`.
-- **P0-T04** quality tooling and CI (D-021), **P0-T05** core app (D-022), **P0-T06** authentication and
-  permissions (D-023), **P0-T07** design system and shells (D-024), **P0-T08** internationalisation (D-025).
-- Local results: 62 backend tests, 21 vitest tests, 10 Playwright tests, all linters and type checks pass.
+- P0-T04 quality tooling and CI (D-021), P0-T05 core app (D-022), P0-T06 authentication and permissions
+  (D-023), P0-T07 design system and shells (D-024), P0-T08 internationalisation (D-025), P0-T09
+  generated API client (D-026).
+- Local results: 62 backend tests, 27 vitest tests, 10 Playwright tests, all linters and type checks pass.
 - Not verified: the GitHub Actions run, the Docker stack, and how the screens look in Arabic.
 
 ## Recently done
 
+- 2026-10-10 · P0-T09 API contract and generated client
 - 2026-10-10 · P0-T08 internationalisation
 - 2026-10-10 · P0-T07 design system and app shells
-- 2026-10-10 · P0-T06 authentication and permissions

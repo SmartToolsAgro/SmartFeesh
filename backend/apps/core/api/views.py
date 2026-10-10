@@ -4,7 +4,7 @@ from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
@@ -23,6 +23,7 @@ from .serializers import LanguageSerializer, LoginSerializer, MemberSerializer, 
 
 
 @extend_schema(
+    operation_id="getHealth",
     responses=inline_serializer(
         "Health",
         fields={"status": serializers.CharField(), "database": serializers.CharField()},
@@ -50,7 +51,7 @@ class CsrfView(APIView):
     authentication_classes = ()
     permission_classes = (AllowAny,)
 
-    @extend_schema(request=None, responses={204: None})
+    @extend_schema(operation_id="getCsrfCookie", request=None, responses={204: None})
     def get(self, request: Request) -> Response:
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -67,6 +68,7 @@ class LoginView(APIView):
         return "Session"
 
     @extend_schema(
+        operation_id="login",
         request=LoginSerializer,
         responses={
             200: SessionSerializer,
@@ -92,7 +94,7 @@ class LoginView(APIView):
 class LogoutView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(request=None, responses={204: None})
+    @extend_schema(operation_id="logout", request=None, responses={204: None})
     def post(self, request: Request) -> Response:
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -103,11 +105,11 @@ class MeView(APIView):
 
     permission_classes = (IsMember,)
 
-    @extend_schema(responses=SessionSerializer)
+    @extend_schema(operation_id="getSession", responses=SessionSerializer)
     def get(self, request: Request) -> Response:
         return Response(SessionSerializer(membership_of(request)).data)
 
-    @extend_schema(request=LanguageSerializer, responses=SessionSerializer)
+    @extend_schema(operation_id="setLanguage", request=LanguageSerializer, responses=SessionSerializer)
     def patch(self, request: Request) -> Response:
         """Change the language of the apps for the logged-in user."""
         membership = membership_of(request)
@@ -118,6 +120,7 @@ class MeView(APIView):
         return Response(SessionSerializer(membership).data)
 
 
+@extend_schema_view(get=extend_schema(operation_id="listMembers"))
 class MemberListView(ListAPIView[Membership]):
     """Users of the organization and their roles. Owners and managers only."""
 
