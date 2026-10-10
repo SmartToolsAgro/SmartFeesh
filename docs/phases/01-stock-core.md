@@ -21,31 +21,38 @@ Q10 answered: everything is sold by kg. Box and piece units and conversion facto
 the `Unit` table keeps the door open for other distributors (Q17).
 
 ### P1-T02 · Product catalogue · M
-- [ ] `Category`, `Product` (name, reference, category, base unit, default sale price, minimum stock,
-      storage temperature range, active flag, photo).
-- [ ] API (list/filter/search/create/update/archive) + admin screens: list with photo cards like the
+- [x] `Category`, `Product` (name, reference, category, base unit, default sale price, minimum stock,
+      storage temperature range, active flag, photo). Also an Arabic name and a stand-in drawing (D-030).
+- [x] API (list/filter/search/create/update/archive) + admin screens: list with photo cards like the
       prototype, form with photo upload.
-- [ ] Sale prices change from one day to the next, and sometimes several times in one day
+- [x] Sale prices change from one day to the next, and sometimes several times in one day
       (2026-10-10): `ProductPrice` holds one price per product with a valid-from **date and time**; the
       price in force at a moment is the latest one at or before it. History is never overwritten.
 
 ### P1-T03 · Suppliers · S
-- [ ] `Supplier` (name, tax ID, phone, address, contacts, notes, active). Agreement link comes in Phase 6.
-- [ ] API + admin list/detail/form.
+- [x] `Supplier` (name, tax ID, phone, address, contacts, notes, active). Agreement link comes in Phase 6.
+      Also a reference (`F-001`, generated when left empty), e-mail and city; contacts are
+      `SupplierContact` rows (D-032).
+- [x] API + admin list/detail/form.
 
 ### P1-T04 · Locations and trucks · S
-- [ ] `StockLocation` (type: cold_room | truck | other, name). `Truck` (plate, name, assigned driver,
-      location 1–1).
-- [ ] Any number of cold rooms and trucks, managed from an admin screen (Q8: 2 cold rooms, 3+ trucks).
-- [ ] Object-level permission helper "own truck" for drivers, and the driver's truck in `/api/v1/me`
-      (left open by P0-T06, which had no `Truck` model).
-- [ ] A cold room is also a selling point: over-the-counter sales are regular (Q8), used by P2-T04.
-- [ ] Seed (dev only): two cold rooms, three trucks. Real names come from the client's lists.
+- [x] `StockLocation` (type: cold_room | truck | other, name). `Truck` (plate, name, assigned driver,
+      location 1–1). Locations in `inventory`, trucks in `fleet`; a truck's name is its location's (D-033).
+- [x] Any number of cold rooms and trucks, managed from an admin screen (Q8: 2 cold rooms, 3+ trucks).
+      The "Stock frigo & camions" screen shows them as cards; stock figures join it in P1-T11.
+- [x] Object-level permission helper "own truck" for drivers (`fleet.selectors.may_use_location`,
+      `may_use_truck`), and the driver's truck in `/api/v1/me` (left open by P0-T06).
+- [x] A cold room is also a selling point: over-the-counter sales are regular (Q8), used by P2-T04
+      (`counter_sales` flag; `sells` is true for every truck).
+- [x] Seed (dev only): two cold rooms, three trucks. Real names come from the client's lists.
 
 ### P1-T05 · Batches (lots) · M
-- [ ] `Batch` (product, supplier, receipt reference, receipt date, unit cost, expiry/use-by,
-      nullable `agreement` placeholder).
-- [ ] Batch number generator (`L-0912` style, per organization).
+- [x] `Batch` (product, supplier, receipt reference, receipt date, unit cost, expiry/use-by) in
+      `inventory`. The nullable `agreement` key is added by P6-T01 with the agreement table (D-034).
+- [x] Batch number generator (`L-0912` style, per organization): `L-0001`, `L-0002`… under a row lock.
+- [x] Read-only API (`listBatches`, paginated, filters product / supplier / search; `getBatch`), office
+      only. Batches are created by `inventory.services.create_batch`, called by goods receipts (P1-T07).
+- [x] Seed (dev only): 15 recent batches of the sample suppliers, dorade from two suppliers (Q4).
 
 Q4 answered: the same product can come from several suppliers in one month; batches keep them apart.
 Q11 answered: a mix such as Symphonie Marine comes from a single supplier, so it is an ordinary product

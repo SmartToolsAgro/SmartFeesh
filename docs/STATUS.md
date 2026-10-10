@@ -8,26 +8,36 @@ _Last updated: 2026-10-10_
   under Blockers.
 - **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
-- **Done:** P1-T01 · Units (branch `p1-t01-units`, not merged, not deployed: it has no visible screen).
-- **Current task:** P1-T02 · Product catalogue (`docs/phases/01-stock-core.md`)
+- **Done, waiting for merge (stacked, merge in this order):** `p1-t02-products` → `p1-t03-suppliers` →
+  `p1-t04-locations` → `p1-t05-batches`. None is deployed yet. A docs-only branch
+  `docs-profit-loss-rates` (D-031) also waits. `gh` is not installed on Mahmoud's machine and agents
+  may not merge to `main` without his approval, so he merges.
+- **Next task:** P1-T06 · Stock ledger and on-hand (size L: split it into sub-tasks first).
+- The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
+  (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
 ## Next step (do this first)
 
-1. Merge `p1-t01-units` into `main` once CI is green, then branch P1-T02 from `main`.
-2. Agent: start **P1-T02**. Read only its section of the phase file. `Product.base_unit` is a
-   `ForeignKey(Unit, on_delete=PROTECT)` defaulting to `catalog.selectors.base_unit()`; read quantities
-   with `core.money.checked_quantity` and convert with `catalog.selectors.to_base_quantity` (D-029).
-   After adding endpoints run `make gen-api` and commit the result. Deploy with `make deploy-staging`
-   once the product screens exist so the client can follow.
+1. Merge the four task branches into `main` in order once CI is green (each PR then shows one task).
+   `docs-profit-loss-rates` and the task branches all append to `docs/DECISIONS.md`: keep every entry,
+   in number order (D-031 to D-034).
+2. The merge deploys staging by itself (CI job `deploy-staging`): check it ran. It adds the Docker volume
+   `frutti-staging_media` and the demo products, suppliers, cold rooms, trucks and batches. Then upload one
+   product photo on staging: the volume must be writable by the `app` user.
+3. Agent: start P1-T06 from `p1-t05-batches` (or `main` once merged). First split it in the phase file
+   (ledger + on-hand + `post_movement`; FIFO allocation; rebuild command and nightly check). FIFO walks
+   `inventory.selectors.batches_oldest_first` (D-034). Give the 15 demo batches an opening stock in the
+   seed. Same patterns: per-field `ValidationError` (D-030), scoped base views, demo data in `apps/demo`.
 
 ## Blockers / waiting on client
 
-- **P0-T02** (worked example on one real month) is not started. Phase 6 has no target without it, and
-  it must settle one rule: a loss larger than a supplier's remaining capital (Q3).
-- **P0-T01**: no prototype walk-through or client materials yet. Stand-in data in `docs/spec/sample/`.
-- **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); GitHub secrets
-  `STAGING_SSH_KEY` and `STAGING_KNOWN_HOSTS` for automatic deploys, ideally with a restricted deploy user;
-  a Sentry project and its DSN.
+- **P0-T02** (worked example on one real month) is not started. Phase 6 has no target without it. The
+  rule for a loss larger than a supplier's remaining capital is now provisional (D-031, branch
+  `docs-profit-loss-rates`); P0-T02 should confirm it.
+- **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
+- **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
+  CI deploy secrets are set; the key logs in as `debian` (full sudo), so a separate server or a
+  server-side pull from GitHub is still advised (runbook).
 - **TTN / El Fatoora is on hold** (D-016) although Q5 says it is required now.
 - **For the accountant** (`docs/spec/sample/README.md`): the VAT code lists Tunisian fishing products as
   exempt, which does not match "19 % for all"; e-invoicing is mandatory since 01/01/2026.
@@ -40,7 +50,8 @@ _Last updated: 2026-10-10_
 - The Docker dev stack (`make dev`) has not been run yet; the production images have (staging).
 - Mahmoud's Windows machine: no `make`, `pnpm`, `docker`, `psql` or gettext on the PATH;
   `npx -y pnpm@10.28.0 <command>` works. The PostgreSQL 18 service on 5432 has no `frutti` role
-  and its password is unknown; for tests, `initdb -A trust` a cluster in the scratchpad on port 5433.
+  and its password is unknown; for tests, `initdb -A trust` a cluster in the scratchpad on its own port
+  (5433, 5434…: parallel sessions each use their own) and set `DATABASE_URL`.
 - Run `make lint` before every commit (or `make hooks` once); CI runs the same checks.
 - API: 401 = not logged in, 403 = role not allowed (D-023). Every view sets a permission class, scopes its
   queryset with `.for_organization(org)` (D-022) and names its operation with `operation_id` (D-026).
@@ -51,16 +62,19 @@ _Last updated: 2026-10-10_
 
 ## Last session (2026-10-10)
 
-- **P1-T01:** new `catalog` app with a `Unit` table shared by every organization, seeded with `kg` by a
-  data migration (D-029); `to_base_quantity` and `checked_quantity` helpers. 84 backend tests,
-  ruff, mypy, import boundaries, and migrations forward and back all pass locally. No endpoint, so the
-  API client did not change. Frontend checks not run (no frontend change).
-- Local tests ran on a throwaway PostgreSQL 18 cluster (`initdb` on port 5433, trust login), because
-  the password of the installed service is unknown.
+- **P1-T05:** `inventory.Batch` (product, supplier, supplier's receipt reference, receipt date, cost per
+  kg, use-by) with numbers `L-0001`… per organization from a locked counter; `services.create_batch`
+  (per-field checks, audit); selectors for lists, search and FIFO order; read-only office API
+  `listBatches` (first paginated list, `core.api.pagination.PagedList`) and `getBatch`; read-only Django
+  admin. `core.money.checked_amount` for typed amounts. Seeds 15 recent batches (D-034). No screen yet:
+  batches show in the stock screens (P1-T11).
+- Fixed the suppliers API description that cited D-031 instead of D-032.
+- Local results: 222 backend tests (one runs four receipts at once), vitest and type checks; ruff, mypy,
+  import boundaries, eslint, prettier pass. No Playwright run: no screen changed.
 
 ## Recently done
 
-- 2026-10-10 · P1-T01 units and quantity helpers
-- 2026-10-10 · Phase 0 branches merged into `main` (fast-forward, CI green)
-- 2026-10-10 · P0-T10 cloud hook, P0-T11 staging live
-- 2026-10-10 · P0-T09 API contract and generated client
+- 2026-10-10 · P1-T05 batches
+- 2026-10-10 · P1-T04 locations and trucks
+- 2026-10-10 · P1-T03 suppliers
+- 2026-10-10 · P1-T02 product catalogue, prices and photos

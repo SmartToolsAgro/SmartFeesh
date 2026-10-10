@@ -10,11 +10,17 @@ import {
   Toaster,
 } from "@frutti/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
+
+import { LocationsPage } from "./locations/LocationsPage";
+import { ProductsPage } from "./products/ProductsPage";
+import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
+import { SuppliersPage } from "./suppliers/SuppliersPage";
 
 const queryClient = new QueryClient();
 
-// Same modules and order as the approved prototype. Each one becomes a real screen in its phase.
+// Same modules and order as the approved prototype, plus the catalogue. Each one becomes a real screen in its phase.
 function useNav(): AdminNavGroup[] {
   const { t } = useTranslation();
   return [
@@ -31,6 +37,7 @@ function useNav(): AdminNavGroup[] {
       label: t("admin.groups.goods"),
       items: [
         { to: "/stock", label: t("admin.nav.stock"), icon: "box" },
+        { to: "/produits", label: t("admin.nav.products"), icon: "snow" },
         { to: "/achats", label: t("admin.nav.purchases"), icon: "cart" },
         { to: "/fournisseurs", label: t("admin.nav.suppliers"), icon: "anchor" },
       ],
@@ -47,10 +54,15 @@ function useNav(): AdminNavGroup[] {
   ];
 }
 
+// Screens that exist; every other entry of the menu shows "coming soon".
+const SCREENS: Record<string, ReactNode> = {
+  "/stock": <LocationsPage />,
+  "/produits": <ProductsPage />,
+  "/fournisseurs": <SuppliersPage />,
+};
+
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
-  "/stock": "fridge",
   "/achats": "fish",
-  "/fournisseurs": "shrimp",
   "/ventes": "truck",
 };
 
@@ -115,6 +127,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         {nav.flatMap((group) =>
           group.items
             .filter((item) => item.to !== "/")
@@ -122,7 +135,7 @@ function AppRoutes() {
               <Route
                 key={item.to}
                 path={item.to}
-                element={<ComingSoon path={item.to} title={item.label} group={group.label} />}
+                element={SCREENS[item.to] ?? <ComingSoon path={item.to} title={item.label} group={group.label} />}
               />
             )),
         )}

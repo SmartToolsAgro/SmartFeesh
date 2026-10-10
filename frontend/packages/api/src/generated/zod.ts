@@ -38,7 +38,9 @@ export const LoginResponse = zod.object({
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
 }),zod.null()])
 }).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
 
@@ -47,11 +49,260 @@ export const LogoutResponse = zod.void()
 
 
 /**
+ * Batches, newest receipt first, paginated (`limit`, `offset`). Filter by product or supplier;
+ * `search` matches the batch number, the supplier's receipt reference, product and supplier.
+ * Batches are created by goods receipts, not here.
+ */
+
+export const listBatchesQuerySearchDefault = ``;
+export const listBatchesQuerySearchMax = 100;
+
+
+
+
+export const ListBatchesQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "product": zod.int().min(1).optional(),
+  "search": zod.string().max(listBatchesQuerySearchMax).default(listBatchesQuerySearchDefault),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const listBatchesResponseResultsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListBatchesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "receipt_reference": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', listBatchesResponseResultsItemUnitCostRegExp),
+  "use_by": zod.iso.date().nullable(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+export const GetBatchParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const getBatchResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetBatchResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "receipt_reference": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', getBatchResponseUnitCostRegExp),
+  "use_by": zod.iso.date().nullable(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const listCategoriesResponseNameMax = 100;
+
+
+
+export const ListCategoriesResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(listCategoriesResponseNameMax)
+})
+export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
+
+
+export const createCategoryBodyNameMax = 100;
+
+
+
+export const CreateCategoryBody = zod.object({
+  "name": zod.string().max(createCategoryBodyNameMax)
+})
+
+export const createCategoryResponseNameMax = 100;
+
+
+
+export const CreateCategoryResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(createCategoryResponseNameMax)
+})
+
+
+export const RenameCategoryParams = zod.object({
+  "category_id": zod.int()
+})
+
+export const renameCategoryBodyNameMax = 100;
+
+
+
+export const RenameCategoryBody = zod.object({
+  "name": zod.string().max(renameCategoryBodyNameMax).optional()
+})
+
+export const renameCategoryResponseNameMax = 100;
+
+
+
+export const RenameCategoryResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(renameCategoryResponseNameMax)
+})
+
+
+/**
  * Liveness + database check, used by Docker, the load balancer and uptime monitoring.
  */
 export const GetHealthResponse = zod.object({
   "status": zod.string(),
   "database": zod.string()
+})
+
+
+/**
+ * Cold rooms, trucks and other locations, sorted by kind then name. Archived ones only when asked.
+ */
+export const listLocationsQueryStatusDefault = `active`;
+
+export const ListLocationsQueryParams = zod.object({
+  "kind": zod.enum(['cold_room', 'truck', 'other']).optional().describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "status": zod.enum(['active', 'archived', 'all']).default(listLocationsQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const ListLocationsResponseItem = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListLocationsResponse = zod.array(ListLocationsResponseItem)
+
+
+/**
+ * A new cold room or other location. A truck is created with `createTruck`.
+ */
+export const createLocationBodyNameMax = 100;
+
+export const createLocationBodyCounterSalesDefault = false;
+
+export const CreateLocationBody = zod.object({
+  "kind": zod.enum(['cold_room', 'other']).describe('* `cold_room` - Chambre froide\n* `other` - Autre'),
+  "name": zod.string().max(createLocationBodyNameMax),
+  "counter_sales": zod.boolean().default(createLocationBodyCounterSalesDefault)
+})
+
+export const CreateLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const GetLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Rename a cold room or other location, or change whether it sells at the counter.
+ */
+export const UpdateLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const updateLocationBodyNameMax = 100;
+
+
+
+export const UpdateLocationBody = zod.object({
+  "name": zod.string().max(updateLocationBodyNameMax).optional(),
+  "counter_sales": zod.boolean().optional()
+})
+
+export const UpdateLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * An archived location keeps its history but receives no more stock.
+ */
+export const ArchiveLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const ArchiveLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const RestoreLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
 })
 
 
@@ -73,7 +324,9 @@ export const GetSessionResponse = zod.object({
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
 }),zod.null()])
 }).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
 
@@ -100,7 +353,9 @@ export const SetLanguageResponse = zod.object({
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
 }),zod.null()])
 }).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
 
@@ -121,3 +376,910 @@ export const ListMembersResponseItem = zod.object({
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * Products sorted by name. Archived ones only when asked (`status`). Not paginated: a catalogue
+ * holds tens of products, not thousands (D-030).
+ */
+
+export const listProductsQuerySearchDefault = ``;
+export const listProductsQuerySearchMax = 100;
+
+export const listProductsQueryStatusDefault = `active`;
+
+export const ListProductsQueryParams = zod.object({
+  "category": zod.int().min(1).optional(),
+  "search": zod.string().max(listProductsQuerySearchMax).default(listProductsQuerySearchDefault),
+  "status": zod.enum(['active', 'archived', 'all']).default(listProductsQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listProductsResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listProductsResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const listProductsResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const listProductsResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListProductsResponseItem = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', listProductsResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', listProductsResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', listProductsResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', listProductsResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+export const ListProductsResponse = zod.array(ListProductsResponseItem)
+
+
+export const createProductBodyReferenceMax = 30;
+
+export const createProductBodyNameMax = 150;
+
+export const createProductBodyNameArDefault = ``;
+export const createProductBodyNameArMax = 150;
+
+export const createProductBodyMinStockDefault = `0.000`;
+export const createProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductBodyStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductBodyIllustrationDefault = `fish`;
+export const createProductBodySalePriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateProductBody = zod.object({
+  "reference": zod.string().max(createProductBodyReferenceMax),
+  "name": zod.string().max(createProductBodyNameMax),
+  "name_ar": zod.string().max(createProductBodyNameArMax).default(createProductBodyNameArDefault),
+  "category": zod.int(),
+  "min_stock": zod.stringFormat('decimal', createProductBodyMinStockRegExp).default(createProductBodyMinStockDefault),
+  "storage_temp_min": zod.stringFormat('decimal', createProductBodyStorageTempMinRegExp).nullish(),
+  "storage_temp_max": zod.stringFormat('decimal', createProductBodyStorageTempMaxRegExp).nullish(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange').default(createProductBodyIllustrationDefault),
+  "sale_price": zod.stringFormat('decimal', createProductBodySalePriceRegExp)
+})
+
+export const createProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', createProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', createProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', createProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', createProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+export const GetProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const getProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', getProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', getProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', getProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', getProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Change the description of a product. The price changes through `setProductPrice`.
+ */
+export const UpdateProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const updateProductBodyReferenceMax = 30;
+
+export const updateProductBodyNameMax = 150;
+
+export const updateProductBodyNameArDefault = ``;
+export const updateProductBodyNameArMax = 150;
+
+export const updateProductBodyMinStockDefault = `0.000`;
+export const updateProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductBodyStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductBodyIllustrationDefault = `fish`;
+
+export const UpdateProductBody = zod.object({
+  "reference": zod.string().max(updateProductBodyReferenceMax).optional(),
+  "name": zod.string().max(updateProductBodyNameMax).optional(),
+  "name_ar": zod.string().max(updateProductBodyNameArMax).default(updateProductBodyNameArDefault),
+  "category": zod.int().optional(),
+  "min_stock": zod.stringFormat('decimal', updateProductBodyMinStockRegExp).default(updateProductBodyMinStockDefault),
+  "storage_temp_min": zod.stringFormat('decimal', updateProductBodyStorageTempMinRegExp).nullish(),
+  "storage_temp_max": zod.stringFormat('decimal', updateProductBodyStorageTempMaxRegExp).nullish(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange').default(updateProductBodyIllustrationDefault)
+})
+
+export const updateProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', updateProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', updateProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', updateProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', updateProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Archived products keep their history but can no longer be bought or sold.
+ */
+export const ArchiveProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const archiveProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const archiveProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const archiveProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const archiveProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ArchiveProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', archiveProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', archiveProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', archiveProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', archiveProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Replace the photo. It is turned upright, shrunk to 1200 px and stored as WebP without metadata.
+ */
+export const UploadProductPhotoParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const UploadProductPhotoBody = zod.object({
+  "photo": zod.instanceof(Blob)
+})
+
+export const uploadProductPhotoResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const uploadProductPhotoResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const uploadProductPhotoResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const uploadProductPhotoResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UploadProductPhotoResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', uploadProductPhotoResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', uploadProductPhotoResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', uploadProductPhotoResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', uploadProductPhotoResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+export const RemoveProductPhotoParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const removeProductPhotoResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const removeProductPhotoResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const removeProductPhotoResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const removeProductPhotoResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RemoveProductPhotoResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', removeProductPhotoResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', removeProductPhotoResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', removeProductPhotoResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', removeProductPhotoResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Every sale price of the product, newest first, including prices planned for later.
+ */
+export const ListProductPricesParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const listProductPricesResponsePriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListProductPricesResponseItem = zod.object({
+  "id": zod.int(),
+  "price": zod.stringFormat('decimal', listProductPricesResponsePriceRegExp),
+  "valid_from": zod.iso.datetime({"offset":true}),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string().nullable()
+})
+export const ListProductPricesResponse = zod.array(ListProductPricesResponseItem)
+
+
+/**
+ * A new sale price from now, or from a later moment. Earlier prices are never changed (D-020).
+ */
+export const SetProductPriceParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const setProductPriceBodyPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetProductPriceBody = zod.object({
+  "price": zod.stringFormat('decimal', setProductPriceBodyPriceRegExp),
+  "valid_from": zod.iso.datetime({"offset":true}).nullish()
+})
+
+export const setProductPriceResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const setProductPriceResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setProductPriceResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setProductPriceResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetProductPriceResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', setProductPriceResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', setProductPriceResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', setProductPriceResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', setProductPriceResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+export const RestoreProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const restoreProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const restoreProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const restoreProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const restoreProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RestoreProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', restoreProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', restoreProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', restoreProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', restoreProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
+ * paginated: the company works with a handful of suppliers (D-032).
+ */
+export const listSuppliersQuerySearchDefault = ``;
+export const listSuppliersQuerySearchMax = 100;
+
+export const listSuppliersQueryStatusDefault = `active`;
+
+export const ListSuppliersQueryParams = zod.object({
+  "search": zod.string().max(listSuppliersQuerySearchMax).default(listSuppliersQuerySearchDefault),
+  "status": zod.enum(['active', 'archived', 'all']).default(listSuppliersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listSuppliersResponseContactsItemNameMax = 150;
+
+export const listSuppliersResponseContactsItemRoleDefault = ``;
+export const listSuppliersResponseContactsItemRoleMax = 100;
+
+export const listSuppliersResponseContactsItemPhoneDefault = ``;
+export const listSuppliersResponseContactsItemPhoneMax = 30;
+
+export const listSuppliersResponseContactsItemEmailOneDefault = ``;
+export const listSuppliersResponseContactsItemEmailOneMax = 254;
+
+export const listSuppliersResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const ListSuppliersResponseItem = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(listSuppliersResponseContactsItemNameMax),
+  "role": zod.string().max(listSuppliersResponseContactsItemRoleMax).default(listSuppliersResponseContactsItemRoleDefault),
+  "phone": zod.string().max(listSuppliersResponseContactsItemPhoneMax).default(listSuppliersResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(listSuppliersResponseContactsItemEmailOneMax).default(listSuppliersResponseContactsItemEmailOneDefault),zod.string().max(listSuppliersResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
+
+
+/**
+ * A new supplier. Without a reference it gets the next free `F-NNN`.
+ */
+export const createSupplierBodyReferenceDefault = ``;
+export const createSupplierBodyReferenceMax = 30;
+
+export const createSupplierBodyNameMax = 150;
+
+export const createSupplierBodyTaxIdDefault = ``;
+export const createSupplierBodyTaxIdMax = 20;
+
+export const createSupplierBodyPhoneDefault = ``;
+export const createSupplierBodyPhoneMax = 30;
+
+export const createSupplierBodyEmailOneDefault = ``;
+export const createSupplierBodyEmailTwoMax = 0;
+
+export const createSupplierBodyAddressDefault = ``;
+export const createSupplierBodyAddressMax = 255;
+
+export const createSupplierBodyCityDefault = ``;
+export const createSupplierBodyCityMax = 100;
+
+export const createSupplierBodyNotesDefault = ``;
+export const createSupplierBodyNotesMax = 2000;
+
+export const createSupplierBodyContactsItemNameMax = 150;
+
+export const createSupplierBodyContactsItemRoleDefault = ``;
+export const createSupplierBodyContactsItemRoleMax = 100;
+
+export const createSupplierBodyContactsItemPhoneDefault = ``;
+export const createSupplierBodyContactsItemPhoneMax = 30;
+
+export const createSupplierBodyContactsItemEmailOneDefault = ``;
+export const createSupplierBodyContactsItemEmailOneMax = 254;
+
+export const createSupplierBodyContactsItemEmailTwoMax = 0;
+
+
+
+export const CreateSupplierBody = zod.object({
+  "reference": zod.string().max(createSupplierBodyReferenceMax).default(createSupplierBodyReferenceDefault),
+  "name": zod.string().max(createSupplierBodyNameMax),
+  "tax_id": zod.string().max(createSupplierBodyTaxIdMax).default(createSupplierBodyTaxIdDefault),
+  "phone": zod.string().max(createSupplierBodyPhoneMax).default(createSupplierBodyPhoneDefault),
+  "email": zod.union([zod.email().default(createSupplierBodyEmailOneDefault),zod.string().max(createSupplierBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(createSupplierBodyAddressMax).default(createSupplierBodyAddressDefault),
+  "city": zod.string().max(createSupplierBodyCityMax).default(createSupplierBodyCityDefault),
+  "notes": zod.string().max(createSupplierBodyNotesMax).default(createSupplierBodyNotesDefault),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(createSupplierBodyContactsItemNameMax),
+  "role": zod.string().max(createSupplierBodyContactsItemRoleMax).default(createSupplierBodyContactsItemRoleDefault),
+  "phone": zod.string().max(createSupplierBodyContactsItemPhoneMax).default(createSupplierBodyContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(createSupplierBodyContactsItemEmailOneMax).default(createSupplierBodyContactsItemEmailOneDefault),zod.string().max(createSupplierBodyContactsItemEmailTwoMax)]).optional()
+})).optional()
+})
+
+export const createSupplierResponseContactsItemNameMax = 150;
+
+export const createSupplierResponseContactsItemRoleDefault = ``;
+export const createSupplierResponseContactsItemRoleMax = 100;
+
+export const createSupplierResponseContactsItemPhoneDefault = ``;
+export const createSupplierResponseContactsItemPhoneMax = 30;
+
+export const createSupplierResponseContactsItemEmailOneDefault = ``;
+export const createSupplierResponseContactsItemEmailOneMax = 254;
+
+export const createSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const CreateSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(createSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(createSupplierResponseContactsItemRoleMax).default(createSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(createSupplierResponseContactsItemPhoneMax).default(createSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(createSupplierResponseContactsItemEmailOneMax).default(createSupplierResponseContactsItemEmailOneDefault),zod.string().max(createSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const getSupplierResponseContactsItemNameMax = 150;
+
+export const getSupplierResponseContactsItemRoleDefault = ``;
+export const getSupplierResponseContactsItemRoleMax = 100;
+
+export const getSupplierResponseContactsItemPhoneDefault = ``;
+export const getSupplierResponseContactsItemPhoneMax = 30;
+
+export const getSupplierResponseContactsItemEmailOneDefault = ``;
+export const getSupplierResponseContactsItemEmailOneMax = 254;
+
+export const getSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const GetSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(getSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(getSupplierResponseContactsItemRoleMax).default(getSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(getSupplierResponseContactsItemPhoneMax).default(getSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(getSupplierResponseContactsItemEmailOneMax).default(getSupplierResponseContactsItemEmailOneDefault),zod.string().max(getSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Change a supplier. `contacts`, when sent, replaces the whole list.
+ */
+export const UpdateSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const updateSupplierBodyReferenceDefault = ``;
+export const updateSupplierBodyReferenceMax = 30;
+
+export const updateSupplierBodyNameMax = 150;
+
+export const updateSupplierBodyTaxIdDefault = ``;
+export const updateSupplierBodyTaxIdMax = 20;
+
+export const updateSupplierBodyPhoneDefault = ``;
+export const updateSupplierBodyPhoneMax = 30;
+
+export const updateSupplierBodyEmailOneDefault = ``;
+export const updateSupplierBodyEmailTwoMax = 0;
+
+export const updateSupplierBodyAddressDefault = ``;
+export const updateSupplierBodyAddressMax = 255;
+
+export const updateSupplierBodyCityDefault = ``;
+export const updateSupplierBodyCityMax = 100;
+
+export const updateSupplierBodyNotesDefault = ``;
+export const updateSupplierBodyNotesMax = 2000;
+
+export const updateSupplierBodyContactsItemNameMax = 150;
+
+export const updateSupplierBodyContactsItemRoleDefault = ``;
+export const updateSupplierBodyContactsItemRoleMax = 100;
+
+export const updateSupplierBodyContactsItemPhoneDefault = ``;
+export const updateSupplierBodyContactsItemPhoneMax = 30;
+
+export const updateSupplierBodyContactsItemEmailOneDefault = ``;
+export const updateSupplierBodyContactsItemEmailOneMax = 254;
+
+export const updateSupplierBodyContactsItemEmailTwoMax = 0;
+
+
+
+export const UpdateSupplierBody = zod.object({
+  "reference": zod.string().max(updateSupplierBodyReferenceMax).default(updateSupplierBodyReferenceDefault),
+  "name": zod.string().max(updateSupplierBodyNameMax).optional(),
+  "tax_id": zod.string().max(updateSupplierBodyTaxIdMax).default(updateSupplierBodyTaxIdDefault),
+  "phone": zod.string().max(updateSupplierBodyPhoneMax).default(updateSupplierBodyPhoneDefault),
+  "email": zod.union([zod.email().default(updateSupplierBodyEmailOneDefault),zod.string().max(updateSupplierBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(updateSupplierBodyAddressMax).default(updateSupplierBodyAddressDefault),
+  "city": zod.string().max(updateSupplierBodyCityMax).default(updateSupplierBodyCityDefault),
+  "notes": zod.string().max(updateSupplierBodyNotesMax).default(updateSupplierBodyNotesDefault),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(updateSupplierBodyContactsItemNameMax),
+  "role": zod.string().max(updateSupplierBodyContactsItemRoleMax).default(updateSupplierBodyContactsItemRoleDefault),
+  "phone": zod.string().max(updateSupplierBodyContactsItemPhoneMax).default(updateSupplierBodyContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(updateSupplierBodyContactsItemEmailOneMax).default(updateSupplierBodyContactsItemEmailOneDefault),zod.string().max(updateSupplierBodyContactsItemEmailTwoMax)]).optional()
+})).optional()
+})
+
+export const updateSupplierResponseContactsItemNameMax = 150;
+
+export const updateSupplierResponseContactsItemRoleDefault = ``;
+export const updateSupplierResponseContactsItemRoleMax = 100;
+
+export const updateSupplierResponseContactsItemPhoneDefault = ``;
+export const updateSupplierResponseContactsItemPhoneMax = 30;
+
+export const updateSupplierResponseContactsItemEmailOneDefault = ``;
+export const updateSupplierResponseContactsItemEmailOneMax = 254;
+
+export const updateSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const UpdateSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(updateSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(updateSupplierResponseContactsItemRoleMax).default(updateSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(updateSupplierResponseContactsItemPhoneMax).default(updateSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(updateSupplierResponseContactsItemEmailOneMax).default(updateSupplierResponseContactsItemEmailOneDefault),zod.string().max(updateSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Archived suppliers keep their history but can no longer be bought from.
+ */
+export const ArchiveSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const archiveSupplierResponseContactsItemNameMax = 150;
+
+export const archiveSupplierResponseContactsItemRoleDefault = ``;
+export const archiveSupplierResponseContactsItemRoleMax = 100;
+
+export const archiveSupplierResponseContactsItemPhoneDefault = ``;
+export const archiveSupplierResponseContactsItemPhoneMax = 30;
+
+export const archiveSupplierResponseContactsItemEmailOneDefault = ``;
+export const archiveSupplierResponseContactsItemEmailOneMax = 254;
+
+export const archiveSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const ArchiveSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(archiveSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(archiveSupplierResponseContactsItemRoleMax).default(archiveSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(archiveSupplierResponseContactsItemPhoneMax).default(archiveSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(archiveSupplierResponseContactsItemEmailOneMax).default(archiveSupplierResponseContactsItemEmailOneDefault),zod.string().max(archiveSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const restoreSupplierResponseContactsItemNameMax = 150;
+
+export const restoreSupplierResponseContactsItemRoleDefault = ``;
+export const restoreSupplierResponseContactsItemRoleMax = 100;
+
+export const restoreSupplierResponseContactsItemPhoneDefault = ``;
+export const restoreSupplierResponseContactsItemPhoneMax = 30;
+
+export const restoreSupplierResponseContactsItemEmailOneDefault = ``;
+export const restoreSupplierResponseContactsItemEmailOneMax = 254;
+
+export const restoreSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const RestoreSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(restoreSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(restoreSupplierResponseContactsItemRoleMax).default(restoreSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(restoreSupplierResponseContactsItemPhoneMax).default(restoreSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(restoreSupplierResponseContactsItemEmailOneMax).default(restoreSupplierResponseContactsItemEmailOneDefault),zod.string().max(restoreSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Trucks sorted by name, with their driver. A driver sees only their own truck.
+ */
+export const listTrucksQueryStatusDefault = `active`;
+
+export const ListTrucksQueryParams = zod.object({
+  "status": zod.enum(['active', 'archived', 'all']).default(listTrucksQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const ListTrucksResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListTrucksResponse = zod.array(ListTrucksResponseItem)
+
+
+/**
+ * A new truck, with the stock location that holds its goods.
+ */
+export const createTruckBodyNameMax = 100;
+
+export const createTruckBodyPlateMax = 20;
+
+
+
+export const CreateTruckBody = zod.object({
+  "name": zod.string().max(createTruckBodyNameMax),
+  "plate": zod.string().max(createTruckBodyPlateMax),
+  "driver": zod.int().nullish()
+})
+
+export const CreateTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const GetTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Rename a truck, change its plate or its driver (`driver: null` takes it back from its driver).
+ */
+export const UpdateTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const updateTruckBodyNameMax = 100;
+
+export const updateTruckBodyPlateMax = 20;
+
+
+
+export const UpdateTruckBody = zod.object({
+  "name": zod.string().max(updateTruckBodyNameMax).optional(),
+  "plate": zod.string().max(updateTruckBodyPlateMax).optional(),
+  "driver": zod.int().nullish()
+})
+
+export const UpdateTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * An archived truck keeps its history, receives no more stock and has no driver.
+ */
+export const ArchiveTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const ArchiveTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const RestoreTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})

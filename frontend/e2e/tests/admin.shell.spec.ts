@@ -14,7 +14,7 @@ async function logIn(page: Page) {
 
 const background = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
-test("the sidebar lists the modules of the prototype and opens each one", async ({ page }) => {
+test("the sidebar lists the modules of the prototype, plus the catalogue, and opens them", async ({ page }) => {
   await logIn(page);
   const modules = page.getByRole("navigation", { name: "Modules" });
 
@@ -24,6 +24,7 @@ test("the sidebar lists the modules of the prototype and opens each one", async 
     "Ventes & factures",
     "Clients",
     "Stock frigo & camions",
+    "Produits",
     "Achats",
     "Fournisseurs",
     "Charges",

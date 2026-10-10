@@ -13,7 +13,7 @@ How to operate the running system. Keep it short and true; update it when a proc
 
 **Shared server.** The VPS also runs other clients' production sites (Sonalim, TRT, dossipv, smartgreen)
 behind one nginx. Frutti only owns: the Docker project `frutti-staging` (containers `frutti-staging-*`,
-volume `frutti-staging_pgdata`), the folder `~/frutti-staging`, and the nginx site
+volumes `frutti-staging_pgdata` and `frutti-staging_media` (product photos)), the folder `~/frutti-staging`, and the nginx site
 `/etc/nginx/sites-available/frutti-staging` (ports 8095 and 8096). Never edit, prune or restart anything
 else there. Always run `sudo nginx -t` before reloading nginx.
 
@@ -32,8 +32,11 @@ CI deploys automatically after every green push to `main`, once these GitHub sec
 - `STAGING_SSH_KEY`: a private key **made only for this** (`ssh-keygen -t ed25519 -f frutti_ci_deploy -N ""`),
   whose public key is added to `~debian/.ssh/authorized_keys` on the server.
 
-Recommended before adding that key: create a separate `frutti-deploy` user allowed to run only Docker and
-the Frutti nginx steps, because `debian` has full sudo on a server shared with other clients.
+**Done on 2026-10-10.** The CI key (`frutti-ci-deploy`) is in `~debian/.ssh/authorized_keys` with the
+`restrict` option (no tunnels, no terminal); the previous file is kept as `authorized_keys.bak-before-frutti-ci`.
+To revoke it, delete that line and the GitHub secret. Limit to keep in mind: the deploy runs uploaded code
+with sudo, so whoever holds the secret is effectively root on a server shared with other clients. The real
+fix is a separate server, or a server that pulls only code already on `main` from GitHub.
 
 ### Look at it
 

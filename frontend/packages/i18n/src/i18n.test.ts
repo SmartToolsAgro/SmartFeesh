@@ -1,6 +1,15 @@
 import { afterEach, expect, test } from "vitest";
 
-import { applyLanguage, formatDate, formatMoney, formatQuantity, i18n } from "./index";
+import {
+  applyLanguage,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatQuantity,
+  formatTemperature,
+  i18n,
+  parseDecimalInput,
+} from "./index";
 
 afterEach(() => applyLanguage("fr"));
 
@@ -57,4 +66,30 @@ test("a timestamp is shown on its Tunisian date", () => {
   // 23:30 UTC on the 9th is already 00:30 on the 10th in Tunis.
   expect(formatDate("2026-10-09T23:30:00Z")).toBe("10/10/2026");
   expect(() => formatDate("hier")).toThrow(TypeError);
+});
+
+test("a timestamp is shown with its Tunisian time", () => {
+  // 13:05 UTC is 14:05 in Tunis (UTC+1, no summer time).
+  expect(formatDateTime("2026-10-09T13:05:00Z", "fr")).toBe("09/10/2026 14:05");
+});
+
+test("temperatures show at most one decimal", () => {
+  expect(formatTemperature("-18.0", "fr")).toBe("-18\u00a0°C");
+  expect(formatTemperature("2.5", "fr")).toBe("2,5\u00a0°C");
+});
+
+test.each([
+  ["42", "42"],
+  ["42,5", "42.5"],
+  ["42.500", "42.500"],
+  [" 1 250,750 ", "1250.750"],
+  ["1\u202f250,5", "1250.5"],
+  ["-18", "-18"],
+  ["3\u066b5", "3.5"],
+])("typed number %j is read as %j", (typed, expected) => {
+  expect(parseDecimalInput(typed, 3)).toBe(expected);
+});
+
+test.each(["", "abc", "1.2345", "1,2,3", ",5", "1e3", "12 kg"])("typed text %j is not a number", (typed) => {
+  expect(parseDecimalInput(typed, 3)).toBeNull();
 });

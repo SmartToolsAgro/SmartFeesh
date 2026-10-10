@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
 from apps.core.models import Membership, Organization, Role, User
+from apps.core.session import TruckRef, truck_of
 
 
 class LoginSerializer(serializers.Serializer[Any]):
@@ -36,18 +37,23 @@ class SessionSerializer(serializers.Serializer[Membership]):
     user = UserSerializer(read_only=True)
     organization = OrganizationSerializer(read_only=True)
     role = serializers.ChoiceField(choices=Role.choices, read_only=True)
-    # Filled for drivers once trucks exist (P1-T04).
+    # The driver's own truck; null for other roles and for a driver without a truck.
     truck = serializers.SerializerMethodField()
 
     @extend_schema_field(
         inline_serializer(
             "TruckRef",
-            fields={"id": serializers.IntegerField(), "name": serializers.CharField()},
+            fields={
+                "id": serializers.IntegerField(),
+                "name": serializers.CharField(),
+                "plate": serializers.CharField(),
+                "location_id": serializers.IntegerField(),
+            },
             allow_null=True,
         )
     )
-    def get_truck(self, membership: Membership) -> None:
-        return None
+    def get_truck(self, membership: Membership) -> TruckRef | None:
+        return truck_of(membership)
 
 
 class MemberSerializer(serializers.ModelSerializer[Membership]):
