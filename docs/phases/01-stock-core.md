@@ -75,9 +75,10 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
       stock and a morning truck load in the seed.
 
 #### P1-T06b · FIFO allocation · S
-- [ ] `allocate_fifo(product, location, qty)` → list of (batch, qty) oldest first, over
-      `selectors.batches_oldest_first` (D-034), refusing more than the location holds.
-- [ ] A helper that posts one movement per allocated batch (used by transfers, sales and losses).
+- [x] `allocate_fifo(product, location, qty)` → list of (batch, qty) oldest first, in the batches'
+      FIFO order (D-034), refusing more than the location holds. A preview: nothing locked or posted.
+- [x] A helper that posts one movement per allocated batch (used by transfers, sales and losses):
+      `services.post_fifo_movements` (D-037).
 
 #### P1-T06c · Rebuild and consistency check · S
 - [ ] `rebuild_on_hand()` management command + nightly consistency check that reports differences.

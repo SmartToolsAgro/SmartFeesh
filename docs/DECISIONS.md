@@ -337,3 +337,20 @@ dependencies and starts PostgreSQL with the `frutti` role.
   account shows the wrong-app notice, instead of a screen whose saves fail with a generic error.
 - gunicorn runs with `--no-control-socket`: its control socket wanted to write in the `app` user's home
   folder, which does not exist in the image, and logged an error at every start. Nothing used it.
+
+**D-037 · FIFO allocation and multi-batch movements (P1-T06b)** · accepted · 2026-10-10
+- `inventory.selectors.allocate_fifo(organization, product_id=, location=, quantity=)` previews which
+  batches a quantity would come from: the location's on-hand rows of that product, oldest receipt first
+  (`FIFO_ORDER`), each batch emptied before the next. More than the location holds is refused on
+  `quantity`, with the kg available. Nothing is locked or posted.
+- `inventory.services.post_fifo_movements(...)` does it for real: it locks every on-hand row of the
+  product at both locations in (location, batch) order, the same order `post_movement` uses, splits the
+  quantity oldest first and posts one movement per batch, all in one transaction (refused as a whole).
+  Kinds that take nothing (receipt, customer return) are refused. Used by transfers (P1-T09), sales
+  (Phase 2) and losses (P1-T10).
+- **Idempotency** for a request split over several batches: the n-th movement gets
+  `uuid5(client_uuid, n)`; a retry finds part 0 and returns all the parts already posted.
+- A destination row that does not exist yet is created during posting; in the rare case that two
+  requests create it while crossing, PostgreSQL aborts one with a deadlock error (no hang) and the client
+  retries. The test with 8 crossed loads and returns at once passes.
+

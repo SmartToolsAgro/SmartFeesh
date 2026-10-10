@@ -1,12 +1,15 @@
 """Reusable read queries of stock locations, batches, movements and stock on hand."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from decimal import Decimal
 from typing import Literal
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q, QuerySet, Sum
+from django.utils.translation import gettext as _
 
 from apps.core.models import Organization
+from apps.core.money import Number, checked_quantity
 
 from .models import FIFO_ORDER, Batch, LocationKind, StockLocation, StockMovement, StockOnHand
 
@@ -142,3 +145,62 @@ def movements_of(
     if batch_id is not None:
         movements = movements.filter(batch_id=batch_id)
     return movements
+
+
+# One part of a quantity taken from one batch.
+type Allocation = tuple[Batch, Decimal]
+
+
+def holdings_oldest_first(organization: Organization, *, product_id: int, location_id: int) -> QuerySet[StockOnHand]:
+    """What one location holds of one product, per batch, in the order it leaves: oldest receipt first."""
+    return (
+        StockOnHand.objects.for_organization(organization)
+        .filter(product_id=product_id, location_id=location_id, quantity__gt=0)
+        .select_related("batch")
+        .order_by(*(f"batch__{field}" for field in FIFO_ORDER))
+    )
+
+
+def fifo_split(holdings: Sequence[StockOnHand], quantity: Decimal) -> list[Allocation]:
+    """Take `quantity` from `holdings` (already oldest first), emptying each batch before the next.
+
+    Returns less than asked when the holdings are not enough; the caller decides what that means.
+    """
+    allocations: list[Allocation] = []
+    left = quantity
+    for row in holdings:
+        if left <= 0:
+            break
+        taken = min(row.quantity, left)
+        if taken > 0:
+            allocations.append((row.batch, taken))
+            left -= taken
+    return allocations
+
+
+def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationError:
+    return ValidationError(
+        {
+            "quantity": _("Stock insuffisant : %(available)s kg à « %(location)s ».")
+            % {"available": available, "location": location.name}
+        }
+    )
+
+
+def allocate_fifo(
+    organization: Organization, *, product_id: int, location: StockLocation, quantity: Number
+) -> list[Allocation]:
+    """Which batches `quantity` kg of a product would come from at `location`: oldest first (D-009, Q7).
+
+    A preview: nothing is locked or posted (`services.post_fifo_movements` does both). Refused with a
+    ValidationError on `quantity` when the location holds less, or when the quantity is not valid.
+    """
+    try:
+        amount = checked_quantity(quantity)
+    except ValueError as error:
+        raise ValidationError({"quantity": str(error)}) from None
+    holdings = list(holdings_oldest_first(organization, product_id=product_id, location_id=location.pk))
+    allocations = fifo_split(holdings, amount)
+    if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
+        raise not_enough_stock(sum((row.quantity for row in holdings), Decimal("0.000")), location)
+    return allocations
