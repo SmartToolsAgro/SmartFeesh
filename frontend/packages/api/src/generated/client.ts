@@ -26,22 +26,30 @@ import type {
 import type {
   Category,
   Health,
+  ListLocationsParams,
   ListProductsParams,
   ListSuppliersParams,
+  ListTrucksParams,
   Login,
   Member,
   PatchedCategory,
   PatchedLanguage,
   PatchedProductUpdate,
+  PatchedStockLocationUpdate,
   PatchedSupplierWrite,
+  PatchedTruckWrite,
   PhotoUpload,
   Product,
   ProductCreate,
   ProductPrice,
   Session,
   SetPrice,
+  StockLocation,
+  StockLocationCreate,
   Supplier,
-  SupplierWrite
+  SupplierWrite,
+  Truck,
+  TruckWrite
 } from './models';
 
 import { apiFetch } from '../http';
@@ -696,6 +704,516 @@ export function useGetHealth<TData = Awaited<ReturnType<typeof getHealth>>, TErr
 
 
 
+
+export const getListLocationsUrl = (params?: ListLocationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/locations?${stringifiedParams}` : `/api/v1/locations`
+}
+
+/**
+ * Cold rooms, trucks and other locations, sorted by kind then name. Archived ones only when asked.
+ */
+export const listLocations = async (params?: ListLocationsParams, options?: Parameters<typeof apiFetch>[1]): Promise<StockLocation[]> => {
+
+  return apiFetch<StockLocation[]>(getListLocationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLocationsQueryKey = (params?: ListLocationsParams,) => {
+    return [
+    `/api/v1/locations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListLocationsQueryOptions = <TData = Awaited<ReturnType<typeof listLocations>>, TError = unknown>(params?: ListLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocations>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLocationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLocations>>> = ({ signal }) => listLocations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLocations>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListLocationsQueryResult = NonNullable<Awaited<ReturnType<typeof listLocations>>>
+export type ListLocationsQueryError = unknown
+
+
+export function useListLocations<TData = Awaited<ReturnType<typeof listLocations>>, TError = unknown>(
+ params: undefined |  ListLocationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocations>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLocations>>,
+          TError,
+          Awaited<ReturnType<typeof listLocations>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLocations<TData = Awaited<ReturnType<typeof listLocations>>, TError = unknown>(
+ params?: ListLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocations>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLocations>>,
+          TError,
+          Awaited<ReturnType<typeof listLocations>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLocations<TData = Awaited<ReturnType<typeof listLocations>>, TError = unknown>(
+ params?: ListLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocations>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListLocations<TData = Awaited<ReturnType<typeof listLocations>>, TError = unknown>(
+ params?: ListLocationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocations>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListLocationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateLocationUrl = () => {
+
+
+
+
+  return `/api/v1/locations`
+}
+
+/**
+ * A new cold room or other location. A truck is created with `createTruck`.
+ */
+export const createLocation = async (stockLocationCreate: StockLocationCreate, options?: Parameters<typeof apiFetch>[1]): Promise<StockLocation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<StockLocation>(getCreateLocationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockLocationCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateLocationMutationKey = () => ['createLocation'] as const;
+
+export const getCreateLocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLocation>>, TError,CreateLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLocation>>, TError,CreateLocationMutationVariables, TContext> => {
+
+const mutationKey = getCreateLocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLocation>>, CreateLocationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createLocation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLocationMutationResult = NonNullable<Awaited<ReturnType<typeof createLocation>>>
+    export type CreateLocationMutationBody = StockLocationCreate
+    export type CreateLocationMutationError = unknown
+    export type CreateLocationMutationVariables = {data: StockLocationCreate}
+
+    export const useCreateLocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLocation>>, TError,CreateLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createLocation>>,
+        TError,
+        CreateLocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateLocationMutationOptions(options), queryClient);
+    }
+
+export const getGetLocationUrl = (locationId: number,) => {
+
+
+
+
+  return `/api/v1/locations/${locationId}`
+}
+
+export const getLocation = async (locationId: number, options?: Parameters<typeof apiFetch>[1]): Promise<StockLocation> => {
+
+  return apiFetch<StockLocation>(getGetLocationUrl(locationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLocationQueryKey = (locationId: number,) => {
+    return [
+    `/api/v1/locations/${locationId}`
+    ] as const;
+    }
+
+
+export const getGetLocationQueryOptions = <TData = Awaited<ReturnType<typeof getLocation>>, TError = unknown>(locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLocation>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLocationQueryKey(locationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLocation>>> = ({ signal }) => getLocation(locationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: locationId !== null && locationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLocation>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLocationQueryResult = NonNullable<Awaited<ReturnType<typeof getLocation>>>
+export type GetLocationQueryError = unknown
+
+
+export function useGetLocation<TData = Awaited<ReturnType<typeof getLocation>>, TError = unknown>(
+ locationId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLocation>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLocation>>,
+          TError,
+          Awaited<ReturnType<typeof getLocation>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLocation<TData = Awaited<ReturnType<typeof getLocation>>, TError = unknown>(
+ locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLocation>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLocation>>,
+          TError,
+          Awaited<ReturnType<typeof getLocation>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLocation<TData = Awaited<ReturnType<typeof getLocation>>, TError = unknown>(
+ locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLocation>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLocation<TData = Awaited<ReturnType<typeof getLocation>>, TError = unknown>(
+ locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLocation>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLocationQueryOptions(locationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateLocationUrl = (locationId: number,) => {
+
+
+
+
+  return `/api/v1/locations/${locationId}`
+}
+
+/**
+ * Rename a cold room or other location, or change whether it sells at the counter.
+ */
+export const updateLocation = async (locationId: number,
+    patchedStockLocationUpdate?: PatchedStockLocationUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<StockLocation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<StockLocation>(getUpdateLocationUrl(locationId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedStockLocationUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateLocationMutationKey = () => ['updateLocation'] as const;
+
+export const getUpdateLocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLocation>>, TError,UpdateLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLocation>>, TError,UpdateLocationMutationVariables, TContext> => {
+
+const mutationKey = getUpdateLocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLocation>>, UpdateLocationMutationVariables> = (props) => {
+          const {locationId,data} = props ?? {};
+
+          return  updateLocation(locationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLocationMutationResult = NonNullable<Awaited<ReturnType<typeof updateLocation>>>
+    export type UpdateLocationMutationBody = PatchedStockLocationUpdate | undefined
+    export type UpdateLocationMutationError = unknown
+    export type UpdateLocationMutationVariables = {locationId: number;data?: PatchedStockLocationUpdate}
+
+    export const useUpdateLocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLocation>>, TError,UpdateLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateLocation>>,
+        TError,
+        UpdateLocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateLocationMutationOptions(options), queryClient);
+    }
+
+export const getArchiveLocationUrl = (locationId: number,) => {
+
+
+
+
+  return `/api/v1/locations/${locationId}/archive`
+}
+
+/**
+ * An archived location keeps its history but receives no more stock.
+ */
+export const archiveLocation = async (locationId: number, options?: Parameters<typeof apiFetch>[1]): Promise<StockLocation> => {
+
+  return apiFetch<StockLocation>(getArchiveLocationUrl(locationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveLocationMutationKey = () => ['archiveLocation'] as const;
+
+export const getArchiveLocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveLocation>>, TError,ArchiveLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveLocation>>, TError,ArchiveLocationMutationVariables, TContext> => {
+
+const mutationKey = getArchiveLocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveLocation>>, ArchiveLocationMutationVariables> = (props) => {
+          const {locationId} = props ?? {};
+
+          return  archiveLocation(locationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveLocationMutationResult = NonNullable<Awaited<ReturnType<typeof archiveLocation>>>
+
+    export type ArchiveLocationMutationError = unknown
+    export type ArchiveLocationMutationVariables = {locationId: number}
+
+    export const useArchiveLocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveLocation>>, TError,ArchiveLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof archiveLocation>>,
+        TError,
+        ArchiveLocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getArchiveLocationMutationOptions(options), queryClient);
+    }
+
+export const getRestoreLocationUrl = (locationId: number,) => {
+
+
+
+
+  return `/api/v1/locations/${locationId}/restore`
+}
+
+export const restoreLocation = async (locationId: number, options?: Parameters<typeof apiFetch>[1]): Promise<StockLocation> => {
+
+  return apiFetch<StockLocation>(getRestoreLocationUrl(locationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreLocationMutationKey = () => ['restoreLocation'] as const;
+
+export const getRestoreLocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreLocation>>, TError,RestoreLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreLocation>>, TError,RestoreLocationMutationVariables, TContext> => {
+
+const mutationKey = getRestoreLocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreLocation>>, RestoreLocationMutationVariables> = (props) => {
+          const {locationId} = props ?? {};
+
+          return  restoreLocation(locationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreLocationMutationResult = NonNullable<Awaited<ReturnType<typeof restoreLocation>>>
+
+    export type RestoreLocationMutationError = unknown
+    export type RestoreLocationMutationVariables = {locationId: number}
+
+    export const useRestoreLocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreLocation>>, TError,RestoreLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreLocation>>,
+        TError,
+        RestoreLocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreLocationMutationOptions(options), queryClient);
+    }
 
 export const getGetSessionUrl = () => {
 
@@ -2321,4 +2839,514 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRestoreSupplierMutationOptions(options), queryClient);
+    }
+
+export const getListTrucksUrl = (params?: ListTrucksParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/trucks?${stringifiedParams}` : `/api/v1/trucks`
+}
+
+/**
+ * Trucks sorted by name, with their driver. A driver sees only their own truck.
+ */
+export const listTrucks = async (params?: ListTrucksParams, options?: Parameters<typeof apiFetch>[1]): Promise<Truck[]> => {
+
+  return apiFetch<Truck[]>(getListTrucksUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTrucksQueryKey = (params?: ListTrucksParams,) => {
+    return [
+    `/api/v1/trucks`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTrucksQueryOptions = <TData = Awaited<ReturnType<typeof listTrucks>>, TError = unknown>(params?: ListTrucksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrucks>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTrucksQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrucks>>> = ({ signal }) => listTrucks(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTrucks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTrucksQueryResult = NonNullable<Awaited<ReturnType<typeof listTrucks>>>
+export type ListTrucksQueryError = unknown
+
+
+export function useListTrucks<TData = Awaited<ReturnType<typeof listTrucks>>, TError = unknown>(
+ params: undefined |  ListTrucksParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrucks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTrucks>>,
+          TError,
+          Awaited<ReturnType<typeof listTrucks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTrucks<TData = Awaited<ReturnType<typeof listTrucks>>, TError = unknown>(
+ params?: ListTrucksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrucks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTrucks>>,
+          TError,
+          Awaited<ReturnType<typeof listTrucks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTrucks<TData = Awaited<ReturnType<typeof listTrucks>>, TError = unknown>(
+ params?: ListTrucksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrucks>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListTrucks<TData = Awaited<ReturnType<typeof listTrucks>>, TError = unknown>(
+ params?: ListTrucksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrucks>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTrucksQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTruckUrl = () => {
+
+
+
+
+  return `/api/v1/trucks`
+}
+
+/**
+ * A new truck, with the stock location that holds its goods.
+ */
+export const createTruck = async (truckWrite: TruckWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Truck> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Truck>(getCreateTruckUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(truckWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateTruckMutationKey = () => ['createTruck'] as const;
+
+export const getCreateTruckMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTruck>>, TError,CreateTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTruck>>, TError,CreateTruckMutationVariables, TContext> => {
+
+const mutationKey = getCreateTruckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTruck>>, CreateTruckMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTruck(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTruckMutationResult = NonNullable<Awaited<ReturnType<typeof createTruck>>>
+    export type CreateTruckMutationBody = TruckWrite
+    export type CreateTruckMutationError = unknown
+    export type CreateTruckMutationVariables = {data: TruckWrite}
+
+    export const useCreateTruck = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTruck>>, TError,CreateTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createTruck>>,
+        TError,
+        CreateTruckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTruckMutationOptions(options), queryClient);
+    }
+
+export const getGetTruckUrl = (truckId: number,) => {
+
+
+
+
+  return `/api/v1/trucks/${truckId}`
+}
+
+export const getTruck = async (truckId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Truck> => {
+
+  return apiFetch<Truck>(getGetTruckUrl(truckId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTruckQueryKey = (truckId: number,) => {
+    return [
+    `/api/v1/trucks/${truckId}`
+    ] as const;
+    }
+
+
+export const getGetTruckQueryOptions = <TData = Awaited<ReturnType<typeof getTruck>>, TError = unknown>(truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruck>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTruckQueryKey(truckId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTruck>>> = ({ signal }) => getTruck(truckId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: truckId !== null && truckId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTruck>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTruckQueryResult = NonNullable<Awaited<ReturnType<typeof getTruck>>>
+export type GetTruckQueryError = unknown
+
+
+export function useGetTruck<TData = Awaited<ReturnType<typeof getTruck>>, TError = unknown>(
+ truckId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruck>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTruck>>,
+          TError,
+          Awaited<ReturnType<typeof getTruck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTruck<TData = Awaited<ReturnType<typeof getTruck>>, TError = unknown>(
+ truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruck>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTruck>>,
+          TError,
+          Awaited<ReturnType<typeof getTruck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTruck<TData = Awaited<ReturnType<typeof getTruck>>, TError = unknown>(
+ truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruck>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetTruck<TData = Awaited<ReturnType<typeof getTruck>>, TError = unknown>(
+ truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruck>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTruckQueryOptions(truckId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTruckUrl = (truckId: number,) => {
+
+
+
+
+  return `/api/v1/trucks/${truckId}`
+}
+
+/**
+ * Rename a truck, change its plate or its driver (`driver: null` takes it back from its driver).
+ */
+export const updateTruck = async (truckId: number,
+    patchedTruckWrite?: PatchedTruckWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Truck> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Truck>(getUpdateTruckUrl(truckId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedTruckWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateTruckMutationKey = () => ['updateTruck'] as const;
+
+export const getUpdateTruckMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTruck>>, TError,UpdateTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTruck>>, TError,UpdateTruckMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTruckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTruck>>, UpdateTruckMutationVariables> = (props) => {
+          const {truckId,data} = props ?? {};
+
+          return  updateTruck(truckId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTruckMutationResult = NonNullable<Awaited<ReturnType<typeof updateTruck>>>
+    export type UpdateTruckMutationBody = PatchedTruckWrite | undefined
+    export type UpdateTruckMutationError = unknown
+    export type UpdateTruckMutationVariables = {truckId: number;data?: PatchedTruckWrite}
+
+    export const useUpdateTruck = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTruck>>, TError,UpdateTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateTruck>>,
+        TError,
+        UpdateTruckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTruckMutationOptions(options), queryClient);
+    }
+
+export const getArchiveTruckUrl = (truckId: number,) => {
+
+
+
+
+  return `/api/v1/trucks/${truckId}/archive`
+}
+
+/**
+ * An archived truck keeps its history, receives no more stock and has no driver.
+ */
+export const archiveTruck = async (truckId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Truck> => {
+
+  return apiFetch<Truck>(getArchiveTruckUrl(truckId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveTruckMutationKey = () => ['archiveTruck'] as const;
+
+export const getArchiveTruckMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveTruck>>, TError,ArchiveTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveTruck>>, TError,ArchiveTruckMutationVariables, TContext> => {
+
+const mutationKey = getArchiveTruckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveTruck>>, ArchiveTruckMutationVariables> = (props) => {
+          const {truckId} = props ?? {};
+
+          return  archiveTruck(truckId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveTruckMutationResult = NonNullable<Awaited<ReturnType<typeof archiveTruck>>>
+
+    export type ArchiveTruckMutationError = unknown
+    export type ArchiveTruckMutationVariables = {truckId: number}
+
+    export const useArchiveTruck = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveTruck>>, TError,ArchiveTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof archiveTruck>>,
+        TError,
+        ArchiveTruckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getArchiveTruckMutationOptions(options), queryClient);
+    }
+
+export const getRestoreTruckUrl = (truckId: number,) => {
+
+
+
+
+  return `/api/v1/trucks/${truckId}/restore`
+}
+
+export const restoreTruck = async (truckId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Truck> => {
+
+  return apiFetch<Truck>(getRestoreTruckUrl(truckId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreTruckMutationKey = () => ['restoreTruck'] as const;
+
+export const getRestoreTruckMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTruck>>, TError,RestoreTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreTruck>>, TError,RestoreTruckMutationVariables, TContext> => {
+
+const mutationKey = getRestoreTruckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreTruck>>, RestoreTruckMutationVariables> = (props) => {
+          const {truckId} = props ?? {};
+
+          return  restoreTruck(truckId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreTruckMutationResult = NonNullable<Awaited<ReturnType<typeof restoreTruck>>>
+
+    export type RestoreTruckMutationError = unknown
+    export type RestoreTruckMutationVariables = {truckId: number}
+
+    export const useRestoreTruck = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTruck>>, TError,RestoreTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreTruck>>,
+        TError,
+        RestoreTruckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreTruckMutationOptions(options), queryClient);
     }

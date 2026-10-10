@@ -7,12 +7,14 @@ from django.core.management.base import CommandError
 from apps.catalog import selectors as catalog
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.selectors import active_membership
+from apps.fleet import selectors as fleet
+from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 
 pytestmark = pytest.mark.django_db
 
 
-def test_seed_creates_one_organization_one_owner_one_driver_a_catalogue_and_suppliers(settings):
+def test_seed_creates_an_organization_its_logins_catalogue_suppliers_and_locations(settings):
     settings.DEBUG = True
 
     call_command("seed_dev")
@@ -43,6 +45,18 @@ def test_seed_creates_one_organization_one_owner_one_driver_a_catalogue_and_supp
     suppliers = partners.suppliers_of(organization)
     assert list(suppliers.values_list("reference", flat=True)) == ["F-003", "F-002", "F-001", "F-004"]
     assert suppliers.get(reference="F-002").contacts.count() == 2
+
+    assert [(location.kind, location.sells) for location in inventory.locations_of(organization)] == [
+        ("cold_room", True),
+        ("cold_room", True),
+        ("truck", True),
+        ("truck", True),
+        ("truck", True),
+    ]
+    driver = Membership.objects.get(user__username="driver")
+    truck = fleet.truck_of_driver(driver)
+    assert truck is not None
+    assert (truck.location.name, truck.plate) == ("Camion 1", "101 TU 2001")
 
 
 def test_outside_development_the_known_password_is_refused(settings):

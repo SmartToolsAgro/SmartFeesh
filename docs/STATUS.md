@@ -8,22 +8,23 @@ _Last updated: 2026-10-10_
   under Blockers.
 - **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
-- **Done, waiting for merge:** P1-T02 · Product catalogue (branch `p1-t02-products`) and P1-T03 ·
-  Suppliers (branch `p1-t03-suppliers`, stacked on `p1-t02-products`). Neither is deployed yet.
-- **Next task:** P1-T04 · Locations and trucks (`docs/phases/01-stock-core.md`)
+- **Done, waiting for merge (stacked, merge in this order):** `p1-t02-products` → `p1-t03-suppliers` →
+  `p1-t04-locations`. None is deployed yet. A docs-only branch `docs-profit-loss-rates` (D-031) also waits.
+- **Next task:** P1-T05 · Batches. Another Claude session agreed to take it, stacked on `p1-t04-locations`.
 - The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
   (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
 ## Next step (do this first)
 
-1. Merge `p1-t02-products` into `main` once CI is green, then `p1-t03-suppliers` (its PR then shows
-   only the P1-T03 commit).
-2. The merge deploys staging by itself (CI job `deploy-staging`, secrets set 2026-10-10): check it ran.
-   This first automatic deploy adds the Docker volume `frutti-staging_media`, the 12 demo products and
-   the 4 demo suppliers. Then upload one photo on staging: the volume must be writable by the `app` user.
-3. Agent: start **P1-T04** from `main` (or from `p1-t03-suppliers` if it is not merged yet). Follow the
-   same patterns: services raise `ValidationError` per field (D-030), views subclass a scoped base view,
-   demo data in `apps/demo` from `docs/spec/sample/locations.csv`.
+1. Merge the three task branches into `main` in order once CI is green (each PR then shows one task).
+   `docs-profit-loss-rates` and `p1-t03-suppliers` both append to `docs/DECISIONS.md`: keep every entry,
+   in number order (D-031, D-032, D-033).
+2. The merge deploys staging by itself (CI job `deploy-staging`): check it ran. It adds the Docker volume
+   `frutti-staging_media` and the demo products, suppliers, cold rooms and trucks. Then upload one
+   product photo on staging: the volume must be writable by the `app` user.
+3. Agent: P1-T05 (`Batch` in `inventory`, supplier and product read through `partners` / `catalog`
+   selectors), then P1-T06. Same patterns: per-field `ValidationError` (D-030), scoped base views,
+   demo data in `apps/demo`.
 
 ## Blockers / waiting on client
 
@@ -57,17 +58,19 @@ _Last updated: 2026-10-10_
 
 ## Last session (2026-10-10)
 
-- **P1-T03:** new `partners` app: `Supplier` (reference `F-NNN` generated when empty, checked Tunisian
-  tax ID, phone, e-mail, address, city, notes, active) and `SupplierContact`; services with audit; API
-  list/search/filter, detail, create, update (contacts replaced as a list), archive, restore. Drivers
-  get 403 (`ReadOfficeWriteOwnerOrManager`). Admin screens: table list, detail page, form dialog. The 4
-  stand-in suppliers of the sample are seeded (D-032).
-- Local results: 168 backend tests, 43 vitest tests, 17 Playwright tests; ruff, mypy, import
+- **P1-T04:** `inventory.StockLocation` (cold room, truck, other; counter sales) and `fleet.Truck`
+  (plate, driver, one-to-one location); services with audit; APIs for locations (office only) and
+  trucks (a driver sees only their own); "own truck" helpers; the driver's truck in `/me`, shown in the
+  driver app. Admin "Stock frigo & camions" screen with location cards and dialogs. Seeds 2 cold rooms
+  and 3 trucks, Camion 1 driven by the demo driver (D-033).
+- Fixed the P1-T03 browser test: it reused a fixed tax ID and failed on a second local run.
+- Local results: 194 backend tests, 43 vitest tests, 21 Playwright tests; ruff, mypy, import
   boundaries, eslint, prettier and the API client check all pass. Screens checked in light, dark and
   phone width.
 
 ## Recently done
 
+- 2026-10-10 · P1-T04 locations and trucks
 - 2026-10-10 · P1-T03 suppliers
 - 2026-10-10 · P1-T02 product catalogue, prices and photos
 - 2026-10-10 · P1-T01 units and quantity helpers (merged)

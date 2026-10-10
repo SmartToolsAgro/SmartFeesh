@@ -38,7 +38,9 @@ export const LoginResponse = zod.object({
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
 }),zod.null()])
 }).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
 
@@ -107,6 +109,127 @@ export const GetHealthResponse = zod.object({
 
 
 /**
+ * Cold rooms, trucks and other locations, sorted by kind then name. Archived ones only when asked.
+ */
+export const listLocationsQueryStatusDefault = `active`;
+
+export const ListLocationsQueryParams = zod.object({
+  "kind": zod.enum(['cold_room', 'truck', 'other']).optional().describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "status": zod.enum(['active', 'archived', 'all']).default(listLocationsQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const ListLocationsResponseItem = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListLocationsResponse = zod.array(ListLocationsResponseItem)
+
+
+/**
+ * A new cold room or other location. A truck is created with `createTruck`.
+ */
+export const createLocationBodyNameMax = 100;
+
+export const createLocationBodyCounterSalesDefault = false;
+
+export const CreateLocationBody = zod.object({
+  "kind": zod.enum(['cold_room', 'other']).describe('* `cold_room` - Chambre froide\n* `other` - Autre'),
+  "name": zod.string().max(createLocationBodyNameMax),
+  "counter_sales": zod.boolean().default(createLocationBodyCounterSalesDefault)
+})
+
+export const CreateLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const GetLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Rename a cold room or other location, or change whether it sells at the counter.
+ */
+export const UpdateLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const updateLocationBodyNameMax = 100;
+
+
+
+export const UpdateLocationBody = zod.object({
+  "name": zod.string().max(updateLocationBodyNameMax).optional(),
+  "counter_sales": zod.boolean().optional()
+})
+
+export const UpdateLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * An archived location keeps its history but receives no more stock.
+ */
+export const ArchiveLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const ArchiveLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreLocationParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const RestoreLocationResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "name": zod.string(),
+  "counter_sales": zod.boolean(),
+  "sells": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * The logged-in user, their organization and their role.
  */
 export const GetSessionResponse = zod.object({
@@ -124,7 +247,9 @@ export const GetSessionResponse = zod.object({
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
 }),zod.null()])
 }).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
 
@@ -151,7 +276,9 @@ export const SetLanguageResponse = zod.object({
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
 }),zod.null()])
 }).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
 
@@ -927,6 +1054,155 @@ export const RestoreSupplierResponse = zod.object({
   "phone": zod.string().max(restoreSupplierResponseContactsItemPhoneMax).default(restoreSupplierResponseContactsItemPhoneDefault),
   "email": zod.union([zod.email().max(restoreSupplierResponseContactsItemEmailOneMax).default(restoreSupplierResponseContactsItemEmailOneDefault),zod.string().max(restoreSupplierResponseContactsItemEmailTwoMax)]).optional()
 })),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Trucks sorted by name, with their driver. A driver sees only their own truck.
+ */
+export const listTrucksQueryStatusDefault = `active`;
+
+export const ListTrucksQueryParams = zod.object({
+  "status": zod.enum(['active', 'archived', 'all']).default(listTrucksQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const ListTrucksResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListTrucksResponse = zod.array(ListTrucksResponseItem)
+
+
+/**
+ * A new truck, with the stock location that holds its goods.
+ */
+export const createTruckBodyNameMax = 100;
+
+export const createTruckBodyPlateMax = 20;
+
+
+
+export const CreateTruckBody = zod.object({
+  "name": zod.string().max(createTruckBodyNameMax),
+  "plate": zod.string().max(createTruckBodyPlateMax),
+  "driver": zod.int().nullish()
+})
+
+export const CreateTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const GetTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Rename a truck, change its plate or its driver (`driver: null` takes it back from its driver).
+ */
+export const UpdateTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const updateTruckBodyNameMax = 100;
+
+export const updateTruckBodyPlateMax = 20;
+
+
+
+export const UpdateTruckBody = zod.object({
+  "name": zod.string().max(updateTruckBodyNameMax).optional(),
+  "plate": zod.string().max(updateTruckBodyPlateMax).optional(),
+  "driver": zod.int().nullish()
+})
+
+export const UpdateTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * An archived truck keeps its history, receives no more stock and has no driver.
+ */
+export const ArchiveTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const ArchiveTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreTruckParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const RestoreTruckResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "location_id": zod.int(),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
 })

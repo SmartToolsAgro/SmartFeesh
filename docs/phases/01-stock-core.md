@@ -36,13 +36,15 @@ the `Unit` table keeps the door open for other distributors (Q17).
 - [x] API + admin list/detail/form.
 
 ### P1-T04 · Locations and trucks · S
-- [ ] `StockLocation` (type: cold_room | truck | other, name). `Truck` (plate, name, assigned driver,
-      location 1–1).
-- [ ] Any number of cold rooms and trucks, managed from an admin screen (Q8: 2 cold rooms, 3+ trucks).
-- [ ] Object-level permission helper "own truck" for drivers, and the driver's truck in `/api/v1/me`
-      (left open by P0-T06, which had no `Truck` model).
-- [ ] A cold room is also a selling point: over-the-counter sales are regular (Q8), used by P2-T04.
-- [ ] Seed (dev only): two cold rooms, three trucks. Real names come from the client's lists.
+- [x] `StockLocation` (type: cold_room | truck | other, name). `Truck` (plate, name, assigned driver,
+      location 1–1). Locations in `inventory`, trucks in `fleet`; a truck's name is its location's (D-033).
+- [x] Any number of cold rooms and trucks, managed from an admin screen (Q8: 2 cold rooms, 3+ trucks).
+      The "Stock frigo & camions" screen shows them as cards; stock figures join it in P1-T11.
+- [x] Object-level permission helper "own truck" for drivers (`fleet.selectors.may_use_location`,
+      `may_use_truck`), and the driver's truck in `/api/v1/me` (left open by P0-T06).
+- [x] A cold room is also a selling point: over-the-counter sales are regular (Q8), used by P2-T04
+      (`counter_sales` flag; `sells` is true for every truck).
+- [x] Seed (dev only): two cold rooms, three trucks. Real names come from the client's lists.
 
 ### P1-T05 · Batches (lots) · M
 - [ ] `Batch` (product, supplier, receipt reference, receipt date, unit cost, expiry/use-by,

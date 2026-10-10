@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
 
+import { LocationsPage } from "./locations/LocationsPage";
 import { ProductsPage } from "./products/ProductsPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
 import { SuppliersPage } from "./suppliers/SuppliersPage";
@@ -55,12 +56,12 @@ function useNav(): AdminNavGroup[] {
 
 // Screens that exist; every other entry of the menu shows "coming soon".
 const SCREENS: Record<string, ReactNode> = {
+  "/stock": <LocationsPage />,
   "/produits": <ProductsPage />,
   "/fournisseurs": <SuppliersPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
-  "/stock": "fridge",
   "/achats": "fish",
   "/ventes": "truck",
 };

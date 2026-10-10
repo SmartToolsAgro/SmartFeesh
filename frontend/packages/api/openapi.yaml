@@ -145,6 +145,171 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
           description: ''
+  /api/v1/locations:
+    get:
+      operationId: listLocations
+      description: Cold rooms, trucks and other locations, sorted by kind then name.
+        Archived ones only when asked.
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - cold_room
+          - truck
+          - other
+          type: string
+          minLength: 1
+        description: |-
+          * `cold_room` - Chambre froide
+          * `truck` - Camion
+          * `other` - Autre
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockLocation'
+          description: ''
+    post:
+      operationId: createLocation
+      description: A new cold room or other location. A truck is created with `createTruck`.
+      tags:
+      - locations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockLocationCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StockLocationCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StockLocationCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+  /api/v1/locations/{location_id}:
+    get:
+      operationId: getLocation
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+    patch:
+      operationId: updateLocation
+      description: Rename a cold room or other location, or change whether it sells
+        at the counter.
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStockLocationUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStockLocationUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStockLocationUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+  /api/v1/locations/{location_id}/archive:
+    post:
+      operationId: archiveLocation
+      description: An archived location keeps its history but receives no more stock.
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+  /api/v1/locations/{location_id}/restore:
+    post:
+      operationId: restoreLocation
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
   /api/v1/me:
     get:
       operationId: getSession
@@ -632,6 +797,159 @@ paths:
               schema:
                 $ref: '#/components/schemas/Supplier'
           description: ''
+  /api/v1/trucks:
+    get:
+      operationId: listTrucks
+      description: Trucks sorted by name, with their driver. A driver sees only their
+        own truck.
+      parameters:
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Truck'
+          description: ''
+    post:
+      operationId: createTruck
+      description: A new truck, with the stock location that holds its goods.
+      tags:
+      - trucks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TruckWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TruckWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TruckWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}:
+    get:
+      operationId: getTruck
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+    patch:
+      operationId: updateTruck
+      description: 'Rename a truck, change its plate or its driver (`driver: null`
+        takes it back from its driver).'
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTruckWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTruckWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTruckWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}/archive:
+    post:
+      operationId: archiveTruck
+      description: An archived truck keeps its history, receives no more stock and
+        has no driver.
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}/restore:
+    post:
+      operationId: restoreTruck
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
 components:
   schemas:
     Category:
@@ -658,6 +976,25 @@ components:
       required:
       - id
       - name
+    DriverRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: Nom d’utilisateur
+          description: Requis. 150 caractères maximum. Uniquement des lettres, nombres
+            et les caractères « @ », « . », « + », « - » et « _ ».
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - username
     Health:
       type: object
       properties:
@@ -791,6 +1128,14 @@ components:
           allOf:
           - $ref: '#/components/schemas/IllustrationEnum'
           default: fish
+    PatchedStockLocationUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        counter_sales:
+          type: boolean
     PatchedSupplierWrite:
       type: object
       properties:
@@ -832,6 +1177,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SupplierContact'
+    PatchedTruckWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        plate:
+          type: string
+          maxLength: 20
+        driver:
+          type: integer
+          nullable: true
     PhotoUpload:
       type: object
       properties:
@@ -1047,6 +1404,72 @@ components:
           nullable: true
       required:
       - price
+    StockLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/StockLocationKindEnum'
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        counter_sales:
+          type: boolean
+          readOnly: true
+        sells:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - counter_sales
+      - id
+      - is_active
+      - kind
+      - name
+      - sells
+      - updated_at
+    StockLocationCreate:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/StockLocationCreateKindEnum'
+        name:
+          type: string
+          maxLength: 100
+        counter_sales:
+          type: boolean
+          default: false
+      required:
+      - kind
+      - name
+    StockLocationCreateKindEnum:
+      enum:
+      - cold_room
+      - other
+      type: string
+      description: |-
+        * `cold_room` - Chambre froide
+        * `other` - Autre
+    StockLocationKindEnum:
+      enum:
+      - cold_room
+      - truck
+      - other
+      type: string
+      description: |-
+        * `cold_room` - Chambre froide
+        * `truck` - Camion
+        * `other` - Autre
     Supplier:
       type: object
       properties:
@@ -1170,6 +1593,41 @@ components:
             $ref: '#/components/schemas/SupplierContact'
       required:
       - name
+    Truck:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        plate:
+          type: string
+          readOnly: true
+        driver:
+          allOf:
+          - $ref: '#/components/schemas/DriverRef'
+          readOnly: true
+          nullable: true
+        location_id:
+          type: integer
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - driver
+      - id
+      - is_active
+      - location_id
+      - name
+      - plate
+      - updated_at
     TruckRef:
       type: object
       properties:
@@ -1177,9 +1635,30 @@ components:
           type: integer
         name:
           type: string
+        plate:
+          type: string
+        location_id:
+          type: integer
       required:
       - id
+      - location_id
       - name
+      - plate
+    TruckWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        plate:
+          type: string
+          maxLength: 20
+        driver:
+          type: integer
+          nullable: true
+      required:
+      - name
+      - plate
     User:
       type: object
       properties:

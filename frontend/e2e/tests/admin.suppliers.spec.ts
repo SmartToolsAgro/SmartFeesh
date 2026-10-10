@@ -29,14 +29,16 @@ test("the owner sees the demo suppliers, searches them and opens one", async ({ 
 });
 
 test("the owner creates a supplier with a contact, edits it and archives it", async ({ page }) => {
-  // The development database is kept between runs: a new name every time.
-  const name = `Pêcherie E2E ${Date.now()}`;
+  // The development database is kept between runs: a new name and tax ID every time.
+  const stamp = Date.now();
+  const name = `Pêcherie E2E ${stamp}`;
+  const taxNumber = String(stamp % 10_000_000).padStart(7, "0");
   await openSuppliers(page);
 
   await page.getByRole("button", { name: "Nouveau fournisseur" }).click();
   const dialog = page.getByRole("dialog", { name: "Nouveau fournisseur" });
   await dialog.getByLabel("Nom", { exact: true }).fill(name);
-  await dialog.getByLabel("Matricule fiscal").fill("1234567 a a m 000");
+  await dialog.getByLabel("Matricule fiscal").fill(`${taxNumber} a a m 000`);
   await dialog.getByLabel("Ville").fill("Mahdia");
   await dialog.getByRole("button", { name: "Ajouter un contact" }).click();
   await dialog.getByLabel("Nom du contact").fill("Mounir");
@@ -47,7 +49,7 @@ test("the owner creates a supplier with a contact, edits it and archives it", as
   await expect(page.getByText("Fournisseur créé.")).toBeVisible();
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
   await expect(page.getByText(/^F-\d{3}$/)).toBeVisible();
-  await expect(page.getByText("1234567A/A/M/000")).toBeVisible();
+  await expect(page.getByText(`${taxNumber}A/A/M/000`)).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: "Mounir" })).toContainText("Patron pêcheur");
 
   await page.getByRole("button", { name: "Modifier" }).click();

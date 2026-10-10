@@ -242,3 +242,24 @@ dependencies and starts PostgreSQL with the `frutti` role.
   payments and Phase 6 agreements. The detail screen shows a placeholder card for them.
 - E2E tests log the owner in once (`owner.setup.ts`, saved session in `frontend/e2e/.auth/`): logging in
   in every test hit the limit of 8 logins a minute per account.
+
+**D-033 · Locations and trucks (P1-T04)** · accepted · 2026-10-10
+- `StockLocation` lives in a new `inventory` app (stock movements will join it in P1-T06); `Truck` in a new
+  `fleet` app (driver days join it in Phase 3). `Truck.location` is a one-to-one key written by name
+  (`"inventory.StockLocation"`), so `fleet` imports only `inventory.services` / `selectors`.
+- A truck's **name is its location's name**, so stock screens and truck screens never disagree. A truck
+  is created, renamed and archived through `fleet`; the location API refuses to create or change a truck
+  location. Location names are unique per organization; plates too, stored in capitals with single spaces.
+- `counter_sales` marks a cold room (or other location) where customers buy at the counter (Q8);
+  `sells` is true for trucks and for those. Seeded cold rooms both sell at the counter (provisional).
+- One active truck per driver at most (database constraint). Only an active member with the `driver`
+  role of the same company can be assigned. Archiving a truck archives its location and takes it back
+  from its driver. From P1-T06, a location still holding stock must not be archived.
+- **Own truck:** `fleet.selectors.may_use_location(membership, location_id)` and `may_use_truck`. The
+  office (owner, manager, accountant) may use every location; a driver only their active truck's. The
+  truck API applies it (a driver lists and reads only their own truck, changes nothing); locations are
+  office-only (drivers get 403 and learn their truck from `/me`).
+- **`/me` truck:** `core` may not import `fleet`, so `core.session` holds a lookup that `fleet` registers in
+  `FleetConfig.ready()`. `/me` returns `truck: {id, name, plate, location_id}` or null.
+- The admin "Stock frigo & camions" screen manages locations for now (cards like the prototype); P1-T11
+  adds the stock figures to the same screen.
