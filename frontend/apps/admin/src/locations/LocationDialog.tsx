@@ -64,6 +64,10 @@ export function LocationDialog({ location, onDone }: { location?: StockLocation;
       await refreshLocations(queryClient);
       onDone();
     },
+    // A location still holding stock cannot be archived: the server says why.
+    onError: (failure) => {
+      setErrors({ detail: fieldErrors(failure).detail ?? t("admin.locations.form.error") });
+    },
   });
 
   function submit(event: FormEvent) {

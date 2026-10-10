@@ -287,3 +287,28 @@ dependencies and starts PostgreSQL with the `frutti` role.
 - Demo batches have no stock yet: the ledger (P1-T06) or the receipts (P1-T07) should give them an
   opening stock in the seed.
 
+**D-035 · Stock ledger and on-hand cache (P1-T06a)** · accepted · 2026-10-10
+- `StockMovement` and `StockOnHand` live in `inventory`. A movement has a kind, one batch (its product is
+  copied for fast totals), a `from` and/or `to` location, a positive quantity (the locations give the
+  direction), the batch's cost per kg at posting, an optional source document (generic key), the user,
+  `occurred_at` (when it happened; a driver offline may sync later) and `created_at` (when posted), a
+  reason and an optional `client_uuid`.
+- **Sides per kind:** receipt and customer return only come in; sale, supplier return and loss only go
+  out; a transfer goes between two different locations; an adjustment or a count correction names one
+  location, the side giving the direction. Losses and adjustments need a reason. Locations must be
+  active and of the same company.
+- **Append-only** like the audit log: saving an existing movement, `update()` and `delete()` raise.
+  Movements write **no** `AuditLog` entry: the ledger already records who, what and when, and an audit row
+  per kilo moved would double the largest table.
+- **Locking:** `post_movement` locks the on-hand rows it touches with `select_for_update`, always in
+  location-id order, so crossed transfers cannot deadlock (tested with 8 at once); a missing row is created
+  at zero first (`bulk_create(ignore_conflicts=True)`). Stock never goes below zero (a check constraint
+  backs the service). A `client_uuid` already posted returns the existing movement.
+- A location holding stock cannot be archived (also blocks archiving a loaded truck); the admin dialogs
+  now show the server's reason.
+- **Demo stock:** the 15 demo batches are received into the cold rooms (frozen products into "Chambre
+  froide 2") and Camion 1 is loaded once. Each seeded movement has a fixed `client_uuid` (uuid5), so the
+  staging deploy can run the seed every time without moving stock again.
+- Tests using several database connections (`transaction=True`) also set `serialized_rollback=True`:
+  otherwise the flush between tests deletes the `kg` unit made by a data migration.
+

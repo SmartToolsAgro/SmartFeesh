@@ -153,7 +153,7 @@ def test_the_search_matches_number_receipt_product_and_supplier(organization, ac
         assert list(selectors.batches_of(organization, search=search)) == [batch]
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_two_receipts_at_the_same_moment_never_share_a_number():
     organization = OrganizationFactory.create()
     product = ProductFactory.create(organization=organization)
