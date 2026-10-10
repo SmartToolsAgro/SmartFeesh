@@ -48,6 +48,13 @@ cd ~/frutti-staging/releases/$(ls -1t ~/frutti-staging/releases | head -1)/deplo
 sudo docker compose --project-name frutti-staging --env-file ~/frutti-staging/.env -f compose.staging.yml exec backend python manage.py shell
 ```
 
+### Stock check
+
+Every night just after 03:00 UTC the `frutti-staging-nightly-1` container compares the stock on hand
+with the movement ledger (D-038); see `sudo docker logs frutti-staging-nightly-1`. A difference is
+logged as an error. After understanding it, repair from the ledger with
+`... exec backend python manage.py rebuild_on_hand` (same folder as above); `--check` only reports.
+
 ### Roll back
 
 Redeploy an older commit: `git checkout <commit> && make deploy-staging`, then come back to your branch.

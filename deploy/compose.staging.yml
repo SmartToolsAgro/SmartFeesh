@@ -22,7 +22,7 @@ services:
     image: frutti-backend:${RELEASE:?set by the deploy script}
     restart: unless-stopped
     command: sh -c "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3 --access-logfile - --no-control-socket"
-    environment:
+    environment: &backend-env
       DATABASE_URL: postgres://frutti:${POSTGRES_PASSWORD}@db:5432/frutti
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set in .env}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?set in .env}
@@ -58,6 +58,25 @@ services:
       - "127.0.0.1:18082:8082" # driver app
     depends_on:
       backend: { condition: service_healthy }
+
+  # Nightly jobs, without touching the shared server's crontab. 03:00 UTC is 04:00 in Tunisia.
+  nightly:
+    image: frutti-backend:${RELEASE}
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      backend: { condition: service_healthy }
+    # Sleeps until just after 03:00 UTC, then checks the stock on hand against the ledger (D-038). A
+    # difference is logged as an error (Sentry once its DSN is set) and repaired by hand:
+    # `docker compose ... exec backend python manage.py rebuild_on_hand`.
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          sleep $$(( (86400 + 3 * 3600 - $$(date +%s) % 86400) % 86400 + 60 ))
+          python manage.py rebuild_on_hand --check || true
+        done
 
 volumes:
   pgdata:

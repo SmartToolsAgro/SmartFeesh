@@ -81,8 +81,9 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
       `services.post_fifo_movements` (D-037).
 
 #### P1-T06c · Rebuild and consistency check · S
-- [ ] `rebuild_on_hand()` management command + nightly consistency check that reports differences.
-- [ ] Tests: rebuild equals cache; a damaged cache is reported, then repaired.
+- [x] `rebuild_on_hand()` management command + nightly consistency check that reports differences
+      (`manage.py rebuild_on_hand [--check]`; the `nightly` container on staging, D-038).
+- [x] Tests: rebuild equals cache; a damaged cache is reported, then repaired.
 
 ### P1-T07 · Goods receipt from suppliers · M
 - [ ] `PurchaseOrder` (optional) → `GoodsReceipt` with lines: ordered qty, invoiced qty (net weight,
