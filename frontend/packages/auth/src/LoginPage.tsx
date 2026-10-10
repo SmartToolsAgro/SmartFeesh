@@ -1,3 +1,4 @@
+import { Brand, Button, Card, Field, Input, ThemeToggle } from "@frutti/ui";
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation } from "react-router";
 
@@ -12,7 +13,7 @@ function messageFor(error: unknown): string {
   return "Connexion impossible. Vérifiez le réseau puis réessayez.";
 }
 
-/** Login screen shared by both apps. Plain markup for now: the design system arrives in P0-T07. */
+/** Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"). */
 export function LoginPage({ title }: { title: string }) {
   const session = useSession();
   const login = useLogin();
@@ -31,38 +32,49 @@ export function LoginPage({ title }: { title: string }) {
   }
 
   return (
-    <main>
-      <h1>{title}</h1>
-      <form onSubmit={submit} aria-label="Connexion">
-        <p>
-          <label htmlFor="login-username">Identifiant</label>
-          <input
-            id="login-username"
-            name="username"
-            autoComplete="username"
-            autoCapitalize="none"
-            required
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-          />
-        </p>
-        <p>
-          <label htmlFor="login-password">Mot de passe</label>
-          <input
-            id="login-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </p>
-        {login.isError && <p role="alert">{messageFor(login.error)}</p>}
-        <button type="submit" disabled={login.isPending}>
-          {login.isPending ? "Connexion…" : "Se connecter"}
-        </button>
-      </form>
+    <main className="grid min-h-dvh place-items-center bg-radial-[60%_70%_at_70%_40%] from-sea-soft to-transparent p-4">
+      <Card className="flex w-full max-w-[380px] flex-col gap-5 p-6">
+        <div className="flex items-center justify-between gap-3">
+          <Brand />
+          <ThemeToggle />
+        </div>
+        <div>
+          <span className="eyebrow">{title}</span>
+          <h1 className="text-[1.4rem]">Connexion</h1>
+        </div>
+        <form onSubmit={submit} aria-label="Connexion" className="flex flex-col gap-4">
+          <Field label="Identifiant" htmlFor="login-username">
+            <Input
+              id="login-username"
+              name="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              required
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+            />
+          </Field>
+          <Field label="Mot de passe" htmlFor="login-password">
+            <Input
+              id="login-password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </Field>
+          {login.isError && (
+            <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">
+              {messageFor(login.error)}
+            </p>
+          )}
+          <Button type="submit" variant="primary" size="lg" disabled={login.isPending}>
+            {login.isPending ? "Connexion…" : "Se connecter"}
+          </Button>
+        </form>
+      </Card>
     </main>
   );
 }

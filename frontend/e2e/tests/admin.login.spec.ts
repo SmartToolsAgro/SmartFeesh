@@ -11,8 +11,8 @@ test("the owner logs in to the admin app and logs out", async ({ page }) => {
   await page.getByLabel("Mot de passe").fill(PASSWORD);
   await page.getByRole("button", { name: "Se connecter" }).click();
 
-  await expect(page.getByText("Espace administration · Frutti Del Mare")).toBeVisible();
-  await expect(page.getByText("(Propriétaire)")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible();
+  await expect(page.getByText("Propriétaire", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 
   await page.getByRole("button", { name: "Se déconnecter" }).click();
@@ -38,5 +38,5 @@ test("the admin app turns a driver away", async ({ page }) => {
   await page.getByRole("button", { name: "Se connecter" }).click();
 
   await expect(page.getByRole("alert")).toContainText("compte chauffeur");
-  await expect(page.getByText("Espace administration")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Tableau de bord" })).toHaveCount(0);
 });

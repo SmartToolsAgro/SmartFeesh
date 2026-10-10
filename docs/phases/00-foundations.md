@@ -91,13 +91,17 @@ Playwright tests pass locally (owner and driver log in and out; each app turns t
 The login screens are unstyled: the design system is P0-T07._
 
 ### P0-T07 · Design system from the prototype · owner: agent · M
-- [ ] Port colour tokens (light + dark), fonts, radius, shadows from `prototype/index.html` into a Tailwind
+- [x] Port colour tokens (light + dark), fonts, radius, shadows from `prototype/index.html` into a Tailwind
       preset in `packages/ui`.
-- [ ] Icons and seafood illustrations as React components.
-- [ ] shadcn/ui base components themed: Button, Input, Select, Card, Badge/Pill, Table, Dialog, Toast.
-- [ ] App shells: admin (sidebar + top bar), truck (phone layout + bottom nav), matching the prototype.
+- [x] Icons and seafood illustrations as React components.
+- [x] shadcn/ui base components themed: Button, Input, Select, Card, Badge/Pill, Table, Dialog, Toast.
+- [x] App shells: admin (sidebar + top bar), truck (phone layout + bottom nav), matching the prototype.
 
 **Acceptance:** both apps show their empty shell looking like the prototype, in light and dark.
+
+_Done 2026-10-10 (D-024). Checked on screenshots of both apps in light and dark, taken by the Playwright
+tests (10 pass). Every module of the prototype has a route with a "Bientôt disponible" screen. Select,
+Table and Toast are built but not used by any screen yet, so they have only been type-checked._
 
 ### P0-T08 · Internationalisation · owner: agent · S
 - [ ] Django i18n + i18next; French default; all UI strings through translation functions.

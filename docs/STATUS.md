@@ -5,20 +5,21 @@ _Last updated: 2026-10-10_
 ## Where we are
 
 - **Phase:** 0 · Discovery & foundations (`docs/phases/00-foundations.md`)
-- **Current task:** P0-T07 · Design system from the prototype (owner: agent)
+- **Current task:** P0-T08 · Internationalisation (owner: agent)
 - **In parallel (human):** P0-T01 client workshop, P0-T02 profit-sharing worked example
 
 ## Next step (do this first)
 
-1. **Check CI on GitHub (Actions tab), then open the pull requests.** Three stacked branches were pushed
-   on 2026-10-10: `p0-t04-quality-ci` → `p0-t05-core-app` → `p0-t06-auth`. Nobody has looked at the
+1. **Check CI on GitHub (Actions tab), then open the pull requests.** Four stacked branches were pushed
+   on 2026-10-10: `p0-t04-quality-ci` → `p0-t05-core-app` → `p0-t06-auth` → `p0-t07-design-system`.
+   Nobody has looked at the
    result yet (the repository is private and the session had no GitHub access). All jobs (backend,
    frontend, and e2e on the last branch) must be green; if an action input changed, fix
    `.github/workflows/ci.yml`. That closes P0-T04's acceptance. Merge in order, oldest first.
-2. Agent: start **P0-T07**. Read only its section of the phase file. Port the prototype's colour tokens
-   (light and dark), fonts, radius and shadows into a Tailwind preset in `packages/ui`, theme the base
-   shadcn/ui components, and build the two app shells. The login page in `packages/auth` and the two
-   `Home` scaffold screens are unstyled on purpose: restyle them here.
+2. Agent: start **P0-T08**. Read only its section of the phase file. Django i18n + i18next, French
+   default, every UI string through a translation function, RTL switch tested with a dummy Arabic
+   string, the user's `language` followed by both apps, number and date formats (`1 250,000 DT`,
+   `dd/mm/yyyy`). UI strings are hard-coded French today in `packages/ui`, `packages/auth` and both apps.
 
 ## Blockers / waiting on client
 
@@ -56,10 +57,13 @@ _Last updated: 2026-10-10_
 - **P0-T06** (D-023): login/logout/me API with CSRF and rate limiting, role permission classes, shared
   `@frutti/auth` package, login screens and route guards in both apps, Playwright tests. Left open: the
   "own truck" helper, moved to P1-T04.
-- Local results: 57 backend tests, 8 vitest tests, 5 Playwright tests, all linters and type checks pass.
+- **P0-T07** (D-024): Tailwind 4 theme from the prototype's tokens, self-hosted fonts, icon and
+  illustration sprite, Button, Input, Select, Card, Pill, Table, Dialog, Toast, admin and truck shells,
+  restyled login, theme switch. Every prototype module has a "Bientôt disponible" route.
+- Local results: 57 backend tests, 13 vitest tests, 10 Playwright tests, all linters and type checks pass.
 
 ## Recently done
 
+- 2026-10-10 · P0-T07 design system and app shells
 - 2026-10-10 · P0-T06 authentication and permissions
 - 2026-10-10 · P0-T05 core app
-- 2026-10-10 · P0-T04 quality tooling and CI (CI run pending)

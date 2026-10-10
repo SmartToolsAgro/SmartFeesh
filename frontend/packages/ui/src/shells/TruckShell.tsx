@@ -1,0 +1,80 @@
+import type { ReactNode } from "react";
+import { NavLink } from "react-router";
+
+import type { IconName } from "../icon-names";
+import { Icon } from "../icons";
+
+export interface TruckTab {
+  to: string;
+  label: string;
+  icon: IconName;
+}
+
+interface Props {
+  tabs: TruckTab[];
+  /** Small line above the title: the truck, once trucks exist. */
+  eyebrow: string;
+  title: string;
+  /** Short facts under the title (route, temperature...). */
+  chips?: { icon: IconName; label: string }[];
+  onLogout: () => void;
+  children: ReactNode;
+}
+
+/** Driver frame: one phone-width column with a blue header, a scrolling body and a bottom tab bar. */
+export function TruckShell({ tabs, eyebrow, title, chips = [], onLogout, children }: Props) {
+  return (
+    <div className="mx-auto flex h-dvh w-full max-w-[480px] flex-col bg-bg min-[481px]:border-x min-[481px]:border-line">
+      <header className="bg-linear-150 from-[#0c3b4e] to-[#0f5e7a] px-[18px] pt-[max(22px,env(safe-area-inset-top))] pb-[18px] text-white">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <span className="eyebrow text-[#9fd0e0]">{eyebrow}</span>
+            <h2 className="text-[1.25rem] text-white">{title}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
+            className="grid size-9 flex-none place-items-center rounded-full bg-white/15"
+          >
+            <Icon name="return" className="size-[18px]" />
+          </button>
+        </div>
+        {chips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {chips.map((chip) => (
+              <span
+                key={chip.label}
+                className="flex items-center gap-[5px] rounded-full bg-white/15 px-2.5 py-1 text-[0.78rem]"
+              >
+                <Icon name={chip.icon} className="size-3.5" />
+                {chip.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </header>
+
+      <main className="flex flex-1 flex-col gap-3 overflow-y-auto p-3.5">{children}</main>
+
+      <nav
+        aria-label="Navigation camion"
+        className="grid border-t border-line bg-surface px-1 pt-1.5 pb-[max(10px,env(safe-area-inset-bottom))]"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+      >
+        {tabs.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            end={tab.to === "/"}
+            className="flex flex-col items-center gap-0.5 py-1.5 text-[0.7rem] font-semibold text-ink-2 aria-[current=page]:text-coral"
+          >
+            <Icon name={tab.icon} />
+            {tab.label}
+          </NavLink>
+        ))}
+      </nav>
+    </div>
+  );
+}

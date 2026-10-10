@@ -1,0 +1,41 @@
+export const ICON_NAMES = [
+  "grid",
+  "quote",
+  "receipt",
+  "users",
+  "anchor",
+  "box",
+  "cart",
+  "wallet",
+  "badge",
+  "percent",
+  "calcheck",
+  "truck",
+  "snow",
+  "plus",
+  "check",
+  "alert",
+  "cash",
+  "scale",
+  "home",
+  "lock",
+  "return",
+  "trash",
+  "pin",
+  "fuel",
+] as const;
+export type IconName = (typeof ICON_NAMES)[number];
+
+export const ILLUSTRATION_NAMES = [
+  "shrimp",
+  "peeled",
+  "fish",
+  "bass",
+  "squid",
+  "octopus",
+  "mussel",
+  "mix",
+  "fridge",
+  "truck",
+] as const;
+export type IllustrationName = (typeof ILLUSTRATION_NAMES)[number];

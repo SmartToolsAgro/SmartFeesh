@@ -1,0 +1,4 @@
+@import "@frutti/ui/styles.css";
+
+/* Tailwind does not scan workspace packages by itself. */
+@source "../../../packages/auth/src";

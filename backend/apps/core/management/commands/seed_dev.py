@@ -11,7 +11,7 @@ ORGANIZATION_NAME = "Frutti Del Mare"
 # Development logins only. The command refuses to run when DEBUG is off.
 DEV_PASSWORD = "frutti-dev"
 DEV_USERS = [
-    ("owner", "Le", "Gérant", Role.OWNER),
+    ("owner", "Nadia", "K.", Role.OWNER),
     ("driver", "Sami", "B.", Role.DRIVER),
 ]
 

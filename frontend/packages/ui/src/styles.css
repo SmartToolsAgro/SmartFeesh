@@ -1,0 +1,171 @@
+/* Frutti Del Mare design system, ported from prototype/index.html.
+   Ice blues for the cold chain, shrimp coral for action. Each app imports this file once. */
+@import "@fontsource-variable/bricolage-grotesque/wght.css";
+@import "@fontsource-variable/figtree/wght.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "tailwindcss";
+
+/* Tailwind does not scan workspace packages by itself. */
+@source "./";
+
+:root {
+  --bg: #eef4f7; /* frosted ice */
+  --surface: #ffffff;
+  --surface-2: #f5f9fb;
+  --ink: #0c2633; /* deep water */
+  --ink-2: #4a6573;
+  --line: #d6e3ea;
+  --sea: #0f5e7a; /* harbour blue */
+  --sea-soft: #d7ecf3;
+  --coral: #e8604c; /* crevette royale */
+  --coral-soft: #fce3de;
+  --good: #1f8a5b;
+  --good-soft: #ddf2e7;
+  --warn: #b7791f;
+  --warn-soft: #fbefd5;
+  --bad: #c2413a;
+  --bad-soft: #f8dedc;
+  --tile-a: #cfe6ef;
+  --tile-b: #a9d2e2;
+  --shadow: 0 1px 2px rgba(12, 38, 51, 0.06), 0 8px 24px -12px rgba(12, 38, 51, 0.18);
+}
+
+/* Dark follows the system unless the user chose a theme (data-theme on <html>, see theme.ts). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #071a23;
+    --surface: #0d2530;
+    --surface-2: #10303d;
+    --ink: #e4f1f6;
+    --ink-2: #93b1be;
+    --line: #1d4352;
+    --sea: #5dc1e0;
+    --sea-soft: #123e4e;
+    --coral: #ff7a66;
+    --coral-soft: #3d2120;
+    --good: #4cc58d;
+    --good-soft: #123a2a;
+    --warn: #e6ad4e;
+    --warn-soft: #3a2e14;
+    --bad: #f07068;
+    --bad-soft: #3e1c1b;
+    --tile-a: #123b4a;
+    --tile-b: #0b2c38;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #071a23;
+  --surface: #0d2530;
+  --surface-2: #10303d;
+  --ink: #e4f1f6;
+  --ink-2: #93b1be;
+  --line: #1d4352;
+  --sea: #5dc1e0;
+  --sea-soft: #123e4e;
+  --coral: #ff7a66;
+  --coral-soft: #3d2120;
+  --good: #4cc58d;
+  --good-soft: #123a2a;
+  --warn: #e6ad4e;
+  --warn-soft: #3a2e14;
+  --bad: #f07068;
+  --bad-soft: #3e1c1b;
+  --tile-a: #123b4a;
+  --tile-b: #0b2c38;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+/* The tokens as Tailwind utilities: bg-surface, text-ink-2, border-line, rounded-card, shadow-card... */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-sea: var(--sea);
+  --color-sea-soft: var(--sea-soft);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-tile-a: var(--tile-a);
+  --color-tile-b: var(--tile-b);
+
+  --font-display: "Bricolage Grotesque Variable", "Avenir Next", system-ui, sans-serif;
+  --font-sans: "Figtree Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-chip: 9px;
+  --shadow-card: var(--shadow);
+}
+
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+  }
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 2px solid var(--sea);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Amounts and weights: fixed-width digits so columns line up. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
