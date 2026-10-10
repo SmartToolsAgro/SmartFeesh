@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import connection, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -419,3 +419,46 @@ def post_fifo_movements(
         )
         for index, (batch, taken) in enumerate(allocations)
     ]
+
+
+@transaction.atomic
+def rebuild_on_hand(*, organization: Organization, actor: User | None) -> list[selectors.OnHandDifference]:
+    """Set the stock on hand of every location and batch back to the sum of its movements (D-038).
+
+    The ledger is the truth; the cache only speeds up reading it. Returns what was wrong, empty when
+    nothing was. Writes are blocked on the cache (of every organization) for the few milliseconds this
+    takes: `post_movement` updates the cache before it writes its movement, so a movement either finished
+    before the rebuild or starts after it, never in the middle. Reads are not blocked.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(f"LOCK TABLE {StockOnHand._meta.db_table} IN EXCLUSIVE MODE")
+    differences = selectors.on_hand_differences(organization)
+    if not differences:
+        return []
+    negative = [difference for difference in differences if difference.ledger < 0]
+    if negative:
+        # Movements are checked before posting, so this cannot happen without editing the database by hand.
+        raise ValidationError(
+            _("Le journal donne un stock négatif pour %(count)s ligne(s) : réparation impossible, à examiner.")
+            % {"count": len(negative)}
+        )
+    for difference in differences:
+        row, _created = StockOnHand.objects.get_or_create(
+            location_id=difference.location_id,
+            batch_id=difference.batch_id,
+            defaults={"organization": organization, "product_id": difference.product_id},
+        )
+        row.quantity = difference.ledger
+        row.save(update_fields=["quantity", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="stock.on_hand_rebuilt",
+        before={"rows": [_difference_entry(difference, difference.cached) for difference in differences]},
+        after={"rows": [_difference_entry(difference, difference.ledger) for difference in differences]},
+    )
+    return differences
+
+
+def _difference_entry(difference: selectors.OnHandDifference, quantity: Decimal) -> dict[str, Any]:
+    return {"location": difference.location_id, "batch": difference.batch_id, "quantity": quantity}

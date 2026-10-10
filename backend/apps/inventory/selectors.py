@@ -1,10 +1,12 @@
 """Reusable read queries of stock locations, batches, movements and stock on hand."""
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
 
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.db.models import Q, QuerySet, Sum
 from django.utils.translation import gettext as _
 
@@ -204,3 +206,55 @@ def allocate_fifo(
     if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
         raise not_enough_stock(sum((row.quantity for row in holdings), Decimal("0.000")), location)
     return allocations
+
+
+@dataclass(frozen=True)
+class OnHandDifference:
+    """One location and batch whose cached stock does not match the sum of its movements."""
+
+    location_id: int
+    batch_id: int
+    product_id: int
+    cached: Decimal
+    ledger: Decimal
+
+
+# One statement, so the movements and the cache are read from the same snapshot: a movement posted while
+# the check runs is either fully in both or in neither (it and its on-hand change commit together).
+_DIFFERENCES_SQL = f"""
+WITH moves AS (
+    SELECT to_location_id AS location_id, batch_id, product_id, quantity AS change
+      FROM {StockMovement._meta.db_table}
+     WHERE organization_id = %(organization)s AND to_location_id IS NOT NULL
+    UNION ALL
+    SELECT from_location_id, batch_id, product_id, -quantity
+      FROM {StockMovement._meta.db_table}
+     WHERE organization_id = %(organization)s AND from_location_id IS NOT NULL
+), ledger AS (
+    SELECT location_id, batch_id, product_id, SUM(change) AS quantity FROM moves GROUP BY 1, 2, 3
+), cache AS (
+    SELECT location_id, batch_id, product_id, quantity
+      FROM {StockOnHand._meta.db_table}
+     WHERE organization_id = %(organization)s
+)
+SELECT COALESCE(ledger.location_id, cache.location_id),
+       COALESCE(ledger.batch_id, cache.batch_id),
+       COALESCE(ledger.product_id, cache.product_id),
+       COALESCE(cache.quantity, 0),
+       COALESCE(ledger.quantity, 0)
+  FROM ledger
+  FULL OUTER JOIN cache ON cache.location_id = ledger.location_id AND cache.batch_id = ledger.batch_id
+ WHERE COALESCE(cache.quantity, 0) <> COALESCE(ledger.quantity, 0)
+ ORDER BY 1, 2
+"""
+
+
+def on_hand_differences(organization: Organization) -> list[OnHandDifference]:
+    """Every place where the stock on hand differs from what the ledger says (D-006, D-038).
+
+    Empty when the cache is right, which it always should be: `post_movement` updates both together.
+    A difference means someone changed the database by hand, or a bug; `rebuild_on_hand` repairs it.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_DIFFERENCES_SQL, {"organization": organization.pk})
+        return [OnHandDifference(*row) for row in cursor.fetchall()]

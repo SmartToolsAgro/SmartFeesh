@@ -354,3 +354,20 @@ dependencies and starts PostgreSQL with the `frutti` role.
   requests create it while crossing, PostgreSQL aborts one with a deadlock error (no hang) and the client
   retries. The test with 8 crossed loads and returns at once passes.
 
+**D-038 · Stock on hand checked against the ledger, nightly and on demand (P1-T06c)** · accepted · 2026-10-11
+- `inventory.selectors.on_hand_differences(organization)` sums the movements per (location, batch) and
+  compares them with `StockOnHand` in **one SQL statement**, so both are read from the same snapshot
+  and a movement posted meanwhile never shows as a false difference. Missing rows and rows with no
+  movement are covered (full outer join).
+- `inventory.services.rebuild_on_hand(organization, actor)` sets the cache back to the ledger and writes
+  one `stock.on_hand_rebuilt` audit entry with the rows before and after. It first takes
+  `LOCK TABLE … IN EXCLUSIVE MODE` on the cache: writes wait a few milliseconds, reads do not, and
+  since `post_movement` touches the cache before writing its movement, no movement is caught halfway.
+  A ledger that would give negative stock (only possible by editing the database) is refused, not
+  "repaired".
+- `manage.py rebuild_on_hand` repairs every organization; `--check` only reports and fails (exit 1) on a
+  difference, logging each one as an error (Sentry once its DSN is set). Repairing stays a human
+  decision: a difference means a bug or a hand edit, to be understood first.
+- **Nightly, without Celery or the shared server's crontab:** a `nightly` service in
+  `compose.staging.yml` runs the backend image and sleeps until just after 03:00 UTC (04:00 in Tunisia),
+  then runs the check. It moves to Celery beat when Celery arrives (ARCHITECTURE: Phase 2).

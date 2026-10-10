@@ -1,33 +1,33 @@
 # Project status
 
-_Last updated: 2026-10-10_
+_Last updated: 2026-10-11_
 
 ## Where we are
 
 - **Phase:** 1 · Catalogue, suppliers & stock. Phase 0 agent work is done; its human items are listed
   under Blockers.
-- **Staging is live** and runs `main` at 6912b5f (P1-T06a and one host name per app): admin
+- **Staging is live** and runs `main` at 06cde30 (P1-T06b): admin
   http://admin.217-182-205-137.sslip.io:8095, driver http://chauffeur.217-182-205-137.sslip.io:8096
   (D-036, `docs/runbook.md`); the old IP addresses redirect there. Demo logins `owner` / `driver`,
-  password in `~/frutti-staging/.env` on the server. Seeded stock: 19 movements; Chambre froide 1
-  271 kg, Chambre froide 2 107 kg, Camion 1 40 kg. CI and the deploy job were green.
-- **On `main`:** P1-T02 to P1-T06a (PRs #3 to #6), the staging seed fix and the host names.
-- **Waiting for merge (PRs open):** `p1-t06b-fifo` (P1-T06b) and the docs-only `docs-profit-loss-rates`
-  (D-031, `main` merged into it). Agents may not merge to `main` without Mahmoud's approval.
-- **Next task:** P1-T06c · Rebuild and consistency check (`docs/phases/01-stock-core.md`).
+  password in `~/frutti-staging/.env` on the server. Seeded stock: Chambre froide 1 271 kg, Chambre
+  froide 2 107 kg, Camion 1 40 kg.
+- **On `main`:** P1-T02 to P1-T06b and D-031 (PRs #3 to #8). Every merge to `main` deploys staging.
+- **Merging (2026-10-11):** Mahmoud lets agents open, merge (green CI only) and verify PRs with `gh`
+  (`C:\Program Files\GitHub CLI\gh.exe` on his machine).
+- **This branch:** `p1-t06c-rebuild` (P1-T06c), PR to `main`.
+- **Next tasks:** P1-T07 · Goods receipt (another Claude session plans to take it from `main`, D-039+),
+  then P1-T08 supplier invoices and payments.
 - The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
   (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
 ## Next step (do this first)
 
-1. Open the apps by their new names and check that the owner (admin) and the driver (driver app) stay
-   logged in side by side in one browser.
-2. Merge `p1-t06b-fifo`, then `docs-profit-loss-rates`. Both append to `docs/DECISIONS.md`: on a conflict
-   keep both entries. Upload one product photo on staging: the `frutti-staging_media` volume must be
-   writable.
-3. Agent: P1-T06c from `main` (or `p1-t06b-fifo`): `rebuild_on_hand` management command that sums the
-   ledger per (location, batch), compares with `StockOnHand`, reports differences and repairs them only
-   when asked; a nightly run (no Celery yet: a cron line on the server, or Celery beat when it arrives).
+1. After P1-T06c is deployed: `sudo docker ps` shows `frutti-staging-nightly-1` running; the first
+   check runs just after 03:00 UTC (`sudo docker logs frutti-staging-nightly-1`).
+2. Agent: P1-T07 goods receipts (`PurchaseOrder` optional → `GoodsReceipt` lines with ordered,
+   invoiced and accepted net kg, unit cost → batches + receipt movements through `post_movement`).
+3. Mahmoud: check the two apps side by side in one browser on the new host names; upload one product
+   photo on staging.
 
 ## Blockers / waiting on client
 
@@ -59,19 +59,17 @@ _Last updated: 2026-10-10_
 - Stock changes only through `inventory.services.post_movement` or `post_fifo_movements` (D-035, D-037);
   never write `StockOnHand`. Nobody picks batches by hand: take stock with `post_fifo_movements`.
 
-## Last session (2026-10-10)
+## Last session (2026-10-11)
 
-- **P1-T06b:** `selectors.allocate_fifo` (preview of the oldest-first split, refuses more than held) and
-  `services.post_fifo_movements` (locks the product's rows at both locations, posts one movement per
-  batch, refused as a whole, idempotent per request with `uuid5(client_uuid, n)`) (D-037).
-- Fixed this file: the merges of PRs #4 to #6 had left two versions of several lines.
-- Local results: 250 backend tests (two trucks loaded at once never take the same kilos; 8 crossed
-  loads and returns without deadlock, run three times), ruff, mypy, import boundaries. No API or screen
-  changed, so no client regeneration or Playwright run.
+- **P1-T06c:** `selectors.on_hand_differences` (ledger vs cache in one statement),
+  `services.rebuild_on_hand` (locks cache writes, repairs, audits), `manage.py rebuild_on_hand [--check]`,
+  and a `nightly` container on staging that runs the check at 03:00 UTC (D-038).
+- Local results: 257 backend tests, ruff, mypy, import boundaries; compose file validated on the server.
+  No API or screen changed.
 
 ## Recently done
 
+- 2026-10-11 · P1-T06c rebuild and nightly check
 - 2026-10-10 · P1-T06b FIFO allocation
 - 2026-10-10 · P1-T06a stock ledger and on-hand cache
 - 2026-10-10 · Staging: one host name per app; CI deploy green end to end (PR #4)
-- 2026-10-10 · P1-T05 batches
