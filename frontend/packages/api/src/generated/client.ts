@@ -24,14 +24,17 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  Batch,
   Category,
   Health,
+  ListBatchesParams,
   ListLocationsParams,
   ListProductsParams,
   ListSuppliersParams,
   ListTrucksParams,
   Login,
   Member,
+  PaginatedBatchList,
   PatchedCategory,
   PatchedLanguage,
   PatchedProductUpdate,
@@ -346,6 +349,208 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getLogoutMutationOptions(options), queryClient);
     }
+
+export const getListBatchesUrl = (params?: ListBatchesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/batches?${stringifiedParams}` : `/api/v1/batches`
+}
+
+/**
+ * Batches, newest receipt first, paginated (`limit`, `offset`). Filter by product or supplier;
+ * `search` matches the batch number, the supplier's receipt reference, product and supplier.
+ * Batches are created by goods receipts, not here.
+ */
+export const listBatches = async (params?: ListBatchesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedBatchList> => {
+
+  return apiFetch<PaginatedBatchList>(getListBatchesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBatchesQueryKey = (params?: ListBatchesParams,) => {
+    return [
+    `/api/v1/batches`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBatchesQueryOptions = <TData = Awaited<ReturnType<typeof listBatches>>, TError = unknown>(params?: ListBatchesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBatchesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBatches>>> = ({ signal }) => listBatches(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listBatches>>>
+export type ListBatchesQueryError = unknown
+
+
+export function useListBatches<TData = Awaited<ReturnType<typeof listBatches>>, TError = unknown>(
+ params: undefined |  ListBatchesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBatches>>,
+          TError,
+          Awaited<ReturnType<typeof listBatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBatches<TData = Awaited<ReturnType<typeof listBatches>>, TError = unknown>(
+ params?: ListBatchesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBatches>>,
+          TError,
+          Awaited<ReturnType<typeof listBatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBatches<TData = Awaited<ReturnType<typeof listBatches>>, TError = unknown>(
+ params?: ListBatchesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListBatches<TData = Awaited<ReturnType<typeof listBatches>>, TError = unknown>(
+ params?: ListBatchesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBatchesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBatchUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/batches/${batchId}`
+}
+
+export const getBatch = async (batchId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Batch> => {
+
+  return apiFetch<Batch>(getGetBatchUrl(batchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBatchQueryKey = (batchId: number,) => {
+    return [
+    `/api/v1/batches/${batchId}`
+    ] as const;
+    }
+
+
+export const getGetBatchQueryOptions = <TData = Awaited<ReturnType<typeof getBatch>>, TError = unknown>(batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBatchQueryKey(batchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBatch>>> = ({ signal }) => getBatch(batchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBatchQueryResult = NonNullable<Awaited<ReturnType<typeof getBatch>>>
+export type GetBatchQueryError = unknown
+
+
+export function useGetBatch<TData = Awaited<ReturnType<typeof getBatch>>, TError = unknown>(
+ batchId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBatch>>,
+          TError,
+          Awaited<ReturnType<typeof getBatch>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBatch<TData = Awaited<ReturnType<typeof getBatch>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBatch>>,
+          TError,
+          Awaited<ReturnType<typeof getBatch>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBatch<TData = Awaited<ReturnType<typeof getBatch>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBatch<TData = Awaited<ReturnType<typeof getBatch>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBatchQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListCategoriesUrl = () => {
 
@@ -2347,7 +2552,7 @@ export const getListSuppliersUrl = (params?: ListSuppliersParams,) => {
 
 /**
  * Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
- * paginated: the company works with a handful of suppliers (D-031).
+ * paginated: the company works with a handful of suppliers (D-032).
  */
 export const listSuppliers = async (params?: ListSuppliersParams, options?: Parameters<typeof apiFetch>[1]): Promise<Supplier[]> => {
 

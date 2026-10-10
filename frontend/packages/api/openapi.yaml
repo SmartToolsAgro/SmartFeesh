@@ -57,6 +57,73 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/batches:
+    get:
+      operationId: listBatches
+      description: |-
+        Batches, newest receipt first, paginated (`limit`, `offset`). Filter by product or supplier;
+        `search` matches the batch number, the supplier's receipt reference, product and supplier.
+        Batches are created by goods receipts, not here.
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: product
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - batches
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBatchList'
+          description: ''
+  /api/v1/batches/{batch_id}:
+    get:
+      operationId: getBatch
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - batches
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+          description: ''
   /api/v1/categories:
     get:
       operationId: listCategories
@@ -643,7 +710,7 @@ paths:
       operationId: listSuppliers
       description: |-
         Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
-        paginated: the company works with a handful of suppliers (D-031).
+        paginated: the company works with a handful of suppliers (D-032).
       parameters:
       - in: query
         name: search
@@ -952,6 +1019,86 @@ paths:
           description: ''
 components:
   schemas:
+    Batch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/BatchSupplier'
+          readOnly: true
+        receipt_reference:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - number
+      - product
+      - receipt_reference
+      - received_on
+      - supplier
+      - unit_cost
+      - use_by
+    BatchProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
+    BatchSupplier:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
     Category:
       type: object
       properties:
@@ -1080,6 +1227,29 @@ components:
       required:
       - id
       - name
+    PaginatedBatchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Batch'
     PatchedCategory:
       type: object
       properties:

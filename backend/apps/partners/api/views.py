@@ -45,7 +45,7 @@ class SupplierListView(SupplierView):
     )
     def get(self, request: Request) -> Response:
         """Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
-        paginated: the company works with a handful of suppliers (D-031)."""
+        paginated: the company works with a handful of suppliers (D-032)."""
         filters = SupplierFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
         suppliers = selectors.suppliers_of(

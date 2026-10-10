@@ -1,16 +1,25 @@
-"""Every write on stock locations (and on stock, from P1-T06) goes through these functions (ARCHITECTURE §3)."""
+"""Every write on stock locations, batches (and stock, from P1-T06) goes through these functions (ARCHITECTURE §3)."""
 
-from typing import Any
+import datetime as dt
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.core import audit
 from apps.core.models import Organization, User
+from apps.core.money import Number, checked_amount
 
+from .models import Batch, BatchCounter, StockLocation
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
-from .models import StockLocation
+
+if TYPE_CHECKING:
+    from apps.catalog.models import Product
+    from apps.partners.models import Supplier
+
+BATCH_NUMBER_PREFIX = "L-"
 
 
 def _snapshot(location: StockLocation) -> dict[str, Any]:
@@ -92,3 +101,83 @@ def set_location_active(*, location: StockLocation, actor: User | None, is_activ
         action = "location.restored" if is_active else "location.archived"
         audit.record(organization=location.organization, actor=actor, action=action, target=location)
     return location
+
+
+def _next_batch_number(organization: Organization) -> str:
+    """L-0001, L-0002... per organization, taken under a row lock so two receipts never share a number.
+
+    Four digits at least, like the prototype's "L-0912"; the 10 000th batch is simply L-10000.
+    """
+    # Creates the counter the first time without failing when another transaction creates it at once.
+    BatchCounter.objects.bulk_create([BatchCounter(organization=organization)], ignore_conflicts=True)
+    counter = BatchCounter.objects.select_for_update().get(organization=organization)
+    counter.last_number += 1
+    counter.save(update_fields=["last_number"])
+    return f"{BATCH_NUMBER_PREFIX}{counter.last_number:04d}"
+
+
+def _batch_snapshot(batch: Batch) -> dict[str, Any]:
+    return {
+        "number": batch.number,
+        "product": batch.product.reference,
+        "supplier": batch.supplier.reference,
+        "receipt_reference": batch.receipt_reference,
+        "received_on": batch.received_on.isoformat(),
+        "unit_cost": str(batch.unit_cost),
+        "use_by": batch.use_by.isoformat() if batch.use_by else None,
+    }
+
+
+@transaction.atomic
+def create_batch(
+    *,
+    organization: Organization,
+    actor: User | None,
+    product: "Product",
+    supplier: "Supplier",
+    received_on: dt.date,
+    unit_cost: Number,
+    receipt_reference: str = "",
+    use_by: dt.date | None = None,
+) -> Batch:
+    """A new batch with the next number. Called by the goods receipt (P1-T07) and the demo data.
+
+    Refused (ValidationError per field): a product or supplier of another organization or archived, a
+    receipt date in the future, a cost that is negative or finer than a millime, a use-by date before
+    the receipt date.
+    """
+    errors: dict[str, str] = {}
+    if product.organization_id != organization.pk:
+        errors["product"] = _("Produit inconnu.")
+    elif not product.is_active:
+        errors["product"] = _("Ce produit est archivé.")
+    if supplier.organization_id != organization.pk:
+        errors["supplier"] = _("Fournisseur inconnu.")
+    elif not supplier.is_active:
+        errors["supplier"] = _("Ce fournisseur est archivé.")
+    if received_on > timezone.localdate():
+        errors["received_on"] = _("La date de réception ne peut pas être dans le futur.")
+    if use_by is not None and use_by < received_on:
+        errors["use_by"] = _("La date limite ne peut pas précéder la réception.")
+    cost = None
+    try:
+        cost = checked_amount(unit_cost)
+    except ValueError as error:
+        errors["unit_cost"] = str(error)
+    if errors or cost is None:
+        raise ValidationError(errors)
+
+    batch = Batch.objects.create(
+        organization=organization,
+        number=_next_batch_number(organization),
+        product=product,
+        supplier=supplier,
+        receipt_reference=receipt_reference.strip(),
+        received_on=received_on,
+        unit_cost=cost,
+        use_by=use_by,
+    )
+    audit.record(
+        organization=organization, actor=actor, action="batch.created", target=batch, after=_batch_snapshot(batch)
+    )
+    return batch

@@ -5,12 +5,16 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './batch';
+export * from './batchProduct';
+export * from './batchSupplier';
 export * from './category';
 export * from './categoryRef';
 export * from './driverRef';
 export * from './health';
 export * from './illustrationEnum';
 export * from './languageEnum';
+export * from './listBatchesParams';
 export * from './listLocationsKind';
 export * from './listLocationsParams';
 export * from './listLocationsStatus';
@@ -23,6 +27,7 @@ export * from './listTrucksStatus';
 export * from './login';
 export * from './member';
 export * from './organization';
+export * from './paginatedBatchList';
 export * from './patchedCategory';
 export * from './patchedLanguage';
 export * from './patchedProductUpdate';

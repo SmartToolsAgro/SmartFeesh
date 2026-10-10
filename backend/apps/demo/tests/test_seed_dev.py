@@ -14,7 +14,7 @@ from apps.partners import selectors as partners
 pytestmark = pytest.mark.django_db
 
 
-def test_seed_creates_an_organization_its_logins_catalogue_suppliers_and_locations(settings):
+def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_and_batches(settings):
     settings.DEBUG = True
 
     call_command("seed_dev")
@@ -57,6 +57,19 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_and_locatio
     truck = fleet.truck_of_driver(driver)
     assert truck is not None
     assert (truck.location.name, truck.plate) == ("Camion 1", "101 TU 2001")
+
+    batches = inventory.batches_of(organization)
+    assert batches.count() == 15
+    assert sorted(batches.values_list("number", flat=True))[:2] == ["L-0001", "L-0002"]
+    # Q4: the same product from two suppliers at two costs.
+    dorade = batches.filter(product__reference="DO-003")
+    assert set(dorade.values_list("supplier__reference", "unit_cost")) == {
+        ("F-002", Decimal("20.000")),
+        ("F-003", Decimal("18.500")),
+    }
+    # Q7: the older Crevette Royale delivery leaves first.
+    shrimp_batches = inventory.batches_oldest_first(organization, product_id=shrimp.pk)
+    assert list(shrimp_batches.values_list("receipt_reference", flat=True)) == ["KRK-1187", "KRK-1192"]
 
 
 def test_outside_development_the_known_password_is_refused(settings):

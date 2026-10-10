@@ -1,18 +1,23 @@
 from django.core.exceptions import ValidationError
+from django.db.models import QuerySet
 from django.http import Http404
 from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.generics import ListAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.inventory import selectors, services
-from apps.inventory.models import StockLocation
+from apps.inventory.models import Batch, StockLocation
 
 from .serializers import (
+    BatchFilterSerializer,
+    BatchSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
     StockLocationSerializer,
@@ -20,9 +25,9 @@ from .serializers import (
 )
 
 
-# Base of the location views: rows of the user's organization only (D-022); drivers get 403 and read their
-# own truck from `/me`. A comment, not a docstring: a docstring would describe every endpoint in the schema.
-class LocationView(APIView):
+# Rows of the user's organization only (D-022); drivers get 403 and read their own truck from `/me`.
+# A comment, not a docstring: a docstring would describe every endpoint in the schema.
+class OfficeView(APIView):
     permission_classes = (ReadOfficeWriteOwnerOrManager,)
 
     @property
@@ -35,6 +40,8 @@ class LocationView(APIView):
     def organization(self) -> Organization:
         return self.membership.organization
 
+
+class LocationView(OfficeView):
     def location(self, location_id: int) -> StockLocation:
         try:
             return selectors.location_of(self.organization, location_id)
@@ -114,3 +121,35 @@ class LocationRestoreView(LocationView):
             location=self.standalone_location(location_id), actor=self.membership.user, is_active=True
         )
         return Response(StockLocationSerializer(location).data)
+
+
+class BatchListView(OfficeView, ListAPIView[Batch]):
+    serializer_class = BatchSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[Batch]:
+        filters = BatchFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.batches_of(
+            self.organization,
+            product_id=filters.validated_data.get("product"),
+            supplier_id=filters.validated_data.get("supplier"),
+            search=filters.validated_data["search"],
+        )
+
+    @extend_schema(operation_id="listBatches", parameters=[BatchFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Batches, newest receipt first, paginated (`limit`, `offset`). Filter by product or supplier;
+        `search` matches the batch number, the supplier's receipt reference, product and supplier.
+        Batches are created by goods receipts, not here."""
+        return super().get(request, *args, **kwargs)
+
+
+class BatchDetailView(OfficeView):
+    @extend_schema(operation_id="getBatch", responses=BatchSerializer)
+    def get(self, request: Request, batch_id: int) -> Response:
+        try:
+            batch = selectors.batch_of(self.organization, batch_id)
+        except Batch.DoesNotExist:
+            raise Http404 from None
+        return Response(BatchSerializer(batch).data)

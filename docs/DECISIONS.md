@@ -263,3 +263,27 @@ dependencies and starts PostgreSQL with the `frutti` role.
   `FleetConfig.ready()`. `/me` returns `truck: {id, name, plate, location_id}` or null.
 - The admin "Stock frigo & camions" screen manages locations for now (cards like the prototype); P1-T11
   adds the stock figures to the same screen.
+
+**D-034 · Batches, their numbers, and the first paginated list (P1-T05)** · accepted · 2026-10-10
+- `Batch` lives in `inventory`, next to the stock it will carry. It points to `catalog.Product` and
+  `partners.Supplier` by name, like `Truck` does to its location. Unit cost is DT per kg without VAT, on
+  the batch only (D-020); zero is allowed (free goods), negative and sub-millime costs are refused
+  (`core.money.checked_amount`, the amount twin of `checked_quantity`). A receipt date in the future and
+  a use-by date before receipt are refused. A batch is never edited: corrections come as new documents.
+- **Numbers:** `L-` and at least 4 digits, per organization, from a `BatchCounter` row locked with
+  `select_for_update` (a test runs four receipts at once). A refused batch uses no number. Gaps are
+  possible only if a later step of the same transaction fails, and nothing requires batch numbers to be
+  gap-free (unlike invoices).
+- **FIFO order** is receipt date, then id (`inventory.models.FIFO_ORDER`, `selectors.batches_oldest_first`);
+  P1-T06 allocates over it. Lists show newest first.
+- **No `agreement` column yet:** the agreement table comes with P6-T01, which adds the nullable key and
+  fills it from the agreement in force at each receipt date. A placeholder integer now would only have to
+  be converted later.
+- **Batches are created only by services** (goods receipts from P1-T07; the demo seed now). The API is
+  read-only and office-only, like suppliers.
+- **Pagination:** lists that keep growing (batches, later movements, invoices) use `core.api.pagination.PagedList`
+  (`limit` / `offset`, 50 by default, 200 at most, answer `{count, next, previous, results}`). Short lists
+  (products, suppliers, locations) stay unpaginated.
+- Demo batches have no stock yet: the ledger (P1-T06) or the receipts (P1-T07) should give them an
+  opening stock in the seed.
+

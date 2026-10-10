@@ -47,9 +47,12 @@ the `Unit` table keeps the door open for other distributors (Q17).
 - [x] Seed (dev only): two cold rooms, three trucks. Real names come from the client's lists.
 
 ### P1-T05 · Batches (lots) · M
-- [ ] `Batch` (product, supplier, receipt reference, receipt date, unit cost, expiry/use-by,
-      nullable `agreement` placeholder).
-- [ ] Batch number generator (`L-0912` style, per organization).
+- [x] `Batch` (product, supplier, receipt reference, receipt date, unit cost, expiry/use-by) in
+      `inventory`. The nullable `agreement` key is added by P6-T01 with the agreement table (D-034).
+- [x] Batch number generator (`L-0912` style, per organization): `L-0001`, `L-0002`… under a row lock.
+- [x] Read-only API (`listBatches`, paginated, filters product / supplier / search; `getBatch`), office
+      only. Batches are created by `inventory.services.create_batch`, called by goods receipts (P1-T07).
+- [x] Seed (dev only): 15 recent batches of the sample suppliers, dorade from two suppliers (Q4).
 
 Q4 answered: the same product can come from several suppliers in one month; batches keep them apart.
 Q11 answered: a mix such as Symphonie Marine comes from a single supplier, so it is an ordinary product

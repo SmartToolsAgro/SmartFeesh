@@ -13,6 +13,7 @@ DECIMAL_PLACES = 3
 MILLIME = Decimal("0.001")
 GRAM = Decimal("0.001")
 MAX_QUANTITY = Decimal("999999999.999")  # the largest value a QuantityField holds
+MAX_AMOUNT = Decimal("99999999999.999")  # the largest value a MoneyField holds
 
 type Number = Decimal | int | str
 
@@ -56,6 +57,27 @@ def checked_quantity(value: Number, *, allow_zero: bool = False) -> Decimal:
     if result > MAX_QUANTITY:
         raise ValueError(_("%(value)s kg : quantité trop grande.") % {"value": value})
     return result.quantize(GRAM)
+
+
+def checked_amount(value: Number) -> Decimal:
+    """An amount typed by a person (a purchase cost, a payment): checked, never silently rounded.
+
+    Refused with ValueError: more than 3 decimals (finer than a millime), a negative value, text that
+    is not a number, and anything larger than a MoneyField can store. Zero is a valid amount.
+    """
+    try:
+        result = _to_decimal(value)
+    except InvalidOperation:
+        raise ValueError(_("« %(value)s » n'est pas un montant.") % {"value": value}) from None
+    if not result.is_finite():
+        raise ValueError(_("« %(value)s » n'est pas un montant.") % {"value": value})
+    if result != result.quantize(MILLIME):
+        raise ValueError(_("%(value)s DT : au plus 3 décimales (le millime).") % {"value": value})
+    if result < 0:
+        raise ValueError(_("%(value)s DT : un montant ne peut pas être négatif.") % {"value": value})
+    if result > MAX_AMOUNT:
+        raise ValueError(_("%(value)s DT : montant trop grand.") % {"value": value})
+    return result.quantize(MILLIME)
 
 
 def line_total(qty: Number, unit_price: Number) -> Decimal:

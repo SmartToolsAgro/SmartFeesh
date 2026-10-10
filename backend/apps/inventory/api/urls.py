@@ -7,4 +7,6 @@ urlpatterns = [
     path("locations/<int:location_id>", views.LocationDetailView.as_view(), name="location-detail"),
     path("locations/<int:location_id>/archive", views.LocationArchiveView.as_view(), name="location-archive"),
     path("locations/<int:location_id>/restore", views.LocationRestoreView.as_view(), name="location-restore"),
+    path("batches", views.BatchListView.as_view(), name="batch-list"),
+    path("batches/<int:batch_id>", views.BatchDetailView.as_view(), name="batch-detail"),
 ]

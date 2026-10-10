@@ -48,6 +48,83 @@ export const LoginResponse = zod.object({
 export const LogoutResponse = zod.void()
 
 
+/**
+ * Batches, newest receipt first, paginated (`limit`, `offset`). Filter by product or supplier;
+ * `search` matches the batch number, the supplier's receipt reference, product and supplier.
+ * Batches are created by goods receipts, not here.
+ */
+
+export const listBatchesQuerySearchDefault = ``;
+export const listBatchesQuerySearchMax = 100;
+
+
+
+
+export const ListBatchesQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "product": zod.int().min(1).optional(),
+  "search": zod.string().max(listBatchesQuerySearchMax).default(listBatchesQuerySearchDefault),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const listBatchesResponseResultsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListBatchesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "receipt_reference": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', listBatchesResponseResultsItemUnitCostRegExp),
+  "use_by": zod.iso.date().nullable(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+export const GetBatchParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const getBatchResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetBatchResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "receipt_reference": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', getBatchResponseUnitCostRegExp),
+  "use_by": zod.iso.date().nullable(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
 export const listCategoriesResponseNameMax = 100;
 
 
@@ -695,7 +772,7 @@ export const RestoreProductResponse = zod.object({
 
 /**
  * Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
- * paginated: the company works with a handful of suppliers (D-031).
+ * paginated: the company works with a handful of suppliers (D-032).
  */
 export const listSuppliersQuerySearchDefault = ``;
 export const listSuppliersQuerySearchMax = 100;

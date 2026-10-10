@@ -6,6 +6,7 @@ from django.db import transaction
 
 from apps.core import services
 from apps.core.models import Organization, Role, User
+from apps.demo.batches import seed_batches
 from apps.demo.catalogue import seed_catalogue
 from apps.demo.locations import seed_locations
 from apps.demo.suppliers import seed_suppliers
@@ -22,8 +23,8 @@ DEV_USERS = [
 
 class Command(BaseCommand):
     help = (
-        "Create one organization, one owner, one driver, a demo catalogue, suppliers, cold rooms "
-        "and trucks: development data, "
+        "Create one organization, one owner, one driver, a demo catalogue, suppliers, cold rooms, "
+        "trucks and batches: development data, "
         "or demo data on staging with --password. Safe to run twice; an existing account keeps its password."
     )
 
@@ -60,12 +61,14 @@ class Command(BaseCommand):
         suppliers = seed_suppliers(organization=organization, actor=owner)
         driver = User.objects.get(username=DEV_USERS[1][0])
         locations = seed_locations(organization=organization, actor=owner, driver=driver)
+        batches = seed_batches(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
         self.stdout.write(
             self.style.SUCCESS(
                 f"{ORGANIZATION_NAME}: logins {logins}, password {shown}, "
-                f"{products} new products, {suppliers} new suppliers, {locations} new cold rooms and trucks"
+                f"{products} new products, {suppliers} new suppliers, {locations} new cold rooms and trucks, "
+                f"{batches} new batches"
             )
         )

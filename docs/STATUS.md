@@ -9,22 +9,25 @@ _Last updated: 2026-10-10_
 - **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
 - **Done, waiting for merge (stacked, merge in this order):** `p1-t02-products` → `p1-t03-suppliers` →
-  `p1-t04-locations`. None is deployed yet. A docs-only branch `docs-profit-loss-rates` (D-031) also waits.
-- **Next task:** P1-T05 · Batches. Another Claude session agreed to take it, stacked on `p1-t04-locations`.
+  `p1-t04-locations` → `p1-t05-batches`. None is deployed yet. A docs-only branch
+  `docs-profit-loss-rates` (D-031) also waits. `gh` is not installed on Mahmoud's machine and agents
+  may not merge to `main` without his approval, so he merges.
+- **Next task:** P1-T06 · Stock ledger and on-hand (size L: split it into sub-tasks first).
 - The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
   (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
 ## Next step (do this first)
 
-1. Merge the three task branches into `main` in order once CI is green (each PR then shows one task).
-   `docs-profit-loss-rates` and `p1-t03-suppliers` both append to `docs/DECISIONS.md`: keep every entry,
-   in number order (D-031, D-032, D-033).
+1. Merge the four task branches into `main` in order once CI is green (each PR then shows one task).
+   `docs-profit-loss-rates` and the task branches all append to `docs/DECISIONS.md`: keep every entry,
+   in number order (D-031 to D-034).
 2. The merge deploys staging by itself (CI job `deploy-staging`): check it ran. It adds the Docker volume
-   `frutti-staging_media` and the demo products, suppliers, cold rooms and trucks. Then upload one
+   `frutti-staging_media` and the demo products, suppliers, cold rooms, trucks and batches. Then upload one
    product photo on staging: the volume must be writable by the `app` user.
-3. Agent: P1-T05 (`Batch` in `inventory`, supplier and product read through `partners` / `catalog`
-   selectors), then P1-T06. Same patterns: per-field `ValidationError` (D-030), scoped base views,
-   demo data in `apps/demo`.
+3. Agent: start P1-T06 from `p1-t05-batches` (or `main` once merged). First split it in the phase file
+   (ledger + on-hand + `post_movement`; FIFO allocation; rebuild command and nightly check). FIFO walks
+   `inventory.selectors.batches_oldest_first` (D-034). Give the 15 demo batches an opening stock in the
+   seed. Same patterns: per-field `ValidationError` (D-030), scoped base views, demo data in `apps/demo`.
 
 ## Blockers / waiting on client
 
@@ -47,7 +50,8 @@ _Last updated: 2026-10-10_
 - The Docker dev stack (`make dev`) has not been run yet; the production images have (staging).
 - Mahmoud's Windows machine: no `make`, `pnpm`, `docker`, `psql` or gettext on the PATH;
   `npx -y pnpm@10.28.0 <command>` works. The PostgreSQL 18 service on 5432 has no `frutti` role
-  and its password is unknown; for tests, `initdb -A trust` a cluster in the scratchpad on port 5433.
+  and its password is unknown; for tests, `initdb -A trust` a cluster in the scratchpad on its own port
+  (5433, 5434…: parallel sessions each use their own) and set `DATABASE_URL`.
 - Run `make lint` before every commit (or `make hooks` once); CI runs the same checks.
 - API: 401 = not logged in, 403 = role not allowed (D-023). Every view sets a permission class, scopes its
   queryset with `.for_organization(org)` (D-022) and names its operation with `operation_id` (D-026).
@@ -58,19 +62,19 @@ _Last updated: 2026-10-10_
 
 ## Last session (2026-10-10)
 
-- **P1-T04:** `inventory.StockLocation` (cold room, truck, other; counter sales) and `fleet.Truck`
-  (plate, driver, one-to-one location); services with audit; APIs for locations (office only) and
-  trucks (a driver sees only their own); "own truck" helpers; the driver's truck in `/me`, shown in the
-  driver app. Admin "Stock frigo & camions" screen with location cards and dialogs. Seeds 2 cold rooms
-  and 3 trucks, Camion 1 driven by the demo driver (D-033).
-- Fixed the P1-T03 browser test: it reused a fixed tax ID and failed on a second local run.
-- Local results: 194 backend tests, 43 vitest tests, 21 Playwright tests; ruff, mypy, import
-  boundaries, eslint, prettier and the API client check all pass. Screens checked in light, dark and
-  phone width.
+- **P1-T05:** `inventory.Batch` (product, supplier, supplier's receipt reference, receipt date, cost per
+  kg, use-by) with numbers `L-0001`… per organization from a locked counter; `services.create_batch`
+  (per-field checks, audit); selectors for lists, search and FIFO order; read-only office API
+  `listBatches` (first paginated list, `core.api.pagination.PagedList`) and `getBatch`; read-only Django
+  admin. `core.money.checked_amount` for typed amounts. Seeds 15 recent batches (D-034). No screen yet:
+  batches show in the stock screens (P1-T11).
+- Fixed the suppliers API description that cited D-031 instead of D-032.
+- Local results: 222 backend tests (one runs four receipts at once), vitest and type checks; ruff, mypy,
+  import boundaries, eslint, prettier pass. No Playwright run: no screen changed.
 
 ## Recently done
 
+- 2026-10-10 · P1-T05 batches
 - 2026-10-10 · P1-T04 locations and trucks
 - 2026-10-10 · P1-T03 suppliers
 - 2026-10-10 · P1-T02 product catalogue, prices and photos
-- 2026-10-10 · P1-T01 units and quantity helpers (merged)
