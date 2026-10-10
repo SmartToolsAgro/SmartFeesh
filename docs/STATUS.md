@@ -6,22 +6,22 @@ _Last updated: 2026-10-10_
 
 - **Phase:** 1 · Catalogue, suppliers & stock. Phase 0 agent work is done; its human items are listed
   under Blockers.
-- **Staging is live:** admin http://admin.217-182-205-137.sslip.io:8095, driver
-  http://chauffeur.217-182-205-137.sslip.io:8096 (one host name per app, D-036, `docs/runbook.md`).
-  Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
+- **Staging is live** and runs `main` at 6912b5f (P1-T06a and one host name per app): admin
+  http://admin.217-182-205-137.sslip.io:8095, driver http://chauffeur.217-182-205-137.sslip.io:8096
+  (D-036, `docs/runbook.md`); the old IP addresses redirect there. Demo logins `owner` / `driver`,
+  password in `~/frutti-staging/.env` on the server. Seeded stock: 19 movements; Chambre froide 1
+  271 kg, Chambre froide 2 107 kg, Camion 1 40 kg. CI and the deploy job were green.
 - **On `main`:** P1-T02 to P1-T06a (PRs #3 to #6), the staging seed fix and the host names.
-- **Waiting for merge:** `p1-t06b-fifo` (P1-T06b) and the docs-only `docs-profit-loss-rates` (D-031).
-  `gh` is not installed on Mahmoud's machine and agents may not merge to `main` without his approval.
+- **Waiting for merge (PRs open):** `p1-t06b-fifo` (P1-T06b) and the docs-only `docs-profit-loss-rates`
+  (D-031, `main` merged into it). Agents may not merge to `main` without Mahmoud's approval.
 - **Next task:** P1-T06c · Rebuild and consistency check (`docs/phases/01-stock-core.md`).
 - The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
   (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
 ## Next step (do this first)
 
-1. Check that the deploy of PR #6 ran: staging should show the ledger tables migrated, and the 15 demo
-   batches received into the cold rooms with Camion 1 loaded once (`client_uuid`s fixed: later deploys
-   move nothing). Open the apps by their new names and check that the owner (admin) and the driver
-   (driver app) stay logged in side by side in one browser.
+1. Open the apps by their new names and check that the owner (admin) and the driver (driver app) stay
+   logged in side by side in one browser.
 2. Merge `p1-t06b-fifo`, then `docs-profit-loss-rates`. Both append to `docs/DECISIONS.md`: on a conflict
    keep both entries. Upload one product photo on staging: the `frutti-staging_media` volume must be
    writable.
@@ -45,7 +45,9 @@ _Last updated: 2026-10-10_
 
 - **The staging VPS is shared with other clients' production sites.** Touch only `frutti-staging`
   (containers, folder, nginx site); run `sudo nginx -t` before any reload; never prune Docker there.
-- Mahmoud's Windows machine: no `make`, `pnpm`, `docker`, `psql` or gettext on the PATH;
+- Mahmoud's Windows machine: `gh` is installed (`C:\Program Files\GitHub CLI\gh.exe`, logged in as
+  `mahmoudnjeh95`; open a new shell to have it on the PATH). No `make`, `pnpm`, `docker`, `psql` or
+  gettext on the PATH;
   `npx -y pnpm@10.28.0 <command>` works. For Playwright, put a `pnpm.cmd` shim
   (`@npx -y pnpm@10.28.0 %*`) on the PATH. For tests, `initdb -A trust` a PostgreSQL 18 cluster in the
   scratchpad on its own port (5433, 5434…: parallel sessions each use their own) and set `DATABASE_URL`.
