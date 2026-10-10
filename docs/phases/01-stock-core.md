@@ -12,8 +12,10 @@ phase.
 ---
 
 ### P1-T01 · Units and conversions · S
-- [ ] `Unit` table seeded with kg only; per-product `base_unit` (always kg for now).
-- [ ] Quantity helpers with tests; quantities stored in base unit only.
+- [x] `Unit` table seeded with kg only; per-product `base_unit` (always kg for now). The `Product.base_unit`
+      field itself is added with `Product` in P1-T02, defaulting to `catalog.selectors.base_unit()`.
+- [x] Quantity helpers with tests; quantities stored in base unit only (`core.money.checked_quantity`
+      for what a person types, `catalog.selectors.to_base_quantity` for every quantity entering the system).
 
 Q10 answered: everything is sold by kg. Box and piece units and conversion factors are not built now;
 the `Unit` table keeps the door open for other distributors (Q17).

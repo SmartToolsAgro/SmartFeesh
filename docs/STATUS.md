@@ -4,17 +4,21 @@ _Last updated: 2026-10-10_
 
 ## Where we are
 
-- **Phase:** 0 · Discovery & foundations: all agent work done (P0-T03 to P0-T11). Open: P0-T01 and P0-T02
-  (human), and three human items of P0-T11 (domain + HTTPS, CI deploy secrets, Sentry project).
+- **Phase:** 1 · Catalogue, suppliers & stock. Phase 0 agent work is done; its human items are listed
+  under Blockers.
 - **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
-- **Current task:** P1-T01 · Units (`docs/phases/01-stock-core.md`)
+- **Done:** P1-T01 · Units (branch `p1-t01-units`, not merged, not deployed: it has no visible screen).
+- **Current task:** P1-T02 · Product catalogue (`docs/phases/01-stock-core.md`)
 
 ## Next step (do this first)
 
-1. Agent: start **P1-T01**. Read only its section of the phase file. New Django apps follow
-   ARCHITECTURE §3; after adding an endpoint run `make gen-api` and commit the result. Deploy with
-   `make deploy-staging` after each finished task so the client can follow.
+1. Merge `p1-t01-units` into `main` once CI is green, then branch P1-T02 from `main`.
+2. Agent: start **P1-T02**. Read only its section of the phase file. `Product.base_unit` is a
+   `ForeignKey(Unit, on_delete=PROTECT)` defaulting to `catalog.selectors.base_unit()`; read quantities
+   with `core.money.checked_quantity` and convert with `catalog.selectors.to_base_quantity` (D-029).
+   After adding endpoints run `make gen-api` and commit the result. Deploy with `make deploy-staging`
+   once the product screens exist so the client can follow.
 
 ## Blockers / waiting on client
 
@@ -35,8 +39,8 @@ _Last updated: 2026-10-10_
   Disk is 83% full (13 GB free).
 - The Docker dev stack (`make dev`) has not been run yet; the production images have (staging).
 - Mahmoud's Windows machine: no `make`, `pnpm`, `docker`, `psql` or gettext on the PATH;
-  `npx -y pnpm@10.28.0 <command>` works. A PostgreSQL 18 service listens on 5432 but has no `frutti`
-  role yet: create it from `.env.example` to run the backend and browser tests.
+  `npx -y pnpm@10.28.0 <command>` works. The PostgreSQL 18 service on 5432 has no `frutti` role
+  and its password is unknown; for tests, `initdb -A trust` a cluster in the scratchpad on port 5433.
 - Run `make lint` before every commit (or `make hooks` once); CI runs the same checks.
 - API: 401 = not logged in, 403 = role not allowed (D-023). Every view sets a permission class, scopes its
   queryset with `.for_organization(org)` (D-022) and names its operation with `operation_id` (D-026).
@@ -47,16 +51,16 @@ _Last updated: 2026-10-10_
 
 ## Last session (2026-10-10)
 
-- Q1–Q17 answered; plan updated (D-014 to D-020); stand-in data in `docs/spec/sample/`.
-- P0-T04 to P0-T09 built (D-021 to D-026); CI confirmed green by Mahmoud.
-- **P0-T10** cloud session hook (D-028). **P0-T11** production images, staging on the shared OVH VPS,
-  deploy script, CI deploy job waiting for secrets, runbook (D-027).
-- Local results: 63 backend tests, 27 vitest tests, 10 Playwright tests. Staging logins checked from
-  the internet in a browser.
+- **P1-T01:** new `catalog` app with a `Unit` table shared by every organization, seeded with `kg` by a
+  data migration (D-029); `to_base_quantity` and `checked_quantity` helpers. 84 backend tests,
+  ruff, mypy, import boundaries, and migrations forward and back all pass locally. No endpoint, so the
+  API client did not change. Frontend checks not run (no frontend change).
+- Local tests ran on a throwaway PostgreSQL 18 cluster (`initdb` on port 5433, trust login), because
+  the password of the installed service is unknown.
 
 ## Recently done
 
+- 2026-10-10 · P1-T01 units and quantity helpers
 - 2026-10-10 · Phase 0 branches merged into `main` (fast-forward, CI green)
 - 2026-10-10 · P0-T10 cloud hook, P0-T11 staging live
 - 2026-10-10 · P0-T09 API contract and generated client
-- 2026-10-10 · P0-T08 internationalisation

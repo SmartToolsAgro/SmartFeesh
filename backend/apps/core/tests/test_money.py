@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from apps.core.money import MoneyField, QuantityField, line_total, money, quantity
+from apps.core.money import MoneyField, QuantityField, checked_quantity, line_total, money, quantity
 
 
 @pytest.mark.parametrize(
@@ -33,6 +33,49 @@ def test_quantity_rounds_half_up_to_grams():
 def test_floats_and_other_types_are_refused(value):
     with pytest.raises(TypeError):
         money(value)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("12.345", "12.345"),
+        ("12.3450", "12.345"),  # trailing zeros are not extra precision
+        (5, "5.000"),
+        ("999999999.999", "999999999.999"),
+    ],
+)
+def test_checked_quantity_keeps_valid_weights(value, expected):
+    result = checked_quantity(value)
+
+    assert result == Decimal(expected)
+    assert result.as_tuple().exponent == -3
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("12.3456", "3 décimales"),  # finer than a gram: refused, not rounded
+        ("-1", "négative"),
+        ("0", "supérieure à zéro"),
+        ("1000000000", "trop grande"),
+        ("abc", "pas une quantité"),
+        ("NaN", "pas une quantité"),
+        ("Infinity", "pas une quantité"),
+    ],
+)
+def test_checked_quantity_refuses_invalid_weights(value, message):
+    with pytest.raises(ValueError, match=message):
+        checked_quantity(value)
+
+
+def test_checked_quantity_accepts_zero_only_when_asked():
+    # A stock count may find nothing left on a shelf.
+    assert checked_quantity("0", allow_zero=True) == Decimal("0.000")
+
+
+def test_checked_quantity_refuses_floats():
+    with pytest.raises(TypeError):
+        checked_quantity(1.5)  # type: ignore[arg-type]
 
 
 def test_line_total_rounds_once_after_multiplying():

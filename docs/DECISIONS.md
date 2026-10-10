@@ -192,3 +192,15 @@ The `session-start-hook` skill named in P0-T10 does not exist from a trusted sou
 third-party skills, 34 to 151 installs). The hook is a plain Claude Code `SessionStart` setting, so it
 was written directly. It runs only when `CLAUDE_CODE_REMOTE=true`: installs backend and frontend
 dependencies and starts PostgreSQL with the `frutti` role.
+
+**D-029 · Units are shared reference data; typed weights are checked, not rounded (P1-T01)** · accepted · 2026-10-10
+- `catalog.Unit` has **no** `organization` key: a kilogram means the same for every company, like a
+  currency code. This is the one exception to "every business table has an organization". Anything a
+  company decides about a unit (a box weight for one product) will live on its own organization-scoped
+  rows, not on `Unit`.
+- A data migration seeds `kg` only (Q10). Units are never deleted from the admin.
+- Every quantity entering the system goes through `catalog.selectors.to_base_quantity(value, unit)`. It
+  refuses any unit but kg today, so box or piece units later change one function.
+- `core.money.checked_quantity` checks a weight a person typed or a scale gave and **refuses** more than
+  3 decimals, negatives (the movement type carries the direction), zero (unless allowed, for counts)
+  and values too large for a `QuantityField`. Rounding silently would change stock without anyone noticing.

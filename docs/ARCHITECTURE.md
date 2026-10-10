@@ -97,7 +97,8 @@ never its models' internals or private helpers. `core` depends on nothing.
    of the agreement terms they used. Later edits never change history.
 5. **Immutability.** Issued invoices, posted movements, approved expenses and approved closings cannot be
    edited. Corrections are new documents (credit note, adjustment movement, reopened closing with reason).
-6. **Tenancy.** Every business model has `organization = ForeignKey(Organization)`. Querysets are scoped by
+6. **Tenancy.** Every business model has `organization = ForeignKey(Organization)` (shared reference
+   tables such as units excepted, D-029). Querysets are scoped by
    a base manager / mixin. One organization exists today.
 7. **Idempotency.** Write endpoints used by the driver app accept a client-generated UUID
    (`client_uuid`, unique per organization). Retrying the same request never creates a duplicate.
