@@ -162,3 +162,39 @@ jobs:
       - name: End-to-end tests
         run: pnpm e2e
         working-directory: frontend
+
+  deploy-staging:
+    name: Deploy to staging
+    # Only after every check passed, only for main. Stays skipped until the secrets below exist.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend, api-contract, e2e]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    env:
+      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      STAGING_KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+    steps:
+      - name: Skip when the deploy secrets are not set
+        id: secrets
+        run: |
+          if [ -z "$STAGING_SSH_KEY" ] || [ -z "$STAGING_KNOWN_HOSTS" ]; then
+            echo "::notice::STAGING_SSH_KEY / STAGING_KNOWN_HOSTS not set: staging deploy skipped (see docs/runbook.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.secrets.outputs.ready == 'true'
+      - name: Set up SSH
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$STAGING_SSH_KEY" > ~/.ssh/staging && chmod 600 ~/.ssh/staging
+          printf '%s\n' "$STAGING_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy
+        if: steps.secrets.outputs.ready == 'true'
+        run: bash deploy/deploy.sh
+        env:
+          DEPLOY_SSH_OPTS: -i /home/runner/.ssh/staging -o IdentitiesOnly=yes -o BatchMode=yes

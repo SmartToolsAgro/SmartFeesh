@@ -175,3 +175,20 @@ closed months never move when a price changes.
 - Every endpoint gets an explicit `operation_id` (`login`, `getSession`, `listMembers`...): it becomes
   the function name in the client.
 - A backend test fails on any schema warning, because a warning means a wrong type in the client.
+
+**D-027 · Staging on the shared OVH VPS, plain HTTP for now** · accepted · 2026-10-10
+- The VPS also hosts other clients' production sites. Frutti gets its own Docker project, folder and one
+  nginx site; nothing else on the server is changed. Its containers listen on 127.0.0.1 only.
+- No domain yet (Mahmoud's choice), so staging is served on http://217.182.205.137, ports 8095 (admin)
+  and 8096 (driver), with secure cookies, HSTS and the HTTPS redirect switched off by environment
+  variables. Production keeps them on by default. Consequences until a domain exists: logins travel
+  unencrypted, and the driver app cannot be installed as a PWA (service workers need HTTPS).
+- Images are built on the server from a `git archive` of the committed code, so the server needs no
+  access to the private repository. Secrets live in `~/frutti-staging/.env` on the server only.
+- Staging demo accounts get a random password (`seed_dev --password`), never the development one.
+
+**D-028 · Cloud session hook written by hand** · accepted · 2026-10-10
+The `session-start-hook` skill named in P0-T10 does not exist from a trusted source (only small
+third-party skills, 34 to 151 installs). The hook is a plain Claude Code `SessionStart` setting, so it
+was written directly. It runs only when `CLAUDE_CODE_REMOTE=true`: installs backend and frontend
+dependencies and starts PostgreSQL with the `frutti` role.

@@ -58,8 +58,7 @@ session). First person with Docker: run `make dev` once and report._
 _Built 2026-10-10 (D-021). Verified locally on Windows: `ruff check`, `ruff format --check`, `mypy`,
 `lint-imports`, 12 backend tests against PostgreSQL 16, `eslint`, `prettier --check`, `tsc`, 2 vitest
 tests, pre-commit on all files; a deliberate error makes ruff, eslint and the boundary contract fail.
-**Not verified:** the GitHub Actions workflow itself has never run, because the branch is not pushed.
-First push: check that both jobs are green, and fix the workflow if an action input changed._
+CI confirmed green on GitHub by Mahmoud on 2026-10-10._
 
 ### P0-T05 · Core app: organization, users, roles, audit · owner: agent · M
 Read: ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
@@ -123,12 +122,23 @@ _Done 2026-10-10 (D-026). `packages/auth` already uses the generated functions a
 twice gives identical files locally; the CI job itself has not run yet._
 
 ### P0-T10 · Cloud session hook · owner: agent · S
-- [ ] Use the `session-start-hook` skill to add a SessionStart hook that installs dependencies so tests
+- [x] Use the `session-start-hook` skill to add a SessionStart hook that installs dependencies so tests
       and linters run in fresh cloud sessions.
 
+_Done 2026-10-10 (D-028) without the skill: none from a trusted source exists, so the hook was written
+directly (`.claude/settings.json`, `.claude/hooks/session-start.sh`). It does nothing outside cloud
+sessions; it has not run in a cloud session yet._
+
 ### P0-T11 · Staging deployment · owner: agent + human · M
-- [ ] Production Dockerfile (gunicorn, static files, both front ends built).
-- [ ] Deploy to a staging VPS at OVH running the Docker stack (D-017, D-019). Size still to choose (human).
-- [ ] Automatic deploy from `main`; HTTPS; Sentry connected.
+- [x] Production Dockerfile (gunicorn, static files, both front ends built).
+- [x] Deploy to a staging VPS at OVH running the Docker stack (D-017, D-019).
+- [ ] Automatic deploy from `main`: the CI job exists and is skipped until the deploy secrets are added
+      (human, `docs/runbook.md`).
+- [ ] HTTPS: needs a domain (human). Staging runs on plain HTTP for now (D-027).
+- [ ] Sentry: the backend sends errors when `SENTRY_DSN` is set; needs a Sentry project (human).
 
 **Acceptance:** the client can open staging on their phone and log in as a demo driver.
+
+_Staging live 2026-10-10: admin http://217.182.205.137:8095, driver http://217.182.205.137:8096. Demo
+logins `owner` and `driver` verified over the internet with a browser. Not yet tried on the client's own
+phone. Left for the human: domain + HTTPS, CI deploy secrets, Sentry project._
