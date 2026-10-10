@@ -14,9 +14,9 @@ _Last updated: 2026-10-10_
 ## Next step (do this first)
 
 1. Merge `p1-t02-products` into `main` once CI is green.
-2. Deploy it with `make deploy-staging` (runbook first). This deploy adds the Docker volume
-   `frutti-staging_media` for photos and `seed_dev` adds the 12 demo products. Check a photo upload on
-   staging afterwards: the volume must be writable by the `app` user.
+2. The merge deploys staging by itself (CI job `deploy-staging`, secrets set 2026-10-10): check it ran.
+   This first automatic deploy adds the Docker volume `frutti-staging_media` and the 12 demo products.
+   Then upload one photo on staging: the volume must be writable by the `app` user.
 3. Agent: start **P1-T03** from `main`. Follow the catalogue's patterns: services raise
    `ValidationError` per field (D-030), views subclass a scoped base view, demo data goes in `apps/demo`.
 
@@ -25,9 +25,9 @@ _Last updated: 2026-10-10_
 - **P0-T02** (worked example on one real month) is not started. Phase 6 has no target without it, and
   it must settle one rule: a loss larger than a supplier's remaining capital (Q3).
 - **P0-T01**: no prototype walk-through or client materials yet. Stand-in data in `docs/spec/sample/`.
-- **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); GitHub secrets
-  `STAGING_SSH_KEY` and `STAGING_KNOWN_HOSTS` for automatic deploys, ideally with a restricted deploy user;
-  a Sentry project and its DSN.
+- **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
+  CI deploy secrets are set; the key logs in as `debian` (full sudo), so a separate server or a
+  server-side pull from GitHub is still advised (runbook).
 - **TTN / El Fatoora is on hold** (D-016) although Q5 says it is required now.
 - **For the accountant** (`docs/spec/sample/README.md`): the VAT code lists Tunisian fishing products as
   exempt, which does not match "19 % for all"; e-invoicing is mandatory since 01/01/2026.
