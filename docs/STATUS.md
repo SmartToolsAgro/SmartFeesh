@@ -10,10 +10,11 @@ _Last updated: 2026-10-10_
 
 ## Next step (do this first)
 
-1. **Push the branches and check CI.** Three stacked branches, none pushed: `p0-t04-quality-ci` →
-   `p0-t05-core-app` → `p0-t06-auth`. The workflow has never run on GitHub. All three jobs (backend,
-   frontend, e2e) must be green; if an action input changed, fix `.github/workflows/ci.yml`. That closes
-   P0-T04's acceptance.
+1. **Check CI on GitHub (Actions tab), then open the pull requests.** Three stacked branches were pushed
+   on 2026-10-10: `p0-t04-quality-ci` → `p0-t05-core-app` → `p0-t06-auth`. Nobody has looked at the
+   result yet (the repository is private and the session had no GitHub access). All jobs (backend,
+   frontend, and e2e on the last branch) must be green; if an action input changed, fix
+   `.github/workflows/ci.yml`. That closes P0-T04's acceptance. Merge in order, oldest first.
 2. Agent: start **P0-T07**. Read only its section of the phase file. Port the prototype's colour tokens
    (light and dark), fonts, radius and shadows into a Tailwind preset in `packages/ui`, theme the base
    shadcn/ui components, and build the two app shells. The login page in `packages/auth` and the two
