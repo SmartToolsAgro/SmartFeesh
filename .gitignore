@@ -27,3 +27,5 @@ dist/
 # End-to-end tests (Playwright)
 test-results/
 playwright-report/
+# Saved logins of the e2e setup step (session cookies)
+frontend/e2e/.auth/

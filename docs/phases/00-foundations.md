@@ -132,8 +132,8 @@ sessions; it has not run in a cloud session yet._
 ### P0-T11 · Staging deployment · owner: agent + human · M
 - [x] Production Dockerfile (gunicorn, static files, both front ends built).
 - [x] Deploy to a staging VPS at OVH running the Docker stack (D-017, D-019).
-- [ ] Automatic deploy from `main`: the CI job exists and is skipped until the deploy secrets are added
-      (human, `docs/runbook.md`).
+- [ ] Automatic deploy from `main`: the CI job exists; its secrets were added on 2026-10-10. Tick this
+      once the first automatic deploy has run (`docs/runbook.md`).
 - [ ] HTTPS: needs a domain (human). Staging runs on plain HTTP for now (D-027).
 - [ ] Sentry: the backend sends errors when `SENTRY_DSN` is set; needs a Sentry project (human).
 

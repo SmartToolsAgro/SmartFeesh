@@ -2,7 +2,15 @@ from decimal import Decimal
 
 import pytest
 
-from apps.core.money import MoneyField, QuantityField, checked_quantity, line_total, money, quantity
+from apps.core.money import (
+    MoneyField,
+    QuantityField,
+    checked_amount,
+    checked_quantity,
+    line_total,
+    money,
+    quantity,
+)
 
 
 @pytest.mark.parametrize(
@@ -76,6 +84,31 @@ def test_checked_quantity_accepts_zero_only_when_asked():
 def test_checked_quantity_refuses_floats():
     with pytest.raises(TypeError):
         checked_quantity(1.5)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"), [("34", "34.000"), ("20.5", "20.500"), ("0", "0.000"), (Decimal("5.2"), "5.200")]
+)
+def test_checked_amount_keeps_valid_amounts(value, expected):
+    result = checked_amount(value)
+
+    assert result == Decimal(expected)
+    assert result.as_tuple().exponent == -3
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("12.3456", "3 décimales"),  # finer than a millime: refused, not rounded
+        ("-1", "négatif"),
+        ("100000000000", "trop grand"),
+        ("abc", "pas un montant"),
+        ("NaN", "pas un montant"),
+    ],
+)
+def test_checked_amount_refuses_invalid_amounts(value, message):
+    with pytest.raises(ValueError, match=message):
+        checked_amount(value)
 
 
 def test_line_total_rounds_once_after_multiplying():

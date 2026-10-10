@@ -21,7 +21,7 @@ services:
     build: { context: .., target: backend }
     image: frutti-backend:${RELEASE:?set by the deploy script}
     restart: unless-stopped
-    command: sh -c "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3 --access-logfile -"
+    command: sh -c "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3 --access-logfile - --no-control-socket"
     environment:
       DATABASE_URL: postgres://frutti:${POSTGRES_PASSWORD}@db:5432/frutti
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set in .env}
@@ -35,6 +35,7 @@ services:
       DJANGO_NUM_PROXIES: "2"
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: staging
+    volumes: [media:/app/media] # product photos, served by the API to members only
     depends_on:
       db: { condition: service_healthy }
     healthcheck:
@@ -60,3 +61,4 @@ services:
 
 volumes:
   pgdata:
+  media:

@@ -8,4 +8,6 @@
 export interface TruckRef {
   id: number;
   name: string;
+  plate: string;
+  location_id: number;
 }

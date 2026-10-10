@@ -57,6 +57,145 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/batches:
+    get:
+      operationId: listBatches
+      description: |-
+        Batches, newest receipt first, paginated (`limit`, `offset`). Filter by product or supplier;
+        `search` matches the batch number, the supplier's receipt reference, product and supplier.
+        Batches are created by goods receipts, not here.
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: product
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - batches
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBatchList'
+          description: ''
+  /api/v1/batches/{batch_id}:
+    get:
+      operationId: getBatch
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - batches
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+          description: ''
+  /api/v1/categories:
+    get:
+      operationId: listCategories
+      tags:
+      - categories
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
+    post:
+      operationId: createCategory
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Category'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Category'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Category'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/categories/{category_id}:
+    patch:
+      operationId: renameCategory
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategory'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
   /api/v1/health:
     get:
       operationId: getHealth
@@ -72,6 +211,171 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/locations:
+    get:
+      operationId: listLocations
+      description: Cold rooms, trucks and other locations, sorted by kind then name.
+        Archived ones only when asked.
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - cold_room
+          - truck
+          - other
+          type: string
+          minLength: 1
+        description: |-
+          * `cold_room` - Chambre froide
+          * `truck` - Camion
+          * `other` - Autre
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockLocation'
+          description: ''
+    post:
+      operationId: createLocation
+      description: A new cold room or other location. A truck is created with `createTruck`.
+      tags:
+      - locations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockLocationCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StockLocationCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StockLocationCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+  /api/v1/locations/{location_id}:
+    get:
+      operationId: getLocation
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+    patch:
+      operationId: updateLocation
+      description: Rename a cold room or other location, or change whether it sells
+        at the counter.
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStockLocationUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStockLocationUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStockLocationUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+  /api/v1/locations/{location_id}/archive:
+    post:
+      operationId: archiveLocation
+      description: An archived location keeps its history but receives no more stock.
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
+          description: ''
+  /api/v1/locations/{location_id}/restore:
+    post:
+      operationId: restoreLocation
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLocation'
           description: ''
   /api/v1/me:
     get:
@@ -131,8 +435,713 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/products:
+    get:
+      operationId: listProducts
+      description: |-
+        Products sorted by name. Archived ones only when asked (`status`). Not paginated: a catalogue
+        holds tens of products, not thousands (D-030).
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+          description: ''
+    post:
+      operationId: createProduct
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}:
+    get:
+      operationId: getProduct
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    patch:
+      operationId: updateProduct
+      description: Change the description of a product. The price changes through
+        `setProductPrice`.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/archive:
+    post:
+      operationId: archiveProduct
+      description: Archived products keep their history but can no longer be bought
+        or sold.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/photo:
+    put:
+      operationId: uploadProductPhoto
+      description: Replace the photo. It is turned upright, shrunk to 1200 px and
+        stored as WebP without metadata.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PhotoUpload'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+        '400':
+          description: Not a readable JPEG, PNG or WebP
+    delete:
+      operationId: removeProductPhoto
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/prices:
+    get:
+      operationId: listProductPrices
+      description: Every sale price of the product, newest first, including prices
+        planned for later.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductPrice'
+          description: ''
+    post:
+      operationId: setProductPrice
+      description: A new sale price from now, or from a later moment. Earlier prices
+        are never changed (D-020).
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPrice'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetPrice'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetPrice'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/restore:
+    post:
+      operationId: restoreProduct
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/suppliers:
+    get:
+      operationId: listSuppliers
+      description: |-
+        Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
+        paginated: the company works with a handful of suppliers (D-032).
+      parameters:
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Supplier'
+          description: ''
+    post:
+      operationId: createSupplier
+      description: A new supplier. Without a reference it gets the next free `F-NNN`.
+      tags:
+      - suppliers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SupplierWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SupplierWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/suppliers/{supplier_id}:
+    get:
+      operationId: getSupplier
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+    patch:
+      operationId: updateSupplier
+      description: Change a supplier. `contacts`, when sent, replaces the whole list.
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSupplierWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSupplierWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSupplierWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/suppliers/{supplier_id}/archive:
+    post:
+      operationId: archiveSupplier
+      description: Archived suppliers keep their history but can no longer be bought
+        from.
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/suppliers/{supplier_id}/restore:
+    post:
+      operationId: restoreSupplier
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/trucks:
+    get:
+      operationId: listTrucks
+      description: Trucks sorted by name, with their driver. A driver sees only their
+        own truck.
+      parameters:
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Truck'
+          description: ''
+    post:
+      operationId: createTruck
+      description: A new truck, with the stock location that holds its goods.
+      tags:
+      - trucks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TruckWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TruckWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TruckWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}:
+    get:
+      operationId: getTruck
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+    patch:
+      operationId: updateTruck
+      description: 'Rename a truck, change its plate or its driver (`driver: null`
+        takes it back from its driver).'
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTruckWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTruckWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTruckWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}/archive:
+    post:
+      operationId: archiveTruck
+      description: An archived truck keeps its history, receives no more stock and
+        has no driver.
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}/restore:
+    post:
+      operationId: restoreTruck
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Truck'
+          description: ''
 components:
   schemas:
+    Batch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/BatchSupplier'
+          readOnly: true
+        receipt_reference:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - number
+      - product
+      - receipt_reference
+      - received_on
+      - supplier
+      - unit_cost
+      - use_by
+    BatchProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
+    BatchSupplier:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    CategoryRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    DriverRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: Nom d’utilisateur
+          description: Requis. 150 caractères maximum. Uniquement des lettres, nombres
+            et les caractères « @ », « . », « + », « - » et « _ ».
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - username
     Health:
       type: object
       properties:
@@ -143,6 +1152,26 @@ components:
       required:
       - database
       - status
+    IllustrationEnum:
+      enum:
+      - shrimp
+      - peeled
+      - fish
+      - bass
+      - squid
+      - octopus
+      - mussel
+      - mix
+      type: string
+      description: |-
+        * `shrimp` - Crevette
+        * `peeled` - Crevette décortiquée
+        * `fish` - Poisson
+        * `bass` - Loup
+        * `squid` - Calamar
+        * `octopus` - Poulpe
+        * `mussel` - Coquillage
+        * `mix` - Mélange
     LanguageEnum:
       enum:
       - fr
@@ -198,11 +1227,301 @@ components:
       required:
       - id
       - name
+    PaginatedBatchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Batch'
+    PatchedCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
     PatchedLanguage:
       type: object
       properties:
         language:
           $ref: '#/components/schemas/LanguageEnum'
+    PatchedProductUpdate:
+      type: object
+      properties:
+        reference:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        name_ar:
+          type: string
+          default: ''
+          maxLength: 150
+        category:
+          type: integer
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          default: '0.000'
+        storage_temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        storage_temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        illustration:
+          allOf:
+          - $ref: '#/components/schemas/IllustrationEnum'
+          default: fish
+    PatchedStockLocationUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        counter_sales:
+          type: boolean
+    PatchedSupplierWrite:
+      type: object
+      properties:
+        reference:
+          type: string
+          default: ''
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        tax_id:
+          type: string
+          default: ''
+          maxLength: 20
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+          default: ''
+          maxLength: 255
+        city:
+          type: string
+          default: ''
+          maxLength: 100
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierContact'
+    PatchedTruckWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        plate:
+          type: string
+          maxLength: 20
+        driver:
+          type: integer
+          nullable: true
+    PhotoUpload:
+      type: object
+      properties:
+        photo:
+          type: string
+          format: binary
+      required:
+      - photo
+    Product:
+      type: object
+      description: A product as the screens show it, with the sale price in force
+        now.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategoryRef'
+          readOnly: true
+        base_unit:
+          type: string
+          readOnly: true
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        storage_temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        storage_temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        illustration:
+          allOf:
+          - $ref: '#/components/schemas/IllustrationEnum'
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        current_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        current_price_from:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - base_unit
+      - category
+      - current_price
+      - current_price_from
+      - id
+      - illustration
+      - is_active
+      - min_stock
+      - name
+      - name_ar
+      - photo_url
+      - reference
+      - storage_temp_max
+      - storage_temp_min
+      - updated_at
+    ProductCreate:
+      type: object
+      properties:
+        reference:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        name_ar:
+          type: string
+          default: ''
+          maxLength: 150
+        category:
+          type: integer
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          default: '0.000'
+        storage_temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        storage_temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        illustration:
+          allOf:
+          - $ref: '#/components/schemas/IllustrationEnum'
+          default: fish
+        sale_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+      required:
+      - category
+      - name
+      - reference
+      - sale_price
+    ProductPrice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        valid_from:
+          type: string
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - price
+      - valid_from
     RoleEnum:
       enum:
       - owner
@@ -242,6 +1561,243 @@ components:
       - role
       - truck
       - user
+    SetPrice:
+      type: object
+      properties:
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        valid_from:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - price
+    StockLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/StockLocationKindEnum'
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        counter_sales:
+          type: boolean
+          readOnly: true
+        sells:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - counter_sales
+      - id
+      - is_active
+      - kind
+      - name
+      - sells
+      - updated_at
+    StockLocationCreate:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/StockLocationCreateKindEnum'
+        name:
+          type: string
+          maxLength: 100
+        counter_sales:
+          type: boolean
+          default: false
+      required:
+      - kind
+      - name
+    StockLocationCreateKindEnum:
+      enum:
+      - cold_room
+      - other
+      type: string
+      description: |-
+        * `cold_room` - Chambre froide
+        * `other` - Autre
+    StockLocationKindEnum:
+      enum:
+      - cold_room
+      - truck
+      - other
+      type: string
+      description: |-
+        * `cold_room` - Chambre froide
+        * `truck` - Camion
+        * `other` - Autre
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierContact'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - address
+      - city
+      - contacts
+      - email
+      - id
+      - is_active
+      - name
+      - notes
+      - phone
+      - reference
+      - tax_id
+      - updated_at
+    SupplierContact:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        role:
+          type: string
+          default: ''
+          maxLength: 100
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+            maxLength: 254
+          - type: string
+            maxLength: 0
+      required:
+      - name
+    SupplierWrite:
+      type: object
+      properties:
+        reference:
+          type: string
+          default: ''
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        tax_id:
+          type: string
+          default: ''
+          maxLength: 20
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+          default: ''
+          maxLength: 255
+        city:
+          type: string
+          default: ''
+          maxLength: 100
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierContact'
+      required:
+      - name
+    Truck:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        plate:
+          type: string
+          readOnly: true
+        driver:
+          allOf:
+          - $ref: '#/components/schemas/DriverRef'
+          readOnly: true
+          nullable: true
+        location_id:
+          type: integer
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - driver
+      - id
+      - is_active
+      - location_id
+      - name
+      - plate
+      - updated_at
     TruckRef:
       type: object
       properties:
@@ -249,9 +1805,30 @@ components:
           type: integer
         name:
           type: string
+        plate:
+          type: string
+        location_id:
+          type: integer
       required:
       - id
+      - location_id
       - name
+      - plate
+    TruckWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        plate:
+          type: string
+          maxLength: 20
+        driver:
+          type: integer
+          nullable: true
+      required:
+      - name
+      - plate
     User:
       type: object
       properties:

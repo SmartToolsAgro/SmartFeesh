@@ -17,7 +17,13 @@ export default defineConfig({
   reporter: isCI ? [["github"], ["list"]] : "list",
   use: { trace: "retain-on-failure", locale: "fr-FR" },
   projects: [
-    { name: "admin", testMatch: /admin\..*\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: ADMIN_URL } },
+    { name: "setup", testMatch: /\.setup\.ts/, use: { ...devices["Desktop Chrome"], baseURL: ADMIN_URL } },
+    {
+      name: "admin",
+      testMatch: /admin\..*\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], baseURL: ADMIN_URL },
+    },
     { name: "truck", testMatch: /truck\..*\.spec\.ts/, use: { ...devices["Pixel 7"], baseURL: TRUCK_URL } },
   ],
   webServer: [

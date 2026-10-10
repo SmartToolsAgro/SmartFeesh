@@ -205,6 +205,26 @@ dependencies and starts PostgreSQL with the `frutti` role.
   3 decimals, negatives (the movement type carries the direction), zero (unless allowed, for counts)
   and values too large for a `QuantityField`. Rounding silently would change stock without anyone noticing.
 
+**D-030 · Product catalogue choices (P1-T02)** · accepted · 2026-10-10
+- `Product` has no price column: the sale price is the latest `ProductPrice` at or before a moment
+  (D-020). A new product gets its first price from now; later prices go through `setProductPrice`, may be
+  planned for later, and are refused in the past. Prices are append-only, like the audit log.
+- Extra fields not in the brief: an optional **Arabic name** (drivers can work in Arabic, Q14, and the
+  sample list has one) and a **drawing** from the prototype shown until a product has a real photo.
+- Storage temperature is a min/max pair in °C with one decimal; either end may be empty ("≤ -18 °C").
+- Product lists are **not paginated**: a catalogue holds tens of products. Revisit if one exceeds ~500.
+- Every member reads the catalogue (drivers will sell from it); owners and managers change it
+  (`ReadMemberWriteOwnerOrManager`). The Django admin shows catalogue rows read-only, so every change
+  goes through the services and the audit log.
+- Services raise Django's `ValidationError` with a message per field; one API exception handler turns it
+  into a 400 shaped like serializer errors. Every app uses this from now on.
+- **Photos** are re-encoded on upload (upright, at most 1200 px, WebP, no metadata: no GPS position),
+  get a new random file name each time, and are served by the API to members of the same organization
+  only (`/products/{id}/photo?v=…`, cached for good because the address changes with the photo). Loss
+  photos and receipts will follow the same pattern. Staging keeps them in the `media` Docker volume.
+- `seed_dev` moved from `core` to a new `demo` app, which may call every app, and now also creates the
+  12 stand-in products of `docs/spec/sample/products.csv`.
+
 **D-031 · Two share rates per partner; uncovered loss carried forward (Q3)** · provisional · 2026-10-10
 - Mahmoud, 2026-10-10: a partner agreement has a **profit %**, used when the month's net result on the
   partner's products is a profit, and a **loss %**, used when it is a loss. The two may differ. A month
@@ -214,3 +234,106 @@ dependencies and starts PostgreSQL with the `frutti` role.
   owes, kept in the profit-share balance and recovered from their next profit shares. Capital is never
   negative. The three balances (trade payable, capital, profit share) stay separate.
 - Stand-in data: Pêcherie Kerkennah 40 % / 25 %, Surgelés du Sahel 30 % / 20 % (`docs/spec/sample/`).
+
+**D-032 · Suppliers (P1-T03)** · accepted · 2026-10-10
+- New `partners` app (ARCHITECTURE §3), which will also hold customers in Phase 2.
+- `Supplier` adds three fields to the brief's list: a **reference** (`F-001`, as in the sample list; left
+  empty, the server gives the next `F-NNN`), an **e-mail** and a **city**. Contacts are `SupplierContact`
+  rows (name, role, phone, e-mail); a change that sends `contacts` replaces the whole list, and the audit
+  log keeps the before/after list.
+- The **tax ID** (matricule fiscal) is optional, unique per organization when given, and stored as
+  `1234567A/A/M/000` (or `1234567A` alone); spaces, dots, dashes and missing slashes are accepted when
+  typed, and a 6-digit number gets its leading zero. Other shapes are refused. Provisional: loosen it if
+  the client's real list has suppliers with another identifier (CIN of a lone fisherman).
+- Suppliers are **office data**: owner, manager and accountant read them, owner and manager change them,
+  drivers get 403 (`ReadOfficeWriteOwnerOrManager`, new in `core.permissions`). Purchases will use it too.
+- No delete: archive / restore, like products. Lists are not paginated (a handful of suppliers).
+- Agreement type, balances and purchase history are **not** on `Supplier`: they come from purchases,
+  payments and Phase 6 agreements. The detail screen shows a placeholder card for them.
+- E2E tests log the owner in once (`owner.setup.ts`, saved session in `frontend/e2e/.auth/`): logging in
+  in every test hit the limit of 8 logins a minute per account.
+
+**D-033 · Locations and trucks (P1-T04)** · accepted · 2026-10-10
+- `StockLocation` lives in a new `inventory` app (stock movements will join it in P1-T06); `Truck` in a new
+  `fleet` app (driver days join it in Phase 3). `Truck.location` is a one-to-one key written by name
+  (`"inventory.StockLocation"`), so `fleet` imports only `inventory.services` / `selectors`.
+- A truck's **name is its location's name**, so stock screens and truck screens never disagree. A truck
+  is created, renamed and archived through `fleet`; the location API refuses to create or change a truck
+  location. Location names are unique per organization; plates too, stored in capitals with single spaces.
+- `counter_sales` marks a cold room (or other location) where customers buy at the counter (Q8);
+  `sells` is true for trucks and for those. Seeded cold rooms both sell at the counter (provisional).
+- One active truck per driver at most (database constraint). Only an active member with the `driver`
+  role of the same company can be assigned. Archiving a truck archives its location and takes it back
+  from its driver. From P1-T06, a location still holding stock must not be archived.
+- **Own truck:** `fleet.selectors.may_use_location(membership, location_id)` and `may_use_truck`. The
+  office (owner, manager, accountant) may use every location; a driver only their active truck's. The
+  truck API applies it (a driver lists and reads only their own truck, changes nothing); locations are
+  office-only (drivers get 403 and learn their truck from `/me`).
+- **`/me` truck:** `core` may not import `fleet`, so `core.session` holds a lookup that `fleet` registers in
+  `FleetConfig.ready()`. `/me` returns `truck: {id, name, plate, location_id}` or null.
+- The admin "Stock frigo & camions" screen manages locations for now (cards like the prototype); P1-T11
+  adds the stock figures to the same screen.
+
+**D-034 · Batches, their numbers, and the first paginated list (P1-T05)** · accepted · 2026-10-10
+- `Batch` lives in `inventory`, next to the stock it will carry. It points to `catalog.Product` and
+  `partners.Supplier` by name, like `Truck` does to its location. Unit cost is DT per kg without VAT, on
+  the batch only (D-020); zero is allowed (free goods), negative and sub-millime costs are refused
+  (`core.money.checked_amount`, the amount twin of `checked_quantity`). A receipt date in the future and
+  a use-by date before receipt are refused. A batch is never edited: corrections come as new documents.
+- **Numbers:** `L-` and at least 4 digits, per organization, from a `BatchCounter` row locked with
+  `select_for_update` (a test runs four receipts at once). A refused batch uses no number. Gaps are
+  possible only if a later step of the same transaction fails, and nothing requires batch numbers to be
+  gap-free (unlike invoices).
+- **FIFO order** is receipt date, then id (`inventory.models.FIFO_ORDER`, `selectors.batches_oldest_first`);
+  P1-T06 allocates over it. Lists show newest first.
+- **No `agreement` column yet:** the agreement table comes with P6-T01, which adds the nullable key and
+  fills it from the agreement in force at each receipt date. A placeholder integer now would only have to
+  be converted later.
+- **Batches are created only by services** (goods receipts from P1-T07; the demo seed now). The API is
+  read-only and office-only, like suppliers.
+- **Pagination:** lists that keep growing (batches, later movements, invoices) use `core.api.pagination.PagedList`
+  (`limit` / `offset`, 50 by default, 200 at most, answer `{count, next, previous, results}`). Short lists
+  (products, suppliers, locations) stay unpaginated.
+- Demo batches have no stock yet: the ledger (P1-T06) or the receipts (P1-T07) should give them an
+  opening stock in the seed.
+
+**D-035 · Stock ledger and on-hand cache (P1-T06a)** · accepted · 2026-10-10
+- `StockMovement` and `StockOnHand` live in `inventory`. A movement has a kind, one batch (its product is
+  copied for fast totals), a `from` and/or `to` location, a positive quantity (the locations give the
+  direction), the batch's cost per kg at posting, an optional source document (generic key), the user,
+  `occurred_at` (when it happened; a driver offline may sync later) and `created_at` (when posted), a
+  reason and an optional `client_uuid`.
+- **Sides per kind:** receipt and customer return only come in; sale, supplier return and loss only go
+  out; a transfer goes between two different locations; an adjustment or a count correction names one
+  location, the side giving the direction. Losses and adjustments need a reason. Locations must be
+  active and of the same company.
+- **Append-only** like the audit log: saving an existing movement, `update()` and `delete()` raise.
+  Movements write **no** `AuditLog` entry: the ledger already records who, what and when, and an audit row
+  per kilo moved would double the largest table.
+- **Locking:** `post_movement` locks the on-hand rows it touches with `select_for_update`, always in
+  location-id order, so crossed transfers cannot deadlock (tested with 8 at once); a missing row is created
+  at zero first (`bulk_create(ignore_conflicts=True)`). Stock never goes below zero (a check constraint
+  backs the service). A `client_uuid` already posted returns the existing movement.
+- A location holding stock cannot be archived (also blocks archiving a loaded truck); the admin dialogs
+  now show the server's reason.
+- **Demo stock:** the 15 demo batches are received into the cold rooms (frozen products into "Chambre
+  froide 2") and Camion 1 is loaded once. Each seeded movement has a fixed `client_uuid` (uuid5), so the
+  staging deploy can run the seed every time without moving stock again.
+- Tests using several database connections (`transaction=True`) also set `serialized_rollback=True`:
+  otherwise the flush between tests deletes the `kg` unit made by a data migration.
+
+**D-036 · One host name per app on staging; the apps re-read the session when refused** · accepted · 2026-10-10
+- Browsers keep cookies per host name, not per port. With both staging apps on 217.182.205.137, logging
+  in as `driver` on the driver app replaced the owner's session in the admin app, whose requests then
+  got 403. Staging now serves each app on its own name from sslip.io (a public DNS that answers the
+  address written in the name): `admin.217-182-205-137.sslip.io:8095` and
+  `chauffeur.217-182-205-137.sslip.io:8096`. The bare address redirects to the name. Production gets
+  one name per app on the real domain for the same reason.
+- `remote-deploy.sh` writes `DJANGO_ALLOWED_HOSTS` and `DJANGO_CSRF_TRUSTED_ORIGINS` on every deploy
+  (they are not secrets), so servers set up earlier follow. sslip.io is an outside service: if it is
+  down, staging is unreachable by name until the domain exists.
+- Both apps build their query client with `@frutti/auth`'s `createQueryClient()`: any 401 or 403 makes
+  them read `/me` again, so an ended session shows the login screen and a session replaced by another
+  account shows the wrong-app notice, instead of a screen whose saves fail with a generic error.
+- gunicorn runs with `--no-control-socket`: its control socket wanted to write in the `app` user's home
+  folder, which does not exist in the image, and logged an error at every start. Nothing used it.

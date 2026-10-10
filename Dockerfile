@@ -26,7 +26,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/ ./
 # Placeholder values: collectstatic needs settings to load, not the real secrets.
 RUN DJANGO_SECRET_KEY=build-only DJANGO_ALLOWED_HOSTS=build python manage.py collectstatic --noinput
-RUN useradd --system --no-create-home app
+RUN useradd --system --no-create-home app  && mkdir -p /app/media && chown app /app/media
+# Uploaded photos; a named volume mounted here starts with this owner (deploy/compose.staging.yml).
+VOLUME /app/media
 USER app
 EXPOSE 8000
 CMD ["gunicorn", "config.wsgi", "--bind", "0.0.0.0:8000", "--workers", "3", "--access-logfile", "-"]
