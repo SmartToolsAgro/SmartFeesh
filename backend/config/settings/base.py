@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
+import django_stubs_ext
 import environ
+
+# Lets typed code write ModelAdmin[Model], DecimalField[...] and similar at runtime.
+django_stubs_ext.monkeypatch()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # backend/
 REPO_ROOT = BASE_DIR.parent
@@ -68,6 +72,7 @@ DATABASES = {
 }
 DATABASES["default"]["ATOMIC_REQUESTS"] = False  # transactions are explicit, in services
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_USER_MODEL = "core.User"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

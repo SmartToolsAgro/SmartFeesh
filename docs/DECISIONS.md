@@ -111,3 +111,17 @@ closed months never move when a price changes.
 - Known gap: D-012 covers direct JS dependencies only. pnpm's `minimumReleaseAge` would also cover
   transitive ones, but it rejects the current lockfile (rolldown 1.2.13, two days old on 2026-10-10).
   Turn it on the next time the lockfile is refreshed.
+
+**D-022 · Core app choices (P0-T05)** · accepted · 2026-10-10
+- Users log in with a username, not an email: drivers may have no email address.
+- A user gets a role through a `Membership` (user, organization, role), so the same model serves
+  several companies later (Q17).
+- Tenancy is explicit: business code reads with `Model.objects.for_organization(org)`. No hidden
+  thread-local filter, so background jobs, the shell and tests behave like requests. The API layer
+  (P0-T06) must scope every queryset this way.
+- `AuditLog` is append-only in code: saving an existing entry, deleting one, and bulk update or delete
+  all raise. Decimals inside `before` / `after` are stored as strings.
+- Money and quantity are plain `Decimal` values rounded by `money()` / `quantity()` and stored in
+  `MoneyField` / `QuantityField`, not a wrapper class: Django, DRF and JSON handle Decimal natively.
+  The helpers refuse floats with a `TypeError`.
+- `django-stubs-ext` is a runtime dependency: it lets typed code subscript Django classes.

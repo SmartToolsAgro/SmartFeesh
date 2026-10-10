@@ -1,6 +1,6 @@
 # Common commands. Docker path: `make dev`. Without Docker: `make install`, then `make backend` and
 # `make frontend` in two terminals (needs a local PostgreSQL matching DATABASE_URL in .env).
-.PHONY: dev down install hooks backend frontend migrate makemigrations test lint format build
+.PHONY: dev down install hooks backend frontend migrate makemigrations seed test lint format build
 
 dev:            ## Run the whole stack in Docker
 	docker compose up
@@ -26,6 +26,9 @@ migrate:        ## Apply database migrations
 
 makemigrations: ## Create migrations after model changes
 	cd backend && uv run python manage.py makemigrations
+
+seed:           ## Dev data: one organization, logins owner and driver (password frutti-dev)
+	cd backend && uv run python manage.py seed_dev
 
 test:           ## Backend tests + frontend type checks and tests
 	cd backend && uv run pytest

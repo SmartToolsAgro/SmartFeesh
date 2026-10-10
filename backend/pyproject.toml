@@ -10,6 +10,7 @@ dependencies = [
     "django-environ>=0.12",
     "psycopg[binary]>=3.2",
     "gunicorn>=23",
+    "django-stubs-ext>=6.1.2",
 ]
 
 [dependency-groups]
@@ -56,6 +57,10 @@ select = [
     "T20",          # stray print
     "RUF",
 ]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # French and Arabic text is expected in strings and comments
+    "RUF012",                      # Django Meta and admin options are plain class attributes
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["apps", "config", "tooling"]
@@ -72,10 +77,16 @@ exclude = ["migrations/"]
 module = ["*.tests.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
+disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
-module = ["environ.*", "factory.*", "grimp.*", "importlinter.*"]
+module = ["environ.*", "grimp.*", "importlinter.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# factory_boy re-exports its API from the package root without `__all__`.
+module = ["factory", "factory.*"]
+implicit_reexport = true
 
 [tool.django-stubs]
 django_settings_module = "config.settings.test"

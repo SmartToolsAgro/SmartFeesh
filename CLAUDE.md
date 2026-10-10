@@ -51,6 +51,7 @@ dinars (DT) with 3 decimals.
 | Auto-format | `make format` |
 | Git hooks (once per clone) | `make hooks` |
 | Migrations | `make makemigrations`, `make migrate` |
+| Dev data | `make seed` (organization + logins `owner` and `driver`, password `frutti-dev`; DEBUG only) |
 | One backend test | `cd backend && uv run pytest apps/core/tests/test_health.py` |
 | Add a Python package | `cd backend && uv add <pkg>` (dev: `uv add --dev <pkg>`) |
 | Add a JS package | `cd frontend && pnpm --filter @frutti/admin add <pkg>` |

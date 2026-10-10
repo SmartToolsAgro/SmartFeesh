@@ -63,15 +63,18 @@ First push: check that both jobs are green, and fix the workflow if an action in
 
 ### P0-T05 · Core app: organization, users, roles, audit · owner: agent · M
 Read: ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
-- [ ] **Custom `User` model in the first migration** (cannot be changed cheaply later).
-- [ ] `Organization`; `OrganizationScopedModel` abstract base (FK + scoped manager); `TimeStampedModel`.
-- [ ] Roles: `owner`, `manager`, `driver`, `accountant` (membership: user ↔ organization ↔ role).
+- [x] **Custom `User` model in the first migration** (cannot be changed cheaply later).
+- [x] `Organization`; `OrganizationScopedModel` abstract base (FK + scoped manager); `TimeStampedModel`.
+- [x] Roles: `owner`, `manager`, `driver`, `accountant` (membership: user ↔ organization ↔ role).
       The accountant reviews the month-end closing before the owner approves it (Q9).
-- [ ] `Money` and `Quantity` helpers (Decimal, 3 places, ROUND_HALF_UP) with unit tests.
-- [ ] `AuditLog` model + `audit.record(...)` service.
-- [ ] Seed command: one organization, one owner, one driver (dev only).
+- [x] `Money` and `Quantity` helpers (Decimal, 3 places, ROUND_HALF_UP) with unit tests.
+- [x] `AuditLog` model + `audit.record(...)` service.
+- [x] Seed command: one organization, one owner, one driver (dev only).
 
 **Acceptance:** tests cover Money rounding, scoped querysets never leak across organizations, audit entries written.
+
+_Done 2026-10-10 (D-022). 38 backend tests pass on PostgreSQL 16; `migrate` then `seed_dev` (twice) run on
+an empty database. The user's `language` preference (fr | ar) from P0-T08 is already on the model._
 
 ### P0-T06 · Authentication & permissions · owner: agent · M
 - [ ] Session login/logout API with CSRF; `/api/v1/me` (user, role, organization, truck if driver).
@@ -95,6 +98,7 @@ Read: ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
 - [ ] RTL support switch (`dir="rtl"`) tested with a dummy Arabic string. No translation yet
       (the driver app is translated in P3-T09).
 - [ ] `language` preference on the user (fr | ar); both apps follow it. Drivers choose theirs (Q14).
+      The field exists since P0-T05; what is left is the API and the apps following it.
 - [ ] Number/date formatting helpers: `1 250,000 DT`, `dd/mm/yyyy`.
 
 ### P0-T09 · API contract & generated client · owner: agent · S

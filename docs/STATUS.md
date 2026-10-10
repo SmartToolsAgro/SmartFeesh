@@ -5,17 +5,18 @@ _Last updated: 2026-10-10_
 ## Where we are
 
 - **Phase:** 0 · Discovery & foundations (`docs/phases/00-foundations.md`)
-- **Current task:** P0-T05 · Core app: organization, users, roles, audit (owner: agent)
+- **Current task:** P0-T06 · Authentication & permissions (owner: agent)
 - **In parallel (human):** P0-T01 client workshop, P0-T02 profit-sharing worked example
 
 ## Next step (do this first)
 
-1. **Push the branch `p0-t04-quality-ci` and check CI.** The workflow has never run. Both jobs must be
-   green; if an action input changed, fix `.github/workflows/ci.yml`. That closes P0-T04's acceptance.
-2. Agent: start **P0-T05**. Read only its section of the phase file and ARCHITECTURE §4 rules 1, 2, 6, 8, 9.
-   The custom `User` model must be the **first migration** in the project: do not run `migrate` on a
-   shared database before it exists. Roles: `owner`, `manager`, `driver`, `accountant` (Q9). Add the
-   `language` preference (fr | ar) on the user now if convenient; P0-T08 needs it.
+1. **Push the branches and check CI.** `p0-t05-core-app` is stacked on `p0-t04-quality-ci`. The workflow
+   has never run. Both jobs must be green; if an action input changed, fix `.github/workflows/ci.yml`.
+   That closes P0-T04's acceptance.
+2. Agent: start **P0-T06**. Read only its section of the phase file and ARCHITECTURE §4 rule 8. Session
+   login/logout with CSRF, `/api/v1/me`, DRF permission classes per role, login screens and route guards
+   in both apps. Use `apps.core.selectors.active_membership(user)` for the role, and scope every
+   queryset with `.for_organization(org)` (D-022). `make seed` gives logins `owner` and `driver`.
 
 ## Blockers / waiting on client
 
@@ -52,9 +53,13 @@ _Last updated: 2026-10-10_
   eslint (type-aware), prettier, vitest with a first component test, GitHub Actions workflow, pre-commit
   hooks, `make lint` / `make format` / `make hooks`, `.gitattributes` for LF. All checks pass locally,
   including 12 backend tests on PostgreSQL 16. CI itself is unverified until the first push.
+- **P0-T05 done** (D-022): custom `User` in migration 0001, `Organization`, `Membership` with four roles,
+  `OrganizationScopedModel`, `money()` / `quantity()` and their fields, append-only `AuditLog` with
+  `audit.record()`, `seed_dev`. 38 backend tests pass.
 
 ## Recently done
 
+- 2026-10-10 · P0-T05 core app: custom user, organization, roles, money helpers, audit log, seed (D-022)
 - 2026-10-10 · P0-T04 quality tooling and CI (CI run pending)
 - 2026-10-10 · Client questions answered, plan updated
 - 2026-10-09 · P0-T03 monorepo scaffold
