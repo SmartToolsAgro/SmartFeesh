@@ -6,11 +6,12 @@ _Last updated: 2026-10-10_
 
 - **Phase:** 1 · Catalogue, suppliers & stock. Phase 0 agent work is done; its human items are listed
   under Blockers.
-- **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
+- **Staging is live:** admin http://admin.217-182-205-137.sslip.io:8095, driver
+  http://chauffeur.217-182-205-137.sslip.io:8096 (one host name per app, D-036)
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
 - **Merged and deployed:** P1-T02 to P1-T05 are on `main` (PR #3) and on staging since 2026-10-10 21:16
   UTC, with the demo products, suppliers, cold rooms, trucks and batches. Still waiting: the docs-only
-  branch `docs-profit-loss-rates` (D-031) and `fix-staging-seed-password`. `gh` is not installed on
+  branch `docs-profit-loss-rates` (D-031) and `staging-hostnames-session` (D-036). `gh` is not installed on
   Mahmoud's machine and agents may not merge to `main` without his approval, so he merges.
 - **Next task:** P1-T06 · Stock ledger and on-hand (size L: split it into sub-tasks first).
 - The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
@@ -18,9 +19,8 @@ _Last updated: 2026-10-10_
 
 ## Next step (do this first)
 
-1. Merge `fix-staging-seed-password`: without it every automatic deploy fails at the demo-data step
-   (staging's generated demo password has 11 characters, `seed_dev` wanted 12 even for existing
-   accounts). Its deploy is the check that the CI deploy now runs to the end.
+1. Merge `staging-hostnames-session` (D-036). After its deploy, open the apps by their new names and
+   check that the owner (admin) and the driver (driver app) stay logged in side by side in one browser.
 2. Merge `docs-profit-loss-rates`; it appends D-031 to `docs/DECISIONS.md`: keep every entry, in number
    order. Upload one product photo on staging: the `frutti-staging_media` volume must be writable.
 3. Agent: start P1-T06 from `p1-t05-batches` (or `main` once merged). First split it in the phase file
@@ -72,6 +72,9 @@ _Last updated: 2026-10-10_
   import boundaries, eslint, prettier pass. No Playwright run: no screen changed.
 
 ## Recently done
+
+- 2026-10-10 · Staging: one host name per app (shared cookie bug), apps re-read the session on 401/403
+- 2026-10-10 · CI deploy green end to end (PR #4, short demo password no longer stops the seed)
 
 - 2026-10-10 · Staging deployed with P1-T02 to P1-T05 (CI host key secret fixed; demo data seeded by hand
   after the seed step stopped on the short password)

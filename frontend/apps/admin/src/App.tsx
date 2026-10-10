@@ -1,4 +1,4 @@
-import { LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
+import { createQueryClient, LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import {
   type AdminNavGroup,
@@ -9,7 +9,7 @@ import {
   Sprite,
   Toaster,
 } from "@frutti/ui";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
 
@@ -18,7 +18,7 @@ import { ProductsPage } from "./products/ProductsPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
 import { SuppliersPage } from "./suppliers/SuppliersPage";
 
-const queryClient = new QueryClient();
+const queryClient = createQueryClient();
 
 // Same modules and order as the approved prototype, plus the catalogue. Each one becomes a real screen in its phase.
 function useNav(): AdminNavGroup[] {
