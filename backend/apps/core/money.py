@@ -3,14 +3,16 @@
 Round only at defined points (a line total, a document total), with `money()` or `quantity()`.
 """
 
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from django.db import models
+from django.utils.translation import gettext as _
 
 DECIMAL_PLACES = 3
 MILLIME = Decimal("0.001")
 GRAM = Decimal("0.001")
+MAX_QUANTITY = Decimal("999999999.999")  # the largest value a QuantityField holds
 
 type Number = Decimal | int | str
 
@@ -30,6 +32,30 @@ def money(value: Number) -> Decimal:
 def quantity(value: Number) -> Decimal:
     """Round a weight to grams (3 decimals of a kg), half up."""
     return _to_decimal(value).quantize(GRAM, rounding=ROUND_HALF_UP)
+
+
+def checked_quantity(value: Number, *, allow_zero: bool = False) -> Decimal:
+    """A weight typed by a person or read from a scale: checked, never silently rounded.
+
+    Refused with ValueError: more than 3 decimals (finer than a gram), a negative value (the movement
+    type carries the direction), zero unless `allow_zero`, text that is not a number, and anything
+    larger than a QuantityField can store.
+    """
+    try:
+        result = _to_decimal(value)
+    except InvalidOperation:
+        raise ValueError(_("« %(value)s » n'est pas une quantité.") % {"value": value}) from None
+    if not result.is_finite():
+        raise ValueError(_("« %(value)s » n'est pas une quantité.") % {"value": value})
+    if result != result.quantize(GRAM):
+        raise ValueError(_("%(value)s kg : au plus 3 décimales (le gramme).") % {"value": value})
+    if result < 0:
+        raise ValueError(_("%(value)s kg : une quantité ne peut pas être négative.") % {"value": value})
+    if result == 0 and not allow_zero:
+        raise ValueError(_("La quantité doit être supérieure à zéro."))
+    if result > MAX_QUANTITY:
+        raise ValueError(_("%(value)s kg : quantité trop grande.") % {"value": value})
+    return result.quantize(GRAM)
 
 
 def line_total(qty: Number, unit_price: Number) -> Decimal:
