@@ -12,10 +12,7 @@ _Last updated: 2026-10-10_
 
 ## Next step (do this first)
 
-1. **Merge the stacked branches into `main`, oldest first** (CI was green on all of them, Mahmoud
-   2026-10-10): `p0-t04-quality-ci` → `p0-t05-core-app` → `p0-t06-auth` → `p0-t07-design-system` →
-   `p0-t08-i18n` → `p0-t09-api-client` → `p0-t10-t11-staging`.
-2. Agent: start **P1-T01**. Read only its section of the phase file. New Django apps follow
+1. Agent: start **P1-T01**. Read only its section of the phase file. New Django apps follow
    ARCHITECTURE §3; after adding an endpoint run `make gen-api` and commit the result. Deploy with
    `make deploy-staging` after each finished task so the client can follow.
 
@@ -59,6 +56,7 @@ _Last updated: 2026-10-10_
 
 ## Recently done
 
+- 2026-10-10 · Phase 0 branches merged into `main` (fast-forward, CI green)
 - 2026-10-10 · P0-T10 cloud hook, P0-T11 staging live
 - 2026-10-10 · P0-T09 API contract and generated client
 - 2026-10-10 · P0-T08 internationalisation
