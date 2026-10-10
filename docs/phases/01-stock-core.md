@@ -35,6 +35,8 @@ the `Unit` table keeps the door open for other distributors (Q17).
 - [ ] `StockLocation` (type: cold_room | truck | other, name). `Truck` (plate, name, assigned driver,
       location 1–1).
 - [ ] Any number of cold rooms and trucks, managed from an admin screen (Q8: 2 cold rooms, 3+ trucks).
+- [ ] Object-level permission helper "own truck" for drivers, and the driver's truck in `/api/v1/me`
+      (left open by P0-T06, which had no `Truck` model).
 - [ ] A cold room is also a selling point: over-the-counter sales are regular (Q8), used by P2-T04.
 - [ ] Seed (dev only): two cold rooms, three trucks. Real names come from the client's lists.
 

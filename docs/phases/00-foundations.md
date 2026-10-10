@@ -77,12 +77,18 @@ _Done 2026-10-10 (D-022). 38 backend tests pass on PostgreSQL 16; `migrate` then
 an empty database. The user's `language` preference (fr | ar) from P0-T08 is already on the model._
 
 ### P0-T06 · Authentication & permissions · owner: agent · M
-- [ ] Session login/logout API with CSRF; `/api/v1/me` (user, role, organization, truck if driver).
-- [ ] DRF permission classes: `IsOwnerOrManager`, `IsDriver`, plus object-level helper for "own truck".
-- [ ] Login screen in both apps; route guard; the admin app refuses drivers and vice versa.
-- [ ] Rate limiting on login.
+- [x] Session login/logout API with CSRF; `/api/v1/me` (user, role, organization, truck if driver).
+      `truck` is always `null` until trucks exist (P1-T04).
+- [x] DRF permission classes: `IsOwnerOrManager`, `IsDriver` (and `IsMember`, `HasRole`).
+- [ ] Object-level helper for "own truck": moved to P1-T04, where the `Truck` model is created.
+- [x] Login screen in both apps; route guard; the admin app refuses drivers and vice versa.
+- [x] Rate limiting on login.
 
 **Acceptance:** API tests prove a driver gets 403 on admin endpoints; Playwright test logs in to each app.
+
+_Done 2026-10-10 (D-023), except the "own truck" helper. 57 backend tests, 8 vitest tests and 5
+Playwright tests pass locally (owner and driver log in and out; each app turns the other role away).
+The login screens are unstyled: the design system is P0-T07._
 
 ### P0-T07 · Design system from the prototype · owner: agent · M
 - [ ] Port colour tokens (light + dark), fonts, radius, shadows from `prototype/index.html` into a Tailwind

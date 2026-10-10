@@ -15,4 +15,4 @@ def test_api_requires_login_by_default(client):
     # The schema endpoint uses the default permission (IsAuthenticated).
     response = client.get(reverse("schema"))
 
-    assert response.status_code == 403
+    assert response.status_code == 401

@@ -125,3 +125,18 @@ closed months never move when a price changes.
   `MoneyField` / `QuantityField`, not a wrapper class: Django, DRF and JSON handle Decimal natively.
   The helpers refuse floats with a `TypeError`.
 - `django-stubs-ext` is a runtime dependency: it lets typed code subscript Django classes.
+
+**D-023 · Authentication and permission choices (P0-T06)** · accepted · 2026-10-10
+- The API answers 401 when nobody is logged in and 403 when the role is not allowed. The apps rely on
+  it: 401 shows the login screen. DRF's stock session authentication answers 403 for both.
+- Login is protected against CSRF explicitly and limited to 8 attempts per minute per account and 30
+  per address. The counters live in Django's default in-process cache, so with several server
+  processes each one counts separately: move them to Redis when Redis arrives (P2-T08), and set DRF's
+  `NUM_PROXIES` in production so the address is the client's, not the proxy's.
+- A wrong password, an unknown user and a disabled account get the same answer.
+- Roles are checked by DRF permission classes built on `HasRole`; the front-end guard only improves the
+  experience. The admin app accepts owner, manager and accountant; the driver app accepts driver.
+- React Router for routing and TanStack Query for the session, in a shared `@frutti/auth` package
+  (API helper with CSRF, session hooks, login page, route guard). It is hand-written until the
+  generated client exists (P0-T09).
+- Playwright tests live in `frontend/e2e` and start the backend and both apps themselves.

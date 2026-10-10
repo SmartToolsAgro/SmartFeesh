@@ -23,3 +23,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# End-to-end tests (Playwright)
+test-results/
+playwright-report/

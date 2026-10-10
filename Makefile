@@ -1,6 +1,6 @@
 # Common commands. Docker path: `make dev`. Without Docker: `make install`, then `make backend` and
 # `make frontend` in two terminals (needs a local PostgreSQL matching DATABASE_URL in .env).
-.PHONY: dev down install hooks backend frontend migrate makemigrations seed test lint format build
+.PHONY: dev down install hooks backend frontend migrate makemigrations seed test e2e lint format build
 
 dev:            ## Run the whole stack in Docker
 	docker compose up
@@ -33,6 +33,9 @@ seed:           ## Dev data: one organization, logins owner and driver (password
 test:           ## Backend tests + frontend type checks and tests
 	cd backend && uv run pytest
 	cd frontend && pnpm typecheck && pnpm test
+
+e2e:            ## Browser tests: starts the backend and both apps itself (needs PostgreSQL)
+	cd frontend && pnpm e2e
 
 lint:           ## Every check CI runs except tests: lint, format, types, app boundaries
 	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run lint-imports

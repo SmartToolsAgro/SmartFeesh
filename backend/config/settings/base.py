@@ -95,7 +95,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
+        "apps.core.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -103,6 +103,8 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Amounts travel as strings so no precision is lost (docs/ARCHITECTURE.md rule 1).
     "COERCE_DECIMAL_TO_STRING": True,
+    # Login attempts, per address and per account (apps/core/authentication.py).
+    "DEFAULT_THROTTLE_RATES": {"login_ip": "30/min", "login_username": "8/min"},
 }
 
 SPECTACULAR_SETTINGS = {

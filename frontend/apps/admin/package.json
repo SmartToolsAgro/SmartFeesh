@@ -10,9 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@frutti/auth": "workspace:*",
     "@frutti/ui": "workspace:*",
+    "@tanstack/react-query": "5.103.2",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-router": "8.4.0"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

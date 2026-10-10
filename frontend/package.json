@@ -12,7 +12,8 @@
     "test": "turbo run test",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "e2e": "pnpm --filter @frutti/e2e e2e"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -47,6 +47,7 @@ dinars (DT) with 3 decimals.
 | Install locally | `make install` (backend: `uv sync`; frontend: `pnpm install`) |
 | Backend / frontend dev servers | `make backend`, `make frontend` (need PostgreSQL at `DATABASE_URL`) |
 | Tests | `make test` (pytest + TypeScript type checks + vitest) |
+| Browser tests | `make e2e` (Playwright; first time: `cd frontend && pnpm --filter @frutti/e2e exec playwright install chromium`) |
 | Lint, format check, types, app boundaries | `make lint` (ruff, mypy, import-linter, eslint, prettier); CI runs the same |
 | Auto-format | `make format` |
 | Git hooks (once per clone) | `make hooks` |
