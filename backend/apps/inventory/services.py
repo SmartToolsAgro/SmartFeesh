@@ -1,7 +1,9 @@
 """Every write on stock locations, batches and stock movements goes through these functions (ARCHITECTURE §3)."""
 
 import datetime as dt
+import itertools
 import uuid
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.contrib.contenttypes.models import ContentType
@@ -14,7 +16,8 @@ from apps.core import audit
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity
 
-from .models import Batch, BatchCounter, StockLocation, StockMovement, StockOnHand
+from . import selectors
+from .models import FIFO_ORDER, Batch, BatchCounter, StockLocation, StockMovement, StockOnHand
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
 from .models import MovementKind as MovementKind  # re-exported for apps that post movements
 
@@ -330,3 +333,89 @@ def post_movement(
         reason=reason,
         client_uuid=client_uuid,
     )
+
+
+def _part_uuid(client_uuid: uuid.UUID, index: int) -> uuid.UUID:
+    """The `client_uuid` of the n-th movement posted for one request taken from several batches."""
+    return uuid.uuid5(client_uuid, str(index))
+
+
+def _posted_parts(organization: Organization, client_uuid: uuid.UUID) -> list[StockMovement]:
+    movements = StockMovement.objects.for_organization(organization)
+    posted: list[StockMovement] = []
+    for index in itertools.count():
+        movement = movements.filter(client_uuid=_part_uuid(client_uuid, index)).first()
+        if movement is None:
+            return posted
+        posted.append(movement)
+    return posted  # pragma: no cover - itertools.count never ends
+
+
+@transaction.atomic
+def post_fifo_movements(
+    *,
+    organization: Organization,
+    actor: User | None,
+    kind: str,
+    product_id: int,
+    quantity: Number,
+    from_location: StockLocation,
+    to_location: StockLocation | None = None,
+    reason: str = "",
+    source: models.Model | None = None,
+    client_uuid: uuid.UUID | None = None,
+    occurred_at: dt.datetime | None = None,
+) -> list[StockMovement]:
+    """Take `quantity` kg of a product out of `from_location`, oldest batch first, one movement per batch.
+
+    Used by transfers, sales and losses: nobody picks batches by hand (D-009). Every on-hand row of the
+    product at both locations is locked first, in location then batch order, the same order as
+    `post_movement`, so two requests never wait for each other forever. Refused as a whole (ValidationError
+    per field) when the location holds less than asked. A `client_uuid` already used returns the
+    movements it posted.
+    """
+    if client_uuid is not None:
+        posted = _posted_parts(organization, client_uuid)
+        if posted:
+            return posted
+    sides = MOVEMENT_SIDES.get(kind)
+    if sides is not None and not sides[0]:
+        raise ValidationError({"kind": _("Ce mouvement ne prend pas de stock à un emplacement.")})
+    if from_location.organization_id != organization.pk:
+        raise ValidationError({"from_location": _("Emplacement inconnu.")})
+    try:
+        amount = checked_quantity(quantity)
+    except ValueError as error:
+        raise ValidationError({"quantity": str(error)}) from None
+
+    locations = [location for location in (from_location, to_location) if location is not None]
+    locked = (
+        StockOnHand.objects.select_for_update(of=("self",))
+        .filter(product_id=product_id, location__in=locations)
+        .select_related("batch")
+        .order_by("location_id", "batch_id")
+    )
+    holdings = sorted(
+        (row for row in locked if row.location_id == from_location.pk and row.quantity > 0),
+        key=lambda row: tuple(getattr(row.batch, field) for field in FIFO_ORDER),
+    )
+    allocations = selectors.fifo_split(holdings, amount)
+    if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
+        raise selectors.not_enough_stock(sum((row.quantity for row in holdings), Decimal("0.000")), from_location)
+
+    return [
+        post_movement(
+            organization=organization,
+            actor=actor,
+            kind=kind,
+            batch=batch,
+            quantity=taken,
+            from_location=from_location,
+            to_location=to_location,
+            reason=reason,
+            source=source,
+            client_uuid=_part_uuid(client_uuid, index) if client_uuid is not None else None,
+            occurred_at=occurred_at,
+        )
+        for index, (batch, taken) in enumerate(allocations)
+    ]
