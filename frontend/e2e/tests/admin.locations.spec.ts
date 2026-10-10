@@ -59,3 +59,13 @@ test("the owner adds a cold room and a truck, then archives the truck", async ({
   await page.getByRole("button", { name: "Archivés" }).click();
   await expect(place(page, truck)).toContainText("Archivé");
 });
+
+test("a cold room still holding stock cannot be archived", async ({ page }) => {
+  // The demo seed received the demo batches into the cold rooms.
+  await openLocations(page);
+
+  await place(page, "Chambre froide 1 (frais)").getByRole("button").click();
+  const edit = page.getByRole("dialog", { name: "Modifier l'emplacement" });
+  await edit.getByRole("button", { name: "Archiver" }).click();
+  await expect(edit.getByText(/contient encore du stock/)).toBeVisible();
+});

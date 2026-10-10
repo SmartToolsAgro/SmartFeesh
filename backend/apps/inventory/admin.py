@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.db.models import Model
 from django.http import HttpRequest
 
-from .models import Batch, StockLocation
+from .models import Batch, StockLocation, StockMovement, StockOnHand
 
 
 class ReadOnlyAdmin[M: Model](admin.ModelAdmin[M]):
@@ -32,3 +32,17 @@ class BatchAdmin(ReadOnlyAdmin[Batch]):
     list_filter = ("organization", "received_on")
     search_fields = ("number", "receipt_reference")
     list_select_related = ("product", "supplier", "organization")
+
+
+@admin.register(StockMovement)
+class StockMovementAdmin(ReadOnlyAdmin[StockMovement]):
+    list_display = ("occurred_at", "kind", "batch", "from_location", "to_location", "quantity", "user")
+    list_filter = ("organization", "kind")
+    list_select_related = ("batch", "from_location", "to_location", "user")
+
+
+@admin.register(StockOnHand)
+class StockOnHandAdmin(ReadOnlyAdmin[StockOnHand]):
+    list_display = ("location", "batch", "quantity", "updated_at")
+    list_filter = ("organization", "location")
+    list_select_related = ("location", "batch")

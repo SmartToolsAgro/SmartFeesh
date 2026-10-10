@@ -1,13 +1,14 @@
-"""Reusable read queries of stock locations and batches (and of stock itself, from P1-T06)."""
+"""Reusable read queries of stock locations, batches, movements and stock on hand."""
 
 from collections.abc import Iterable
+from decimal import Decimal
 from typing import Literal
 
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Sum
 
 from apps.core.models import Organization
 
-from .models import FIFO_ORDER, Batch, LocationKind, StockLocation
+from .models import FIFO_ORDER, Batch, LocationKind, StockLocation, StockMovement, StockOnHand
 
 type LocationStatus = Literal["active", "archived", "all"]
 
@@ -82,3 +83,62 @@ def batches_oldest_first(organization: Organization, *, product_id: int) -> Quer
     The FIFO allocation of P1-T06 walks this order over the batches that still have stock.
     """
     return Batch.objects.for_organization(organization).filter(product_id=product_id).order_by(*FIFO_ORDER)
+
+
+def on_hand_of(
+    organization: Organization,
+    *,
+    location_id: int | None = None,
+    product_id: int | None = None,
+    batch_id: int | None = None,
+) -> QuerySet[StockOnHand]:
+    """What each location holds now, per batch, from the cache. Empty rows are left out."""
+    rows = (
+        StockOnHand.objects.for_organization(organization)
+        .filter(quantity__gt=0)
+        .select_related("location", "batch", "batch__product", "batch__supplier")
+        .order_by("location__kind", "location__name", "batch__received_on", "batch_id")
+    )
+    if location_id is not None:
+        rows = rows.filter(location_id=location_id)
+    if product_id is not None:
+        rows = rows.filter(product_id=product_id)
+    if batch_id is not None:
+        rows = rows.filter(batch_id=batch_id)
+    return rows
+
+
+def quantity_on_hand(
+    organization: Organization,
+    *,
+    location_id: int | None = None,
+    product_id: int | None = None,
+    batch_id: int | None = None,
+) -> Decimal:
+    """Total kg held, for one location, product or batch (or any mix of the three)."""
+    total = on_hand_of(organization, location_id=location_id, product_id=product_id, batch_id=batch_id).aggregate(
+        total=Sum("quantity")
+    )["total"]
+    return total if total is not None else Decimal("0.000")
+
+
+def movements_of(
+    organization: Organization,
+    *,
+    location_id: int | None = None,
+    product_id: int | None = None,
+    batch_id: int | None = None,
+) -> QuerySet[StockMovement]:
+    """The ledger, newest first. A location filter keeps movements coming in or going out of it."""
+    movements = (
+        StockMovement.objects.for_organization(organization)
+        .select_related("batch", "product", "from_location", "to_location", "user")
+        .order_by("-occurred_at", "-id")
+    )
+    if location_id is not None:
+        movements = movements.filter(Q(from_location_id=location_id) | Q(to_location_id=location_id))
+    if product_id is not None:
+        movements = movements.filter(product_id=product_id)
+    if batch_id is not None:
+        movements = movements.filter(batch_id=batch_id)
+    return movements

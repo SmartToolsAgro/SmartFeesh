@@ -58,16 +58,30 @@ Q4 answered: the same product can come from several suppliers in one month; batc
 Q11 answered: a mix such as Symphonie Marine comes from a single supplier, so it is an ordinary product
 with ordinary batches. No `parent_batches`.
 
-### P1-T06 · Stock ledger and on-hand · L → split before starting
+### P1-T06 · Stock ledger and on-hand · L, split into T06a–T06c (2026-10-10)
 Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
-- [ ] `StockMovement` (append-only): type (receipt, transfer, sale, customer_return, supplier_return,
+
+#### P1-T06a · Movement ledger, on-hand cache, `post_movement` · M
+- [x] `StockMovement` (append-only): type (receipt, transfer, sale, customer_return, supplier_return,
       loss, adjustment, count_correction), product, batch, from_location, to_location, quantity,
       unit_cost, source document (generic FK), user, timestamp, reason, `client_uuid`.
-- [ ] `StockOnHand(location, batch)` cache; `inventory.services.post_movement(...)` updates it in the same
-      transaction with `select_for_update`; negative stock refused.
-- [ ] `allocate_fifo(product, location, qty)` → list of (batch, qty) oldest first.
-- [ ] `rebuild_on_hand()` management command + nightly consistency check.
-- [ ] Tests: concurrency (two transfers at once), negative stock refused, rebuild equals cache.
+- [x] Which side each type moves: receipt and customer return come in, sale, supplier return and loss
+      go out, transfer goes from one location to another, adjustment and count correction go one way.
+- [x] `StockOnHand(location, batch)` cache; `inventory.services.post_movement(...)` updates it in the same
+      transaction with `select_for_update`; negative stock refused. A repeated `client_uuid` returns the
+      movement already posted.
+- [x] A location still holding stock cannot be archived (left open by P1-T04).
+- [x] Tests: concurrency (two transfers at once), negative stock refused. Demo batches get an opening
+      stock and a morning truck load in the seed.
+
+#### P1-T06b · FIFO allocation · S
+- [ ] `allocate_fifo(product, location, qty)` → list of (batch, qty) oldest first, over
+      `selectors.batches_oldest_first` (D-034), refusing more than the location holds.
+- [ ] A helper that posts one movement per allocated batch (used by transfers, sales and losses).
+
+#### P1-T06c · Rebuild and consistency check · S
+- [ ] `rebuild_on_hand()` management command + nightly consistency check that reports differences.
+- [ ] Tests: rebuild equals cache; a damaged cache is reported, then repaired.
 
 ### P1-T07 · Goods receipt from suppliers · M
 - [ ] `PurchaseOrder` (optional) → `GoodsReceipt` with lines: ordered qty, invoiced qty (net weight,

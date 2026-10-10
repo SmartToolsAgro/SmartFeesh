@@ -1,19 +1,22 @@
-"""Every write on stock locations, batches (and stock, from P1-T06) goes through these functions (ARCHITECTURE §3)."""
+"""Every write on stock locations, batches and stock movements goes through these functions (ARCHITECTURE §3)."""
 
 import datetime as dt
+import uuid
 from typing import TYPE_CHECKING, Any
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.core import audit
 from apps.core.models import Organization, User
-from apps.core.money import Number, checked_amount
+from apps.core.money import Number, checked_amount, checked_quantity
 
-from .models import Batch, BatchCounter, StockLocation
+from .models import Batch, BatchCounter, StockLocation, StockMovement, StockOnHand
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
+from .models import MovementKind as MovementKind  # re-exported for apps that post movements
 
 if TYPE_CHECKING:
     from apps.catalog.models import Product
@@ -92,9 +95,13 @@ def update_location(
 def set_location_active(*, location: StockLocation, actor: User | None, is_active: bool) -> StockLocation:
     """Archive a location (it keeps its history but receives no more stock), or bring it back.
 
-    From P1-T06 on, a location still holding stock cannot be archived.
+    A location still holding stock cannot be archived: its stock is moved out first.
     """
     location = StockLocation.objects.select_for_update().get(pk=location.pk)
+    if not is_active and StockOnHand.objects.filter(location=location, quantity__gt=0).exists():
+        raise ValidationError(
+            _("« %(name)s » contient encore du stock : videz-le avant de l'archiver.") % {"name": location.name}
+        )
     if location.is_active != is_active:
         location.is_active = is_active
         location.save(update_fields=["is_active", "updated_at"])
@@ -181,3 +188,145 @@ def create_batch(
         organization=organization, actor=actor, action="batch.created", target=batch, after=_batch_snapshot(batch)
     )
     return batch
+
+
+# Which side each kind of movement needs: (from a location, to a location). None: exactly one of the two,
+# the side giving the direction (an adjustment or a count correction adds or removes).
+MOVEMENT_SIDES: dict[str, tuple[bool, bool] | None] = {
+    MovementKind.RECEIPT: (False, True),
+    MovementKind.CUSTOMER_RETURN: (False, True),
+    MovementKind.SALE: (True, False),
+    MovementKind.SUPPLIER_RETURN: (True, False),
+    MovementKind.LOSS: (True, False),
+    MovementKind.TRANSFER: (True, True),
+    MovementKind.ADJUSTMENT: None,
+    MovementKind.COUNT_CORRECTION: None,
+}
+# A person must say why stock disappeared or was changed by hand.
+KINDS_NEEDING_A_REASON = frozenset({MovementKind.LOSS, MovementKind.ADJUSTMENT})
+
+
+def _locked_on_hand(location: StockLocation, batch: Batch) -> StockOnHand:
+    """The on-hand row of this location and batch, created at zero when missing, locked until commit."""
+    StockOnHand.objects.bulk_create(
+        [
+            StockOnHand(
+                organization_id=location.organization_id, location=location, batch=batch, product_id=batch.product_id
+            )
+        ],
+        ignore_conflicts=True,
+    )
+    return StockOnHand.objects.select_for_update().get(location=location, batch=batch)
+
+
+def _movement_errors(
+    organization: Organization,
+    kind: str,
+    batch: Batch,
+    from_location: StockLocation | None,
+    to_location: StockLocation | None,
+    reason: str,
+) -> dict[str, str]:
+    if kind not in MOVEMENT_SIDES:
+        return {"kind": _("Type de mouvement inconnu.")}
+    errors: dict[str, str] = {}
+    if batch.organization_id != organization.pk:
+        errors["batch"] = _("Lot inconnu.")
+    sides = MOVEMENT_SIDES[kind]
+    if sides is None:
+        if (from_location is None) == (to_location is None):
+            errors["to_location"] = _("Indiquez un seul emplacement : celui qui gagne ou celui qui perd du stock.")
+    else:
+        needs_from, needs_to = sides
+        for field, location, needed in (
+            ("from_location", from_location, needs_from),
+            ("to_location", to_location, needs_to),
+        ):
+            if needed and location is None:
+                errors[field] = _("L'emplacement est obligatoire pour ce mouvement.")
+            elif not needed and location is not None:
+                errors[field] = _("Ce mouvement ne passe pas par cet emplacement.")
+    if from_location is not None and from_location == to_location:
+        errors["to_location"] = _("Les emplacements de départ et d'arrivée doivent être différents.")
+    for field, location in (("from_location", from_location), ("to_location", to_location)):
+        if location is None or field in errors:
+            continue
+        if location.organization_id != organization.pk:
+            errors[field] = _("Emplacement inconnu.")
+        elif not location.is_active:
+            errors[field] = _("« %(name)s » est archivé.") % {"name": location.name}
+    if kind in KINDS_NEEDING_A_REASON and not reason:
+        errors["reason"] = _("Indiquez la raison.")
+    return errors
+
+
+@transaction.atomic
+def post_movement(
+    *,
+    organization: Organization,
+    actor: User | None,
+    kind: str,
+    batch: Batch,
+    quantity: Number,
+    from_location: StockLocation | None = None,
+    to_location: StockLocation | None = None,
+    reason: str = "",
+    source: models.Model | None = None,
+    client_uuid: uuid.UUID | None = None,
+    occurred_at: dt.datetime | None = None,
+) -> StockMovement:
+    """Post one movement of one batch and update the stock on hand in the same transaction (D-006).
+
+    The on-hand rows involved are locked, always in the same order so two movements never wait for each
+    other forever; a location never goes below zero. A `client_uuid` already posted returns that movement
+    instead of posting it twice. Refused with a ValidationError per field.
+    """
+    if client_uuid is not None:
+        posted = StockMovement.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if posted is not None:
+            return posted
+
+    reason = reason.strip()
+    errors = _movement_errors(organization, kind, batch, from_location, to_location, reason)
+    amount = None
+    try:
+        amount = checked_quantity(quantity)
+    except ValueError as error:
+        errors["quantity"] = str(error)
+    if errors or amount is None:
+        raise ValidationError(errors)
+
+    involved = sorted((loc for loc in (from_location, to_location) if loc is not None), key=lambda loc: loc.pk)
+    rows = {location.pk: _locked_on_hand(location, batch) for location in involved}
+    if from_location is not None:
+        source_row = rows[from_location.pk]
+        if source_row.quantity < amount:
+            raise ValidationError(
+                {
+                    "quantity": _("Stock insuffisant : %(available)s kg du lot %(batch)s à « %(location)s ».")
+                    % {"available": source_row.quantity, "batch": batch.number, "location": from_location.name}
+                }
+            )
+        source_row.quantity -= amount
+        source_row.save(update_fields=["quantity", "updated_at"])
+    if to_location is not None:
+        target_row = rows[to_location.pk]
+        target_row.quantity += amount
+        target_row.save(update_fields=["quantity", "updated_at"])
+
+    return StockMovement.objects.create(
+        organization=organization,
+        kind=kind,
+        product_id=batch.product_id,
+        batch=batch,
+        from_location=from_location,
+        to_location=to_location,
+        quantity=amount,
+        unit_cost=batch.unit_cost,
+        source_type=ContentType.objects.get_for_model(source) if source is not None else None,
+        source_id=source.pk if source is not None else None,
+        user=actor,
+        occurred_at=occurred_at or timezone.now(),
+        reason=reason,
+        client_uuid=client_uuid,
+    )

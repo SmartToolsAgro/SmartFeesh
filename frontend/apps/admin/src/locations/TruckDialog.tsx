@@ -77,6 +77,10 @@ export function TruckDialog({ truck, onDone }: { truck?: Truck; onDone: () => vo
       await refreshLocations(queryClient);
       onDone();
     },
+    // A location still holding stock cannot be archived: the server says why.
+    onError: (failure) => {
+      setErrors({ detail: fieldErrors(failure).detail ?? t("admin.locations.form.error") });
+    },
   });
 
   function submit(event: FormEvent) {
