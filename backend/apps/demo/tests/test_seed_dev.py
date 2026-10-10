@@ -82,6 +82,16 @@ def test_outside_development_the_known_password_is_refused(settings):
     assert not User.objects.exists()
 
 
+def test_a_short_password_is_accepted_when_every_account_already_exists(settings):
+    # Staging's first generated password had 11 characters; later deploys must still add the demo data.
+    settings.DEBUG = False
+    call_command("seed_dev", password="a-long-demo-password")
+
+    call_command("seed_dev", password="short")
+
+    assert User.objects.get(username="owner").check_password("a-long-demo-password")
+
+
 def test_staging_demo_accounts_get_the_password_given(settings):
     settings.DEBUG = False
 

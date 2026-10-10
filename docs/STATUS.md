@@ -8,22 +8,21 @@ _Last updated: 2026-10-10_
   under Blockers.
 - **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
-- **Done, waiting for merge (stacked, merge in this order):** `p1-t02-products` → `p1-t03-suppliers` →
-  `p1-t04-locations` → `p1-t05-batches`. None is deployed yet. A docs-only branch
-  `docs-profit-loss-rates` (D-031) also waits. `gh` is not installed on Mahmoud's machine and agents
-  may not merge to `main` without his approval, so he merges.
+- **Merged and deployed:** P1-T02 to P1-T05 are on `main` (PR #3) and on staging since 2026-10-10 21:16
+  UTC, with the demo products, suppliers, cold rooms, trucks and batches. Still waiting: the docs-only
+  branch `docs-profit-loss-rates` (D-031) and `fix-staging-seed-password`. `gh` is not installed on
+  Mahmoud's machine and agents may not merge to `main` without his approval, so he merges.
 - **Next task:** P1-T06 · Stock ledger and on-hand (size L: split it into sub-tasks first).
 - The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
   (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
 ## Next step (do this first)
 
-1. Merge the four task branches into `main` in order once CI is green (each PR then shows one task).
-   `docs-profit-loss-rates` and the task branches all append to `docs/DECISIONS.md`: keep every entry,
-   in number order (D-031 to D-034).
-2. The merge deploys staging by itself (CI job `deploy-staging`): check it ran. It adds the Docker volume
-   `frutti-staging_media` and the demo products, suppliers, cold rooms, trucks and batches. Then upload one
-   product photo on staging: the volume must be writable by the `app` user.
+1. Merge `fix-staging-seed-password`: without it every automatic deploy fails at the demo-data step
+   (staging's generated demo password has 11 characters, `seed_dev` wanted 12 even for existing
+   accounts). Its deploy is the check that the CI deploy now runs to the end.
+2. Merge `docs-profit-loss-rates`; it appends D-031 to `docs/DECISIONS.md`: keep every entry, in number
+   order. Upload one product photo on staging: the `frutti-staging_media` volume must be writable.
 3. Agent: start P1-T06 from `p1-t05-batches` (or `main` once merged). First split it in the phase file
    (ledger + on-hand + `post_movement`; FIFO allocation; rebuild command and nightly check). FIFO walks
    `inventory.selectors.batches_oldest_first` (D-034). Give the 15 demo batches an opening stock in the
@@ -73,6 +72,9 @@ _Last updated: 2026-10-10_
   import boundaries, eslint, prettier pass. No Playwright run: no screen changed.
 
 ## Recently done
+
+- 2026-10-10 · Staging deployed with P1-T02 to P1-T05 (CI host key secret fixed; demo data seeded by hand
+  after the seed step stopped on the short password)
 
 - 2026-10-10 · P1-T05 batches
 - 2026-10-10 · P1-T04 locations and trucks
