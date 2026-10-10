@@ -49,10 +49,10 @@ fi
 # 4. Health, through the same path a browser uses.
 for port in 8095 8096; do
   for _ in $(seq 1 30); do
-    if curl -fsS "http://127.0.0.1:$port/api/v1/health" > /dev/null; then echo "port $port healthy"; break; fi
+    if curl -fsS -H "Host: $PUBLIC_HOST:$port" "http://127.0.0.1:$port/api/v1/health" > /dev/null; then echo "port $port healthy"; break; fi
     sleep 2
   done
-  curl -fsS "http://127.0.0.1:$port/api/v1/health" > /dev/null || { echo "port $port not healthy" >&2; exit 1; }
+  curl -fsS -H "Host: $PUBLIC_HOST:$port" "http://127.0.0.1:$port/api/v1/health" > /dev/null || { echo "port $port not healthy" >&2; exit 1; }
 done
 
 # 5. Demo logins (owner, driver) with the password from .env. Existing accounts are left as they are.
