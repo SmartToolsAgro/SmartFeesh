@@ -5,7 +5,7 @@ explanation, and pay it.
 **Done when:** the month used in P0-T02 gives exactly the same result in the app, and a real month is
 closed, approved and settled.
 **Depends on:** Phase 5 and P0-T02. **Questions:** Q1, Q2, Q3, Q9 and Q11 are answered. One detail is
-left for P0-T02 to settle: a loss larger than the supplier's remaining capital (Q3).
+left to confirm: a loss share larger than the supplier's remaining capital (Q3, provisional rule in D-031).
 _Coarse plan: detail each task when the phase starts._
 
 **Rules from the answers (2026-10-09/10):**
@@ -14,6 +14,9 @@ _Coarse plan: detail each task when the phase starts._
   administration by sales. These rules are verbal agreements, not written in the contracts.
 - Q3: capital is **repaid through the profit share** (payments repay capital first, then count as
   profit). In a loss month the supplier **carries their % of the loss, deducted from their capital**.
+  Each partner has **two rates**: a profit % used in a profit month and a loss % used in a loss month;
+  they may differ (2026-10-10). Provisional (D-031): a loss share the capital cannot cover is carried
+  as an amount the partner owes and recovered from their next profit shares.
 - Q9: profit on **sales made** (accrual). The accountant checks the closing in the app with their own
   login, then the owner approves.
 - Q11: a mix such as Symphonie Marine comes from a single supplier; it is shared like any other product.
@@ -22,7 +25,7 @@ _Coarse plan: detail each task when the phase starts._
 
 ### P6-T01 · Agreements (versioned) · M
 - [ ] Agreement: supplier, type (ordinary purchase, consignment, commission, profit sharing, joint
-      investment), dates, products/batches covered, profit %, investment %, profit basis, eligible expense
+      investment), dates, products/batches covered, profit % (profit month), loss % (loss month), investment %, profit basis, eligible expense
       categories, allocation method, settlement schedule.
 - [ ] New version on every change; batches link to the agreement version in force at receipt.
 
@@ -31,8 +34,9 @@ _Coarse plan: detail each task when the phase starts._
       and from profit shares.
 - [ ] A payment to a partner is allocated to capital recovery first, then to profit share (Q3). The
       balances stay separate; only the allocation order links them.
-- [ ] Loss month: the partner's % of the loss is deducted from their capital (Q3). A loss larger than
-      the remaining capital: rule to settle in P0-T02.
+- [ ] Loss month: the partner's **loss %** of the loss is deducted from their capital (Q3). The part the
+      capital cannot cover (or the whole share, without capital) is a balance the partner owes, recovered
+      from their next profit shares (D-031, provisional).
 
 ### P6-T03 · Month-end inventory valuation and COGS · M
 - [ ] Stock value at month-end by batch; COGS of the month from sale-line snapshots.
@@ -47,6 +51,8 @@ _Coarse plan: detail each task when the phase starts._
 ### P6-T05 · Profit engine · L → split
 - [ ] Pure functions: inputs (snapshotted month data + agreement version) → result with every step shown.
 - [ ] Handles profit, zero, loss, unrecovered capital, expenses larger than gross profit.
+- [ ] Profit month uses the profit %, loss month the loss % (tests with two different rates); a loss
+      share larger than the remaining capital becomes an owed balance recovered from later profit shares.
 - [ ] **Golden test:** reproduces `docs/spec/profit-sharing-worked-example.md` to the millime.
 
 ### P6-T06 · Monthly closing workflow · M

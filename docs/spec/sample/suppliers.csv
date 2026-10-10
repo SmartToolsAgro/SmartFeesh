@@ -1,5 +1,5 @@
-reference,name,type,city,tax_id,phone,agreement,profit_share_percent,invested_capital_dt,notes
-F-001,Pêcherie Kerkennah,Pêcheur / armateur,Kerkennah (Sfax),0000001A/A/M/000,+216 74 000 101,profit_sharing,40,0.000,Partenaire : part sur le bénéfice net de ses propres produits
-F-002,Mareyeur Port de Sfax,Mareyeur,Sfax,0000002B/A/M/000,+216 74 000 102,ordinary_purchase,,,Fournisseur classique payé sur facture
-F-003,Aqua Monastir,Aquaculture,Monastir,0000003C/A/M/000,+216 73 000 103,ordinary_purchase,,,Dorade et loup d'élevage
-F-004,Surgelés du Sahel,Importateur / surgelés,Sousse,0000004D/A/M/000,+216 73 000 104,joint_investment,30,20000.000,Partenaire investisseur : capital remboursé par la part de bénéfice
+reference,name,type,city,tax_id,phone,agreement,profit_share_percent,loss_share_percent,invested_capital_dt,notes
+F-001,Pêcherie Kerkennah,Pêcheur / armateur,Kerkennah (Sfax),0000001A/A/M/000,+216 74 000 101,profit_sharing,40,25,0.000,Partenaire : part sur le bénéfice net de ses propres produits
+F-002,Mareyeur Port de Sfax,Mareyeur,Sfax,0000002B/A/M/000,+216 74 000 102,ordinary_purchase,,,,Fournisseur classique payé sur facture
+F-003,Aqua Monastir,Aquaculture,Monastir,0000003C/A/M/000,+216 73 000 103,ordinary_purchase,,,,Dorade et loup d'élevage
+F-004,Surgelés du Sahel,Importateur / surgelés,Sousse,0000004D/A/M/000,+216 73 000 104,joint_investment,30,20,20000.000,Partenaire investisseur : capital remboursé par la part de bénéfice

@@ -225,6 +225,16 @@ dependencies and starts PostgreSQL with the `frutti` role.
 - `seed_dev` moved from `core` to a new `demo` app, which may call every app, and now also creates the
   12 stand-in products of `docs/spec/sample/products.csv`.
 
+**D-031 · Two share rates per partner; uncovered loss carried forward (Q3)** · provisional · 2026-10-10
+- Mahmoud, 2026-10-10: a partner agreement has a **profit %**, used when the month's net result on the
+  partner's products is a profit, and a **loss %**, used when it is a loss. The two may differ. A month
+  with a zero result gives a zero share.
+- Provisional, until the client confirms: when the loss share is larger than the remaining capital (or
+  the partner has no capital), the capital goes down to zero and the rest becomes an amount the partner
+  owes, kept in the profit-share balance and recovered from their next profit shares. Capital is never
+  negative. The three balances (trade payable, capital, profit share) stay separate.
+- Stand-in data: Pêcherie Kerkennah 40 % / 25 %, Surgelés du Sahel 30 % / 20 % (`docs/spec/sample/`).
+
 **D-032 · Suppliers (P1-T03)** · accepted · 2026-10-10
 - New `partners` app (ARCHITECTURE §3), which will also hold customers in Phase 2.
 - `Supplier` adds three fields to the brief's list: a **reference** (`F-001`, as in the sample list; left

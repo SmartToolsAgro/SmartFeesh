@@ -11,7 +11,7 @@ Use it for seed commands, tests, demos and screenshots. Never import it into pro
 | File | Content |
 |---|---|
 | `products.csv` | 12 products sold by kg, with French and Arabic names, storage, sale price, minimum stock |
-| `suppliers.csv` | 4 suppliers: 2 ordinary, 1 profit-sharing partner, 1 investor partner |
+| `suppliers.csv` | 4 suppliers: 2 ordinary, 1 profit-sharing partner, 1 investor partner; partners have a profit % and a loss % |
 | `supplier_products.csv` | Indicative purchase cost per supplier and product (real costs change daily and are set on each receipt); dorade comes from two suppliers (Q4) |
 | `customers.csv` | 9 customers around Sfax with credit limits, terms and opening balances |
 | `locations.csv` | 2 cold rooms and 3 trucks (Q8) |
@@ -33,7 +33,7 @@ Use it for seed commands, tests, demos and screenshots. Never import it into pro
 - Every company, person, tax ID, phone number and plate. Tax IDs start with `0000` on purpose.
 - Sale prices: the eight products of the prototype keep the prototype's prices so screens and acceptance
   tests stay consistent; the four added products are set near the observed market price.
-- Purchase costs, salaries, credit limits, balances, profit percentages and invested capital.
+- Purchase costs, salaries, credit limits, balances, profit and loss percentages and invested capital.
 - Arabic product names are to be reviewed by a native speaker.
 
 Not included: product photos (the prototype's illustrations are enough for development) and a month of
