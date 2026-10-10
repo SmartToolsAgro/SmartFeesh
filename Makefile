@@ -1,6 +1,6 @@
 # Common commands. Docker path: `make dev`. Without Docker: `make install`, then `make backend` and
 # `make frontend` in two terminals (needs a local PostgreSQL matching DATABASE_URL in .env).
-.PHONY: dev down install hooks backend frontend migrate makemigrations seed gen-api test e2e lint format build
+.PHONY: dev down install hooks backend frontend migrate makemigrations seed gen-api test e2e lint format build deploy-staging
 
 dev:            ## Run the whole stack in Docker
 	docker compose up
@@ -51,3 +51,6 @@ format:         ## Format and auto-fix backend and frontend code
 
 build:          ## Production build of both front ends
 	cd frontend && pnpm build
+
+deploy-staging: ## Deploy the committed HEAD to the staging VPS (needs SSH access)
+	bash deploy/deploy.sh

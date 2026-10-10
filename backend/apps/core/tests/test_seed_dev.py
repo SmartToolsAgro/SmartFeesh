@@ -27,9 +27,21 @@ def test_seed_creates_one_organization_one_owner_and_one_driver(settings):
     assert membership.organization == organization
 
 
-def test_seed_refuses_to_run_outside_development(settings):
+def test_outside_development_the_known_password_is_refused(settings):
     settings.DEBUG = False
 
     with pytest.raises(CommandError):
         call_command("seed_dev")
+    with pytest.raises(CommandError):
+        call_command("seed_dev", password="short")
     assert not User.objects.exists()
+
+
+def test_staging_demo_accounts_get_the_password_given(settings):
+    settings.DEBUG = False
+
+    call_command("seed_dev", password="a-long-demo-password")
+
+    driver = User.objects.get(username="driver")
+    assert driver.check_password("a-long-demo-password")
+    assert not driver.check_password("frutti-dev")

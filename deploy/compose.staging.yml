@@ -1,0 +1,57 @@
+# Staging stack on the OVH VPS, started by deploy/remote-deploy.sh. Secrets come from ~/frutti-staging/.env
+# on the server, never from the repository. Nothing listens publicly: the host's nginx is the only way in.
+name: frutti-staging
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: frutti
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: frutti
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frutti -d frutti"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: { context: .., target: backend }
+    image: frutti-backend:${RELEASE:?set by the deploy script}
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3 --access-logfile -"
+    environment:
+      DATABASE_URL: postgres://frutti:${POSTGRES_PASSWORD}@db:5432/frutti
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set in .env}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?set in .env}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:?set in .env}
+      # Plain HTTP until staging has a domain and a certificate (D-027).
+      DJANGO_SECURE_SSL_REDIRECT: "false"
+      DJANGO_SECURE_COOKIES: "false"
+      DJANGO_SECURE_HSTS_SECONDS: "0"
+      # Host nginx, then the web container.
+      DJANGO_NUM_PROXIES: "2"
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: staging
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  web:
+    build: { context: .., target: web }
+    image: frutti-web:${RELEASE}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18081:8081" # admin app
+      - "127.0.0.1:18082:8082" # driver app
+    depends_on:
+      backend: { condition: service_healthy }
+
+volumes:
+  pgdata:
