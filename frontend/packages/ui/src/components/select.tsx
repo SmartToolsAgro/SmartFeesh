@@ -11,7 +11,7 @@ export const SelectValue = SelectPrimitive.Value;
 export function SelectTrigger({ className, children, ...props }: ComponentProps<typeof SelectPrimitive.Trigger>) {
   return (
     <SelectPrimitive.Trigger
-      className={cn(controlClasses, "flex items-center justify-between gap-2 text-left", className)}
+      className={cn(controlClasses, "flex items-center justify-between gap-2 text-start", className)}
       {...props}
     >
       {children}

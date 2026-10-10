@@ -1,5 +1,6 @@
 """Every write on core models goes through these functions (ARCHITECTURE §3)."""
 
+from django.conf import settings
 from django.db import transaction
 
 from . import audit
@@ -27,6 +28,16 @@ def create_user(
         last_name=last_name,
         language=language,
     )
+
+
+@transaction.atomic
+def set_language(*, user: User, language: str) -> User:
+    """Save the language the user wants the apps in."""
+    if language not in dict(settings.LANGUAGES):
+        raise ValueError(f"Unsupported language: {language}")
+    user.language = language
+    user.save(update_fields=["language"])
+    return user
 
 
 @transaction.atomic

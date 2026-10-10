@@ -1,4 +1,4 @@
 export { ApiError, apiFetch } from "./api";
 export { LoginPage } from "./LoginPage";
 export { RequireRole } from "./RequireRole";
-export { type Role, type Session, useLogin, useLogout, useSession } from "./session";
+export { type Role, type Session, useLogin, useLogout, useSession, useSetLanguage } from "./session";

@@ -14,12 +14,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core import selectors
+from apps.core import selectors, services
 from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle
 from apps.core.models import Membership, User
 from apps.core.permissions import IsMember, IsOwnerOrManager, membership_of
 
-from .serializers import LoginSerializer, MemberSerializer, SessionSerializer
+from .serializers import LanguageSerializer, LoginSerializer, MemberSerializer, SessionSerializer
 
 
 @extend_schema(
@@ -106,6 +106,16 @@ class MeView(APIView):
     @extend_schema(responses=SessionSerializer)
     def get(self, request: Request) -> Response:
         return Response(SessionSerializer(membership_of(request)).data)
+
+    @extend_schema(request=LanguageSerializer, responses=SessionSerializer)
+    def patch(self, request: Request) -> Response:
+        """Change the language of the apps for the logged-in user."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = LanguageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_language(user=membership.user, language=serializer.validated_data["language"])
+        return Response(SessionSerializer(membership).data)
 
 
 class MemberListView(ListAPIView[Membership]):

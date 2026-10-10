@@ -104,12 +104,16 @@ tests (10 pass). Every module of the prototype has a route with a "Bientôt disp
 Table and Toast are built but not used by any screen yet, so they have only been type-checked._
 
 ### P0-T08 · Internationalisation · owner: agent · S
-- [ ] Django i18n + i18next; French default; all UI strings through translation functions.
-- [ ] RTL support switch (`dir="rtl"`) tested with a dummy Arabic string. No translation yet
+- [x] Django i18n + i18next; French default; all UI strings through translation functions.
+- [x] RTL support switch (`dir="rtl"`) tested with a dummy Arabic string. No translation yet
       (the driver app is translated in P3-T09).
-- [ ] `language` preference on the user (fr | ar); both apps follow it. Drivers choose theirs (Q14).
-      The field exists since P0-T05; what is left is the API and the apps following it.
-- [ ] Number/date formatting helpers: `1 250,000 DT`, `dd/mm/yyyy`.
+- [x] `language` preference on the user (fr | ar); both apps follow it. Drivers choose theirs (Q14).
+      `PATCH /api/v1/me` saves it; no screen offers the choice yet (P3-T09 adds it).
+- [x] Number/date formatting helpers: `1 250,000 DT`, `dd/mm/yyyy`.
+
+_Done 2026-10-10 (D-025). The switch to Arabic is covered by unit tests (texts, `lang`, `dir`), not by
+looking at the screens: nobody has checked the layout in right-to-left yet. No `.po` file exists for
+server messages, because GNU gettext was not installed where this was built._
 
 ### P0-T09 · API contract & generated client · owner: agent · S
 - [ ] drf-spectacular schema at `/api/v1/schema`; orval generates TS client + Zod schemas into `packages/api`.

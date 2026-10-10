@@ -1,3 +1,4 @@
+import type { Language } from "@frutti/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "./api";
@@ -6,7 +7,7 @@ export type Role = "owner" | "manager" | "driver" | "accountant";
 
 /** Answer of `/api/v1/me`: who is logged in and what they may do. */
 export interface Session {
-  user: { id: number; username: string; first_name: string; last_name: string; language: "fr" | "ar" };
+  user: { id: number; username: string; first_name: string; last_name: string; language: Language };
   organization: { id: number; name: string };
   role: Role;
   truck: { id: number; name: string } | null;
@@ -48,5 +49,14 @@ export function useLogout() {
       // Drop every other cached answer: the next user must never see the previous user's data.
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== SESSION_KEY[0] });
     },
+  });
+}
+
+/** Saves the user's language on their account; the route guard then applies it to the page. */
+export function useSetLanguage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (language: Language) => apiFetch<Session>("/me", { method: "PATCH", body: { language } }),
+    onSuccess: (session) => queryClient.setQueryData(SESSION_KEY, session),
   });
 }

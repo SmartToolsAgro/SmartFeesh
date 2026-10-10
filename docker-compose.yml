@@ -56,6 +56,7 @@ services:
       - fe-truck-modules:/app/frontend/apps/truck/node_modules
       - fe-ui-modules:/app/frontend/packages/ui/node_modules
       - fe-auth-modules:/app/frontend/packages/auth/node_modules
+      - fe-i18n-modules:/app/frontend/packages/i18n/node_modules
       - fe-e2e-modules:/app/frontend/e2e/node_modules
     depends_on: [backend]
 
@@ -67,4 +68,5 @@ volumes:
   fe-truck-modules:
   fe-ui-modules:
   fe-auth-modules:
+  fe-i18n-modules:
   fe-e2e-modules:

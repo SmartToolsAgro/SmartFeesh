@@ -1,4 +1,5 @@
-import { LoginPage, RequireRole, type Role, type Session, useLogout } from "@frutti/auth";
+import { LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
+import { useTranslation } from "@frutti/i18n";
 import {
   type AdminNavGroup,
   AdminShell,
@@ -13,42 +14,38 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from
 
 const queryClient = new QueryClient();
 
-const ROLE_LABELS: Record<Role, string> = {
-  owner: "Propriétaire",
-  manager: "Gestionnaire",
-  accountant: "Comptable",
-  driver: "Chauffeur",
-};
-
 // Same modules and order as the approved prototype. Each one becomes a real screen in its phase.
-const NAV: AdminNavGroup[] = [
-  { label: "Pilotage", items: [{ to: "/", label: "Tableau de bord", icon: "grid" }] },
-  {
-    label: "Commercial",
-    items: [
-      { to: "/devis", label: "Devis", icon: "quote" },
-      { to: "/ventes", label: "Ventes & factures", icon: "receipt" },
-      { to: "/clients", label: "Clients", icon: "users" },
-    ],
-  },
-  {
-    label: "Marchandise",
-    items: [
-      { to: "/stock", label: "Stock frigo & camions", icon: "box" },
-      { to: "/achats", label: "Achats", icon: "cart" },
-      { to: "/fournisseurs", label: "Fournisseurs", icon: "anchor" },
-    ],
-  },
-  {
-    label: "Finances",
-    items: [
-      { to: "/charges", label: "Charges", icon: "wallet" },
-      { to: "/salaires", label: "Personnel & salaires", icon: "badge" },
-      { to: "/partenariats", label: "Partage des bénéfices", icon: "percent" },
-      { to: "/cloture", label: "Clôture mensuelle", icon: "calcheck" },
-    ],
-  },
-];
+function useNav(): AdminNavGroup[] {
+  const { t } = useTranslation();
+  return [
+    { label: t("admin.groups.steering"), items: [{ to: "/", label: t("admin.nav.dashboard"), icon: "grid" }] },
+    {
+      label: t("admin.groups.sales"),
+      items: [
+        { to: "/devis", label: t("admin.nav.quotes"), icon: "quote" },
+        { to: "/ventes", label: t("admin.nav.sales"), icon: "receipt" },
+        { to: "/clients", label: t("admin.nav.customers"), icon: "users" },
+      ],
+    },
+    {
+      label: t("admin.groups.goods"),
+      items: [
+        { to: "/stock", label: t("admin.nav.stock"), icon: "box" },
+        { to: "/achats", label: t("admin.nav.purchases"), icon: "cart" },
+        { to: "/fournisseurs", label: t("admin.nav.suppliers"), icon: "anchor" },
+      ],
+    },
+    {
+      label: t("admin.groups.finance"),
+      items: [
+        { to: "/charges", label: t("admin.nav.expenses"), icon: "wallet" },
+        { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
+        { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
+        { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
+      ],
+    },
+  ];
+}
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
   "/stock": "fridge",
@@ -62,11 +59,13 @@ function displayName(session: Session): string {
 }
 
 function Shell({ session }: { session: Session }) {
+  const { t } = useTranslation();
+  const nav = useNav();
   const logout = useLogout();
   return (
     <AdminShell
-      nav={NAV}
-      user={{ name: displayName(session), role: ROLE_LABELS[session.role] }}
+      nav={nav}
+      user={{ name: displayName(session), role: t(`roles.${session.role}`) }}
       onLogout={() => logout.mutate()}
     >
       <Outlet context={session} />
@@ -75,26 +74,61 @@ function Shell({ session }: { session: Session }) {
 }
 
 function Dashboard() {
+  const { t } = useTranslation();
   const session = useOutletContext<Session>();
   return (
     <>
-      <PageHeader eyebrow={session.organization.name} title="Tableau de bord" />
-      <EmptyState illustration="fridge" title={`Bonjour ${session.user.first_name || session.user.username}`}>
-        Le socle est en place. Les indicateurs du jour apparaîtront ici dès que le stock et les ventes seront
-        enregistrés dans l'application.
+      <PageHeader eyebrow={session.organization.name} title={t("admin.nav.dashboard")} />
+      <EmptyState
+        illustration="fridge"
+        title={t("admin.dashboard.hello", { name: session.user.first_name || session.user.username })}
+      >
+        {t("admin.dashboard.body")}
       </EmptyState>
     </>
   );
 }
 
 function ComingSoon({ path, title, group }: { path: string; title: string; group: string }) {
+  const { t } = useTranslation();
   return (
     <>
       <PageHeader eyebrow={group} title={title} />
-      <EmptyState illustration={ILLUSTRATIONS[path] ?? "mix"} title="Bientôt disponible">
-        Cet écran sera construit dans une prochaine étape du projet.
+      <EmptyState illustration={ILLUSTRATIONS[path] ?? "mix"} title={t("common.comingSoon")}>
+        {t("common.comingSoonBody")}
       </EmptyState>
     </>
+  );
+}
+
+function AppRoutes() {
+  const { t } = useTranslation();
+  const nav = useNav();
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage title={t("admin.appName")} />} />
+      <Route
+        element={
+          <RequireRole allow={["owner", "manager", "accountant"]} wrongAppMessage={t("admin.wrongApp")}>
+            {(session) => <Shell session={session} />}
+          </RequireRole>
+        }
+      >
+        <Route path="/" element={<Dashboard />} />
+        {nav.flatMap((group) =>
+          group.items
+            .filter((item) => item.to !== "/")
+            .map((item) => (
+              <Route
+                key={item.to}
+                path={item.to}
+                element={<ComingSoon path={item.to} title={item.label} group={group.label} />}
+              />
+            )),
+        )}
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
@@ -104,33 +138,7 @@ export function App() {
       <Sprite />
       <Toaster position="bottom-right" />
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage title="Administration" />} />
-          <Route
-            element={
-              <RequireRole
-                allow={["owner", "manager", "accountant"]}
-                wrongAppMessage="Ce compte est un compte chauffeur. Utilisez l'application chauffeur."
-              >
-                {(session) => <Shell session={session} />}
-              </RequireRole>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            {NAV.flatMap((group) =>
-              group.items
-                .filter((item) => item.to !== "/")
-                .map((item) => (
-                  <Route
-                    key={item.to}
-                    path={item.to}
-                    element={<ComingSoon path={item.to} title={item.label} group={group.label} />}
-                  />
-                )),
-            )}
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </QueryClientProvider>
   );

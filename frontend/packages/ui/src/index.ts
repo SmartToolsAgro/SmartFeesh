@@ -1,4 +1,3 @@
-export { ApiStatus } from "./ApiStatus";
 export { BRAND } from "./brand";
 export { Button } from "./components/button";
 export { Card, CardTitle } from "./components/card";

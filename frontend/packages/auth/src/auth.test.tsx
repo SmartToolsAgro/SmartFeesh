@@ -1,3 +1,4 @@
+import { applyLanguage } from "@frutti/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -100,6 +101,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  applyLanguage("fr");
 });
 
 test("a logged-out visitor is sent to the login screen", async () => {
@@ -167,4 +169,16 @@ test("logging out from the protected page returns to the login screen", async ()
 
   expect(await screen.findByRole("form", { name: "Connexion" })).toBeDefined();
   expect(screen.queryByText("Bonjour Sami")).toBeNull();
+});
+
+test("the app follows the language saved on the account, including the reading direction", async () => {
+  const arabicDriver = sessionFor("driver");
+  arabicDriver.user.language = "ar";
+  fakeServer(arabicDriver);
+
+  renderApp(["driver"]);
+
+  expect(await screen.findByText("Bonjour Sami")).toBeDefined();
+  await waitFor(() => expect(document.documentElement.dir).toBe("rtl"));
+  expect(document.documentElement.lang).toBe("ar");
 });

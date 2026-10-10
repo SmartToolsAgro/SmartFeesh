@@ -1,3 +1,4 @@
+import { useTranslation } from "@frutti/i18n";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 
@@ -23,6 +24,7 @@ interface Props {
 
 /** Driver frame: one phone-width column with a blue header, a scrolling body and a bottom tab bar. */
 export function TruckShell({ tabs, eyebrow, title, chips = [], onLogout, children }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto flex h-dvh w-full max-w-[480px] flex-col bg-bg min-[481px]:border-x min-[481px]:border-line">
       <header className="bg-linear-150 from-[#0c3b4e] to-[#0f5e7a] px-[18px] pt-[max(22px,env(safe-area-inset-top))] pb-[18px] text-white">
@@ -34,8 +36,8 @@ export function TruckShell({ tabs, eyebrow, title, chips = [], onLogout, childre
           <button
             type="button"
             onClick={onLogout}
-            aria-label="Se déconnecter"
-            title="Se déconnecter"
+            aria-label={t("common.logout")}
+            title={t("common.logout")}
             className="grid size-9 flex-none place-items-center rounded-full bg-white/15"
           >
             <Icon name="return" className="size-[18px]" />
@@ -59,7 +61,7 @@ export function TruckShell({ tabs, eyebrow, title, chips = [], onLogout, childre
       <main className="flex flex-1 flex-col gap-3 overflow-y-auto p-3.5">{children}</main>
 
       <nav
-        aria-label="Navigation camion"
+        aria-label={t("truck.navigation")}
         className="grid border-t border-line bg-surface px-1 pt-1.5 pb-[max(10px,env(safe-area-inset-bottom))]"
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >

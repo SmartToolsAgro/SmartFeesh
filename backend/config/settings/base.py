@@ -44,6 +44,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.core.middleware.UserLanguageMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -86,6 +87,8 @@ LANGUAGE_CODE = "fr"
 LANGUAGES = [("fr", "Français"), ("ar", "العربية")]
 TIME_ZONE = "Africa/Tunis"
 USE_I18N = True
+# Server messages are written in French; other languages get .po files here (needs GNU gettext).
+LOCALE_PATHS = [BASE_DIR / "locale"]
 USE_TZ = True
 
 STATIC_URL = "static/"

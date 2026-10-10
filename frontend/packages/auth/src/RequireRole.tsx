@@ -1,5 +1,6 @@
+import { applyLanguage, useTranslation } from "@frutti/i18n";
 import { Button, Card } from "@frutti/ui";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Navigate, useLocation } from "react-router";
 
 import { type Role, type Session, useLogout, useSession } from "./session";
@@ -22,21 +23,28 @@ function Notice({ children }: { children: ReactNode }) {
 
 /** Route guard: sends logged-out visitors to /login and turns away roles that belong to the other app. */
 export function RequireRole({ allow, wrongAppMessage, children }: Props) {
+  const { t } = useTranslation();
   const session = useSession();
   const logout = useLogout();
   const location = useLocation();
 
+  // The app follows the language saved on the user's account (texts and reading direction).
+  const language = session.data?.user.language;
+  useEffect(() => {
+    if (language) applyLanguage(language);
+  }, [language]);
+
   if (session.isPending) {
     return (
       <p role="status" className="p-6 text-ink-2">
-        Chargement…
+        {t("common.loading")}
       </p>
     );
   }
   if (session.isError) {
     return (
       <Notice>
-        <p role="alert">Serveur injoignable. Vérifiez le réseau puis rechargez la page.</p>
+        <p role="alert">{t("common.serverUnreachable")}</p>
       </Notice>
     );
   }
@@ -47,7 +55,7 @@ export function RequireRole({ allow, wrongAppMessage, children }: Props) {
       <Notice>
         <p role="alert">{wrongAppMessage}</p>
         <Button onClick={() => logout.mutate()} disabled={logout.isPending}>
-          Se déconnecter
+          {t("common.logout")}
         </Button>
       </Notice>
     );

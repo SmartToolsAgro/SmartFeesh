@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.conf import settings
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
@@ -9,6 +10,10 @@ from apps.core.models import Membership, Organization, Role, User
 class LoginSerializer(serializers.Serializer[Any]):
     username = serializers.CharField(max_length=150)
     password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+
+
+class LanguageSerializer(serializers.Serializer[Any]):
+    language = serializers.ChoiceField(choices=settings.LANGUAGES)
 
 
 class UserSerializer(serializers.ModelSerializer[User]):

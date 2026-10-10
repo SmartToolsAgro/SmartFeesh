@@ -1,3 +1,4 @@
+import { useTranslation } from "@frutti/i18n";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 
@@ -31,6 +32,7 @@ function initials(name: string): string {
 
 /** Back-office frame: sticky top bar, module sidebar (a scrolling strip on small screens), page area. */
 export function AdminShell({ nav, user, onLogout, children }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-20 flex flex-wrap items-center gap-4 border-b border-line bg-surface/90 px-5 py-3 backdrop-blur-md max-sm:gap-2.5 max-sm:px-4 max-sm:py-2.5">
@@ -47,7 +49,13 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
               {user.role}
             </Pill>
           </div>
-          <Button variant="ghost" size="icon" aria-label="Se déconnecter" title="Se déconnecter" onClick={onLogout}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t("common.logout")}
+            title={t("common.logout")}
+            onClick={onLogout}
+          >
             <Icon name="return" />
           </Button>
         </div>
@@ -55,8 +63,8 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
 
       <div className="grid min-h-[calc(100dvh-62px)] grid-cols-[232px_minmax(0,1fr)] max-[860px]:grid-cols-1">
         <nav
-          aria-label="Modules"
-          className="flex flex-col gap-0.5 border-r border-line bg-surface px-3 py-[18px] max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-r-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
+          aria-label={t("admin.modules")}
+          className="flex flex-col gap-0.5 border-e border-line bg-surface px-3 py-[18px] max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-e-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
         >
           {nav.map((group) => (
             <div key={group.label} className="contents">
@@ -71,7 +79,7 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
                   <Icon name={item.icon} />
                   <span>{item.label}</span>
                   {item.badge && (
-                    <span className="ml-auto rounded-full bg-coral px-[7px] py-px text-[0.68rem] font-bold text-white">
+                    <span className="ms-auto rounded-full bg-coral px-[7px] py-px text-[0.68rem] font-bold text-white">
                       {item.badge}
                     </span>
                   )}
