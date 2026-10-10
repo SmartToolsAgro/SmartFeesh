@@ -41,6 +41,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@frutti/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@frutti/auth':
         specifier: workspace:*
         version: link:../../packages/auth

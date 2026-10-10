@@ -35,6 +35,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.core",
     "apps.catalog",
+    "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -105,6 +106,8 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Business-rule errors raised by services become 400 answers (apps/core/api/exceptions.py).
+    "EXCEPTION_HANDLER": "apps.core.api.exceptions.exception_handler",
     # Amounts travel as strings so no precision is lost (docs/ARCHITECTURE.md rule 1).
     "COERCE_DECIMAL_TO_STRING": True,
     # Login attempts, per address and per account (apps/core/authentication.py).

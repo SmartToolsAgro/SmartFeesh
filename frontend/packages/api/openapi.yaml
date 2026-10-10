@@ -57,6 +57,78 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/categories:
+    get:
+      operationId: listCategories
+      tags:
+      - categories
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
+    post:
+      operationId: createCategory
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Category'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Category'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Category'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/categories/{category_id}:
+    patch:
+      operationId: renameCategory
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategory'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
   /api/v1/health:
     get:
       operationId: getHealth
@@ -131,8 +203,302 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/products:
+    get:
+      operationId: listProducts
+      description: |-
+        Products sorted by name. Archived ones only when asked (`status`). Not paginated: a catalogue
+        holds tens of products, not thousands (D-030).
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+          description: ''
+    post:
+      operationId: createProduct
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}:
+    get:
+      operationId: getProduct
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    patch:
+      operationId: updateProduct
+      description: Change the description of a product. The price changes through
+        `setProductPrice`.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/archive:
+    post:
+      operationId: archiveProduct
+      description: Archived products keep their history but can no longer be bought
+        or sold.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/photo:
+    put:
+      operationId: uploadProductPhoto
+      description: Replace the photo. It is turned upright, shrunk to 1200 px and
+        stored as WebP without metadata.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PhotoUpload'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+        '400':
+          description: Not a readable JPEG, PNG or WebP
+    delete:
+      operationId: removeProductPhoto
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/prices:
+    get:
+      operationId: listProductPrices
+      description: Every sale price of the product, newest first, including prices
+        planned for later.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductPrice'
+          description: ''
+    post:
+      operationId: setProductPrice
+      description: A new sale price from now, or from a later moment. Earlier prices
+        are never changed (D-020).
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPrice'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetPrice'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetPrice'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{product_id}/restore:
+    post:
+      operationId: restoreProduct
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
 components:
   schemas:
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    CategoryRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
     Health:
       type: object
       properties:
@@ -143,6 +509,26 @@ components:
       required:
       - database
       - status
+    IllustrationEnum:
+      enum:
+      - shrimp
+      - peeled
+      - fish
+      - bass
+      - squid
+      - octopus
+      - mussel
+      - mix
+      type: string
+      description: |-
+        * `shrimp` - Crevette
+        * `peeled` - Crevette décortiquée
+        * `fish` - Poisson
+        * `bass` - Loup
+        * `squid` - Calamar
+        * `octopus` - Poulpe
+        * `mussel` - Coquillage
+        * `mix` - Mélange
     LanguageEnum:
       enum:
       - fr
@@ -198,11 +584,217 @@ components:
       required:
       - id
       - name
+    PatchedCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
     PatchedLanguage:
       type: object
       properties:
         language:
           $ref: '#/components/schemas/LanguageEnum'
+    PatchedProductUpdate:
+      type: object
+      properties:
+        reference:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        name_ar:
+          type: string
+          default: ''
+          maxLength: 150
+        category:
+          type: integer
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          default: '0.000'
+        storage_temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        storage_temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        illustration:
+          allOf:
+          - $ref: '#/components/schemas/IllustrationEnum'
+          default: fish
+    PhotoUpload:
+      type: object
+      properties:
+        photo:
+          type: string
+          format: binary
+      required:
+      - photo
+    Product:
+      type: object
+      description: A product as the screens show it, with the sale price in force
+        now.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategoryRef'
+          readOnly: true
+        base_unit:
+          type: string
+          readOnly: true
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        storage_temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        storage_temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        illustration:
+          allOf:
+          - $ref: '#/components/schemas/IllustrationEnum'
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        current_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        current_price_from:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - base_unit
+      - category
+      - current_price
+      - current_price_from
+      - id
+      - illustration
+      - is_active
+      - min_stock
+      - name
+      - name_ar
+      - photo_url
+      - reference
+      - storage_temp_max
+      - storage_temp_min
+      - updated_at
+    ProductCreate:
+      type: object
+      properties:
+        reference:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        name_ar:
+          type: string
+          default: ''
+          maxLength: 150
+        category:
+          type: integer
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          default: '0.000'
+        storage_temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        storage_temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+        illustration:
+          allOf:
+          - $ref: '#/components/schemas/IllustrationEnum'
+          default: fish
+        sale_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+      required:
+      - category
+      - name
+      - reference
+      - sale_price
+    ProductPrice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        valid_from:
+          type: string
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - price
+      - valid_from
     RoleEnum:
       enum:
       - owner
@@ -242,6 +834,19 @@ components:
       - role
       - truck
       - user
+    SetPrice:
+      type: object
+      properties:
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        valid_from:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - price
     TruckRef:
       type: object
       properties:

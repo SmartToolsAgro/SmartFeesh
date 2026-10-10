@@ -58,6 +58,7 @@ backend/
     partnerships/         agreements (versioned), investments, capital ledger
     closing/              monthly closing, allocation engine, profit engine, settlements
     reporting/            read-only report queries and exports
+    demo/                 seed_dev: demo organization, logins and catalogue (may call every app)
   manage.py
 frontend/
   apps/admin/             owner/back-office web app

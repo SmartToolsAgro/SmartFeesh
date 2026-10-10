@@ -5,13 +5,25 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './category';
+export * from './categoryRef';
 export * from './health';
+export * from './illustrationEnum';
 export * from './languageEnum';
+export * from './listProductsParams';
+export * from './listProductsStatus';
 export * from './login';
 export * from './member';
 export * from './organization';
+export * from './patchedCategory';
 export * from './patchedLanguage';
+export * from './patchedProductUpdate';
+export * from './photoUpload';
+export * from './product';
+export * from './productCreate';
+export * from './productPrice';
 export * from './roleEnum';
 export * from './session';
+export * from './setPrice';
 export * from './truckRef';
 export * from './user';

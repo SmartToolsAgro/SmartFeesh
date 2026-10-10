@@ -13,7 +13,7 @@ How to operate the running system. Keep it short and true; update it when a proc
 
 **Shared server.** The VPS also runs other clients' production sites (Sonalim, TRT, dossipv, smartgreen)
 behind one nginx. Frutti only owns: the Docker project `frutti-staging` (containers `frutti-staging-*`,
-volume `frutti-staging_pgdata`), the folder `~/frutti-staging`, and the nginx site
+volumes `frutti-staging_pgdata` and `frutti-staging_media` (product photos)), the folder `~/frutti-staging`, and the nginx site
 `/etc/nginx/sites-available/frutti-staging` (ports 8095 and 8096). Never edit, prune or restart anything
 else there. Always run `sudo nginx -t` before reloading nginx.
 

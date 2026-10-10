@@ -10,11 +10,14 @@ import {
   Toaster,
 } from "@frutti/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
+
+import { ProductsPage } from "./products/ProductsPage";
 
 const queryClient = new QueryClient();
 
-// Same modules and order as the approved prototype. Each one becomes a real screen in its phase.
+// Same modules and order as the approved prototype, plus the catalogue. Each one becomes a real screen in its phase.
 function useNav(): AdminNavGroup[] {
   const { t } = useTranslation();
   return [
@@ -31,6 +34,7 @@ function useNav(): AdminNavGroup[] {
       label: t("admin.groups.goods"),
       items: [
         { to: "/stock", label: t("admin.nav.stock"), icon: "box" },
+        { to: "/produits", label: t("admin.nav.products"), icon: "snow" },
         { to: "/achats", label: t("admin.nav.purchases"), icon: "cart" },
         { to: "/fournisseurs", label: t("admin.nav.suppliers"), icon: "anchor" },
       ],
@@ -46,6 +50,11 @@ function useNav(): AdminNavGroup[] {
     },
   ];
 }
+
+// Screens that exist; every other entry of the menu shows "coming soon".
+const SCREENS: Record<string, ReactNode> = {
+  "/produits": <ProductsPage />,
+};
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
   "/stock": "fridge",
@@ -122,7 +131,7 @@ function AppRoutes() {
               <Route
                 key={item.to}
                 path={item.to}
-                element={<ComingSoon path={item.to} title={item.label} group={group.label} />}
+                element={SCREENS[item.to] ?? <ComingSoon path={item.to} title={item.label} group={group.label} />}
               />
             )),
         )}

@@ -8,17 +8,17 @@ _Last updated: 2026-10-10_
   under Blockers.
 - **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
-- **Done:** P1-T01 · Units (branch `p1-t01-units`, not merged, not deployed: it has no visible screen).
-- **Current task:** P1-T02 · Product catalogue (`docs/phases/01-stock-core.md`)
+- **Done:** P1-T02 · Product catalogue (branch `p1-t02-products`, pushed, not merged, **not deployed**).
+- **Current task:** P1-T03 · Suppliers (`docs/phases/01-stock-core.md`)
 
 ## Next step (do this first)
 
-1. Merge `p1-t01-units` into `main` once CI is green, then branch P1-T02 from `main`.
-2. Agent: start **P1-T02**. Read only its section of the phase file. `Product.base_unit` is a
-   `ForeignKey(Unit, on_delete=PROTECT)` defaulting to `catalog.selectors.base_unit()`; read quantities
-   with `core.money.checked_quantity` and convert with `catalog.selectors.to_base_quantity` (D-029).
-   After adding endpoints run `make gen-api` and commit the result. Deploy with `make deploy-staging`
-   once the product screens exist so the client can follow.
+1. Merge `p1-t02-products` into `main` once CI is green.
+2. Deploy it with `make deploy-staging` (runbook first). This deploy adds the Docker volume
+   `frutti-staging_media` for photos and `seed_dev` adds the 12 demo products. Check a photo upload on
+   staging afterwards: the volume must be writable by the `app` user.
+3. Agent: start **P1-T03** from `main`. Follow the catalogue's patterns: services raise
+   `ValidationError` per field (D-030), views subclass a scoped base view, demo data goes in `apps/demo`.
 
 ## Blockers / waiting on client
 
@@ -51,16 +51,17 @@ _Last updated: 2026-10-10_
 
 ## Last session (2026-10-10)
 
-- **P1-T01:** new `catalog` app with a `Unit` table shared by every organization, seeded with `kg` by a
-  data migration (D-029); `to_base_quantity` and `checked_quantity` helpers. 84 backend tests,
-  ruff, mypy, import boundaries, and migrations forward and back all pass locally. No endpoint, so the
-  API client did not change. Frontend checks not run (no frontend change).
-- Local tests ran on a throwaway PostgreSQL 18 cluster (`initdb` on port 5433, trust login), because
-  the password of the installed service is unknown.
+- **P1-T02:** `Category`, `Product` (with Arabic name and stand-in drawing), append-only `ProductPrice`;
+  services with audit; API for list/search/filter, create, update, archive, prices and photo (D-030);
+  admin screen "Produits" with prototype-style cards and a form (photo, price history). Demo catalogue
+  in `seed_dev`, now in the new `demo` app.
+- Local results: 131 backend tests, 43 vitest tests, 13 Playwright tests; ruff, mypy, import
+  boundaries, eslint, prettier and the API client check all pass. Screens checked in light, dark and
+  phone width.
 
 ## Recently done
 
-- 2026-10-10 · P1-T01 units and quantity helpers
+- 2026-10-10 · P1-T02 product catalogue, prices and photos
+- 2026-10-10 · P1-T01 units and quantity helpers (merged)
 - 2026-10-10 · Phase 0 branches merged into `main` (fast-forward, CI green)
 - 2026-10-10 · P0-T10 cloud hook, P0-T11 staging live
-- 2026-10-10 · P0-T09 API contract and generated client

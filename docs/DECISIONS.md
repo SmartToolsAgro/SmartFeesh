@@ -204,3 +204,23 @@ dependencies and starts PostgreSQL with the `frutti` role.
 - `core.money.checked_quantity` checks a weight a person typed or a scale gave and **refuses** more than
   3 decimals, negatives (the movement type carries the direction), zero (unless allowed, for counts)
   and values too large for a `QuantityField`. Rounding silently would change stock without anyone noticing.
+
+**D-030 · Product catalogue choices (P1-T02)** · accepted · 2026-10-10
+- `Product` has no price column: the sale price is the latest `ProductPrice` at or before a moment
+  (D-020). A new product gets its first price from now; later prices go through `setProductPrice`, may be
+  planned for later, and are refused in the past. Prices are append-only, like the audit log.
+- Extra fields not in the brief: an optional **Arabic name** (drivers can work in Arabic, Q14, and the
+  sample list has one) and a **drawing** from the prototype shown until a product has a real photo.
+- Storage temperature is a min/max pair in °C with one decimal; either end may be empty ("≤ -18 °C").
+- Product lists are **not paginated**: a catalogue holds tens of products. Revisit if one exceeds ~500.
+- Every member reads the catalogue (drivers will sell from it); owners and managers change it
+  (`ReadMemberWriteOwnerOrManager`). The Django admin shows catalogue rows read-only, so every change
+  goes through the services and the audit log.
+- Services raise Django's `ValidationError` with a message per field; one API exception handler turns it
+  into a 400 shaped like serializer errors. Every app uses this from now on.
+- **Photos** are re-encoded on upload (upright, at most 1200 px, WebP, no metadata: no GPS position),
+  get a new random file name each time, and are served by the API to members of the same organization
+  only (`/products/{id}/photo?v=…`, cached for good because the address changes with the photo). Loss
+  photos and receipts will follow the same pattern. Staging keeps them in the `media` Docker volume.
+- `seed_dev` moved from `core` to a new `demo` app, which may call every app, and now also creates the
+  12 stand-in products of `docs/spec/sample/products.csv`.

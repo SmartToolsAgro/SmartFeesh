@@ -46,6 +46,57 @@ export const LoginResponse = zod.object({
 export const LogoutResponse = zod.void()
 
 
+export const listCategoriesResponseNameMax = 100;
+
+
+
+export const ListCategoriesResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(listCategoriesResponseNameMax)
+})
+export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
+
+
+export const createCategoryBodyNameMax = 100;
+
+
+
+export const CreateCategoryBody = zod.object({
+  "name": zod.string().max(createCategoryBodyNameMax)
+})
+
+export const createCategoryResponseNameMax = 100;
+
+
+
+export const CreateCategoryResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(createCategoryResponseNameMax)
+})
+
+
+export const RenameCategoryParams = zod.object({
+  "category_id": zod.int()
+})
+
+export const renameCategoryBodyNameMax = 100;
+
+
+
+export const RenameCategoryBody = zod.object({
+  "name": zod.string().max(renameCategoryBodyNameMax).optional()
+})
+
+export const renameCategoryResponseNameMax = 100;
+
+
+
+export const RenameCategoryResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(renameCategoryResponseNameMax)
+})
+
+
 /**
  * Liveness + database check, used by Docker, the load balancer and uptime monitoring.
  */
@@ -121,3 +172,395 @@ export const ListMembersResponseItem = zod.object({
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * Products sorted by name. Archived ones only when asked (`status`). Not paginated: a catalogue
+ * holds tens of products, not thousands (D-030).
+ */
+
+export const listProductsQuerySearchDefault = ``;
+export const listProductsQuerySearchMax = 100;
+
+export const listProductsQueryStatusDefault = `active`;
+
+export const ListProductsQueryParams = zod.object({
+  "category": zod.int().min(1).optional(),
+  "search": zod.string().max(listProductsQuerySearchMax).default(listProductsQuerySearchDefault),
+  "status": zod.enum(['active', 'archived', 'all']).default(listProductsQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listProductsResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listProductsResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const listProductsResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const listProductsResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListProductsResponseItem = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', listProductsResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', listProductsResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', listProductsResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', listProductsResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+export const ListProductsResponse = zod.array(ListProductsResponseItem)
+
+
+export const createProductBodyReferenceMax = 30;
+
+export const createProductBodyNameMax = 150;
+
+export const createProductBodyNameArDefault = ``;
+export const createProductBodyNameArMax = 150;
+
+export const createProductBodyMinStockDefault = `0.000`;
+export const createProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductBodyStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductBodyIllustrationDefault = `fish`;
+export const createProductBodySalePriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateProductBody = zod.object({
+  "reference": zod.string().max(createProductBodyReferenceMax),
+  "name": zod.string().max(createProductBodyNameMax),
+  "name_ar": zod.string().max(createProductBodyNameArMax).default(createProductBodyNameArDefault),
+  "category": zod.int(),
+  "min_stock": zod.stringFormat('decimal', createProductBodyMinStockRegExp).default(createProductBodyMinStockDefault),
+  "storage_temp_min": zod.stringFormat('decimal', createProductBodyStorageTempMinRegExp).nullish(),
+  "storage_temp_max": zod.stringFormat('decimal', createProductBodyStorageTempMaxRegExp).nullish(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange').default(createProductBodyIllustrationDefault),
+  "sale_price": zod.stringFormat('decimal', createProductBodySalePriceRegExp)
+})
+
+export const createProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', createProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', createProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', createProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', createProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+export const GetProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const getProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', getProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', getProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', getProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', getProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Change the description of a product. The price changes through `setProductPrice`.
+ */
+export const UpdateProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const updateProductBodyReferenceMax = 30;
+
+export const updateProductBodyNameMax = 150;
+
+export const updateProductBodyNameArDefault = ``;
+export const updateProductBodyNameArMax = 150;
+
+export const updateProductBodyMinStockDefault = `0.000`;
+export const updateProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductBodyStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductBodyIllustrationDefault = `fish`;
+
+export const UpdateProductBody = zod.object({
+  "reference": zod.string().max(updateProductBodyReferenceMax).optional(),
+  "name": zod.string().max(updateProductBodyNameMax).optional(),
+  "name_ar": zod.string().max(updateProductBodyNameArMax).default(updateProductBodyNameArDefault),
+  "category": zod.int().optional(),
+  "min_stock": zod.stringFormat('decimal', updateProductBodyMinStockRegExp).default(updateProductBodyMinStockDefault),
+  "storage_temp_min": zod.stringFormat('decimal', updateProductBodyStorageTempMinRegExp).nullish(),
+  "storage_temp_max": zod.stringFormat('decimal', updateProductBodyStorageTempMaxRegExp).nullish(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange').default(updateProductBodyIllustrationDefault)
+})
+
+export const updateProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const updateProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', updateProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', updateProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', updateProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', updateProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Archived products keep their history but can no longer be bought or sold.
+ */
+export const ArchiveProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const archiveProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const archiveProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const archiveProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const archiveProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ArchiveProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', archiveProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', archiveProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', archiveProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', archiveProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Replace the photo. It is turned upright, shrunk to 1200 px and stored as WebP without metadata.
+ */
+export const UploadProductPhotoParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const UploadProductPhotoBody = zod.object({
+  "photo": zod.instanceof(Blob)
+})
+
+export const uploadProductPhotoResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const uploadProductPhotoResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const uploadProductPhotoResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const uploadProductPhotoResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UploadProductPhotoResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', uploadProductPhotoResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', uploadProductPhotoResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', uploadProductPhotoResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', uploadProductPhotoResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+export const RemoveProductPhotoParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const removeProductPhotoResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const removeProductPhotoResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const removeProductPhotoResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const removeProductPhotoResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RemoveProductPhotoResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', removeProductPhotoResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', removeProductPhotoResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', removeProductPhotoResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', removeProductPhotoResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Every sale price of the product, newest first, including prices planned for later.
+ */
+export const ListProductPricesParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const listProductPricesResponsePriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListProductPricesResponseItem = zod.object({
+  "id": zod.int(),
+  "price": zod.stringFormat('decimal', listProductPricesResponsePriceRegExp),
+  "valid_from": zod.iso.datetime({"offset":true}),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string().nullable()
+})
+export const ListProductPricesResponse = zod.array(ListProductPricesResponseItem)
+
+
+/**
+ * A new sale price from now, or from a later moment. Earlier prices are never changed (D-020).
+ */
+export const SetProductPriceParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const setProductPriceBodyPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetProductPriceBody = zod.object({
+  "price": zod.stringFormat('decimal', setProductPriceBodyPriceRegExp),
+  "valid_from": zod.iso.datetime({"offset":true}).nullish()
+})
+
+export const setProductPriceResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const setProductPriceResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setProductPriceResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setProductPriceResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetProductPriceResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', setProductPriceResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', setProductPriceResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', setProductPriceResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', setProductPriceResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')
+
+
+export const RestoreProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const restoreProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const restoreProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const restoreProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const restoreProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RestoreProductResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', restoreProductResponseMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', restoreProductResponseStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', restoreProductResponseStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', restoreProductResponseCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.')

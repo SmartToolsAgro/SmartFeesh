@@ -21,11 +21,11 @@ Q10 answered: everything is sold by kg. Box and piece units and conversion facto
 the `Unit` table keeps the door open for other distributors (Q17).
 
 ### P1-T02 · Product catalogue · M
-- [ ] `Category`, `Product` (name, reference, category, base unit, default sale price, minimum stock,
-      storage temperature range, active flag, photo).
-- [ ] API (list/filter/search/create/update/archive) + admin screens: list with photo cards like the
+- [x] `Category`, `Product` (name, reference, category, base unit, default sale price, minimum stock,
+      storage temperature range, active flag, photo). Also an Arabic name and a stand-in drawing (D-030).
+- [x] API (list/filter/search/create/update/archive) + admin screens: list with photo cards like the
       prototype, form with photo upload.
-- [ ] Sale prices change from one day to the next, and sometimes several times in one day
+- [x] Sale prices change from one day to the next, and sometimes several times in one day
       (2026-10-10): `ProductPrice` holds one price per product with a valid-from **date and time**; the
       price in force at a moment is the latest one at or before it. History is never overwritten.
 

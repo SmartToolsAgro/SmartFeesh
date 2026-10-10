@@ -1,14 +1,17 @@
+from decimal import Decimal
+
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+from apps.catalog import selectors as catalog
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.selectors import active_membership
 
 pytestmark = pytest.mark.django_db
 
 
-def test_seed_creates_one_organization_one_owner_and_one_driver(settings):
+def test_seed_creates_one_organization_one_owner_one_driver_and_a_catalogue(settings):
     settings.DEBUG = True
 
     call_command("seed_dev")
@@ -25,6 +28,16 @@ def test_seed_creates_one_organization_one_owner_and_one_driver(settings):
     membership = active_membership(owner)
     assert membership is not None
     assert membership.organization == organization
+
+    products = catalog.products_of(organization)
+    assert products.count() == 12
+    shrimp = products.get(reference="CR-001")
+    assert (shrimp.name_ar, shrimp.category.name, getattr(shrimp, "current_price")) == (  # noqa: B009
+        "قمرون ملكي",
+        "Crustacés",
+        Decimal("42.000"),
+    )
+    assert catalog.categories_of(organization).count() == 5
 
 
 def test_outside_development_the_known_password_is_refused(settings):

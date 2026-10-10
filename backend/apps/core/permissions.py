@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
@@ -42,3 +42,15 @@ class IsOwnerOrManager(HasRole):
 
 class IsDriver(HasRole):
     roles = frozenset({Role.DRIVER})
+
+
+class ReadMemberWriteOwnerOrManager(HasRole):
+    """Every member may read (drivers need the catalogue to sell); only owners and managers may change."""
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        membership = membership_of(request)
+        if membership is None:
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        return membership.role in IsOwnerOrManager.roles
