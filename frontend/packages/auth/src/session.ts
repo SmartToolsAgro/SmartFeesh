@@ -9,7 +9,15 @@ import {
   type Session,
   setLanguage,
 } from "@frutti/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  type QueryKey,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 export type Role = RoleEnum;
 export type { Session };
@@ -24,6 +32,26 @@ async function fetchSession(): Promise<Session | null> {
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return null;
     throw error;
   }
+}
+
+/**
+ * The query client of an app. Any answer saying "not logged in" (401) or "not allowed" (403) makes it read
+ * the session again: the session may have ended, or been replaced by a login to another account in
+ * another tab of the same site. The route guard then shows the login screen or the wrong-app notice
+ * instead of a page whose requests all fail.
+ */
+export function createQueryClient(): QueryClient {
+  const queryClient: QueryClient = new QueryClient({
+    queryCache: new QueryCache({ onError: (error, query) => recheckSession(error, query.queryKey) }),
+    mutationCache: new MutationCache({ onError: (error) => recheckSession(error) }),
+  });
+  function recheckSession(error: unknown, queryKey?: QueryKey) {
+    if (queryKey?.[0] === SESSION_KEY[0]) return;
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      void queryClient.invalidateQueries({ queryKey: SESSION_KEY });
+    }
+  }
+  return queryClient;
 }
 
 /** The current session: `undefined` while loading, `null` when logged out. */

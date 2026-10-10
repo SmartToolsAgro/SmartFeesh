@@ -1,10 +1,10 @@
-import { LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
+import { createQueryClient, LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import { EmptyState, type IllustrationName, Sprite, Toaster, TruckShell, type TruckTab } from "@frutti/ui";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 
-const queryClient = new QueryClient();
+const queryClient = createQueryClient();
 
 // Same four tabs as the approved prototype. Each one becomes a real screen in Phase 3.
 function useTabs(): (TruckTab & { illustration: IllustrationName })[] {

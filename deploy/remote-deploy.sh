@@ -8,6 +8,9 @@ BASE="$HOME/frutti-staging"
 RELEASE_DIR="$BASE/releases/$RELEASE"
 ENV_FILE="$BASE/.env"
 PUBLIC_HOST="${PUBLIC_HOST:-217.182.205.137}"
+# One host name per app, so their login cookies stay apart (D-036). Must match nginx-host-staging.conf.
+ADMIN_HOST="admin.${PUBLIC_HOST//./-}.sslip.io"
+DRIVER_HOST="chauffeur.${PUBLIC_HOST//./-}.sslip.io"
 NGINX_SITE=/etc/nginx/sites-available/frutti-staging
 
 # 1. Secrets: created once on the server, never in the repository.
@@ -17,13 +20,18 @@ if [ ! -f "$ENV_FILE" ]; then
   cat > "$ENV_FILE" <<EOF
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 DJANGO_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')
-DJANGO_ALLOWED_HOSTS=$PUBLIC_HOST
-DJANGO_CSRF_TRUSTED_ORIGINS=http://$PUBLIC_HOST:8095,http://$PUBLIC_HOST:8096
 DEMO_PASSWORD=$(openssl rand -hex 12)
 SENTRY_DSN=
 EOF
 fi
 chmod 600 "$ENV_FILE"
+
+# Host names are not secrets: written on every deploy, so a change here reaches servers set up earlier.
+set_env() {
+  if grep -q "^$1=" "$ENV_FILE"; then sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"; else echo "$1=$2" >> "$ENV_FILE"; fi
+}
+set_env DJANGO_ALLOWED_HOSTS "$ADMIN_HOST,$DRIVER_HOST"
+set_env DJANGO_CSRF_TRUSTED_ORIGINS "http://$ADMIN_HOST:8095,http://$DRIVER_HOST:8096"
 export RELEASE
 
 # 2. Build and start. Only Frutti's own containers are touched.
@@ -47,12 +55,13 @@ if ! sudo cmp -s "$RELEASE_DIR/deploy/nginx-host-staging.conf" "$NGINX_SITE" 2>/
 fi
 
 # 4. Health, through the same path a browser uses.
-for port in 8095 8096; do
+for site in "$ADMIN_HOST:8095" "$DRIVER_HOST:8096"; do
+  port="${site##*:}"
   for _ in $(seq 1 30); do
-    if curl -fsS -H "Host: $PUBLIC_HOST:$port" "http://127.0.0.1:$port/api/v1/health" > /dev/null; then echo "port $port healthy"; break; fi
+    if curl -fsS -H "Host: $site" "http://127.0.0.1:$port/api/v1/health" > /dev/null 2>&1; then echo "$site healthy"; break; fi
     sleep 2
   done
-  curl -fsS -H "Host: $PUBLIC_HOST:$port" "http://127.0.0.1:$port/api/v1/health" > /dev/null || { echo "port $port not healthy" >&2; exit 1; }
+  curl -fsS -H "Host: $site" "http://127.0.0.1:$port/api/v1/health" > /dev/null || { echo "$site not healthy" >&2; exit 1; }
 done
 
 # 5. Demo logins (owner, driver) with the password from .env. Existing accounts are left as they are.
@@ -67,4 +76,4 @@ for old in $(ls -1t | tail -n +4); do
   sudo docker image rm "frutti-backend:$old" "frutti-web:$old" > /dev/null 2>&1 || true
 done
 
-echo "Deployed $RELEASE: admin http://$PUBLIC_HOST:8095  driver http://$PUBLIC_HOST:8096"
+echo "Deployed $RELEASE: admin http://$ADMIN_HOST:8095  driver http://$DRIVER_HOST:8096"
