@@ -1,10 +1,9 @@
-import { type ListProductsStatus, useListCategories, useListProducts } from "@frutti/api";
+import { useListCategories, useListProducts } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
-  cn,
   Dialog,
   EmptyState,
   Icon,
@@ -17,24 +16,15 @@ import {
   SelectValue,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOutletContext } from "react-router";
 
+import { type Status, StatusFilter } from "../lib/StatusFilter";
+import { useDebounced } from "../lib/useDebounced";
 import { ProductCard } from "./ProductCard";
 import { ProductDialog } from "./ProductDialog";
 
 const ALL_CATEGORIES = "all";
-const STATUSES: ListProductsStatus[] = ["active", "archived", "all"];
-
-/** The typed search, sent once typing pauses rather than on every key. */
-function useDebounced(value: string, delay = 250): string {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
 
 export function ProductsPage() {
   const { t } = useTranslation();
@@ -43,7 +33,7 @@ export function ProductsPage() {
   const canEdit = session.role === "owner" || session.role === "manager";
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState(ALL_CATEGORIES);
-  const [status, setStatus] = useState<ListProductsStatus>("active");
+  const [status, setStatus] = useState<Status>("active");
   // "new", the id of the product being edited, or null when the dialog is closed.
   const [open, setOpen] = useState<"new" | number | null>(null);
   const query = useDebounced(search.trim());
@@ -99,22 +89,16 @@ export function ProductsPage() {
             </SelectContent>
           </Select>
         </div>
-        <div role="group" aria-label={t("admin.products.show")} className="flex rounded-control bg-surface-2 p-1">
-          {STATUSES.map((value) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={status === value}
-              onClick={() => setStatus(value)}
-              className={cn(
-                "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
-                status === value && "bg-surface text-ink shadow-card",
-              )}
-            >
-              {t(`admin.products.status.${value}`)}
-            </button>
-          ))}
-        </div>
+        <StatusFilter
+          value={status}
+          onChange={setStatus}
+          label={t("admin.products.show")}
+          labels={{
+            active: t("admin.products.status.active"),
+            archived: t("admin.products.status.archived"),
+            all: t("admin.products.status.all"),
+          }}
+        />
         <span className="ms-auto text-[0.85rem] text-ink-2" aria-live="polite">
           {products.data && t("admin.products.count", { count: list.length })}
         </span>

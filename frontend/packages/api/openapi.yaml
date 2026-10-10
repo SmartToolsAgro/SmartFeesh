@@ -473,6 +473,165 @@ paths:
               schema:
                 $ref: '#/components/schemas/Product'
           description: ''
+  /api/v1/suppliers:
+    get:
+      operationId: listSuppliers
+      description: |-
+        Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
+        paginated: the company works with a handful of suppliers (D-031).
+      parameters:
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Supplier'
+          description: ''
+    post:
+      operationId: createSupplier
+      description: A new supplier. Without a reference it gets the next free `F-NNN`.
+      tags:
+      - suppliers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SupplierWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SupplierWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/suppliers/{supplier_id}:
+    get:
+      operationId: getSupplier
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+    patch:
+      operationId: updateSupplier
+      description: Change a supplier. `contacts`, when sent, replaces the whole list.
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSupplierWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSupplierWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSupplierWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/suppliers/{supplier_id}/archive:
+    post:
+      operationId: archiveSupplier
+      description: Archived suppliers keep their history but can no longer be bought
+        from.
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/suppliers/{supplier_id}/restore:
+    post:
+      operationId: restoreSupplier
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
 components:
   schemas:
     Category:
@@ -632,6 +791,47 @@ components:
           allOf:
           - $ref: '#/components/schemas/IllustrationEnum'
           default: fish
+    PatchedSupplierWrite:
+      type: object
+      properties:
+        reference:
+          type: string
+          default: ''
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        tax_id:
+          type: string
+          default: ''
+          maxLength: 20
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+          default: ''
+          maxLength: 255
+        city:
+          type: string
+          default: ''
+          maxLength: 100
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierContact'
     PhotoUpload:
       type: object
       properties:
@@ -847,6 +1047,129 @@ components:
           nullable: true
       required:
       - price
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierContact'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - address
+      - city
+      - contacts
+      - email
+      - id
+      - is_active
+      - name
+      - notes
+      - phone
+      - reference
+      - tax_id
+      - updated_at
+    SupplierContact:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        role:
+          type: string
+          default: ''
+          maxLength: 100
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+            maxLength: 254
+          - type: string
+            maxLength: 0
+      required:
+      - name
+    SupplierWrite:
+      type: object
+      properties:
+        reference:
+          type: string
+          default: ''
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        tax_id:
+          type: string
+          default: ''
+          maxLength: 20
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+          default: ''
+          maxLength: 255
+        city:
+          type: string
+          default: ''
+          maxLength: 100
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierContact'
+      required:
+      - name
     TruckRef:
       type: object
       properties:

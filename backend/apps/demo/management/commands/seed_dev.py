@@ -7,6 +7,7 @@ from django.db import transaction
 from apps.core import services
 from apps.core.models import Organization, Role, User
 from apps.demo.catalogue import seed_catalogue
+from apps.demo.suppliers import seed_suppliers
 
 ORGANIZATION_NAME = "Frutti Del Mare"
 # Known password for local development only. Anywhere else a password must be given (--password).
@@ -20,8 +21,8 @@ DEV_USERS = [
 
 class Command(BaseCommand):
     help = (
-        "Create one organization, one owner, one driver and a demo catalogue: development data, or demo data "
-        "on staging with --password. Safe to run twice; an existing account keeps its password."
+        "Create one organization, one owner, one driver, a demo catalogue and demo suppliers: development data, "
+        "or demo data on staging with --password. Safe to run twice; an existing account keeps its password."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -54,9 +55,13 @@ class Command(BaseCommand):
 
         owner = User.objects.get(username=DEV_USERS[0][0])
         products = seed_catalogue(organization=organization, actor=owner)
+        suppliers = seed_suppliers(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
         self.stdout.write(
-            self.style.SUCCESS(f"{ORGANIZATION_NAME}: logins {logins}, password {shown}, {products} new products")
+            self.style.SUCCESS(
+                f"{ORGANIZATION_NAME}: logins {logins}, password {shown}, "
+                f"{products} new products, {suppliers} new suppliers"
+            )
         )

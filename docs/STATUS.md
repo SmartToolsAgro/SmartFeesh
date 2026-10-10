@@ -8,23 +8,29 @@ _Last updated: 2026-10-10_
   under Blockers.
 - **Staging is live:** admin http://217.182.205.137:8095, driver http://217.182.205.137:8096
   (`docs/runbook.md`). Demo logins `owner` / `driver`, password in `~/frutti-staging/.env` on the server.
-- **Done:** P1-T02 · Product catalogue (branch `p1-t02-products`, pushed, not merged, **not deployed**).
-- **Current task:** P1-T03 · Suppliers (`docs/phases/01-stock-core.md`)
+- **Done, waiting for merge:** P1-T02 · Product catalogue (branch `p1-t02-products`) and P1-T03 ·
+  Suppliers (branch `p1-t03-suppliers`, stacked on `p1-t02-products`). Neither is deployed yet.
+- **Next task:** P1-T04 · Locations and trucks (`docs/phases/01-stock-core.md`)
+- The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
+  (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
 ## Next step (do this first)
 
-1. Merge `p1-t02-products` into `main` once CI is green.
+1. Merge `p1-t02-products` into `main` once CI is green, then `p1-t03-suppliers` (its PR then shows
+   only the P1-T03 commit).
 2. The merge deploys staging by itself (CI job `deploy-staging`, secrets set 2026-10-10): check it ran.
-   This first automatic deploy adds the Docker volume `frutti-staging_media` and the 12 demo products.
-   Then upload one photo on staging: the volume must be writable by the `app` user.
-3. Agent: start **P1-T03** from `main`. Follow the catalogue's patterns: services raise
-   `ValidationError` per field (D-030), views subclass a scoped base view, demo data goes in `apps/demo`.
+   This first automatic deploy adds the Docker volume `frutti-staging_media`, the 12 demo products and
+   the 4 demo suppliers. Then upload one photo on staging: the volume must be writable by the `app` user.
+3. Agent: start **P1-T04** from `main` (or from `p1-t03-suppliers` if it is not merged yet). Follow the
+   same patterns: services raise `ValidationError` per field (D-030), views subclass a scoped base view,
+   demo data in `apps/demo` from `docs/spec/sample/locations.csv`.
 
 ## Blockers / waiting on client
 
-- **P0-T02** (worked example on one real month) is not started. Phase 6 has no target without it, and
-  it must settle one rule: a loss larger than a supplier's remaining capital (Q3).
-- **P0-T01**: no prototype walk-through or client materials yet. Stand-in data in `docs/spec/sample/`.
+- **P0-T02** (worked example on one real month) is not started. Phase 6 has no target without it. The
+  rule for a loss larger than a supplier's remaining capital is now provisional (D-031, branch
+  `docs-profit-loss-rates`); P0-T02 should confirm it.
+- **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
 - **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
   CI deploy secrets are set; the key logs in as `debian` (full sudo), so a separate server or a
   server-side pull from GitHub is still advised (runbook).
@@ -51,17 +57,17 @@ _Last updated: 2026-10-10_
 
 ## Last session (2026-10-10)
 
-- **P1-T02:** `Category`, `Product` (with Arabic name and stand-in drawing), append-only `ProductPrice`;
-  services with audit; API for list/search/filter, create, update, archive, prices and photo (D-030);
-  admin screen "Produits" with prototype-style cards and a form (photo, price history). Demo catalogue
-  in `seed_dev`, now in the new `demo` app.
-- Local results: 131 backend tests, 43 vitest tests, 13 Playwright tests; ruff, mypy, import
+- **P1-T03:** new `partners` app: `Supplier` (reference `F-NNN` generated when empty, checked Tunisian
+  tax ID, phone, e-mail, address, city, notes, active) and `SupplierContact`; services with audit; API
+  list/search/filter, detail, create, update (contacts replaced as a list), archive, restore. Drivers
+  get 403 (`ReadOfficeWriteOwnerOrManager`). Admin screens: table list, detail page, form dialog. The 4
+  stand-in suppliers of the sample are seeded (D-032).
+- Local results: 168 backend tests, 43 vitest tests, 17 Playwright tests; ruff, mypy, import
   boundaries, eslint, prettier and the API client check all pass. Screens checked in light, dark and
   phone width.
 
 ## Recently done
 
+- 2026-10-10 · P1-T03 suppliers
 - 2026-10-10 · P1-T02 product catalogue, prices and photos
 - 2026-10-10 · P1-T01 units and quantity helpers (merged)
-- 2026-10-10 · Phase 0 branches merged into `main` (fast-forward, CI green)
-- 2026-10-10 · P0-T10 cloud hook, P0-T11 staging live

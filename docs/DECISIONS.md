@@ -224,3 +224,21 @@ dependencies and starts PostgreSQL with the `frutti` role.
   photos and receipts will follow the same pattern. Staging keeps them in the `media` Docker volume.
 - `seed_dev` moved from `core` to a new `demo` app, which may call every app, and now also creates the
   12 stand-in products of `docs/spec/sample/products.csv`.
+
+**D-032 · Suppliers (P1-T03)** · accepted · 2026-10-10
+- New `partners` app (ARCHITECTURE §3), which will also hold customers in Phase 2.
+- `Supplier` adds three fields to the brief's list: a **reference** (`F-001`, as in the sample list; left
+  empty, the server gives the next `F-NNN`), an **e-mail** and a **city**. Contacts are `SupplierContact`
+  rows (name, role, phone, e-mail); a change that sends `contacts` replaces the whole list, and the audit
+  log keeps the before/after list.
+- The **tax ID** (matricule fiscal) is optional, unique per organization when given, and stored as
+  `1234567A/A/M/000` (or `1234567A` alone); spaces, dots, dashes and missing slashes are accepted when
+  typed, and a 6-digit number gets its leading zero. Other shapes are refused. Provisional: loosen it if
+  the client's real list has suppliers with another identifier (CIN of a lone fisherman).
+- Suppliers are **office data**: owner, manager and accountant read them, owner and manager change them,
+  drivers get 403 (`ReadOfficeWriteOwnerOrManager`, new in `core.permissions`). Purchases will use it too.
+- No delete: archive / restore, like products. Lists are not paginated (a handful of suppliers).
+- Agreement type, balances and purchase history are **not** on `Supplier`: they come from purchases,
+  payments and Phase 6 agreements. The detail screen shows a placeholder card for them.
+- E2E tests log the owner in once (`owner.setup.ts`, saved session in `frontend/e2e/.auth/`): logging in
+  in every test hit the limit of 8 logins a minute per account.

@@ -14,6 +14,8 @@ import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
 
 import { ProductsPage } from "./products/ProductsPage";
+import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
+import { SuppliersPage } from "./suppliers/SuppliersPage";
 
 const queryClient = new QueryClient();
 
@@ -54,12 +56,12 @@ function useNav(): AdminNavGroup[] {
 // Screens that exist; every other entry of the menu shows "coming soon".
 const SCREENS: Record<string, ReactNode> = {
   "/produits": <ProductsPage />,
+  "/fournisseurs": <SuppliersPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
   "/stock": "fridge",
   "/achats": "fish",
-  "/fournisseurs": "shrimp",
   "/ventes": "truck",
 };
 
@@ -124,6 +126,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         {nav.flatMap((group) =>
           group.items
             .filter((item) => item.to !== "/")

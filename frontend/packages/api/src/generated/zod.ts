@@ -564,3 +564,369 @@ export const RestoreProductResponse = zod.object({
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
+
+
+/**
+ * Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
+ * paginated: the company works with a handful of suppliers (D-031).
+ */
+export const listSuppliersQuerySearchDefault = ``;
+export const listSuppliersQuerySearchMax = 100;
+
+export const listSuppliersQueryStatusDefault = `active`;
+
+export const ListSuppliersQueryParams = zod.object({
+  "search": zod.string().max(listSuppliersQuerySearchMax).default(listSuppliersQuerySearchDefault),
+  "status": zod.enum(['active', 'archived', 'all']).default(listSuppliersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listSuppliersResponseContactsItemNameMax = 150;
+
+export const listSuppliersResponseContactsItemRoleDefault = ``;
+export const listSuppliersResponseContactsItemRoleMax = 100;
+
+export const listSuppliersResponseContactsItemPhoneDefault = ``;
+export const listSuppliersResponseContactsItemPhoneMax = 30;
+
+export const listSuppliersResponseContactsItemEmailOneDefault = ``;
+export const listSuppliersResponseContactsItemEmailOneMax = 254;
+
+export const listSuppliersResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const ListSuppliersResponseItem = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(listSuppliersResponseContactsItemNameMax),
+  "role": zod.string().max(listSuppliersResponseContactsItemRoleMax).default(listSuppliersResponseContactsItemRoleDefault),
+  "phone": zod.string().max(listSuppliersResponseContactsItemPhoneMax).default(listSuppliersResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(listSuppliersResponseContactsItemEmailOneMax).default(listSuppliersResponseContactsItemEmailOneDefault),zod.string().max(listSuppliersResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
+
+
+/**
+ * A new supplier. Without a reference it gets the next free `F-NNN`.
+ */
+export const createSupplierBodyReferenceDefault = ``;
+export const createSupplierBodyReferenceMax = 30;
+
+export const createSupplierBodyNameMax = 150;
+
+export const createSupplierBodyTaxIdDefault = ``;
+export const createSupplierBodyTaxIdMax = 20;
+
+export const createSupplierBodyPhoneDefault = ``;
+export const createSupplierBodyPhoneMax = 30;
+
+export const createSupplierBodyEmailOneDefault = ``;
+export const createSupplierBodyEmailTwoMax = 0;
+
+export const createSupplierBodyAddressDefault = ``;
+export const createSupplierBodyAddressMax = 255;
+
+export const createSupplierBodyCityDefault = ``;
+export const createSupplierBodyCityMax = 100;
+
+export const createSupplierBodyNotesDefault = ``;
+export const createSupplierBodyNotesMax = 2000;
+
+export const createSupplierBodyContactsItemNameMax = 150;
+
+export const createSupplierBodyContactsItemRoleDefault = ``;
+export const createSupplierBodyContactsItemRoleMax = 100;
+
+export const createSupplierBodyContactsItemPhoneDefault = ``;
+export const createSupplierBodyContactsItemPhoneMax = 30;
+
+export const createSupplierBodyContactsItemEmailOneDefault = ``;
+export const createSupplierBodyContactsItemEmailOneMax = 254;
+
+export const createSupplierBodyContactsItemEmailTwoMax = 0;
+
+
+
+export const CreateSupplierBody = zod.object({
+  "reference": zod.string().max(createSupplierBodyReferenceMax).default(createSupplierBodyReferenceDefault),
+  "name": zod.string().max(createSupplierBodyNameMax),
+  "tax_id": zod.string().max(createSupplierBodyTaxIdMax).default(createSupplierBodyTaxIdDefault),
+  "phone": zod.string().max(createSupplierBodyPhoneMax).default(createSupplierBodyPhoneDefault),
+  "email": zod.union([zod.email().default(createSupplierBodyEmailOneDefault),zod.string().max(createSupplierBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(createSupplierBodyAddressMax).default(createSupplierBodyAddressDefault),
+  "city": zod.string().max(createSupplierBodyCityMax).default(createSupplierBodyCityDefault),
+  "notes": zod.string().max(createSupplierBodyNotesMax).default(createSupplierBodyNotesDefault),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(createSupplierBodyContactsItemNameMax),
+  "role": zod.string().max(createSupplierBodyContactsItemRoleMax).default(createSupplierBodyContactsItemRoleDefault),
+  "phone": zod.string().max(createSupplierBodyContactsItemPhoneMax).default(createSupplierBodyContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(createSupplierBodyContactsItemEmailOneMax).default(createSupplierBodyContactsItemEmailOneDefault),zod.string().max(createSupplierBodyContactsItemEmailTwoMax)]).optional()
+})).optional()
+})
+
+export const createSupplierResponseContactsItemNameMax = 150;
+
+export const createSupplierResponseContactsItemRoleDefault = ``;
+export const createSupplierResponseContactsItemRoleMax = 100;
+
+export const createSupplierResponseContactsItemPhoneDefault = ``;
+export const createSupplierResponseContactsItemPhoneMax = 30;
+
+export const createSupplierResponseContactsItemEmailOneDefault = ``;
+export const createSupplierResponseContactsItemEmailOneMax = 254;
+
+export const createSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const CreateSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(createSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(createSupplierResponseContactsItemRoleMax).default(createSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(createSupplierResponseContactsItemPhoneMax).default(createSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(createSupplierResponseContactsItemEmailOneMax).default(createSupplierResponseContactsItemEmailOneDefault),zod.string().max(createSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const getSupplierResponseContactsItemNameMax = 150;
+
+export const getSupplierResponseContactsItemRoleDefault = ``;
+export const getSupplierResponseContactsItemRoleMax = 100;
+
+export const getSupplierResponseContactsItemPhoneDefault = ``;
+export const getSupplierResponseContactsItemPhoneMax = 30;
+
+export const getSupplierResponseContactsItemEmailOneDefault = ``;
+export const getSupplierResponseContactsItemEmailOneMax = 254;
+
+export const getSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const GetSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(getSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(getSupplierResponseContactsItemRoleMax).default(getSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(getSupplierResponseContactsItemPhoneMax).default(getSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(getSupplierResponseContactsItemEmailOneMax).default(getSupplierResponseContactsItemEmailOneDefault),zod.string().max(getSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Change a supplier. `contacts`, when sent, replaces the whole list.
+ */
+export const UpdateSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const updateSupplierBodyReferenceDefault = ``;
+export const updateSupplierBodyReferenceMax = 30;
+
+export const updateSupplierBodyNameMax = 150;
+
+export const updateSupplierBodyTaxIdDefault = ``;
+export const updateSupplierBodyTaxIdMax = 20;
+
+export const updateSupplierBodyPhoneDefault = ``;
+export const updateSupplierBodyPhoneMax = 30;
+
+export const updateSupplierBodyEmailOneDefault = ``;
+export const updateSupplierBodyEmailTwoMax = 0;
+
+export const updateSupplierBodyAddressDefault = ``;
+export const updateSupplierBodyAddressMax = 255;
+
+export const updateSupplierBodyCityDefault = ``;
+export const updateSupplierBodyCityMax = 100;
+
+export const updateSupplierBodyNotesDefault = ``;
+export const updateSupplierBodyNotesMax = 2000;
+
+export const updateSupplierBodyContactsItemNameMax = 150;
+
+export const updateSupplierBodyContactsItemRoleDefault = ``;
+export const updateSupplierBodyContactsItemRoleMax = 100;
+
+export const updateSupplierBodyContactsItemPhoneDefault = ``;
+export const updateSupplierBodyContactsItemPhoneMax = 30;
+
+export const updateSupplierBodyContactsItemEmailOneDefault = ``;
+export const updateSupplierBodyContactsItemEmailOneMax = 254;
+
+export const updateSupplierBodyContactsItemEmailTwoMax = 0;
+
+
+
+export const UpdateSupplierBody = zod.object({
+  "reference": zod.string().max(updateSupplierBodyReferenceMax).default(updateSupplierBodyReferenceDefault),
+  "name": zod.string().max(updateSupplierBodyNameMax).optional(),
+  "tax_id": zod.string().max(updateSupplierBodyTaxIdMax).default(updateSupplierBodyTaxIdDefault),
+  "phone": zod.string().max(updateSupplierBodyPhoneMax).default(updateSupplierBodyPhoneDefault),
+  "email": zod.union([zod.email().default(updateSupplierBodyEmailOneDefault),zod.string().max(updateSupplierBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(updateSupplierBodyAddressMax).default(updateSupplierBodyAddressDefault),
+  "city": zod.string().max(updateSupplierBodyCityMax).default(updateSupplierBodyCityDefault),
+  "notes": zod.string().max(updateSupplierBodyNotesMax).default(updateSupplierBodyNotesDefault),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(updateSupplierBodyContactsItemNameMax),
+  "role": zod.string().max(updateSupplierBodyContactsItemRoleMax).default(updateSupplierBodyContactsItemRoleDefault),
+  "phone": zod.string().max(updateSupplierBodyContactsItemPhoneMax).default(updateSupplierBodyContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(updateSupplierBodyContactsItemEmailOneMax).default(updateSupplierBodyContactsItemEmailOneDefault),zod.string().max(updateSupplierBodyContactsItemEmailTwoMax)]).optional()
+})).optional()
+})
+
+export const updateSupplierResponseContactsItemNameMax = 150;
+
+export const updateSupplierResponseContactsItemRoleDefault = ``;
+export const updateSupplierResponseContactsItemRoleMax = 100;
+
+export const updateSupplierResponseContactsItemPhoneDefault = ``;
+export const updateSupplierResponseContactsItemPhoneMax = 30;
+
+export const updateSupplierResponseContactsItemEmailOneDefault = ``;
+export const updateSupplierResponseContactsItemEmailOneMax = 254;
+
+export const updateSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const UpdateSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(updateSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(updateSupplierResponseContactsItemRoleMax).default(updateSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(updateSupplierResponseContactsItemPhoneMax).default(updateSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(updateSupplierResponseContactsItemEmailOneMax).default(updateSupplierResponseContactsItemEmailOneDefault),zod.string().max(updateSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Archived suppliers keep their history but can no longer be bought from.
+ */
+export const ArchiveSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const archiveSupplierResponseContactsItemNameMax = 150;
+
+export const archiveSupplierResponseContactsItemRoleDefault = ``;
+export const archiveSupplierResponseContactsItemRoleMax = 100;
+
+export const archiveSupplierResponseContactsItemPhoneDefault = ``;
+export const archiveSupplierResponseContactsItemPhoneMax = 30;
+
+export const archiveSupplierResponseContactsItemEmailOneDefault = ``;
+export const archiveSupplierResponseContactsItemEmailOneMax = 254;
+
+export const archiveSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const ArchiveSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(archiveSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(archiveSupplierResponseContactsItemRoleMax).default(archiveSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(archiveSupplierResponseContactsItemPhoneMax).default(archiveSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(archiveSupplierResponseContactsItemEmailOneMax).default(archiveSupplierResponseContactsItemEmailOneDefault),zod.string().max(archiveSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreSupplierParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const restoreSupplierResponseContactsItemNameMax = 150;
+
+export const restoreSupplierResponseContactsItemRoleDefault = ``;
+export const restoreSupplierResponseContactsItemRoleMax = 100;
+
+export const restoreSupplierResponseContactsItemPhoneDefault = ``;
+export const restoreSupplierResponseContactsItemPhoneMax = 30;
+
+export const restoreSupplierResponseContactsItemEmailOneDefault = ``;
+export const restoreSupplierResponseContactsItemEmailOneMax = 254;
+
+export const restoreSupplierResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const RestoreSupplierResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(restoreSupplierResponseContactsItemNameMax),
+  "role": zod.string().max(restoreSupplierResponseContactsItemRoleMax).default(restoreSupplierResponseContactsItemRoleDefault),
+  "phone": zod.string().max(restoreSupplierResponseContactsItemPhoneMax).default(restoreSupplierResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(restoreSupplierResponseContactsItemEmailOneMax).default(restoreSupplierResponseContactsItemEmailOneDefault),zod.string().max(restoreSupplierResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})

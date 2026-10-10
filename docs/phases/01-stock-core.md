@@ -30,8 +30,10 @@ the `Unit` table keeps the door open for other distributors (Q17).
       price in force at a moment is the latest one at or before it. History is never overwritten.
 
 ### P1-T03 · Suppliers · S
-- [ ] `Supplier` (name, tax ID, phone, address, contacts, notes, active). Agreement link comes in Phase 6.
-- [ ] API + admin list/detail/form.
+- [x] `Supplier` (name, tax ID, phone, address, contacts, notes, active). Agreement link comes in Phase 6.
+      Also a reference (`F-001`, generated when left empty), e-mail and city; contacts are
+      `SupplierContact` rows (D-032).
+- [x] API + admin list/detail/form.
 
 ### P1-T04 · Locations and trucks · S
 - [ ] `StockLocation` (type: cold_room | truck | other, name). `Truck` (plate, name, assigned driver,

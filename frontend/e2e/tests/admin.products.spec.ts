@@ -1,7 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 
-// Logins and demo catalogue created by `manage.py seed_dev`.
-const PASSWORD = "frutti-dev";
+import { OWNER_STATE } from "./owner";
+
+// Demo catalogue created by `manage.py seed_dev`.
+test.use({ storageState: OWNER_STATE });
+
 // A 1 × 1 PNG: enough to go through the server's photo checks.
 const PIXEL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -9,10 +12,7 @@ const PIXEL_PNG = Buffer.from(
 );
 
 async function openCatalogue(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Identifiant").fill("owner");
-  await page.getByLabel("Mot de passe").fill(PASSWORD);
-  await page.getByRole("button", { name: "Se connecter" }).click();
+  await page.goto("/");
   await page.getByRole("link", { name: "Produits" }).click();
   await expect(page.getByRole("heading", { name: "Produits", level: 1 })).toBeVisible();
 }

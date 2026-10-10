@@ -27,17 +27,21 @@ import type {
   Category,
   Health,
   ListProductsParams,
+  ListSuppliersParams,
   Login,
   Member,
   PatchedCategory,
   PatchedLanguage,
   PatchedProductUpdate,
+  PatchedSupplierWrite,
   PhotoUpload,
   Product,
   ProductCreate,
   ProductPrice,
   Session,
-  SetPrice
+  SetPrice,
+  Supplier,
+  SupplierWrite
 } from './models';
 
 import { apiFetch } from '../http';
@@ -1806,4 +1810,515 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRestoreProductMutationOptions(options), queryClient);
+    }
+
+export const getListSuppliersUrl = (params?: ListSuppliersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/suppliers?${stringifiedParams}` : `/api/v1/suppliers`
+}
+
+/**
+ * Suppliers sorted by name, with their contacts. Archived ones only when asked (`status`). Not
+ * paginated: the company works with a handful of suppliers (D-031).
+ */
+export const listSuppliers = async (params?: ListSuppliersParams, options?: Parameters<typeof apiFetch>[1]): Promise<Supplier[]> => {
+
+  return apiFetch<Supplier[]>(getListSuppliersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSuppliersQueryKey = (params?: ListSuppliersParams,) => {
+    return [
+    `/api/v1/suppliers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSuppliersQueryOptions = <TData = Awaited<ReturnType<typeof listSuppliers>>, TError = unknown>(params?: ListSuppliersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuppliers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSuppliersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuppliers>>> = ({ signal }) => listSuppliers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSuppliers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSuppliersQueryResult = NonNullable<Awaited<ReturnType<typeof listSuppliers>>>
+export type ListSuppliersQueryError = unknown
+
+
+export function useListSuppliers<TData = Awaited<ReturnType<typeof listSuppliers>>, TError = unknown>(
+ params: undefined |  ListSuppliersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuppliers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSuppliers>>,
+          TError,
+          Awaited<ReturnType<typeof listSuppliers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSuppliers<TData = Awaited<ReturnType<typeof listSuppliers>>, TError = unknown>(
+ params?: ListSuppliersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuppliers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSuppliers>>,
+          TError,
+          Awaited<ReturnType<typeof listSuppliers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSuppliers<TData = Awaited<ReturnType<typeof listSuppliers>>, TError = unknown>(
+ params?: ListSuppliersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuppliers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSuppliers<TData = Awaited<ReturnType<typeof listSuppliers>>, TError = unknown>(
+ params?: ListSuppliersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuppliers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSuppliersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSupplierUrl = () => {
+
+
+
+
+  return `/api/v1/suppliers`
+}
+
+/**
+ * A new supplier. Without a reference it gets the next free `F-NNN`.
+ */
+export const createSupplier = async (supplierWrite: SupplierWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Supplier> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Supplier>(getCreateSupplierUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(supplierWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateSupplierMutationKey = () => ['createSupplier'] as const;
+
+export const getCreateSupplierMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupplier>>, TError,CreateSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSupplier>>, TError,CreateSupplierMutationVariables, TContext> => {
+
+const mutationKey = getCreateSupplierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSupplier>>, CreateSupplierMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSupplier(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSupplierMutationResult = NonNullable<Awaited<ReturnType<typeof createSupplier>>>
+    export type CreateSupplierMutationBody = SupplierWrite
+    export type CreateSupplierMutationError = unknown
+    export type CreateSupplierMutationVariables = {data: SupplierWrite}
+
+    export const useCreateSupplier = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupplier>>, TError,CreateSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createSupplier>>,
+        TError,
+        CreateSupplierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSupplierMutationOptions(options), queryClient);
+    }
+
+export const getGetSupplierUrl = (supplierId: number,) => {
+
+
+
+
+  return `/api/v1/suppliers/${supplierId}`
+}
+
+export const getSupplier = async (supplierId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Supplier> => {
+
+  return apiFetch<Supplier>(getGetSupplierUrl(supplierId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierQueryKey = (supplierId: number,) => {
+    return [
+    `/api/v1/suppliers/${supplierId}`
+    ] as const;
+    }
+
+
+export const getGetSupplierQueryOptions = <TData = Awaited<ReturnType<typeof getSupplier>>, TError = unknown>(supplierId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplier>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierQueryKey(supplierId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplier>>> = ({ signal }) => getSupplier(supplierId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: supplierId !== null && supplierId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplier>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSupplierQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplier>>>
+export type GetSupplierQueryError = unknown
+
+
+export function useGetSupplier<TData = Awaited<ReturnType<typeof getSupplier>>, TError = unknown>(
+ supplierId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplier>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplier>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplier>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplier<TData = Awaited<ReturnType<typeof getSupplier>>, TError = unknown>(
+ supplierId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplier>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplier>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplier>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplier<TData = Awaited<ReturnType<typeof getSupplier>>, TError = unknown>(
+ supplierId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplier>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSupplier<TData = Awaited<ReturnType<typeof getSupplier>>, TError = unknown>(
+ supplierId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplier>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSupplierQueryOptions(supplierId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSupplierUrl = (supplierId: number,) => {
+
+
+
+
+  return `/api/v1/suppliers/${supplierId}`
+}
+
+/**
+ * Change a supplier. `contacts`, when sent, replaces the whole list.
+ */
+export const updateSupplier = async (supplierId: number,
+    patchedSupplierWrite?: PatchedSupplierWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Supplier> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Supplier>(getUpdateSupplierUrl(supplierId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedSupplierWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateSupplierMutationKey = () => ['updateSupplier'] as const;
+
+export const getUpdateSupplierMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplier>>, TError,UpdateSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSupplier>>, TError,UpdateSupplierMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSupplierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSupplier>>, UpdateSupplierMutationVariables> = (props) => {
+          const {supplierId,data} = props ?? {};
+
+          return  updateSupplier(supplierId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSupplierMutationResult = NonNullable<Awaited<ReturnType<typeof updateSupplier>>>
+    export type UpdateSupplierMutationBody = PatchedSupplierWrite | undefined
+    export type UpdateSupplierMutationError = unknown
+    export type UpdateSupplierMutationVariables = {supplierId: number;data?: PatchedSupplierWrite}
+
+    export const useUpdateSupplier = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplier>>, TError,UpdateSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSupplier>>,
+        TError,
+        UpdateSupplierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSupplierMutationOptions(options), queryClient);
+    }
+
+export const getArchiveSupplierUrl = (supplierId: number,) => {
+
+
+
+
+  return `/api/v1/suppliers/${supplierId}/archive`
+}
+
+/**
+ * Archived suppliers keep their history but can no longer be bought from.
+ */
+export const archiveSupplier = async (supplierId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Supplier> => {
+
+  return apiFetch<Supplier>(getArchiveSupplierUrl(supplierId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveSupplierMutationKey = () => ['archiveSupplier'] as const;
+
+export const getArchiveSupplierMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveSupplier>>, TError,ArchiveSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveSupplier>>, TError,ArchiveSupplierMutationVariables, TContext> => {
+
+const mutationKey = getArchiveSupplierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveSupplier>>, ArchiveSupplierMutationVariables> = (props) => {
+          const {supplierId} = props ?? {};
+
+          return  archiveSupplier(supplierId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveSupplierMutationResult = NonNullable<Awaited<ReturnType<typeof archiveSupplier>>>
+
+    export type ArchiveSupplierMutationError = unknown
+    export type ArchiveSupplierMutationVariables = {supplierId: number}
+
+    export const useArchiveSupplier = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveSupplier>>, TError,ArchiveSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof archiveSupplier>>,
+        TError,
+        ArchiveSupplierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getArchiveSupplierMutationOptions(options), queryClient);
+    }
+
+export const getRestoreSupplierUrl = (supplierId: number,) => {
+
+
+
+
+  return `/api/v1/suppliers/${supplierId}/restore`
+}
+
+export const restoreSupplier = async (supplierId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Supplier> => {
+
+  return apiFetch<Supplier>(getRestoreSupplierUrl(supplierId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreSupplierMutationKey = () => ['restoreSupplier'] as const;
+
+export const getRestoreSupplierMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreSupplier>>, TError,RestoreSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreSupplier>>, TError,RestoreSupplierMutationVariables, TContext> => {
+
+const mutationKey = getRestoreSupplierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreSupplier>>, RestoreSupplierMutationVariables> = (props) => {
+          const {supplierId} = props ?? {};
+
+          return  restoreSupplier(supplierId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreSupplierMutationResult = NonNullable<Awaited<ReturnType<typeof restoreSupplier>>>
+
+    export type RestoreSupplierMutationError = unknown
+    export type RestoreSupplierMutationVariables = {supplierId: number}
+
+    export const useRestoreSupplier = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreSupplier>>, TError,RestoreSupplierMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreSupplier>>,
+        TError,
+        RestoreSupplierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreSupplierMutationOptions(options), queryClient);
     }
