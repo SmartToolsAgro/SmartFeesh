@@ -41,6 +41,7 @@ import type {
   CreditNoteWrite,
   Customer,
   CustomerBalance,
+  CustomerChoice,
   CustomerPaymentDetail,
   CustomerPaymentWrite,
   CustomerWrite,
@@ -96,6 +97,7 @@ import type {
   ListLossesParams,
   ListLotWorkDaysParams,
   ListMovementsParams,
+  ListMyCustomersParams,
   ListPartnershipsParams,
   ListPriceListsParams,
   ListProductsParams,
@@ -128,6 +130,7 @@ import type {
   LotWorkDayWrite,
   Member,
   Month,
+  MyStockLine,
   PaginatedBatchList,
   PaginatedCountList,
   PaginatedCreditNoteList,
@@ -9456,6 +9459,112 @@ export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, 
 
 
 
+export const getListMyCustomersUrl = (params?: ListMyCustomersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/my-customers?${stringifiedParams}` : `/api/v1/my-customers`
+}
+
+/**
+ * Active customers for a driver to sell to (name and city only), the walk-in customer last. Filter
+ * with `search`. At most 30 rows.
+ */
+export const listMyCustomers = async (params?: ListMyCustomersParams, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerChoice[]> => {
+
+  return apiFetch<CustomerChoice[]>(getListMyCustomersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyCustomersQueryKey = (params?: ListMyCustomersParams,) => {
+    return [
+    `/api/v1/my-customers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMyCustomersQueryOptions = <TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyCustomersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyCustomers>>> = ({ signal }) => listMyCustomers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyCustomersQueryResult = NonNullable<Awaited<ReturnType<typeof listMyCustomers>>>
+export type ListMyCustomersQueryError = unknown
+
+
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params: undefined |  ListMyCustomersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof listMyCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof listMyCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetMyDayUrl = () => {
 
 
@@ -9638,6 +9747,104 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getOpenMyDayMutationOptions(options), queryClient);
     }
+
+export const getListMyStockUrl = () => {
+
+
+
+
+  return `/api/v1/my-stock`
+}
+
+/**
+ * What the driver's truck holds now per product, with today's price per kg. 404 without a truck.
+ */
+export const listMyStock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyStockLine[]> => {
+
+  return apiFetch<MyStockLine[]>(getListMyStockUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyStockQueryKey = () => {
+    return [
+    `/api/v1/my-stock`
+    ] as const;
+    }
+
+
+export const getListMyStockQueryOptions = <TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyStockQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyStock>>> = ({ signal }) => listMyStock({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyStockQueryResult = NonNullable<Awaited<ReturnType<typeof listMyStock>>>
+export type ListMyStockQueryError = unknown
+
+
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyStock>>,
+          TError,
+          Awaited<ReturnType<typeof listMyStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyStock>>,
+          TError,
+          Awaited<ReturnType<typeof listMyStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyStockQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListMyTruckChoicesUrl = () => {
 

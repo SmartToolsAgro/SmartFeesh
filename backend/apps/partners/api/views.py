@@ -6,11 +6,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Membership, Organization
-from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.partners import selectors, services
 from apps.partners.models import Customer, Supplier
 
 from .serializers import (
+    CustomerChoiceSerializer,
     CustomerFilterSerializer,
     CustomerSerializer,
     CustomerWriteSerializer,
@@ -181,3 +182,22 @@ class CustomerRestoreView(CustomerView):
     def post(self, request: Request, customer_id: int) -> Response:
         services.set_customer_active(customer=self.customer(customer_id), actor=self.membership.user, is_active=True)
         return self.customer_answer(customer_id)
+
+
+class MyCustomersView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(
+        operation_id="listMyCustomers",
+        parameters=[CustomerFilterSerializer],
+        responses=CustomerChoiceSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Active customers for a driver to sell to (name and city only), the walk-in customer last. Filter
+        with `search`. At most 30 rows."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        filters = CustomerFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        customers = selectors.customers_of(membership.organization, search=filters.validated_data["search"])[:30]
+        return Response(CustomerChoiceSerializer(customers, many=True).data)

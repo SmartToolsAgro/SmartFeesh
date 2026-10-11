@@ -1166,3 +1166,13 @@ price per kg; the first screen shows the truck and that load. A driver
 with no truck sees the active trucks as big buttons (`GET /my-truck-choices`, those taken by another driver are
 greyed) and picks one with the existing `POST /truck-assignments`. `fleet.DriverDay` (truck, driver, date, opening
 cash; one per driver and day) is opened by `POST /my-day` and read by `GET /my-day`; asking twice keeps the first.
+
+**D-091 · Sale on the road, first version (P3-T02, P3-T03)** · accepted, provisional points marked · 2026-10-11
+Driver-only read endpoints: `GET /my-stock` (the truck's stock per product with today's daily price) and
+`GET /my-customers?search=` (name and city, walk-in last, 30 rows). The sale screen sends no price: the server
+prices the lines as for any sale (customer's list, else daily price) and the receipt shows its result; the screen's
+running total uses the daily price, so it may differ for a customer with their own price list (**provisional**,
+D-051 still open). The driver types the kg and what the customer pays; the rest is credit, and the server
+refuses above the credit limit (its message is shown). Payment is cash for now. A `client_uuid` per sale makes
+a retry safe. Receipt: on screen and the phone's share sheet. Not yet: recent customers first, creating a
+customer, other payment methods, offline (P3-T07).

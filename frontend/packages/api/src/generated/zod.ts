@@ -5566,6 +5566,30 @@ export const ListMembersResponse = zod.array(ListMembersResponseItem)
 
 
 /**
+ * Active customers for a driver to sell to (name and city only), the walk-in customer last. Filter
+ * with `search`. At most 30 rows.
+ */
+export const listMyCustomersQuerySearchDefault = ``;
+export const listMyCustomersQuerySearchMax = 100;
+
+export const listMyCustomersQueryStatusDefault = `active`;
+
+export const ListMyCustomersQueryParams = zod.object({
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).optional().describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "search": zod.string().max(listMyCustomersQuerySearchMax).default(listMyCustomersQuerySearchDefault),
+  "status": zod.enum(['active', 'archived', 'all']).default(listMyCustomersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const ListMyCustomersResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "city": zod.string(),
+  "is_walk_in": zod.boolean()
+}).describe('The little a driver needs to pick a customer.')
+export const ListMyCustomersResponse = zod.array(ListMyCustomersResponseItem)
+
+
+/**
  * The day the driver opened today. 404 when they have not started yet.
  */
 export const getMyDayResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -5598,6 +5622,22 @@ export const OpenMyDayResponse = zod.object({
   "truck_name": zod.string(),
   "opening_cash": zod.stringFormat('decimal', openMyDayResponseOpeningCashRegExp)
 })
+
+
+/**
+ * What the driver's truck holds now per product, with today's price per kg. 404 without a truck.
+ */
+export const listMyStockResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyStockResponseUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMyStockResponseItem = zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', listMyStockResponseQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', listMyStockResponseUnitPriceRegExp).nullable()
+}).describe('What the driver\'s truck holds of one product, with today\'s price per kg.')
+export const ListMyStockResponse = zod.array(ListMyStockResponseItem)
 
 
 /**

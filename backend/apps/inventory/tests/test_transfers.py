@@ -616,3 +616,29 @@ def test_a_driver_sees_the_load_of_their_own_truck_today(organization, actor, co
     assert day["lines"][0]["unit_price"] == "28.000"
     manager, _ = client_for(Role.MANAGER, organization)
     assert manager.get(reverse("my-truck-day")).status_code == 403
+
+
+def test_a_driver_sees_the_stock_and_price_of_their_truck(organization, actor, cold_room, dorade):
+    from apps.fleet import services as fleet
+
+    client, driver = client_for(Role.DRIVER, organization)
+    assert client.get(reverse("my-stock")).status_code == 404  # no truck yet
+    truck = fleet.create_truck(
+        organization=organization, actor=actor, name="Camion 8", plate="108 TU 2008", driver=driver.user
+    )
+    receive(organization, dorade, cold_room, "20")
+    services.create_transfer(
+        organization=organization,
+        actor=actor,
+        from_location=cold_room,
+        to_location=truck.location,
+        transferred_on=timezone.localdate(),
+        lines=[{"product": dorade, "quantity": Decimal("12")}],
+        validate=True,
+    )
+
+    rows = client.get(reverse("my-stock")).json()
+
+    assert rows == [
+        {"product_id": dorade.pk, "product_name": "Dorade royale", "quantity": "12.000", "unit_price": "28.000"}
+    ]

@@ -17,19 +17,19 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [x] Opens a `DriverDay` (truck, driver, date, status).
 
 ### P3-T02 · My stock · S
-- [ ] Truck stock list with product pictures, kg, today's price; read-only.
+- [x] (kg and price, no pictures yet) Truck stock list with product pictures, kg, today's price; read-only.
 - [ ] Prices are downloaded at the start of day and refreshed whenever the phone is online; a price
       changed during the day reaches the driver at the next refresh, with a visible notice.
       Offline, the driver sells at the last prices received, and the screen shows their date and time.
       The server keeps the price the driver charged; it never recalculates an offline sale.
 
 ### P3-T03 · Sale on the road · M
-- [ ] Choose customer (search, recent first; create if allowed), products, weight, payment amount and
+- [x] (search only, D-091) Choose customer (search, recent first; create if allowed), products, weight, payment amount and
       method → calls the same `confirm_sale` service as the admin app.
-- [ ] Partial payment → remainder on customer credit, up to the customer's credit limit (Q16). Offline,
+- [x] (online only) Partial payment → remainder on customer credit, up to the customer's credit limit (Q16). Offline,
       the limit is checked against the last synced balance and checked again by the server at sync.
       Above the limit the app follows the company setting from P2-T06 (block, approval, or warn).
-- [ ] Receipt: on screen + share. Printing is P3-T10.
+- [x] Receipt: on screen + share. Printing is P3-T10.
 
 ### P3-T04 · Expenses on the road · S
 - [ ] Fuel, tolls, ice… with a photo of the receipt; status "waiting for approval"; paid from the cash box.

@@ -123,3 +123,12 @@ class CustomerFilterSerializer(serializers.Serializer[Any]):
         choices=[("active", "active"), ("archived", "archived"), ("all", "all")], required=False, default="active"
     )
     kind = serializers.ChoiceField(choices=CustomerKind.choices, required=False)
+
+
+class CustomerChoiceSerializer(serializers.Serializer[Any]):
+    """The little a driver needs to pick a customer."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    city = serializers.CharField(read_only=True)
+    is_walk_in = serializers.BooleanField(read_only=True)

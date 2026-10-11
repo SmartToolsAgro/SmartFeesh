@@ -248,6 +248,15 @@ class TransferFilterSerializer(serializers.Serializer[Any]):
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
 
 
+class MyStockLineSerializer(serializers.Serializer[Any]):
+    """What the driver's truck holds of one product, with today's price per kg."""
+
+    product_id = serializers.IntegerField(read_only=True)
+    product_name = serializers.CharField(read_only=True)
+    quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    unit_price = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True, allow_null=True)
+
+
 class TruckDayFilterSerializer(serializers.Serializer[Any]):
     location = serializers.IntegerField(min_value=1)
     date = serializers.DateField()

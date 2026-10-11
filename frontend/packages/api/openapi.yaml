@@ -2990,6 +2990,67 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/my-customers:
+    get:
+      operationId: listMyCustomers
+      description: |-
+        Active customers for a driver to sell to (name and city only), the walk-in customer last. Filter
+        with `search`. At most 30 rows.
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - restaurant
+          - hotel
+          - fish_shop
+          - supermarket
+          - wholesaler
+          - caterer
+          - individual
+          type: string
+          minLength: 1
+        description: |-
+          * `restaurant` - Restaurant
+          * `hotel` - Hôtel
+          * `fish_shop` - Poissonnerie
+          * `supermarket` - Supermarché
+          * `wholesaler` - Grossiste
+          * `caterer` - Traiteur
+          * `individual` - Particulier
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - my-customers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerChoice'
+          description: ''
   /api/v1/my-day:
     get:
       operationId: getMyDay
@@ -3032,6 +3093,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DriverDay'
+          description: ''
+  /api/v1/my-stock:
+    get:
+      operationId: listMyStock
+      description: What the driver's truck holds now per product, with today's price
+        per kg. 404 without a truck.
+      tags:
+      - my-stock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyStockLine'
           description: ''
   /api/v1/my-truck-choices:
     get:
@@ -7381,6 +7460,27 @@ components:
       - open_sales
       - open_total
       - overdue
+    CustomerChoice:
+      type: object
+      description: The little a driver needs to pick a customer.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        is_walk_in:
+          type: boolean
+          readOnly: true
+      required:
+      - city
+      - id
+      - is_walk_in
+      - name
     CustomerContact:
       type: object
       properties:
@@ -10654,6 +10754,33 @@ components:
       - batch_id
       - batch_number
       - quantity
+    MyStockLine:
+      type: object
+      description: What the driver's truck holds of one product, with today's price
+        per kg.
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - product_id
+      - product_name
+      - quantity
+      - unit_price
     OpenSale:
       type: object
       description: A confirmed sale with something left to collect.

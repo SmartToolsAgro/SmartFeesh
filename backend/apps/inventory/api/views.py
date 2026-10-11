@@ -37,6 +37,7 @@ from .serializers import (
     LossRejectSerializer,
     LossSerializer,
     LossWriteSerializer,
+    MyStockLineSerializer,
     ProductStockDetailSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
@@ -343,6 +344,32 @@ class MyTruckDayView(APIView):
         return Response(
             TruckDaySerializer({"location": truck.location, "date": day, "lines": lines, "amount": total}).data
         )
+
+
+class MyStockView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="listMyStock", responses=MyStockLineSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """What the driver's truck holds now per product, with today's price per kg. 404 without a truck."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise Http404
+        now = timezone.now()
+        rows = []
+        for row in selectors.location_stock(membership.organization, location_id=truck.location_id):
+            price = catalog.price_in_force(catalog.product_of(membership.organization, row["product_id"]), now)
+            rows.append(
+                {
+                    "product_id": row["product_id"],
+                    "product_name": row["product__name"],
+                    "quantity": row["quantity"],
+                    "unit_price": None if price is None else price.price,
+                }
+            )
+        return Response(MyStockLineSerializer(rows, many=True).data)
 
 
 # ---- Losses and stock counts (P1-T10) ----
