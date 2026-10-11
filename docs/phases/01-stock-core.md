@@ -98,9 +98,9 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
       (`listBatches?product=&supplier=`; a screen comes with the stock screens, P1-T11).
 
 ### P1-T08 · Supplier invoices and payments · M
-- [ ] `SupplierInvoice` linked to receipts; due date; status (draft, posted, partly paid, paid).
-- [ ] `SupplierPayment` with allocation to invoices. Supplier balance = invoices − payments.
-- [ ] Nothing here touches investments or profit shares (separate balances, Phase 6).
+- [x] `SupplierInvoice` linked to receipts; due date; status (draft, posted, partly paid, paid).
+- [x] `SupplierPayment` with allocation to invoices. Supplier balance = invoices − payments.
+- [x] Nothing here touches investments or profit shares (separate balances, Phase 6).
 
 ### P1-T09 · Transfers between locations · S
 - [ ] Transfer document (morning load, evening return, cold room → cold room) with lines → transfer

@@ -48,9 +48,9 @@ backend/
     catalog/              products, categories, units and conversions
     partners/             suppliers, customers, contacts
     inventory/            locations (cold room, trucks), batches, movement ledger, stock counts
-    purchasing/           purchase orders, goods receipts, supplier invoices
+    purchasing/           purchase orders, goods receipts, supplier invoices and payments (D-043)
     sales/                quotes, sales, invoices, credit notes, price lists
-    payments/             customer receipts, supplier payments, allocations
+    payments/             customer receipts and their allocations
     fleet/                trucks, driver days, day closings, cash reconciliation
     expenses/             expense categories, expenses, approvals
     hr/                   employees, salary records, salary payments

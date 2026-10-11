@@ -106,6 +106,15 @@ export function ReceiptDetailPage() {
             {data.supplier_reference || none}
           </Detail>
           <Detail label={t("admin.receipts.detail.createdBy")}>{data.created_by || none}</Detail>
+          <Detail label={t("admin.receipts.detail.invoice")} numeric>
+            {data.invoice ? (
+              <Link to={`/achats/factures/${data.invoice.id}`} className="font-semibold text-sea hover:underline">
+                {data.invoice.number}
+              </Link>
+            ) : (
+              t("admin.receipts.detail.notInvoiced")
+            )}
+          </Detail>
           {data.notes && (
             <div className="col-span-full">
               <Detail label={t("admin.receipts.detail.notes")}>

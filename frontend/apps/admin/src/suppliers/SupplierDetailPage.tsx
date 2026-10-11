@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { SupplierBalanceCard } from "../purchasing/SupplierBalanceCard";
 import { canEditSuppliers, refreshSuppliers } from "./shared";
 import { SupplierDialog } from "./SupplierDialog";
 
@@ -132,10 +133,7 @@ export function SupplierDetailPage() {
           )}
         </Card>
 
-        <Card className="col-span-full">
-          <CardTitle>{t("admin.suppliers.detail.later")}</CardTitle>
-          <p className="text-ink-2">{t("admin.suppliers.detail.laterBody")}</p>
-        </Card>
+        <SupplierBalanceCard supplierId={data.id} canRecord={canEdit} />
       </div>
 
       <Dialog open={editing} onOpenChange={setEditing}>

@@ -7,6 +7,7 @@ import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
+import { PurchasingTabs } from "../purchasing/PurchasingTabs";
 import { canRecordReceipts } from "./shared";
 
 const PAGE_SIZE = 50;
@@ -40,6 +41,8 @@ export function ReceiptsPage() {
           </Button>
         )}
       </PageHeader>
+
+      <PurchasingTabs />
 
       {!canRecord && <p className="text-ink-2">{t("admin.receipts.readOnly")}</p>}
 

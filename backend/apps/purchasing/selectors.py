@@ -1,13 +1,37 @@
 """Reusable read queries of purchases."""
 
 import datetime as dt
+from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any, Literal
 
-from django.db.models import Exists, F, OuterRef, Prefetch, Q, QuerySet
+from django.db.models import (
+    DecimalField,
+    Exists,
+    ExpressionWrapper,
+    F,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    Subquery,
+    Sum,
+    Value,
+)
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from apps.core.models import Organization
 
-from .models import GoodsReceipt, GoodsReceiptLine
+from .models import (
+    GoodsReceipt,
+    GoodsReceiptLine,
+    SupplierInvoice,
+    SupplierInvoiceReceipt,
+    SupplierInvoiceStatus,
+    SupplierPayment,
+    SupplierPaymentAllocation,
+)
 
 # A line differs when the accepted weight is not the invoiced one, or not the ordered one when there was an order.
 DIFFERENT = ~Q(accepted_quantity=F("invoiced_quantity")) | (
@@ -21,15 +45,18 @@ def receipts_of(
     supplier_id: int | None = None,
     search: str = "",
     with_differences: bool = False,
+    uninvoiced: bool = False,
 ) -> QuerySet[GoodsReceipt]:
-    """Receipts newest first, with supplier, location and lines (product and batch), and `has_differences`.
+    """Receipts newest first, with supplier, location, lines (product and batch), their invoice if any,
+    and `has_differences`.
 
-    `search` matches the receipt number, the supplier's reference and the supplier's name.
+    `search` matches the receipt number, the supplier's reference and the supplier's name. `uninvoiced`
+    keeps the receipts not on any supplier invoice yet, draft or posted.
     """
     lines = GoodsReceiptLine.objects.select_related("product", "batch").order_by("id")
     receipts = (
         GoodsReceipt.objects.for_organization(organization)
-        .select_related("supplier", "location", "created_by")
+        .select_related("supplier", "location", "created_by", "invoice_link__invoice")
         .prefetch_related(Prefetch("lines", queryset=lines))
         .annotate(has_differences=Exists(GoodsReceiptLine.objects.filter(DIFFERENT, receipt=OuterRef("pk"))))
         .order_by("-received_on", "-id")
@@ -42,6 +69,8 @@ def receipts_of(
         )
     if with_differences:
         receipts = receipts.filter(has_differences=True)
+    if uninvoiced:
+        receipts = receipts.filter(invoice_link__isnull=True)
     return receipts
 
 
@@ -79,3 +108,168 @@ def receipt_totals(receipt: GoodsReceipt) -> tuple[Decimal, Decimal]:
     invoiced = sum((line.invoiced_amount for line in lines), Decimal("0.000"))
     accepted = sum((line.accepted_amount for line in lines), Decimal("0.000"))
     return invoiced, accepted
+
+
+# ---- Supplier invoices, payments and balances (P1-T08, D-043) ----
+
+ZERO = Decimal("0.000")
+AMOUNT = DecimalField(max_digits=14, decimal_places=3)
+# Posted and not fully paid: what is still owed on invoices.
+OPEN_STATUSES = (SupplierInvoiceStatus.POSTED, SupplierInvoiceStatus.PARTLY_PAID)
+
+type InvoiceStatusFilter = Literal["draft", "posted", "partly_paid", "paid", "open"]
+
+
+def _sum_of_allocations(**match: Any) -> Coalesce:
+    """The sum of the allocations matching `match` (an OuterRef), as a subquery: no join, no duplicate rows."""
+    group = next(iter(match))
+    allocations = (
+        SupplierPaymentAllocation.objects.filter(**match)
+        .order_by()
+        .values(group)
+        .annotate(total=Sum("amount"))
+        .values("total")
+    )
+    return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
+
+
+def invoices_of(
+    organization: Organization,
+    *,
+    supplier_id: int | None = None,
+    status: InvoiceStatusFilter | None = None,
+    search: str = "",
+    overdue: bool = False,
+) -> QuerySet[SupplierInvoice]:
+    """Supplier invoices newest first, with their receipts and allocations, `paid_amount` and `outstanding`.
+
+    `status="open"` keeps the posted invoices not fully paid; `overdue` keeps those whose due date has
+    passed. `search` matches our number, the supplier's invoice number and the supplier's name.
+    """
+    links = SupplierInvoiceReceipt.objects.select_related("receipt").order_by("receipt__received_on", "receipt_id")
+    allocations = SupplierPaymentAllocation.objects.select_related("payment").order_by("payment__paid_on", "id")
+    invoices = (
+        SupplierInvoice.objects.for_organization(organization)
+        .select_related("supplier", "created_by", "posted_by")
+        .prefetch_related(Prefetch("receipt_links", queryset=links))
+        .prefetch_related(Prefetch("allocations", queryset=allocations))
+        .annotate(paid_amount=_sum_of_allocations(invoice=OuterRef("pk")))
+        .annotate(outstanding=ExpressionWrapper(F("total") - F("paid_amount"), output_field=AMOUNT))
+        .order_by("-invoice_date", "-id")
+    )
+    if supplier_id is not None:
+        invoices = invoices.filter(supplier_id=supplier_id)
+    if status == "open":
+        invoices = invoices.filter(status__in=OPEN_STATUSES)
+    elif status is not None:
+        invoices = invoices.filter(status=status)
+    if overdue:
+        invoices = invoices.filter(status__in=OPEN_STATUSES, due_date__lt=timezone.localdate())
+    if search := search.strip():
+        invoices = invoices.filter(
+            Q(number__icontains=search) | Q(supplier_reference__icontains=search) | Q(supplier__name__icontains=search)
+        )
+    return invoices
+
+
+def invoice_of(organization: Organization, invoice_id: int) -> SupplierInvoice:
+    """One invoice with its receipts and payments. Raises SupplierInvoice.DoesNotExist outside the organization."""
+    return invoices_of(organization).get(pk=invoice_id)
+
+
+def open_invoices_of(organization: Organization, *, supplier_id: int) -> QuerySet[SupplierInvoice]:
+    """A supplier's posted invoices still to pay, the oldest due date first: the order a payment settles them."""
+    return invoices_of(organization, supplier_id=supplier_id, status="open").order_by("due_date", "invoice_date", "id")
+
+
+def payments_of(
+    organization: Organization, *, supplier_id: int | None = None, search: str = "", unallocated: bool = False
+) -> QuerySet[SupplierPayment]:
+    """Supplier payments newest first, with their allocations, `allocated_amount` and `unallocated_amount`.
+
+    `unallocated` keeps the payments with a part not allocated to an invoice yet (advances).
+    `search` matches our number, the cheque or transfer reference and the supplier's name.
+    """
+    allocations = SupplierPaymentAllocation.objects.select_related("invoice").order_by("id")
+    payments = (
+        SupplierPayment.objects.for_organization(organization)
+        .select_related("supplier", "created_by")
+        .prefetch_related(Prefetch("allocations", queryset=allocations))
+        .annotate(allocated_amount=_sum_of_allocations(payment=OuterRef("pk")))
+        .annotate(unallocated_amount=ExpressionWrapper(F("amount") - F("allocated_amount"), output_field=AMOUNT))
+        .order_by("-paid_on", "-id")
+    )
+    if supplier_id is not None:
+        payments = payments.filter(supplier_id=supplier_id)
+    if unallocated:
+        payments = payments.filter(unallocated_amount__gt=0)
+    if search := search.strip():
+        payments = payments.filter(
+            Q(number__icontains=search) | Q(reference__icontains=search) | Q(supplier__name__icontains=search)
+        )
+    return payments
+
+
+def payment_of(organization: Organization, payment_id: int) -> SupplierPayment:
+    """One payment with its allocations. Raises SupplierPayment.DoesNotExist outside the organization."""
+    return payments_of(organization).get(pk=payment_id)
+
+
+@dataclass(frozen=True)
+class SupplierBalance:
+    """What the company owes one supplier for goods: the trade payable only (D-040, D-043).
+
+    `balance` = posted invoices − payments. Negative, the supplier holds an advance. A partner's capital
+    and profit share are other balances (Phase 6) and never appear here.
+    """
+
+    supplier_id: int
+    invoiced: Decimal  # posted invoices, paid or not
+    paid: Decimal  # every payment, allocated or not
+    balance: Decimal
+    outstanding: Decimal  # still to pay on posted invoices
+    unallocated: Decimal  # paid but not allocated to an invoice yet (advances)
+    overdue: Decimal  # still to pay on invoices past their due date
+    open_invoices: int
+    overdue_invoices: int
+    draft_invoices: int
+    draft_total: Decimal
+    uninvoiced_receipts: int  # received but on no invoice yet: not owed until invoiced
+    uninvoiced_total: Decimal
+
+
+def _total(queryset: QuerySet[Any], field: str) -> Decimal:
+    value = queryset.aggregate(total=Sum(field))["total"]
+    return value if value is not None else ZERO
+
+
+def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBalance:
+    """The trade balance of one supplier of the organization (an unknown supplier simply has zeros)."""
+    invoices = SupplierInvoice.objects.for_organization(organization).filter(supplier_id=supplier_id)
+    posted = invoices.exclude(status=SupplierInvoiceStatus.DRAFT)
+    drafts = invoices.filter(status=SupplierInvoiceStatus.DRAFT)
+    payments = SupplierPayment.objects.for_organization(organization).filter(supplier_id=supplier_id)
+    allocations = SupplierPaymentAllocation.objects.for_organization(organization).filter(
+        payment__supplier_id=supplier_id
+    )
+    open_invoices = list(invoices_of(organization, supplier_id=supplier_id, status="open"))
+    today = timezone.localdate()
+    late = [invoice for invoice in open_invoices if invoice.due_date < today]
+    uninvoiced = list(receipts_of(organization, supplier_id=supplier_id, uninvoiced=True))
+    invoiced = _total(posted, "total")
+    paid = _total(payments, "amount")
+    return SupplierBalance(
+        supplier_id=supplier_id,
+        invoiced=invoiced,
+        paid=paid,
+        balance=invoiced - paid,
+        outstanding=sum((getattr(invoice, "outstanding") for invoice in open_invoices), ZERO),  # noqa: B009
+        unallocated=paid - _total(allocations, "amount"),
+        overdue=sum((getattr(invoice, "outstanding") for invoice in late), ZERO),  # noqa: B009
+        open_invoices=len(open_invoices),
+        overdue_invoices=len(late),
+        draft_invoices=drafts.count(),
+        draft_total=_total(drafts, "total"),
+        uninvoiced_receipts=len(uninvoiced),
+        uninvoiced_total=sum((receipt_totals(receipt)[0] for receipt in uninvoiced), ZERO),
+    )

@@ -12,6 +12,7 @@ from apps.demo.customers import seed_customers
 from apps.demo.locations import seed_locations
 from apps.demo.receipts import seed_receipts
 from apps.demo.stock import seed_stock
+from apps.demo.supplier_invoices import seed_supplier_invoices
 from apps.demo.suppliers import seed_suppliers
 
 ORGANIZATION_NAME = "Frutti Del Mare"
@@ -68,6 +69,7 @@ class Command(BaseCommand):
         batches = seed_batches(organization=organization, actor=owner)
         movements = seed_stock(organization=organization, actor=owner)
         receipts = seed_receipts(organization=organization, actor=owner)
+        invoices = seed_supplier_invoices(organization=organization, actor=owner)
         customers = seed_customers(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
@@ -77,6 +79,6 @@ class Command(BaseCommand):
                 f"{ORGANIZATION_NAME}: logins {logins}, password {shown}, "
                 f"{products} new products, {suppliers} new suppliers, {locations} new cold rooms and trucks, "
                 f"{batches} new batches, {movements} new stock movements, {receipts} new goods receipts, "
-                f"{customers} new customers"
+                f"{invoices} new supplier invoices, {customers} new customers"
             )
         )
