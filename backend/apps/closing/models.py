@@ -16,6 +16,21 @@ class LotResultStatus(models.TextChoices):
     REOPENED = "reopened", _("Rouvert")
 
 
+class LotOutcome(models.TextChoices):
+    """What a net result is (engine.outcome_of): it decides which of the partner's two rates applies."""
+
+    PROFIT = "profit", _("Bénéfice")
+    ZERO = "zero", _("Nul")
+    LOSS = "loss", _("Perte")
+
+
+class LotState(models.TextChoices):
+    """Where a lot stands for its result: still open (live result) or closed (frozen result)."""
+
+    OPEN = "open", _("En cours")
+    CLOSED = "closed", _("Clôturé")
+
+
 class LotResultQuerySet(OrganizationScopedQuerySet["LotResult"]):
     def update(self, **kwargs: Any) -> int:
         raise TypeError("A lot result is frozen: reopen the lot (with a reason) and close it again")

@@ -5,7 +5,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.closing.models import LotResultStatus
+from apps.closing.models import LotOutcome, LotResultStatus, LotState
 
 
 def _money(**kwargs: Any) -> serializers.DecimalField:
@@ -110,7 +110,7 @@ class ComputedResultSerializer(serializers.Serializer[Any]):
     spoilage = _money()
     costs_total = _money()
     net_result = _money()
-    outcome = serializers.ChoiceField(choices=["profit", "zero", "loss"], read_only=True)
+    outcome = serializers.ChoiceField(choices=LotOutcome.choices, read_only=True)
     owner_share = _money()
     purchase_cost = _money()
     stock_value = _money()
@@ -146,7 +146,7 @@ class LotClosingSerializer(serializers.Serializer[Any]):
 class LotResultViewSerializer(serializers.Serializer[Any]):
     batch_id = serializers.IntegerField(read_only=True)
     # "open": the result so far, live. "closed": the frozen result of the closing.
-    state = serializers.ChoiceField(choices=["open", "closed"], read_only=True)
+    state = serializers.ChoiceField(choices=LotState.choices, read_only=True)
     result = ComputedResultSerializer(read_only=True)
     # Open lot: what a closing needs now. Closed lot: the checks as they were at the closing.
     checks = ClosingCheckSerializer(many=True, read_only=True)

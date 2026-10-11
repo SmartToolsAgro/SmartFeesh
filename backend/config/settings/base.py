@@ -155,5 +155,7 @@ SPECTACULAR_SETTINGS = {
         "PartnershipStatusEnum": "apps.partnerships.models.PartnershipStatus",
         "CapitalEntryKindEnum": "apps.partnerships.models.CapitalEntryKind",
         "LotResultStatusEnum": "apps.closing.models.LotResultStatus",
+        "LotOutcomeEnum": "apps.closing.models.LotOutcome",
+        "LotStateEnum": "apps.closing.models.LotState",
     },
 }

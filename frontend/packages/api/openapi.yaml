@@ -1863,6 +1863,99 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/lots/{batch_id}/close:
+    post:
+      operationId: closeLot
+      description: |-
+        Close the lot and freeze its result (owner only): its stock must be 0 (sold or written off),
+        its costs approved, and `costs_confirmed` given. A partner's loss share is taken from their capital.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseLot'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CloseLot'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CloseLot'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotResultView'
+          description: ''
+  /api/v1/lots/{batch_id}/reopen:
+    post:
+      operationId: reopenLot
+      description: Reopen a closed lot (owner only, reason required, audited). The
+        frozen result stays as history.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReopenLot'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReopenLot'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReopenLot'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotResultView'
+          description: ''
+  /api/v1/lots/{batch_id}/result:
+    get:
+      operationId: getLotResult
+      description: |-
+        The result of one lot with every step: revenue, purchase cost of the kg sold, kg written off,
+        each kind of cost, net result, and on a partnership lot the partner's share, the loss share taken
+        from their capital and the capital to give back. Live ("so far") on an open lot, frozen on a
+        closed one, with what closing the lot needs.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotResultView'
+          description: ''
   /api/v1/me:
     get:
       operationId: getSession
@@ -1920,6 +2013,183 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/partnerships:
+    get:
+      operationId: listPartnerships
+      description: |-
+        Partnership lots, newest first, paginated (`limit`, `offset`), each with the partner's capital
+        now. Cancelled ones only when asked for by `status`. Filter by partner, lot, or `search`.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: partner
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+      - in: query
+        name: status
+        schema:
+          enum:
+          - open
+          - closed
+          - settled
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `open` - En cours
+          * `closed` - Clôturé
+          * `settled` - Réglé
+          * `cancelled` - Annulé
+      tags:
+      - partnerships
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLotPartnershipList'
+          description: ''
+    post:
+      operationId: createPartnership
+      description: |-
+        Put a lot in partnership with one supplier (owner only): at receipt or on an open lot before its
+        first sale. One partner per lot; the partner's capital opens their capital ledger in this lot.
+      tags:
+      - partnerships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
+          description: ''
+  /api/v1/partnerships/{partnership_id}:
+    get:
+      operationId: getPartnership
+      description: One partnership with the partner's capital ledger in this lot.
+      parameters:
+      - in: path
+        name: partnership_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partnerships
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
+          description: ''
+    patch:
+      operationId: updatePartnership
+      description: |-
+        Change the terms (owner only) while the partnership is open and the lot not sold yet. A changed
+        partner capital posts a correction on the ledger.
+      parameters:
+      - in: path
+        name: partnership_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partnerships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLotPartnershipUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLotPartnershipUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLotPartnershipUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
+          description: ''
+  /api/v1/partnerships/{partnership_id}/cancel:
+    post:
+      operationId: cancelPartnership
+      description: |-
+        Cancel a partnership set by mistake, before the lot's first sale (owner only, reason required).
+        The capital still in goes back to the partner.
+      parameters:
+      - in: path
+        name: partnership_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partnerships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipCancel'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipCancel'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipCancel'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
           description: ''
   /api/v1/payroll-summary:
     get:
@@ -4770,6 +5040,62 @@ components:
     BlankEnum:
       enum:
       - ''
+    CapitalEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/CapitalEntryKindEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        entry_date:
+          type: string
+          format: date
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        lot_result_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by_name
+      - entry_date
+      - id
+      - kind
+      - lot_result_id
+      - note
+    CapitalEntryKindEnum:
+      enum:
+      - contribution
+      - correction
+      - loss_deduction
+      - loss_reversal
+      - return
+      type: string
+      description: |-
+        * `contribution` - Apport
+        * `correction` - Correction de l'apport
+        * `loss_deduction` - Part de perte déduite
+        * `loss_reversal` - Annulation de la déduction
+        * `return` - Remboursement
     Category:
       type: object
       properties:
@@ -4794,6 +5120,151 @@ components:
       required:
       - id
       - name
+    CloseLot:
+      type: object
+      properties:
+        costs_confirmed:
+          type: boolean
+          default: false
+    ClosingCheck:
+      type: object
+      properties:
+        code:
+          type: string
+          readOnly: true
+        ok:
+          type: boolean
+          readOnly: true
+        blocking:
+          type: boolean
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        count:
+          type: integer
+          readOnly: true
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - blocking
+      - code
+      - count
+      - ok
+      - quantity
+    ComputedResult:
+      type: object
+      properties:
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/ResultBatch'
+          readOnly: true
+        quantity_sold:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        quantity_written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cogs:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        spoilage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        costs_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/LotOutcomeEnum'
+          readOnly: true
+        owner_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        stock_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultSale'
+          readOnly: true
+        stock_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultStockRow'
+          readOnly: true
+        cost_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultCostGroup'
+          readOnly: true
+        partner:
+          allOf:
+          - $ref: '#/components/schemas/ResultPartner'
+          readOnly: true
+          nullable: true
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultStep'
+          readOnly: true
+      required:
+      - batch
+      - cogs
+      - cost_groups
+      - costs_total
+      - net_result
+      - outcome
+      - owner_share
+      - partner
+      - purchase_cost
+      - quantity_sold
+      - quantity_written_off
+      - revenue
+      - sales
+      - spoilage
+      - steps
+      - stock_rows
+      - stock_value
     Count:
       type: object
       properties:
@@ -6348,6 +6819,52 @@ components:
       - product
       - quantity
       - reason
+    LotClosing:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LotResultStatusEnum'
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        closed_by_name:
+          type: string
+          readOnly: true
+        payments_unverified:
+          type: boolean
+          readOnly: true
+        reopened_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reopened_by_name:
+          type: string
+          readOnly: true
+        reopen_reason:
+          type: string
+          readOnly: true
+      required:
+      - closed_at
+      - closed_by_name
+      - id
+      - net_result
+      - payments_unverified
+      - reopen_reason
+      - reopened_at
+      - reopened_by_name
+      - status
     LotCostKindEnum:
       enum:
       - lot
@@ -6445,6 +6962,276 @@ components:
       - batch_id
       - lines
       - total
+    LotOutcomeEnum:
+      enum:
+      - profit
+      - zero
+      - loss
+      type: string
+      description: |-
+        * `profit` - Bénéfice
+        * `zero` - Nul
+        * `loss` - Perte
+    LotPartnership:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/PartnershipBatch'
+          readOnly: true
+        partner:
+          allOf:
+          - $ref: '#/components/schemas/PartnershipPartner'
+          readOnly: true
+        owner_capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        partner_capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        profit_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        loss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PartnershipStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancel_reason:
+          type: string
+          readOnly: true
+      required:
+      - batch
+      - cancel_reason
+      - cancelled_at
+      - capital
+      - created_at
+      - created_by_name
+      - id
+      - loss_rate
+      - notes
+      - owner_capital
+      - partner
+      - partner_capital
+      - profit_rate
+      - status
+    LotPartnershipCancel:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+      required:
+      - reason
+    LotPartnershipDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/PartnershipBatch'
+          readOnly: true
+        partner:
+          allOf:
+          - $ref: '#/components/schemas/PartnershipPartner'
+          readOnly: true
+        owner_capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        partner_capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        profit_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        loss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PartnershipStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancel_reason:
+          type: string
+          readOnly: true
+        capital_entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/CapitalEntry'
+          readOnly: true
+        has_sold:
+          type: boolean
+          readOnly: true
+      required:
+      - batch
+      - cancel_reason
+      - cancelled_at
+      - capital
+      - capital_entries
+      - created_at
+      - created_by_name
+      - has_sold
+      - id
+      - loss_rate
+      - notes
+      - owner_capital
+      - partner
+      - partner_capital
+      - profit_rate
+      - status
+    LotPartnershipWrite:
+      type: object
+      properties:
+        batch:
+          type: integer
+          minimum: 1
+        partner:
+          type: integer
+          minimum: 1
+        owner_capital:
+          type: string
+        partner_capital:
+          type: string
+        profit_rate:
+          type: string
+        loss_rate:
+          type: string
+        notes:
+          type: string
+          default: ''
+      required:
+      - batch
+      - loss_rate
+      - owner_capital
+      - partner
+      - partner_capital
+      - profit_rate
+    LotResultStatusEnum:
+      enum:
+      - closed
+      - reopened
+      type: string
+      description: |-
+        * `closed` - Clôturé
+        * `reopened` - Rouvert
+    LotResultView:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/LotStateEnum'
+          readOnly: true
+        result:
+          allOf:
+          - $ref: '#/components/schemas/ComputedResult'
+          readOnly: true
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClosingCheck'
+          readOnly: true
+        can_close:
+          type: boolean
+          readOnly: true
+        closing:
+          allOf:
+          - $ref: '#/components/schemas/LotClosing'
+          readOnly: true
+          nullable: true
+        live_net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/LotClosing'
+          readOnly: true
+      required:
+      - batch_id
+      - can_close
+      - checks
+      - closing
+      - history
+      - live_net_result
+      - result
+      - state
+    LotStateEnum:
+      enum:
+      - open
+      - closed
+      type: string
+      description: |-
+        * `open` - En cours
+        * `closed` - Clôturé
     LotWorkDay:
       type: object
       properties:
@@ -6695,6 +7482,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Loss'
+    PaginatedLotPartnershipList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LotPartnership'
     PaginatedQuoteList:
       type: object
       required:
@@ -6856,6 +7666,61 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transfer'
+    PartnershipBatch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - number
+      - product_name
+      - received_on
+      - unit_cost
+    PartnershipPartner:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
+    PartnershipStatusEnum:
+      enum:
+      - open
+      - closed
+      - settled
+      - cancelled
+      type: string
+      description: |-
+        * `open` - En cours
+        * `closed` - Clôturé
+        * `settled` - Réglé
+        * `cancelled` - Annulé
     PatchedCategory:
       type: object
       properties:
@@ -6976,6 +7841,22 @@ components:
       properties:
         language:
           $ref: '#/components/schemas/LanguageEnum'
+    PatchedLotPartnershipUpdate:
+      type: object
+      properties:
+        partner:
+          type: integer
+          minimum: 1
+        owner_capital:
+          type: string
+        partner_capital:
+          type: string
+        profit_rate:
+          type: string
+        loss_rate:
+          type: string
+        notes:
+          type: string
     PatchedProductUpdate:
       type: object
       properties:
@@ -8509,6 +9390,323 @@ components:
       - id
       - name
       - reference
+    ReopenLot:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+      required:
+      - reason
+    ResultBatch:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        received_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        returned_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        on_hand_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - on_hand_quantity
+      - product_name
+      - received_on
+      - received_quantity
+      - returned_quantity
+      - supplier_name
+      - unit_cost
+    ResultCostGroup:
+      type: object
+      properties:
+        kind:
+          type: string
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultCostLine'
+          readOnly: true
+      required:
+      - kind
+      - lines
+      - total
+    ResultCostLine:
+      type: object
+      properties:
+        kind:
+          type: string
+          readOnly: true
+        'on':
+          type: string
+          format: date
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        source_type:
+          type: string
+          readOnly: true
+        source_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        reference:
+          type: string
+          readOnly: true
+        detail:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - description
+      - detail
+      - kind
+      - 'on'
+      - reference
+      - source_id
+      - source_type
+      - title
+    ResultPartner:
+      type: object
+      properties:
+        partnership_id:
+          type: integer
+          readOnly: true
+        partner_id:
+          type: integer
+          readOnly: true
+        partner_name:
+          type: string
+          readOnly: true
+        owner_capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        partner_capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        profit_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        loss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital_deducted:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        uncovered_loss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital_to_return:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payable_to_partner:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - capital_deducted
+      - capital_to_return
+      - loss_rate
+      - owner_capital
+      - partner_capital
+      - partner_id
+      - partner_name
+      - partnership_id
+      - payable_to_partner
+      - profit_rate
+      - rate
+      - share
+      - uncovered_loss
+    ResultSale:
+      type: object
+      properties:
+        sale_id:
+          type: integer
+          readOnly: true
+        sale_number:
+          type: string
+          readOnly: true
+        sold_on:
+          type: string
+          format: date
+          readOnly: true
+        customer:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_due:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount_due
+      - cost
+      - customer
+      - quantity
+      - revenue
+      - sale_id
+      - sale_number
+      - sold_on
+      - unit_price
+    ResultStep:
+      type: object
+      properties:
+        code:
+          type: string
+          readOnly: true
+        sign:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          type: string
+          readOnly: true
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - code
+      - kind
+      - rate
+      - sign
+    ResultStockRow:
+      type: object
+      properties:
+        movement_id:
+          type: integer
+          readOnly: true
+        kind:
+          type: string
+          readOnly: true
+        occurred_on:
+          type: string
+          format: date
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - kind
+      - movement_id
+      - occurred_on
+      - quantity
+      - reason
+      - unit_cost
+      - value
     RoleEnum:
       enum:
       - owner
