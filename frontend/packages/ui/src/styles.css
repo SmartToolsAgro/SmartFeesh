@@ -154,6 +154,12 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
+  /* A table's filter bar stays under the top bar (62px) while the page scrolls. */
+  .filter-bar {
+    position: sticky;
+    top: 62px;
+    z-index: 10;
+  }
   .eyebrow {
     font-size: 0.72rem;
     letter-spacing: 0.09em;

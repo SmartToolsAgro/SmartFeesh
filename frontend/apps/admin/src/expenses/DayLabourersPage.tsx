@@ -158,7 +158,7 @@ export function DayLabourersPage() {
       <ExpensesTabs />
       <p className="text-ink-2">{t("admin.labourers.intro")}</p>
 
-      <Card className="flex flex-wrap items-center gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <StatusFilter
           value={status}
           onChange={setStatus}

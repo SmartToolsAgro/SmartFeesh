@@ -211,7 +211,7 @@ export function ExpensesPage() {
 
       {!canWrite && <p className="text-ink-2">{t("admin.expenses.readOnly")}</p>}
 
-      <Card className="flex flex-wrap items-end gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-end gap-3 p-3">
         <Input
           type="search"
           aria-label={t("admin.expenses.search")}

@@ -234,7 +234,7 @@ export function ColdRoomCostPage() {
       <p className="text-ink-2">{t("admin.coldCost.intro")}</p>
       {!canWrite && <p className="text-[0.88rem] text-ink-2">{t("admin.coldCost.readOnly")}</p>}
 
-      <Card className="flex flex-wrap items-center gap-2 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-2 p-3">
         <span className="me-auto font-semibold">{t("admin.coldCost.monthNav")}</span>
         <Button
           variant="ghost"

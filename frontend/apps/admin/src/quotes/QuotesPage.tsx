@@ -61,7 +61,7 @@ export function QuotesPage() {
 
       {!canWrite && <p className="text-ink-2">{t("admin.quotes.readOnly")}</p>}
 
-      <Card className="flex flex-wrap items-center gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <Input
           type="search"
           aria-label={t("admin.quotes.search")}

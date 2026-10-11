@@ -1,6 +1,6 @@
 import { useTranslation } from "@frutti/i18n";
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 
 import { Button } from "../components/button";
 import { Pill } from "../components/pill";
@@ -28,6 +28,31 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
     .join("");
+}
+
+/** "Retour" above every page that is not a menu entry: the previous page, or the menu entry it belongs to. */
+function BackLink({ nav }: { nav: AdminNavGroup[] }) {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const entries = nav.flatMap((group) => group.items.map((item) => item.to));
+  if (entries.includes(pathname.replace(/\/+$/, "") || "/")) return null;
+  const parent = entries
+    .filter((to) => to !== "/" && pathname.startsWith(`${to}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  const goBack = () => {
+    const index = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (index > 0) void navigate(-1);
+    else void navigate(parent ?? "/");
+  };
+  return (
+    <Button variant="ghost" onClick={goBack} className="self-start print:hidden">
+      <span aria-hidden className="rtl:-scale-x-100">
+        ←
+      </span>
+      {t("common.back")}
+    </Button>
+  );
 }
 
 /** Back-office frame: sticky top bar, module sidebar (a scrolling strip on small screens), page area. */
@@ -90,6 +115,7 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
         </nav>
 
         <main className="flex min-w-0 flex-col gap-[22px] px-8 pt-7 pb-12 print:p-0 max-[860px]:px-4 max-[860px]:pt-5 max-[860px]:pb-10">
+          <BackLink nav={nav} />
           {children}
         </main>
       </div>

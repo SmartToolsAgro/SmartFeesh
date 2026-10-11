@@ -1106,3 +1106,8 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   three balances. The full P6-T07 screens (list of partnership lots by status, partner page) are not built.
 - Known gaps: no settlement PDF (P6-T04); a cancelled partnership with capital returned is not part of the
   balances beyond its ledger; the settlement uses today's date (no back-dating field).
+
+**D-070 · Back button, truck-of-day menu entry, sticky filter bars** · accepted · 2026-10-11
+- `AdminShell` shows a "Retour" button on every page that is not a menu entry (previous page, or the parent menu
+  entry when opened directly). "Camions du jour" (D-046) is its own menu entry `/camions`, no longer a section of
+  the Stock page. Filter bars of list pages use the `filter-bar` class: sticky under the 62px top bar.

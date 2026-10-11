@@ -297,7 +297,7 @@ export function DayLabourCalendarPage() {
       <ExpensesTabs />
       <p className="text-ink-2">{t("admin.dayLabour.intro")}</p>
 
-      <Card className="flex flex-wrap items-center gap-2 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-2 p-3">
         <Button onClick={() => setMonth(addMonths(month, -1))} aria-label={t("admin.dayLabour.previousMonth")}>
           ‹
         </Button>
