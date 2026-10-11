@@ -7,11 +7,13 @@ from decimal import Decimal
 from typing import Literal
 
 from django.db.models import Count, Q, QuerySet, Sum
+from django.utils import timezone
 
 from apps.core.models import Organization
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 
+from . import cost_selectors
 from .allocation import LoadedLot, TruckDayExpense, allocate_truck_day_costs
 from .models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory, ExpenseStatus
 
@@ -178,7 +180,7 @@ def truck_day_shares(organization: Organization, *, expenses: list[Expense]) -> 
 
 # ---- Costs of a lot (read by the lot result, Phase 6) ----
 
-type LotCostKind = Literal["lot", "truck_day"]
+type LotCostKind = Literal["lot", "truck_day", "cold_room", "cold_room_adjustment", "general"]
 
 
 @dataclass(frozen=True)
@@ -186,7 +188,8 @@ class LotCostLine:
     """One cost charged to a lot: an expense typed on it, or its share of a truck's day costs."""
 
     kind: LotCostKind
-    expense_id: int
+    # None for a cold-room estimate made before the month's bill exists.
+    expense_id: int | None
     expense_number: str
     status: str
     spent_on: dt.date
@@ -200,6 +203,12 @@ class LotCostLine:
     truck_name: str = ""
     quantity: Decimal | None = None
     day_quantity: Decimal | None = None
+    # Cold room and general costs: the room, the month charged, the kg-days (in `quantity`), and whether the
+    # amount is still an estimate (no bill for that month yet, or the estimate line that a later
+    # `cold_room_adjustment` line corrects).
+    location_name: str = ""
+    month: dt.date | None = None
+    estimated: bool = False
 
 
 def _label(expense: Expense) -> str:
@@ -211,8 +220,10 @@ def lot_cost_lines(organization: Organization, *, batch_id: int, approved_only: 
     its share of the truck costs of each day it was loaded on a truck (by kg loaded, D-041).
 
     Only approved expenses count; `approved_only=False` adds drafts and waiting ones (a preview for the
-    screens, each line says its status). Refused expenses never appear. Cold room, salaries and general
-    costs join in P5-T02, P5-T04 and P5-T05.
+    screens, each line says its status). Refused expenses never appear. The cold room (P5-T02, D-058) and the
+    general costs (P5-T05, D-059) are worked out from the stock ledger up to today: kinds `cold_room`
+    (estimated until the month's bill is approved), `cold_room_adjustment` (real minus estimate, dated when
+    the bill was typed: a closed lot is never reopened, D-041) and `general`. Salaries are `hr`'s.
     """
     statuses = [ExpenseStatus.APPROVED] if approved_only else [ExpenseStatus.APPROVED, *_OPEN]
     lines: list[LotCostLine] = [
@@ -273,7 +284,45 @@ def lot_cost_lines(organization: Organization, *, batch_id: int, approved_only: 
                         day_quantity=share.day_quantity,
                     )
                 )
-    return sorted(lines, key=lambda line: (line.spent_on, line.expense_id))
+    lines.extend(_computed_lines(organization, batch_id=batch_id))
+    return sorted(lines, key=lambda line: (line.spent_on, line.expense_id or 0, line.kind))
+
+
+def _computed_lines(organization: Organization, *, batch_id: int) -> list[LotCostLine]:
+    """The cold-room and general-cost lines of a lot, worked out from the ledger."""
+    today = timezone.localdate()
+    cold_storage = category_by_code_or_none(organization, "cold_storage")
+    computed = [
+        *cost_selectors.cold_room_lines(organization, batch_id=batch_id, today=today),
+        *cost_selectors.general_lines(organization, batch_id=batch_id, today=today),
+    ]
+    lines: list[LotCostLine] = []
+    for line in computed:
+        expense = line.expense
+        category = expense.category if expense is not None else cold_storage
+        lines.append(
+            LotCostLine(
+                kind=line.kind,  # type: ignore[arg-type]
+                expense_id=expense.pk if expense is not None else None,
+                expense_number=expense.number if expense is not None else "",
+                status=ExpenseStatus.APPROVED,
+                spent_on=line.spent_on,
+                category_code=category.code if category is not None else "",
+                category_name=category.name if category is not None else "",
+                description=line.description,
+                amount=line.amount,
+                expense_amount=line.expense_amount,
+                quantity=line.quantity,
+                location_name=line.location_name,
+                month=line.month,
+                estimated=line.estimated,
+            )
+        )
+    return lines
+
+
+def category_by_code_or_none(organization: Organization, code: str) -> ExpenseCategory | None:
+    return ExpenseCategory.objects.for_organization(organization).filter(code=code).first()
 
 
 def lot_cost_total(lines: list[LotCostLine]) -> Decimal:

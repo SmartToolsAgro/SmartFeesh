@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import cost_views, views
 
 urlpatterns = [
     # P5-T01 · expenses
@@ -22,4 +22,27 @@ urlpatterns = [
     path("day-labourers/<int:labourer_id>", views.DayLabourerDetailView.as_view(), name="day-labourer-detail"),
     path("day-labour", views.DayLabourListView.as_view(), name="day-labour-list"),
     path("day-labour/<int:entry_id>", views.DayLabourDetailView.as_view(), name="day-labour-detail"),
+    # P5-T02 · cold-room cost per day
+    path("cold-room-weights", cost_views.ColdRoomWeightListView.as_view(), name="cold-room-weight-list"),
+    path(
+        "cold-room-weights/<int:location_id>",
+        cost_views.ColdRoomWeightDetailView.as_view(),
+        name="cold-room-weight-detail",
+    ),
+    path("cold-room-costs", cost_views.ColdRoomMonthView.as_view(), name="cold-room-month"),
+    path("electricity-bills", cost_views.ElectricityBillListView.as_view(), name="electricity-bill-list"),
+    path(
+        "electricity-bills/<int:bill_id>", cost_views.ElectricityBillDetailView.as_view(), name="electricity-bill-detail"
+    ),
+    path(
+        "electricity-bills/<int:bill_id>/approve",
+        cost_views.ElectricityBillApproveView.as_view(),
+        name="electricity-bill-approve",
+    ),
+    # P5-T05 · general costs on lots
+    path("recurring-costs", cost_views.RecurringCostListView.as_view(), name="recurring-cost-list"),
+    path("recurring-costs/generate", cost_views.RecurringCostGenerateView.as_view(), name="recurring-cost-generate"),
+    path("recurring-costs/<int:cost_id>", cost_views.RecurringCostDetailView.as_view(), name="recurring-cost-detail"),
+    path("general-costs", cost_views.GeneralCostListView.as_view(), name="general-cost-list"),
+    path("general-costs/<int:period_id>", cost_views.GeneralCostDetailView.as_view(), name="general-cost-detail"),
 ]

@@ -304,6 +304,14 @@ def is_day_labour(expense: Expense) -> bool:
     return expense.category.code == DAY_LABOUR
 
 
+def _refuse_linked(expense: Expense, linked: bool) -> None:
+    """An electricity bill or a general cost (P5-T02, P5-T05) is changed through its own screen."""
+    from . import services_costing
+
+    if not linked and services_costing.is_linked(expense):
+        raise ValidationError(_("Cette dépense se modifie depuis les coûts de chambre froide ou les frais généraux."))
+
+
 @transaction.atomic
 def update_expense(
     *,
@@ -320,11 +328,13 @@ def update_expense(
     truck: "Truck | None" = None,
     approve: bool = False,
     for_day_labour: bool = False,
+    linked: bool = False,
 ) -> Expense:
     """Correct a draft or an expense waiting for approval (every field); with `approve`, approve it too."""
     expense = _locked_open(expense)
     if is_day_labour(expense) and not for_day_labour:
         raise ValidationError(_("Une journée de travail se modifie dans le calendrier des journaliers."))
+    _refuse_linked(expense, linked)
     before = _snapshot(expense)
     values = _checked_expense(
         expense.organization,
@@ -361,7 +371,9 @@ def update_expense(
 
 
 @transaction.atomic
-def delete_expense(*, expense: Expense, actor: User | None, for_day_labour: bool = False) -> None:
+def delete_expense(
+    *, expense: Expense, actor: User | None, for_day_labour: bool = False, linked: bool = False
+) -> None:
     """Delete a draft typed by mistake (its number is not reused). Anything sent for approval is refused
     instead, so its trace stays."""
     expense = _locked(expense)
@@ -369,6 +381,7 @@ def delete_expense(*, expense: Expense, actor: User | None, for_day_labour: bool
         raise ValidationError(_("Seul un brouillon se supprime : refusez plutôt cette dépense."))
     if is_day_labour(expense) and not for_day_labour:
         raise ValidationError(_("Une journée de travail se supprime dans le calendrier des journaliers."))
+    _refuse_linked(expense, linked)
     audit.record(
         organization=expense.organization,
         actor=actor,
@@ -400,6 +413,9 @@ def approve_expense(*, expense: Expense, actor: User | None) -> Expense:
         target=expense,
         after={"amount": str(expense.amount)},
     )
+    from . import services_costing
+
+    services_costing.after_expense_approved(expense=expense, actor=actor)
     return expense
 
 
