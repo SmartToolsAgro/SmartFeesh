@@ -8,4 +8,7 @@ class SalesConfig(AppConfig):
 
     def ready(self) -> None:
         # A new organization gets its first finance settings version (D-056).
-        from . import signals  # noqa: F401
+        from . import printing, signals  # noqa: F401
+
+        # The PDFs of quotes, invoices, credit notes and receipts (P2-T08).
+        printing.register_printables()

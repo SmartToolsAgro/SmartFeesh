@@ -1,0 +1,49 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% block heading %}Avoir{% endblock %}
+{% block subtitle %}
+  <p class="muted num">Émis le {{ note.issued_on|day }}</p>
+  <p class="muted small num">Sur la facture {{ invoice.number }} du {{ invoice.issued_on|day }}</p>
+{% endblock %}
+{% block body %}
+<div class="parties">
+  <div>
+    <h2>Client</h2>
+    <p><b>{{ invoice.customer_name }}</b></p>
+    {% if invoice.customer_address or invoice.customer_city %}<p>{{ invoice.customer_address }}{% if invoice.customer_address and invoice.customer_city %}, {% endif %}{{ invoice.customer_city }}</p>{% endif %}
+    {% if invoice.customer_tax_id %}<p class="small muted">M.F. {{ invoice.customer_tax_id }}</p>{% endif %}
+  </div>
+  <div>
+    <h2>Motif</h2>
+    <p>{{ note.reason }}</p>
+    <p class="muted small">{{ kind_label }}{% if stock_label %} · {{ stock_label }}{% endif %}</p>
+  </div>
+</div>
+
+<table class="lines">
+  <thead>
+    <tr><th>Désignation</th><th class="r">Qté rendue</th><th class="r">Taux</th><th class="r">Total HT</th><th class="r">TVA</th></tr>
+  </thead>
+  <tbody>
+    {% for line in lines %}
+    <tr>
+      <td>{{ line.invoice_line.product_name }}</td>
+      <td class="r num">{% if line.quantity %}{{ line.quantity|kilos }}{% else %}—{% endif %}</td>
+      <td class="r num">{{ line.vat_rate|percent }}</td>
+      <td class="r num">{{ line.amount_excl_tax|money }}</td>
+      <td class="r num">{{ line.vat_amount|money }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="totals num">
+  <div><span>Total HT</span><span>{{ note.total_excl_tax|money }}</span></div>
+  <div><span>TVA</span><span>{{ note.vat_total|money }}</span></div>
+  {% if note.fiscal_stamp %}<div><span>Timbre fiscal</span><span>{{ note.fiscal_stamp|money }}</span></div>{% endif %}
+  <div class="grand"><span>Total TTC</span><span>{{ note.total_incl_tax|money }} DT</span></div>
+  {% if note.withholding_amount %}
+  <div class="muted"><span>Retenue à la source</span><span>− {{ note.withholding_amount|money }}</span></div>
+  <div><b>Net en votre faveur</b><b>{{ note.net_amount|money }} DT</b></div>
+  {% endif %}
+</div>
+{% endblock %}

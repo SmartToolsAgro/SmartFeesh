@@ -33,6 +33,12 @@ export const fr = {
     driver: "Chauffeur",
   },
   admin: {
+    documents: {
+      pdf: "PDF",
+      making: "Préparation…",
+      failed: "Le PDF n'a pas pu être préparé. Réessayez dans un instant.",
+      slow: "Le PDF tarde à venir. Réessayez dans un instant.",
+    },
     appName: "Administration",
     modules: "Modules",
     wrongApp: "Ce compte est un compte chauffeur. Utilisez l'application chauffeur.",

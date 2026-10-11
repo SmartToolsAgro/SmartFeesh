@@ -1,0 +1,69 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% block heading %}Facture{% endblock %}
+{% block subtitle %}
+  <p class="muted num">Émise le {{ invoice.issued_on|day }}{% if invoice.due_on %} · échéance {{ invoice.due_on|day }}{% endif %}</p>
+  <p class="muted small num">Vente {{ sale_number }}</p>
+  {% if cancelled %}<p class="banner">ANNULÉE PAR AVOIR</p>{% endif %}
+{% endblock %}
+{% block body %}
+<div class="parties">
+  <div>
+    <h2>Client</h2>
+    <p><b>{{ invoice.customer_name }}</b></p>
+    {% if invoice.customer_address or invoice.customer_city %}<p>{{ invoice.customer_address }}{% if invoice.customer_address and invoice.customer_city %}, {% endif %}{{ invoice.customer_city }}</p>{% endif %}
+    {% if invoice.customer_tax_id %}<p class="small muted">M.F. {{ invoice.customer_tax_id }}</p>{% endif %}
+  </div>
+  <div>
+    <h2>Règlement</h2>
+    <p>{% if invoice.due_on %}À payer avant le {{ invoice.due_on|day }}.{% else %}Payable à réception.{% endif %}</p>
+    <p class="muted small">Montants en dinars tunisiens (DT).{% if not invoice.apply_vat %} Facture sans TVA.{% endif %}</p>
+  </div>
+</div>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th>Désignation</th><th class="r">Qté</th><th class="r">P.U. HT</th>
+      {% if has_discount %}<th class="r">Remise</th>{% endif %}
+      <th class="r">TVA</th><th class="r">Total HT</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for line in lines %}
+    <tr>
+      <td>{{ line.product_name }}{% if line.lots %}<br><span class="muted small">Lot {{ line.lots }}</span>{% endif %}</td>
+      <td class="r num">{{ line.quantity|kilos }}</td>
+      <td class="r num">{{ line.unit_price_excl_tax|money }}</td>
+      {% if has_discount %}<td class="r num">{% if line.discount_rate %}{{ line.discount_rate|percent }}{% endif %}</td>{% endif %}
+      <td class="r num">{{ line.vat_rate|percent }}</td>
+      <td class="r num">{{ line.amount_excl_tax|money }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="totals num">
+  <div><span>Total HT</span><span>{{ invoice.total_excl_tax|money }}</span></div>
+  <div><span>TVA</span><span>{{ invoice.vat_total|money }}</span></div>
+  {% if invoice.fiscal_stamp %}<div><span>Timbre fiscal</span><span>{{ invoice.fiscal_stamp|money }}</span></div>{% endif %}
+  <div class="grand"><span>Total TTC</span><span>{{ invoice.total_incl_tax|money }} DT</span></div>
+  {% if invoice.withholding_amount %}
+  <div class="muted"><span>Retenue à la source ({{ invoice.withholding_rate|percent }})</span><span>− {{ invoice.withholding_amount|money }}</span></div>
+  <div><b>Net à payer</b><b>{{ invoice.net_to_pay|money }} DT</b></div>
+  {% endif %}
+</div>
+
+{% if vat_lines %}
+<div class="vat">
+  <h2>TVA par taux</h2>
+  <table>
+    <thead><tr><th>Taux</th><th>Base HT</th><th>TVA</th></tr></thead>
+    <tbody>
+      {% for vat in vat_lines %}<tr class="num"><td>{{ vat.rate|percent }}</td><td>{{ vat.base|money }}</td><td>{{ vat.amount|money }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if invoice.notes %}<div class="note"><h2>Remarques</h2><p>{{ invoice.notes|linebreaksbr }}</p></div>{% endif %}
+{% endblock %}

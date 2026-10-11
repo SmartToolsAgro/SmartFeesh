@@ -66,6 +66,7 @@ import type {
   GenerateRecurring,
   GeneratedMonth,
   GetColdRoomMonthParams,
+  GetDocumentPdfParams,
   GetExpenseTotalsParams,
   GetLotCostsParams,
   GetPayrollSummaryParams,
@@ -155,6 +156,7 @@ import type {
   PatchedTruckWrite,
   PaymentAllocate,
   PayrollSummary,
+  PdfState,
   PhotoUpload,
   PriceBoard,
   PriceList,
@@ -3779,6 +3781,129 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getUpdateDayLabourerMutationOptions(options), queryClient);
     }
+
+export const getGetDocumentPdfUrl = (kind: string,
+    objectId: number,
+    params?: GetDocumentPdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/documents/${kind}/${objectId}/pdf?${stringifiedParams}` : `/api/v1/documents/${kind}/${objectId}/pdf`
+}
+
+/**
+ * The PDF of a quote (`quote`), invoice (`invoice`), credit note (`credit_note`) or customer payment
+ * receipt (`receipt`). 200 is the file; 202 `pending` means it is being made (ask again in a second);
+ * 500 `failed` means the last attempt failed (`?retry=1` tries again). Office data: drivers get 403.
+ */
+export const getDocumentPdf = async (kind: string,
+    objectId: number,
+    params?: GetDocumentPdfParams, options?: Parameters<typeof apiFetch>[1]): Promise<Blob | PdfState> => {
+
+  return apiFetch<Blob | PdfState>(getGetDocumentPdfUrl(kind,objectId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentPdfQueryKey = (kind: string,
+    objectId: number,
+    params?: GetDocumentPdfParams,) => {
+    return [
+    `/api/v1/documents/${kind}/${objectId}/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetDocumentPdfQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentPdf>>, TError = PdfState>(kind: string,
+    objectId: number,
+    params?: GetDocumentPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentPdfQueryKey(kind,objectId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocumentPdf>>> = ({ signal }) => getDocumentPdf(kind,objectId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: kind !== null && kind !== undefined && objectId !== null && objectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocumentPdf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDocumentPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getDocumentPdf>>>
+export type GetDocumentPdfQueryError = PdfState
+
+
+export function useGetDocumentPdf<TData = Awaited<ReturnType<typeof getDocumentPdf>>, TError = PdfState>(
+ kind: string,
+    objectId: number,
+    params: undefined |  GetDocumentPdfParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentPdf>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocumentPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getDocumentPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDocumentPdf<TData = Awaited<ReturnType<typeof getDocumentPdf>>, TError = PdfState>(
+ kind: string,
+    objectId: number,
+    params?: GetDocumentPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentPdf>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocumentPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getDocumentPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDocumentPdf<TData = Awaited<ReturnType<typeof getDocumentPdf>>, TError = PdfState>(
+ kind: string,
+    objectId: number,
+    params?: GetDocumentPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDocumentPdf<TData = Awaited<ReturnType<typeof getDocumentPdf>>, TError = PdfState>(
+ kind: string,
+    objectId: number,
+    params?: GetDocumentPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDocumentPdfQueryOptions(kind,objectId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListElectricityBillsUrl = () => {
 

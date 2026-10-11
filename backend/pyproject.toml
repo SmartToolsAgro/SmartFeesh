@@ -14,6 +14,9 @@ dependencies = [
     "whitenoise>=6.12.0",
     "sentry-sdk>=2.71.0",
     "pillow>=12",
+    "weasyprint>=70.0",
+    "celery>=5.6.3",
+    "redis>=8.1.0",
 ]
 
 [dependency-groups]
@@ -83,7 +86,7 @@ disallow_incomplete_defs = false
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
-module = ["environ.*", "grimp.*", "importlinter.*"]
+module = ["environ.*", "grimp.*", "importlinter.*", "weasyprint.*", "celery.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -79,8 +79,8 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 - [x] Return → stock movement back (or to loss) + credit note. (D-070: a credit note with a stock choice.)
 
 ### P2-T08 · PDFs · M
-- [ ] WeasyPrint templates for quote, invoice, receipt, credit note, styled like the prototype's quote.
-- [ ] Introduce Celery + Redis for generation; files stored in object storage.
+- [x] WeasyPrint templates for quote, invoice, receipt, credit note, styled like the prototype's quote. (D-071; layout to check by eye on staging.)
+- [x] Introduce Celery + Redis for generation; files stored in file storage (media volume; object storage later, D-071).
 
 ### P2-T09 · Admin screens · M
 - [x] Quotes, sales, invoices, customers, payments screens. Customer page shows balance + history.

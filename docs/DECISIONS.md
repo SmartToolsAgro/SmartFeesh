@@ -1126,3 +1126,31 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - **Not done (provisional):** a return on a lot that is already **closed** changes the live numbers but not
   the closed snapshot (use the late-adjustment path, D-067, by hand); no refund of money (P2-T06 credit);
   a return cannot exceed the sale's kilos still out, per batch.
+
+**D-071 · PDF documents, Celery and Redis (P2-T08)** · accepted, provisional points marked · 2026-10-11
+
+- **New `documents` app, generic.** Apps register what can be printed (`documents.services.register(kind,
+  provider)`); a provider returns a `Printable` (template, context, version, file name). Sales registers quote,
+  invoice, credit note and receipt in `sales/printing.py` (templates in `sales/templates/sales/pdf/`, one base
+  page and number formats in `documents`). Later documents (partner statement P6-T04, month-end) only add a
+  provider and a template.
+- **WeasyPrint** renders HTML to A4 PDF (DejaVu Sans, thin-space thousands, comma decimals, page numbers).
+  It needs Pango: the Docker image and the CI backend job install it; the Windows machine does not have it,
+  so the one test that really renders skips there and the others check the HTML and use a stand-in renderer.
+  **Layout was not checked by eye yet**: open each PDF on staging and adjust the templates.
+- **Celery + Redis.** `config/celery.py`; broker `CELERY_BROKER_URL` (default `redis://localhost:6379/0`). With
+  `CELERY_EAGER` the job runs inside the request: default in dev (`make backend` needs no Redis or worker) and
+  in tests. Staging runs `redis` and a `worker` (same image and media volume as the API); production must too.
+  The nightly service stays as it is (D-038); moving it to Celery beat is later.
+- **One file per document.** `GeneratedDocument(kind, object_id, version, file)`; `version` is the document's
+  last change (`updated_at`, plus the allocated sum for a receipt), so a changed document (cancelled invoice,
+  edited quote) is remade on the next request and an untouched one never is. Old file deleted on remake.
+- **API:** `GET /documents/<kind>/<id>/pdf` (office roles read; drivers 403): 200 the file, 202 `pending` (ask
+  again), 500 `failed` (`?retry=1` queues again; polling alone never does), 400 for a draft invoice (no number
+  yet), 404 for another organization. A job queued less than 90 s ago is not queued twice. The admin app's
+  "PDF" button (`lib/PdfButton`) opens a tab at the click, polls every second for up to a minute, then shows it.
+- **Storage:** Django's default storage (the media volume today, served only through this endpoint with random
+  file names). Object storage is a settings change (`STORAGES["default"]`), not yet done: provisional, with
+  `django-storages` when a bucket exists.
+- **Not done:** receipts for the driver app (Phase 3: drivers get 403 here), PDFs by e-mail or WhatsApp, Arabic
+  layout (right-to-left, with P0-T08), e-invoice (TTN) QR code (D-016).

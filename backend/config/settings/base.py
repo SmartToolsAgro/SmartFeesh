@@ -44,6 +44,7 @@ LOCAL_APPS = [
     "apps.expenses",
     "apps.partnerships",
     "apps.closing",
+    "apps.documents",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -106,6 +107,14 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Background jobs (D-071). Redis is the broker; with CELERY_EAGER the job runs inside the request, which is
+# what `make backend` and the tests do (no Redis, no worker needed). Staging and production run a worker.
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_EAGER", default=False)
+CELERY_TASK_EAGER_PROPAGATES = False
+CELERY_TASK_TIME_LIMIT = 120
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

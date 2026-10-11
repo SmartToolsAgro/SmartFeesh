@@ -41,6 +41,9 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
+      - name: Install Pango (WeasyPrint draws the PDFs with it)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 fonts-dejavu-core
+        working-directory: .
       - name: Install dependencies
         run: uv sync --frozen
       - name: Lint
