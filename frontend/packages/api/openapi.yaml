@@ -572,6 +572,167 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/employees:
+    get:
+      operationId: listEmployees
+      description: |-
+        Employees sorted by name, each with what is still unpaid. Archived ones only when asked (`status`).
+        Not paginated: the company has 6 to 10 employees (Q6).
+      parameters:
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - employees
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Employee'
+          description: ''
+    post:
+      operationId: createEmployee
+      description: A new employee. Without a reference it gets the next free `E-NNN`;
+        the CNSS rate defaults to 17.07 %.
+      tags:
+      - employees
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmployeeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmployeeWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+          description: ''
+  /api/v1/employees/{employee_id}:
+    get:
+      operationId: getEmployee
+      parameters:
+      - in: path
+        name: employee_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - employees
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+          description: ''
+    patch:
+      operationId: updateEmployee
+      description: Change an employee. A new salary applies to the months generated
+        afterwards.
+      parameters:
+      - in: path
+        name: employee_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - employees
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEmployeeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEmployeeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEmployeeWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+          description: ''
+  /api/v1/employees/{employee_id}/archive:
+    post:
+      operationId: archiveEmployee
+      description: An archived employee keeps their history and gets no new salary
+        record.
+      parameters:
+      - in: path
+        name: employee_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - employees
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+          description: ''
+  /api/v1/employees/{employee_id}/restore:
+    post:
+      operationId: restoreEmployee
+      parameters:
+      - in: path
+        name: employee_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - employees
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+          description: ''
   /api/v1/health:
     get:
       operationId: getHealth
@@ -966,6 +1127,85 @@ paths:
               schema:
                 $ref: '#/components/schemas/LossDetail'
           description: ''
+  /api/v1/lot-work-days:
+    get:
+      operationId: listLotWorkDays
+      description: |-
+        Days worked on lots, newest first, each with its cost (days × salary / 26). Filter by `employee`,
+        `batch` or `month`.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: employee
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+      tags:
+      - lot-work-days
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LotWorkDay'
+          description: ''
+    post:
+      operationId: createLotWorkDay
+      description: Record days an employee worked on a lot (a fraction of a day, at
+        most 1 per employee and date).
+      tags:
+      - lot-work-days
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotWorkDayWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotWorkDayWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotWorkDayWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotWorkDay'
+          description: ''
+  /api/v1/lot-work-days/{work_day_id}:
+    delete:
+      operationId: deleteLotWorkDay
+      description: Remove a mistaken entry.
+      parameters:
+      - in: path
+        name: work_day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lot-work-days
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/me:
     get:
       operationId: getSession
@@ -1023,6 +1263,30 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/payroll-summary:
+    get:
+      operationId: getPayrollSummary
+      description: |-
+        Totals of one month (gross, employer CNSS, net, expense, paid, outstanding) and the unpaid salaries
+        of all months.
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+        required: true
+      tags:
+      - payroll-summary
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollSummary'
           description: ''
   /api/v1/price-board:
     get:
@@ -1889,6 +2153,339 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LastCost'
+          description: ''
+  /api/v1/salary-payments:
+    get:
+      operationId: listSalaryPayments
+      description: |-
+        Salary payments, newest first, with the salaries each settled and the part not allocated.
+        Filter by `employee` or `search` (number, reference, name). Not paginated.
+      parameters:
+      - in: query
+        name: employee
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      tags:
+      - salary-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalaryPayment'
+          description: ''
+    post:
+      operationId: recordSalaryPayment
+      description: |-
+        Record cash paid to an employee and the approved salaries it settles. What is not allocated is an
+        advance. Errors of an allocation come back on `allocations.<index>.<field>`.
+      tags:
+      - salary-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryPaymentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SalaryPaymentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SalaryPaymentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryPayment'
+          description: ''
+  /api/v1/salary-payments/{payment_id}:
+    get:
+      operationId: getSalaryPayment
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryPayment'
+          description: ''
+  /api/v1/salary-payments/{payment_id}/allocations:
+    post:
+      operationId: allocateSalaryPayment
+      description: Allocate the part of a payment not allocated yet (an advance) to
+        approved salaries of its employee.
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryPaymentAllocate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SalaryPaymentAllocate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SalaryPaymentAllocate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryPayment'
+          description: ''
+  /api/v1/salary-records:
+    get:
+      operationId: listSalaryRecords
+      description: |-
+        Salary records, newest month first, with what is paid and still owed. Filter by `month` (any day of
+        it), `employee` or `status`. Not paginated (6 to 10 employees).
+      parameters:
+      - in: query
+        name: employee
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - approved
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `approved` - Approuvée
+      tags:
+      - salary-records
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalaryRecord'
+          description: ''
+  /api/v1/salary-records/{record_id}:
+    get:
+      operationId: getSalaryRecord
+      parameters:
+      - in: path
+        name: record_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-records
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryRecord'
+          description: ''
+    patch:
+      operationId: updateSalaryRecord
+      description: |-
+        Change a draft (bonus, overtime, deductions...). An approved salary no longer changes (400): add an
+        adjustment.
+      parameters:
+      - in: path
+        name: record_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-records
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSalaryRecordUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSalaryRecordUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSalaryRecordUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryRecord'
+          description: ''
+    delete:
+      operationId: deleteSalaryRecord
+      description: Delete a draft. An approved salary is never deleted (400).
+      parameters:
+      - in: path
+        name: record_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-records
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/salary-records/{record_id}/adjustments:
+    post:
+      operationId: adjustSalaryRecord
+      description: Correct an approved salary with a signed amount and a reason.
+      parameters:
+      - in: path
+        name: record_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-records
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustmentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdjustmentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdjustmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryAdjustment'
+          description: ''
+  /api/v1/salary-records/{record_id}/approve:
+    post:
+      operationId: approveSalaryRecord
+      description: 'Approve a draft: it becomes the month''s expense and is final.'
+      parameters:
+      - in: path
+        name: record_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-records
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryRecord'
+          description: ''
+  /api/v1/salary-records/approve-month:
+    post:
+      operationId: approveSalaryMonth
+      description: Approve every draft of a month at once.
+      tags:
+      - salary-records
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Month'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Month'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Month'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovedMonth'
+          description: ''
+  /api/v1/salary-records/generate:
+    post:
+      operationId: generateSalaryMonth
+      description: |-
+        Create the draft salary records of a month for every active employee who has none: base = monthly
+        salary, employer CNSS from their rate. Running it twice creates nothing more.
+      tags:
+      - salary-records
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Month'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Month'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Month'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedMonth'
           description: ''
   /api/v1/sales:
     get:
@@ -3222,6 +3819,17 @@ paths:
           description: ''
 components:
   schemas:
+    AdjustmentWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+      required:
+      - amount
+      - reason
     AllocationWrite:
       type: object
       properties:
@@ -3233,6 +3841,19 @@ components:
       required:
       - amount
       - invoice
+    ApprovedMonth:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        approved:
+          type: integer
+          readOnly: true
+      required:
+      - approved
+      - month
     Batch:
       type: object
       properties:
@@ -3358,6 +3979,18 @@ components:
       - id
       - name
       - reference
+    BatchRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
     BatchSaleRow:
       type: object
       description: The kilos of one lot sold by one sale line.
@@ -3919,6 +4552,161 @@ components:
       - id
       - name
       - username
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        position:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        hire_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        monthly_salary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cnss_number:
+          type: string
+          readOnly: true
+        cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/LoginRef'
+          nullable: true
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        unpaid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cnss_number
+      - cnss_rate
+      - hire_date
+      - id
+      - is_active
+      - monthly_salary
+      - name
+      - notes
+      - phone
+      - position
+      - reference
+      - unpaid
+      - updated_at
+      - user
+    EmployeeRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        position:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - position
+      - reference
+    EmployeeWrite:
+      type: object
+      properties:
+        reference:
+          type: string
+          default: ''
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: string
+          default: ''
+          maxLength: 100
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        hire_date:
+          type: string
+          format: date
+          nullable: true
+        monthly_salary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          default: '0.000'
+        cnss_number:
+          type: string
+          default: ''
+          maxLength: 30
+        cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        user:
+          type: integer
+          minimum: 1
+          nullable: true
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - name
+    GeneratedMonth:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        created:
+          type: integer
+          readOnly: true
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryRecord'
+          readOnly: true
+      required:
+      - created
+      - month
+      - records
     Health:
       type: object
       properties:
@@ -4123,6 +4911,18 @@ components:
           maxLength: 128
       required:
       - password
+      - username
+    LoginRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+      required:
+      - id
       - username
     Loss:
       type: object
@@ -4351,6 +5151,80 @@ components:
       - product
       - quantity
       - reason
+    LotWorkDay:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        employee:
+          allOf:
+          - $ref: '#/components/schemas/EmployeeRef'
+          readOnly: true
+        work_date:
+          type: string
+          format: date
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/BatchRef'
+          nullable: true
+          readOnly: true
+        days:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,2}(?:\.\d{0,2})?$
+          readOnly: true
+        monthly_salary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - batch
+      - cost
+      - created_at
+      - days
+      - employee
+      - id
+      - monthly_salary
+      - notes
+      - work_date
+    LotWorkDayWrite:
+      type: object
+      properties:
+        employee:
+          type: integer
+          minimum: 1
+        work_date:
+          type: string
+          format: date
+        batch:
+          type: integer
+          minimum: 1
+          nullable: true
+        days:
+          type: string
+        notes:
+          type: string
+          default: ''
+          maxLength: 200
+      required:
+      - days
+      - employee
+      - work_date
     Member:
       type: object
       properties:
@@ -4373,6 +5247,14 @@ components:
       - is_active
       - role
       - user
+    Month:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+      required:
+      - month
     MovedBatch:
       type: object
       description: 'One batch a line took, oldest first: the movement posted for it.'
@@ -4721,6 +5603,49 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CustomerContact'
+    PatchedEmployeeWrite:
+      type: object
+      properties:
+        reference:
+          type: string
+          default: ''
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: string
+          default: ''
+          maxLength: 100
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        hire_date:
+          type: string
+          format: date
+          nullable: true
+        monthly_salary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          default: '0.000'
+        cnss_number:
+          type: string
+          default: ''
+          maxLength: 30
+        cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        user:
+          type: integer
+          minimum: 1
+          nullable: true
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
     PatchedLanguage:
       type: object
       properties:
@@ -4760,6 +5685,32 @@ components:
           allOf:
           - $ref: '#/components/schemas/IllustrationEnum'
           default: fish
+    PatchedSalaryRecordUpdate:
+      type: object
+      properties:
+        base_salary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        bonus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        overtime:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        deductions:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        notes:
+          type: string
+          maxLength: 2000
     PatchedStockLocationUpdate:
       type: object
       properties:
@@ -4915,6 +5866,58 @@ components:
       - number
       - paid_on
       - reference
+    PayrollSummary:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+        records:
+          type: integer
+        drafts:
+          type: integer
+        gross:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        employer_cnss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        expense:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        unpaid_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        unpaid_records:
+          type: integer
+      required:
+      - drafts
+      - employer_cnss
+      - expense
+      - gross
+      - month
+      - net
+      - outstanding
+      - paid
+      - records
+      - unpaid_records
+      - unpaid_total
     PhotoUpload:
       type: object
       properties:
@@ -6144,6 +7147,26 @@ components:
       - location
       - received_on
       - supplier
+    RecordPayment:
+      type: object
+      description: The part of one payment that settled the salary.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        payment:
+          allOf:
+          - $ref: '#/components/schemas/SalaryPaymentRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - id
+      - payment
     Ref:
       type: object
       description: A supplier or a product, as shown on a receipt.
@@ -6173,6 +7196,336 @@ components:
         * `manager` - Gestionnaire
         * `driver` - Chauffeur
         * `accountant` - Comptable
+    SalaryAdjustment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by
+      - id
+      - reason
+    SalaryAllocationWrite:
+      type: object
+      properties:
+        salary_record:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+      required:
+      - amount
+      - salary_record
+    SalaryPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        employee:
+          allOf:
+          - $ref: '#/components/schemas/EmployeeRef'
+          readOnly: true
+        paid_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryPaymentAllocation'
+          readOnly: true
+        unallocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - allocations
+      - amount
+      - created_at
+      - created_by
+      - employee
+      - id
+      - method
+      - notes
+      - number
+      - paid_on
+      - reference
+      - unallocated
+    SalaryPaymentAllocate:
+      type: object
+      properties:
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryAllocationWrite'
+      required:
+      - allocations
+    SalaryPaymentAllocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        salary_record_id:
+          type: integer
+          readOnly: true
+        month:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - id
+      - month
+      - salary_record_id
+    SalaryPaymentMethodEnum:
+      enum:
+      - cash
+      - cheque
+      - transfer
+      - other
+      type: string
+      description: |-
+        * `cash` - Espèces
+        * `cheque` - Chèque
+        * `transfer` - Virement
+        * `other` - Autre
+    SalaryPaymentRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        paid_on:
+          type: string
+          format: date
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+          readOnly: true
+      required:
+      - id
+      - method
+      - number
+      - paid_on
+    SalaryPaymentWrite:
+      type: object
+      properties:
+        employee:
+          type: integer
+          minimum: 1
+        paid_on:
+          type: string
+          format: date
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryAllocationWrite'
+      required:
+      - amount
+      - employee
+      - method
+      - paid_on
+    SalaryRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        employee:
+          allOf:
+          - $ref: '#/components/schemas/EmployeeRef'
+          readOnly: true
+        month:
+          type: string
+          format: date
+          readOnly: true
+        base_salary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        bonus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overtime:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        deductions:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        gross:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        employer_cnss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        due_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SalaryStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        adjustments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryAdjustment'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordPayment'
+          readOnly: true
+        approved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        approved_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - adjustments
+      - approved_at
+      - approved_by
+      - base_salary
+      - bonus
+      - cnss_rate
+      - created_at
+      - deductions
+      - due_amount
+      - employee
+      - employer_cnss
+      - expense_amount
+      - gross
+      - id
+      - month
+      - net
+      - notes
+      - outstanding
+      - overtime
+      - paid_amount
+      - payments
+      - status
+    SalaryStatusEnum:
+      enum:
+      - draft
+      - approved
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `approved` - Approuvée
     Sale:
       type: object
       properties:
