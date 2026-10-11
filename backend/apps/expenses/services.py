@@ -37,7 +37,6 @@ from .models import (
     RecurringCost,
     WorkType,
 )
-from .selectors import ROAD_CATEGORY_CODES
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -1245,35 +1244,3 @@ def delete_general_cost(*, period: GeneralCostPeriod, actor: User | None) -> Non
         before={"expense": period.expense.number, "first_month": period.first_month.isoformat()},
     )
     delete_expense(expense=period.expense, actor=actor, linked=True)
-
-
-@transaction.atomic
-def submit_road_expense(
-    *,
-    organization: Organization,
-    actor: User,
-    truck: "Truck",
-    category: ExpenseCategory,
-    amount: Number,
-    description: str = "",
-    upload: "UploadedFile[bytes] | None" = None,
-    client_uuid: uuid.UUID | None = None,
-) -> Expense:
-    """A driver's expense from the road (P3-T04): cash, today, a cost of their truck that day, waiting for the
-    office to approve it. The receipt photo, when given, is joined in the same transaction."""
-    if category.code not in ROAD_CATEGORY_CODES:
-        raise ValidationError({"category": _("Cette catégorie n'est pas disponible depuis la route.")})
-    expense = create_expense(
-        organization=organization,
-        actor=actor,
-        spent_on=timezone.localdate(),
-        category=category,
-        amount=amount,
-        description=description,
-        truck=truck,
-        client_uuid=client_uuid,
-        submit=True,
-    )
-    if upload is not None:
-        expense = add_expense_receipt(expense=expense, actor=actor, upload=upload)
-    return expense

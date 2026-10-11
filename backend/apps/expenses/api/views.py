@@ -4,7 +4,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
 from django.http import FileResponse, Http404
-from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
@@ -17,7 +16,7 @@ from rest_framework.views import APIView
 
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization, Role
-from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.expenses import selectors, services
 from apps.expenses.models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory
 from apps.fleet import selectors as fleet
@@ -43,9 +42,6 @@ from .serializers import (
     ExpenseWriteSerializer,
     LotCostFilterSerializer,
     LotCostsSerializer,
-    RoadCategorySerializer,
-    RoadExpenseSerializer,
-    RoadExpenseWriteSerializer,
 )
 
 
@@ -435,63 +431,3 @@ class DayLabourDetailView(DayLabourView):
         """Delete a day typed by mistake while it is a draft (its expense goes with it)."""
         services.delete_day_labour(entry=self.entry(entry_id), actor=self.membership.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-# ---- Driver app (P3-T04) ----
-
-
-class MyRoadCategoriesView(APIView):
-    permission_classes = (IsDriver,)
-
-    @extend_schema(operation_id="listRoadCategories", responses=RoadCategorySerializer(many=True))
-    def get(self, request: Request) -> Response:
-        """The few categories a driver can spend on from the road: fuel, transport, handling, other."""
-        membership = membership_of(request)
-        assert membership is not None  # guaranteed by the permission class
-        return Response(RoadCategorySerializer(selectors.road_categories(membership.organization), many=True).data)
-
-
-class MyRoadExpensesView(APIView):
-    permission_classes = (IsDriver,)
-    parser_classes = (MultiPartParser,)
-
-    @extend_schema(operation_id="listMyExpenses", responses=RoadExpenseSerializer(many=True))
-    def get(self, request: Request) -> Response:
-        """What the driver entered today, newest first."""
-        membership = membership_of(request)
-        assert membership is not None  # guaranteed by the permission class
-        rows = selectors.road_expenses(membership.organization, user_id=membership.user_id, day=timezone.localdate())
-        return Response(RoadExpenseSerializer(rows, many=True).data)
-
-    @extend_schema(
-        operation_id="addMyExpense",
-        request={"multipart/form-data": RoadExpenseWriteSerializer},
-        responses={201: RoadExpenseSerializer},
-    )
-    def post(self, request: Request) -> Response:
-        """Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
-        of the day and waits for the office to approve it."""
-        membership = membership_of(request)
-        assert membership is not None  # guaranteed by the permission class
-        organization = membership.organization
-        serializer = RoadExpenseWriteSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        truck = fleet.truck_of_driver(membership)
-        if truck is None:
-            raise DjangoValidationError({"truck": _("Choisissez d'abord votre camion.")})
-        try:
-            category = selectors.category_of(organization, data["category"])
-        except ExpenseCategory.DoesNotExist:
-            raise DjangoValidationError({"category": _("Catégorie inconnue.")}) from None
-        expense = services.submit_road_expense(
-            organization=organization,
-            actor=membership.user,
-            truck=truck,
-            category=category,
-            amount=data["amount"],
-            description=data["description"],
-            upload=data.get("receipt"),
-            client_uuid=data["client_uuid"],
-        )
-        return Response(RoadExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)

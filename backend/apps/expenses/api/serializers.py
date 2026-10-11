@@ -334,31 +334,3 @@ class DayLabourWriteSerializer(serializers.Serializer[Any]):
     )
     # Approve it at once (owner or manager); otherwise it stays a draft until approved.
     approve_now = serializers.BooleanField(required=False, default=False)
-
-
-# ---- Driver app (P3-T04) ----
-
-
-class RoadCategorySerializer(serializers.Serializer[Any]):
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField(read_only=True)
-
-
-class RoadExpenseSerializer(serializers.ModelSerializer[Expense]):
-    category_name = serializers.CharField(source="category.name", read_only=True)
-
-    class Meta:
-        model = Expense
-        fields = ("id", "number", "status", "category_name", "amount", "description", "rejection_reason")
-        read_only_fields = fields
-
-
-class RoadExpenseWriteSerializer(serializers.Serializer[Any]):
-    category = serializers.IntegerField(min_value=1)
-    # An amount in DT as a string ("45.500"), checked by the service.
-    amount = serializers.CharField(allow_blank=True)
-    description = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
-    # A photo of the receipt.
-    receipt = UploadedFileField(required=False)
-    # Sent by the app that may retry: the same value never makes two expenses.
-    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)

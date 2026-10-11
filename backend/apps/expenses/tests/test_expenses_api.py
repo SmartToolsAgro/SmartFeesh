@@ -1,7 +1,6 @@
 import io
 import shutil
 import tempfile
-from uuid import uuid4
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -13,7 +12,6 @@ from PIL import Image
 from apps.core.models import Role
 from apps.core.tests.factories import MembershipFactory
 from apps.expenses import services
-from apps.fleet import services as fleet_services
 
 from .conftest import category, client_for, load, member, receive
 
@@ -181,37 +179,3 @@ def test_another_organizations_expenses_are_invisible(api, organization):
     assert api.get(reverse("expense-detail", args=[expense.pk])).status_code == 404
     assert api.get(reverse("expense-list")).json()["count"] == 0
     assert api.get(reverse("lot-costs"), {"batch": 999999}).status_code == 404
-
-
-def test_a_driver_enters_a_road_expense_with_a_photo_and_it_waits_for_approval(organization, actor, truck):
-    driver = member(organization, Role.DRIVER)
-    fleet_services.assign_truck(
-        organization=organization, actor=actor, truck=truck, driver=driver.user, date=timezone.localdate()
-    )
-    api = client_for(driver)
-    categories = api.get(reverse("my-expense-categories")).json()
-    assert {c["name"] for c in categories} >= {"Carburant", "Divers"}
-    fuel_id = next(c["id"] for c in categories if c["name"] == "Carburant")
-    buffer = io.BytesIO()
-    Image.new("RGB", (40, 30), "red").save(buffer, format="JPEG")
-    photo = SimpleUploadedFile("ticket.jpg", buffer.getvalue(), content_type="image/jpeg")
-    body = {
-        "category": fuel_id,
-        "amount": "45.500",
-        "description": "Gasoil",
-        "receipt": photo,
-        "client_uuid": str(uuid4()),
-    }
-
-    created = api.post(reverse("my-expenses"), body, format="multipart")
-    again = api.post(reverse("my-expenses"), {k: v for k, v in body.items() if k != "receipt"}, format="multipart")
-
-    assert created.status_code == 201
-    assert (created.json()["status"], created.json()["amount"]) == ("pending", "45.500")
-    assert again.json()["id"] == created.json()["id"]  # same client_uuid: no second expense
-    assert [e["number"] for e in api.get(reverse("my-expenses")).json()] == [created.json()["number"]]
-    # Not a road category, and not for the office.
-    rent = category(organization, "rent")
-    refused = api.post(reverse("my-expenses"), {"category": rent.pk, "amount": "10"}, format="multipart")
-    assert refused.status_code == 400
-    assert client_for(member(organization, Role.MANAGER)).get(reverse("my-expenses")).status_code == 403
