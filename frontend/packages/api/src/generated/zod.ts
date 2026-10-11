@@ -724,6 +724,25 @@ export const RestoreLocationResponse = zod.object({
 
 
 /**
+ * What a location holds now per product, all batches together, by product name.
+ */
+export const ListLocationStockParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const listLocationStockResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ListLocationStockResponseItem = zod.object({
+  "product_id": zod.int(),
+  "product_reference": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', listLocationStockResponseQuantityRegExp)
+}).describe('How many kg of one product a location holds, all batches together.')
+export const ListLocationStockResponse = zod.array(ListLocationStockResponseItem)
+
+
+/**
  * The logged-in user, their organization and their role.
  */
 export const GetSessionResponse = zod.object({
@@ -2465,6 +2484,450 @@ export const RestoreSupplierResponse = zod.object({
 })),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Transfers (truck loads, evening returns, moves between cold rooms), newest day first, paginated
+ * (`limit`, `offset`). Filter by kind, status, location (in or out), days (inclusive) or `search`
+ * (number, place names).
+ */
+
+export const listTransfersQuerySearchDefault = ``;
+export const listTransfersQuerySearchMax = 100;
+
+
+
+export const ListTransfersQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "kind": zod.enum(['load', 'return', 'internal']).optional().describe('* `load` - Chargement\n* `return` - Retour\n* `internal` - Entre emplacements'),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "location": zod.int().min(1).optional(),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listTransfersQuerySearchMax).default(listTransfersQuerySearchDefault),
+  "status": zod.enum(['draft', 'validated', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé')
+})
+
+export const listTransfersResponseResultsItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransfersResponseResultsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listTransfersResponseResultsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listTransfersResponseResultsItemTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransfersResponseResultsItemTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListTransfersResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['load', 'return', 'internal']).describe('* `load` - Chargement\n* `return` - Retour\n* `internal` - Entre emplacements'),
+  "status": zod.enum(['draft', 'validated', 'cancelled']).describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé'),
+  "from_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "to_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemAmountRegExp).nullable()
+})),
+  "total_quantity": zod.stringFormat('decimal', listTransfersResponseResultsItemTotalQuantityRegExp),
+  "total_amount": zod.stringFormat('decimal', listTransfersResponseResultsItemTotalAmountRegExp).nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "validated_by": zod.string(),
+  "validated_at": zod.iso.datetime({"offset":true}).nullable(),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+}))
+})
+
+
+/**
+ * Prepare a transfer (a draft), or with `validate` also move the stock at once. Its kind comes
+ * from the places: into a truck is a load, out of one a return. A load line without `unit_price`
+ * takes the sale price in force. Errors of a line come back on `lines.<index>.<field>`.
+ */
+
+
+export const createTransferBodyNotesDefault = ``;
+export const createTransferBodyValidateNowDefault = false;
+
+export const CreateTransferBody = zod.object({
+  "from_location": zod.int().min(1),
+  "to_location": zod.int().min(1),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string().default(createTransferBodyNotesDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "unit_price": zod.string().nullish()
+})),
+  "validate_now": zod.boolean().default(createTransferBodyValidateNowDefault)
+})
+
+export const createTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateTransferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['load', 'return', 'internal']).describe('* `load` - Chargement\n* `return` - Retour\n* `internal` - Entre emplacements'),
+  "status": zod.enum(['draft', 'validated', 'cancelled']).describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé'),
+  "from_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "to_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', createTransferResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', createTransferResponseLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', createTransferResponseLinesItemAmountRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', createTransferResponseLinesItemBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.'))
+})),
+  "total_quantity": zod.stringFormat('decimal', createTransferResponseTotalQuantityRegExp),
+  "total_amount": zod.stringFormat('decimal', createTransferResponseTotalAmountRegExp).nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "validated_by": zod.string(),
+  "validated_at": zod.iso.datetime({"offset":true}).nullable(),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * One transfer; once validated, each line lists the batches its kg came from.
+ */
+export const GetTransferParams = zod.object({
+  "transfer_id": zod.int()
+})
+
+export const getTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetTransferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['load', 'return', 'internal']).describe('* `load` - Chargement\n* `return` - Retour\n* `internal` - Entre emplacements'),
+  "status": zod.enum(['draft', 'validated', 'cancelled']).describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé'),
+  "from_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "to_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', getTransferResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', getTransferResponseLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', getTransferResponseLinesItemAmountRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', getTransferResponseLinesItemBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.'))
+})),
+  "total_quantity": zod.stringFormat('decimal', getTransferResponseTotalQuantityRegExp),
+  "total_amount": zod.stringFormat('decimal', getTransferResponseTotalAmountRegExp).nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "validated_by": zod.string(),
+  "validated_at": zod.iso.datetime({"offset":true}).nullable(),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Change a draft (every line is replaced), and with `validate` move the stock too.
+ */
+export const UpdateTransferParams = zod.object({
+  "transfer_id": zod.int()
+})
+
+
+
+export const updateTransferBodyNotesDefault = ``;
+export const updateTransferBodyValidateNowDefault = false;
+
+export const UpdateTransferBody = zod.object({
+  "from_location": zod.int().min(1),
+  "to_location": zod.int().min(1),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string().default(updateTransferBodyNotesDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "unit_price": zod.string().nullish()
+})),
+  "validate_now": zod.boolean().default(updateTransferBodyValidateNowDefault)
+})
+
+export const updateTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateTransferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['load', 'return', 'internal']).describe('* `load` - Chargement\n* `return` - Retour\n* `internal` - Entre emplacements'),
+  "status": zod.enum(['draft', 'validated', 'cancelled']).describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé'),
+  "from_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "to_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', updateTransferResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', updateTransferResponseLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', updateTransferResponseLinesItemAmountRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', updateTransferResponseLinesItemBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.'))
+})),
+  "total_quantity": zod.stringFormat('decimal', updateTransferResponseTotalQuantityRegExp),
+  "total_amount": zod.stringFormat('decimal', updateTransferResponseTotalAmountRegExp).nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "validated_by": zod.string(),
+  "validated_at": zod.iso.datetime({"offset":true}).nullable(),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Give up a draft. A validated transfer is corrected by a transfer the other way.
+ */
+export const CancelTransferParams = zod.object({
+  "transfer_id": zod.int()
+})
+
+export const cancelTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CancelTransferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['load', 'return', 'internal']).describe('* `load` - Chargement\n* `return` - Retour\n* `internal` - Entre emplacements'),
+  "status": zod.enum(['draft', 'validated', 'cancelled']).describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé'),
+  "from_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "to_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', cancelTransferResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', cancelTransferResponseLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', cancelTransferResponseLinesItemAmountRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', cancelTransferResponseLinesItemBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.'))
+})),
+  "total_quantity": zod.stringFormat('decimal', cancelTransferResponseTotalQuantityRegExp),
+  "total_amount": zod.stringFormat('decimal', cancelTransferResponseTotalAmountRegExp).nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "validated_by": zod.string(),
+  "validated_at": zod.iso.datetime({"offset":true}).nullable(),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
+ * too little (on `lines.<index>.quantity`) or for a day still to come.
+ */
+export const ValidateTransferParams = zod.object({
+  "transfer_id": zod.int()
+})
+
+export const validateTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ValidateTransferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['load', 'return', 'internal']).describe('* `load` - Chargement\n* `return` - Retour\n* `internal` - Entre emplacements'),
+  "status": zod.enum(['draft', 'validated', 'cancelled']).describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé'),
+  "from_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "to_location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "transferred_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', validateTransferResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', validateTransferResponseLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', validateTransferResponseLinesItemAmountRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', validateTransferResponseLinesItemBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.'))
+})),
+  "total_quantity": zod.stringFormat('decimal', validateTransferResponseTotalQuantityRegExp),
+  "total_amount": zod.stringFormat('decimal', validateTransferResponseTotalAmountRegExp).nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "validated_by": zod.string(),
+  "validated_at": zod.iso.datetime({"offset":true}).nullable(),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * A truck's day per product from its validated transfers: kg loaded, kg returned, and loaded −
+ * returned, sold or lost, with the day's price per kg and what that is worth.
+ */
+
+
+
+export const GetTruckDayQueryParams = zod.object({
+  "date": zod.iso.date(),
+  "location": zod.int().min(1)
+})
+
+export const getTruckDayResponseLinesItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getTruckDayResponseLinesItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getTruckDayResponseLinesItemSoldOrLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getTruckDayResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getTruckDayResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getTruckDayResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetTruckDayResponse = zod.object({
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "date": zod.iso.date(),
+  "lines": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_reference": zod.string(),
+  "product_name": zod.string(),
+  "loaded": zod.stringFormat('decimal', getTruckDayResponseLinesItemLoadedRegExp),
+  "returned": zod.stringFormat('decimal', getTruckDayResponseLinesItemReturnedRegExp),
+  "sold_or_lost": zod.stringFormat('decimal', getTruckDayResponseLinesItemSoldOrLostRegExp),
+  "unit_price": zod.stringFormat('decimal', getTruckDayResponseLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', getTruckDayResponseLinesItemAmountRegExp).nullable()
+})),
+  "amount": zod.stringFormat('decimal', getTruckDayResponseAmountRegExp)
 })
 
 

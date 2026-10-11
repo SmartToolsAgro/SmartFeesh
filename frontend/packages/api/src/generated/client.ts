@@ -28,6 +28,7 @@ import type {
   Category,
   Customer,
   CustomerWrite,
+  GetTruckDayParams,
   Health,
   LastCost,
   ListBatchesParams,
@@ -40,8 +41,10 @@ import type {
   ListSupplierInvoicesParams,
   ListSupplierPaymentsParams,
   ListSuppliersParams,
+  ListTransfersParams,
   ListTruckAssignmentsParams,
   ListTrucksParams,
+  LocationStock,
   Login,
   Member,
   PaginatedBatchList,
@@ -49,6 +52,7 @@ import type {
   PaginatedReceiptList,
   PaginatedSupplierInvoiceList,
   PaginatedSupplierPaymentList,
+  PaginatedTransferList,
   PatchedCategory,
   PatchedCustomerWrite,
   PatchedLanguage,
@@ -75,9 +79,12 @@ import type {
   SupplierPayment,
   SupplierPaymentWrite,
   SupplierWrite,
+  TransferDetail,
+  TransferWrite,
   Truck,
   TruckAssignment,
   TruckAssignmentWrite,
+  TruckDay,
   TruckWrite
 } from './models';
 
@@ -1956,6 +1963,104 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRestoreLocationMutationOptions(options), queryClient);
     }
+
+export const getListLocationStockUrl = (locationId: number,) => {
+
+
+
+
+  return `/api/v1/locations/${locationId}/stock`
+}
+
+/**
+ * What a location holds now per product, all batches together, by product name.
+ */
+export const listLocationStock = async (locationId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LocationStock[]> => {
+
+  return apiFetch<LocationStock[]>(getListLocationStockUrl(locationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLocationStockQueryKey = (locationId: number,) => {
+    return [
+    `/api/v1/locations/${locationId}/stock`
+    ] as const;
+    }
+
+
+export const getListLocationStockQueryOptions = <TData = Awaited<ReturnType<typeof listLocationStock>>, TError = unknown>(locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLocationStockQueryKey(locationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLocationStock>>> = ({ signal }) => listLocationStock(locationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: locationId !== null && locationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLocationStock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListLocationStockQueryResult = NonNullable<Awaited<ReturnType<typeof listLocationStock>>>
+export type ListLocationStockQueryError = unknown
+
+
+export function useListLocationStock<TData = Awaited<ReturnType<typeof listLocationStock>>, TError = unknown>(
+ locationId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationStock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLocationStock>>,
+          TError,
+          Awaited<ReturnType<typeof listLocationStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLocationStock<TData = Awaited<ReturnType<typeof listLocationStock>>, TError = unknown>(
+ locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationStock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLocationStock>>,
+          TError,
+          Awaited<ReturnType<typeof listLocationStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLocationStock<TData = Awaited<ReturnType<typeof listLocationStock>>, TError = unknown>(
+ locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListLocationStock<TData = Awaited<ReturnType<typeof listLocationStock>>, TError = unknown>(
+ locationId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListLocationStockQueryOptions(locationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetSessionUrl = () => {
 
@@ -5072,6 +5177,633 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRestoreSupplierMutationOptions(options), queryClient);
     }
+
+export const getListTransfersUrl = (params?: ListTransfersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/transfers?${stringifiedParams}` : `/api/v1/transfers`
+}
+
+/**
+ * Transfers (truck loads, evening returns, moves between cold rooms), newest day first, paginated
+ * (`limit`, `offset`). Filter by kind, status, location (in or out), days (inclusive) or `search`
+ * (number, place names).
+ */
+export const listTransfers = async (params?: ListTransfersParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedTransferList> => {
+
+  return apiFetch<PaginatedTransferList>(getListTransfersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTransfersQueryKey = (params?: ListTransfersParams,) => {
+    return [
+    `/api/v1/transfers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTransfersQueryOptions = <TData = Awaited<ReturnType<typeof listTransfers>>, TError = unknown>(params?: ListTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransfers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTransfersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTransfers>>> = ({ signal }) => listTransfers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTransfers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTransfersQueryResult = NonNullable<Awaited<ReturnType<typeof listTransfers>>>
+export type ListTransfersQueryError = unknown
+
+
+export function useListTransfers<TData = Awaited<ReturnType<typeof listTransfers>>, TError = unknown>(
+ params: undefined |  ListTransfersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransfers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTransfers>>,
+          TError,
+          Awaited<ReturnType<typeof listTransfers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTransfers<TData = Awaited<ReturnType<typeof listTransfers>>, TError = unknown>(
+ params?: ListTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransfers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTransfers>>,
+          TError,
+          Awaited<ReturnType<typeof listTransfers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTransfers<TData = Awaited<ReturnType<typeof listTransfers>>, TError = unknown>(
+ params?: ListTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransfers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListTransfers<TData = Awaited<ReturnType<typeof listTransfers>>, TError = unknown>(
+ params?: ListTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransfers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTransfersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTransferUrl = () => {
+
+
+
+
+  return `/api/v1/transfers`
+}
+
+/**
+ * Prepare a transfer (a draft), or with `validate` also move the stock at once. Its kind comes
+ * from the places: into a truck is a load, out of one a return. A load line without `unit_price`
+ * takes the sale price in force. Errors of a line come back on `lines.<index>.<field>`.
+ */
+export const createTransfer = async (transferWrite: TransferWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TransferDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TransferDetail>(getCreateTransferUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(transferWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateTransferMutationKey = () => ['createTransfer'] as const;
+
+export const getCreateTransferMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTransfer>>, TError,CreateTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTransfer>>, TError,CreateTransferMutationVariables, TContext> => {
+
+const mutationKey = getCreateTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTransfer>>, CreateTransferMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTransfer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTransferMutationResult = NonNullable<Awaited<ReturnType<typeof createTransfer>>>
+    export type CreateTransferMutationBody = TransferWrite
+    export type CreateTransferMutationError = unknown
+    export type CreateTransferMutationVariables = {data: TransferWrite}
+
+    export const useCreateTransfer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTransfer>>, TError,CreateTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createTransfer>>,
+        TError,
+        CreateTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTransferMutationOptions(options), queryClient);
+    }
+
+export const getGetTransferUrl = (transferId: number,) => {
+
+
+
+
+  return `/api/v1/transfers/${transferId}`
+}
+
+/**
+ * One transfer; once validated, each line lists the batches its kg came from.
+ */
+export const getTransfer = async (transferId: number, options?: Parameters<typeof apiFetch>[1]): Promise<TransferDetail> => {
+
+  return apiFetch<TransferDetail>(getGetTransferUrl(transferId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTransferQueryKey = (transferId: number,) => {
+    return [
+    `/api/v1/transfers/${transferId}`
+    ] as const;
+    }
+
+
+export const getGetTransferQueryOptions = <TData = Awaited<ReturnType<typeof getTransfer>>, TError = unknown>(transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTransfer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTransferQueryKey(transferId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTransfer>>> = ({ signal }) => getTransfer(transferId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: transferId !== null && transferId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTransfer>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTransferQueryResult = NonNullable<Awaited<ReturnType<typeof getTransfer>>>
+export type GetTransferQueryError = unknown
+
+
+export function useGetTransfer<TData = Awaited<ReturnType<typeof getTransfer>>, TError = unknown>(
+ transferId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTransfer>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTransfer>>,
+          TError,
+          Awaited<ReturnType<typeof getTransfer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTransfer<TData = Awaited<ReturnType<typeof getTransfer>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTransfer>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTransfer>>,
+          TError,
+          Awaited<ReturnType<typeof getTransfer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTransfer<TData = Awaited<ReturnType<typeof getTransfer>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTransfer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetTransfer<TData = Awaited<ReturnType<typeof getTransfer>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTransfer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTransferQueryOptions(transferId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTransferUrl = (transferId: number,) => {
+
+
+
+
+  return `/api/v1/transfers/${transferId}`
+}
+
+/**
+ * Change a draft (every line is replaced), and with `validate` move the stock too.
+ */
+export const updateTransfer = async (transferId: number,
+    transferWrite: TransferWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TransferDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TransferDetail>(getUpdateTransferUrl(transferId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(transferWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateTransferMutationKey = () => ['updateTransfer'] as const;
+
+export const getUpdateTransferMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTransfer>>, TError,UpdateTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTransfer>>, TError,UpdateTransferMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTransfer>>, UpdateTransferMutationVariables> = (props) => {
+          const {transferId,data} = props ?? {};
+
+          return  updateTransfer(transferId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTransferMutationResult = NonNullable<Awaited<ReturnType<typeof updateTransfer>>>
+    export type UpdateTransferMutationBody = TransferWrite
+    export type UpdateTransferMutationError = unknown
+    export type UpdateTransferMutationVariables = {transferId: number;data: TransferWrite}
+
+    export const useUpdateTransfer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTransfer>>, TError,UpdateTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateTransfer>>,
+        TError,
+        UpdateTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTransferMutationOptions(options), queryClient);
+    }
+
+export const getCancelTransferUrl = (transferId: number,) => {
+
+
+
+
+  return `/api/v1/transfers/${transferId}/cancel`
+}
+
+/**
+ * Give up a draft. A validated transfer is corrected by a transfer the other way.
+ */
+export const cancelTransfer = async (transferId: number, options?: Parameters<typeof apiFetch>[1]): Promise<TransferDetail> => {
+
+  return apiFetch<TransferDetail>(getCancelTransferUrl(transferId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelTransferMutationKey = () => ['cancelTransfer'] as const;
+
+export const getCancelTransferMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelTransfer>>, TError,CancelTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelTransfer>>, TError,CancelTransferMutationVariables, TContext> => {
+
+const mutationKey = getCancelTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelTransfer>>, CancelTransferMutationVariables> = (props) => {
+          const {transferId} = props ?? {};
+
+          return  cancelTransfer(transferId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelTransferMutationResult = NonNullable<Awaited<ReturnType<typeof cancelTransfer>>>
+
+    export type CancelTransferMutationError = unknown
+    export type CancelTransferMutationVariables = {transferId: number}
+
+    export const useCancelTransfer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelTransfer>>, TError,CancelTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelTransfer>>,
+        TError,
+        CancelTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelTransferMutationOptions(options), queryClient);
+    }
+
+export const getValidateTransferUrl = (transferId: number,) => {
+
+
+
+
+  return `/api/v1/transfers/${transferId}/validate`
+}
+
+/**
+ * Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
+ * too little (on `lines.<index>.quantity`) or for a day still to come.
+ */
+export const validateTransfer = async (transferId: number, options?: Parameters<typeof apiFetch>[1]): Promise<TransferDetail> => {
+
+  return apiFetch<TransferDetail>(getValidateTransferUrl(transferId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getValidateTransferMutationKey = () => ['validateTransfer'] as const;
+
+export const getValidateTransferMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateTransfer>>, TError,ValidateTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateTransfer>>, TError,ValidateTransferMutationVariables, TContext> => {
+
+const mutationKey = getValidateTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateTransfer>>, ValidateTransferMutationVariables> = (props) => {
+          const {transferId} = props ?? {};
+
+          return  validateTransfer(transferId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateTransferMutationResult = NonNullable<Awaited<ReturnType<typeof validateTransfer>>>
+
+    export type ValidateTransferMutationError = unknown
+    export type ValidateTransferMutationVariables = {transferId: number}
+
+    export const useValidateTransfer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateTransfer>>, TError,ValidateTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof validateTransfer>>,
+        TError,
+        ValidateTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getValidateTransferMutationOptions(options), queryClient);
+    }
+
+export const getGetTruckDayUrl = (params: GetTruckDayParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/transfers/truck-day?${stringifiedParams}` : `/api/v1/transfers/truck-day`
+}
+
+/**
+ * A truck's day per product from its validated transfers: kg loaded, kg returned, and loaded −
+ * returned, sold or lost, with the day's price per kg and what that is worth.
+ */
+export const getTruckDay = async (params: GetTruckDayParams, options?: Parameters<typeof apiFetch>[1]): Promise<TruckDay> => {
+
+  return apiFetch<TruckDay>(getGetTruckDayUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTruckDayQueryKey = (params?: GetTruckDayParams,) => {
+    return [
+    `/api/v1/transfers/truck-day`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTruckDayQueryOptions = <TData = Awaited<ReturnType<typeof getTruckDay>>, TError = unknown>(params: GetTruckDayParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTruckDayQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTruckDay>>> = ({ signal }) => getTruckDay(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTruckDay>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTruckDayQueryResult = NonNullable<Awaited<ReturnType<typeof getTruckDay>>>
+export type GetTruckDayQueryError = unknown
+
+
+export function useGetTruckDay<TData = Awaited<ReturnType<typeof getTruckDay>>, TError = unknown>(
+ params: GetTruckDayParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruckDay>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTruckDay>>,
+          TError,
+          Awaited<ReturnType<typeof getTruckDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTruckDay<TData = Awaited<ReturnType<typeof getTruckDay>>, TError = unknown>(
+ params: GetTruckDayParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruckDay>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTruckDay>>,
+          TError,
+          Awaited<ReturnType<typeof getTruckDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTruckDay<TData = Awaited<ReturnType<typeof getTruckDay>>, TError = unknown>(
+ params: GetTruckDayParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetTruckDay<TData = Awaited<ReturnType<typeof getTruckDay>>, TError = unknown>(
+ params: GetTruckDayParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTruckDayQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListTruckAssignmentsUrl = (params?: ListTruckAssignmentsParams,) => {
   const normalizedParams = new URLSearchParams();

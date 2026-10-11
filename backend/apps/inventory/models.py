@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
@@ -209,3 +210,123 @@ class StockOnHand(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.location} · {self.batch} · {self.quantity} kg"
+
+
+class DocumentCounter(OrganizationScopedModel):
+    """The last number given to one series of stock documents ("TR" transfers...) in an organization.
+
+    Locked while a number is taken, like `BatchCounter`, so two documents saved at once never share one.
+    """
+
+    series = models.CharField(max_length=10)
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "series"], name="one_document_counter_per_series"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization} · {self.series} · {self.last_number}"
+
+
+# ---- Transfers between locations (P1-T09, D-044) ----
+
+
+class TransferKind(models.TextChoices):
+    """Given by the two locations, never typed: into a truck, out of a truck, or between two other places."""
+
+    LOAD = "load", _("Chargement")
+    RETURN = "return", _("Retour")
+    INTERNAL = "internal", _("Entre emplacements")
+
+
+class TransferStatus(models.TextChoices):
+    # Prepared, nothing moved yet: lines and prices may still change.
+    DRAFT = "draft", _("Brouillon")
+    # Validated by the owner or a manager: the stock moved (FIFO) and the document is frozen.
+    VALIDATED = "validated", _("Validé")
+    # A draft given up; it never moved stock.
+    CANCELLED = "cancelled", _("Annulé")
+
+
+class Transfer(OrganizationScopedModel, TimeStampedModel):
+    """Stock moved from one location to another: the morning load of a truck, its evening return, or
+    goods moved between cold rooms. Its lines name products and kg; batches are taken oldest first when
+    it is validated (D-009, D-037). A validated transfer is never edited: a mistake is corrected by a
+    transfer the other way.
+    """
+
+    # "TR-0001", "TR-0002"... per organization, given by `services.create_transfer`.
+    number = models.CharField(max_length=20)
+    kind = models.CharField(max_length=20, choices=TransferKind.choices)
+    status = models.CharField(max_length=20, choices=TransferStatus.choices, default=TransferStatus.DRAFT)
+    from_location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="transfers_out")
+    to_location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="transfers_in")
+    # The working day it belongs to: the truck's day for a load or a return.
+    transferred_on = models.DateField()
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    validated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    validated_at = models.DateTimeField(null=True, blank=True)
+    # Phase 3 (P3-T01): the driver confirms on the phone that the load is on the truck. Empty until then.
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    # Sent by an app that may retry (the driver app in Phase 3, the demo seed): the same request never
+    # creates two transfers (ARCHITECTURE §4.7).
+    client_uuid = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-transferred_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="transfer_number_unique_per_organization"),
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"],
+                condition=models.Q(client_uuid__isnull=False),
+                name="transfer_client_uuid_unique_per_organization",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(from_location=models.F("to_location")), name="transfer_between_two_locations"
+            ),
+        ]
+        indexes = [models.Index(fields=["organization", "transferred_on"], name="transfer_day_idx")]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class TransferLine(OrganizationScopedModel):
+    """One product of a transfer: how many kg, and for a truck load the sale price per kg of the day.
+
+    The price is what the driver sells at (client meeting 2026-10-11): it starts from the price in force
+    (`catalog.ProductPrice`) and may be changed on the load; it is kept here, so a later price change never
+    rewrites it. The batches come from the movements posted for the line (their source document).
+    """
+
+    transfer = models.ForeignKey(Transfer, on_delete=models.CASCADE, related_name="lines")
+    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
+    quantity = QuantityField()
+    # DT per kg; only on a load (empty on returns and moves between cold rooms).
+    unit_price = models.DecimalField[Decimal | None, Decimal | None](
+        max_digits=14, decimal_places=3, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["transfer", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="transfer_line_quantity_positive"),
+            models.CheckConstraint(
+                condition=models.Q(unit_price__isnull=True) | models.Q(unit_price__gt=0),
+                name="transfer_line_price_positive",
+            ),
+            models.UniqueConstraint(fields=["transfer", "product"], name="one_transfer_line_per_product"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.transfer} · {self.product_id} · {self.quantity} kg"

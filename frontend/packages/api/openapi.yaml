@@ -557,6 +557,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/StockLocation'
           description: ''
+  /api/v1/locations/{location_id}/stock:
+    get:
+      operationId: listLocationStock
+      description: What a location holds now per product, all batches together, by
+        product name.
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LocationStock'
+          description: ''
   /api/v1/me:
     get:
       operationId: getSession
@@ -1552,6 +1576,243 @@ paths:
               schema:
                 $ref: '#/components/schemas/Supplier'
           description: ''
+  /api/v1/transfers:
+    get:
+      operationId: listTransfers
+      description: |-
+        Transfers (truck loads, evening returns, moves between cold rooms), newest day first, paginated
+        (`limit`, `offset`). Filter by kind, status, location (in or out), days (inclusive) or `search`
+        (number, place names).
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - load
+          - return
+          - internal
+          type: string
+          minLength: 1
+        description: |-
+          * `load` - Chargement
+          * `return` - Retour
+          * `internal` - Entre emplacements
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - validated
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `validated` - Validé
+          * `cancelled` - Annulé
+      tags:
+      - transfers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTransferList'
+          description: ''
+    post:
+      operationId: createTransfer
+      description: |-
+        Prepare a transfer (a draft), or with `validate` also move the stock at once. Its kind comes
+        from the places: into a truck is a load, out of one a return. A load line without `unit_price`
+        takes the sale price in force. Errors of a line come back on `lines.<index>.<field>`.
+      tags:
+      - transfers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransferWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransferWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferDetail'
+          description: ''
+  /api/v1/transfers/{transfer_id}:
+    get:
+      operationId: getTransfer
+      description: One transfer; once validated, each line lists the batches its kg
+        came from.
+      parameters:
+      - in: path
+        name: transfer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - transfers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferDetail'
+          description: ''
+    put:
+      operationId: updateTransfer
+      description: Change a draft (every line is replaced), and with `validate` move
+        the stock too.
+      parameters:
+      - in: path
+        name: transfer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - transfers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransferWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransferWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferDetail'
+          description: ''
+  /api/v1/transfers/{transfer_id}/cancel:
+    post:
+      operationId: cancelTransfer
+      description: Give up a draft. A validated transfer is corrected by a transfer
+        the other way.
+      parameters:
+      - in: path
+        name: transfer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - transfers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferDetail'
+          description: ''
+  /api/v1/transfers/{transfer_id}/validate:
+    post:
+      operationId: validateTransfer
+      description: |-
+        Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
+        too little (on `lines.<index>.quantity`) or for a day still to come.
+      parameters:
+      - in: path
+        name: transfer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - transfers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferDetail'
+          description: ''
+  /api/v1/transfers/truck-day:
+    get:
+      operationId: getTruckDay
+      description: |-
+        A truck's day per product from its validated transfers: kg loaded, kg returned, and loaded −
+        returned, sold or lost, with the day's price per kg and what that is worth.
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        required: true
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - transfers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TruckDay'
+          description: ''
   /api/v1/truck-assignments:
     get:
       operationId: listTruckAssignments
@@ -2288,6 +2549,29 @@ components:
       - product_id
       - received_on
       - unit_cost
+    LocationStock:
+      type: object
+      description: How many kg of one product a location holds, all batches together.
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_reference:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - product_id
+      - product_name
+      - product_reference
+      - quantity
     Login:
       type: object
       properties:
@@ -2323,6 +2607,25 @@ components:
       - is_active
       - role
       - user
+    MovedBatch:
+      type: object
+      description: 'One batch a line took, oldest first: the movement posted for it.'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - quantity
     Organization:
       type: object
       properties:
@@ -2450,6 +2753,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SupplierPayment'
+    PaginatedTransferList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transfer'
     PatchedCategory:
       type: object
       properties:
@@ -2716,6 +3042,23 @@ components:
           format: binary
       required:
       - photo
+    Place:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/StockLocationKindEnum'
+          readOnly: true
+      required:
+      - id
+      - kind
+      - name
     Product:
       type: object
       description: A product as the screens show it, with the sale price in force
@@ -3701,6 +4044,317 @@ components:
             $ref: '#/components/schemas/SupplierContact'
       required:
       - name
+    Transfer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/TransferKindEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TransferStatusEnum'
+          readOnly: true
+        from_location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        to_location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        transferred_on:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferLine'
+          readOnly: true
+        total_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        validated_by:
+          type: string
+          readOnly: true
+        validated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        confirmed_by:
+          type: string
+          readOnly: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - confirmed_at
+      - confirmed_by
+      - created_at
+      - created_by
+      - from_location
+      - id
+      - kind
+      - lines
+      - notes
+      - number
+      - status
+      - to_location
+      - total_amount
+      - total_quantity
+      - transferred_on
+      - validated_at
+      - validated_by
+    TransferDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/TransferKindEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TransferStatusEnum'
+          readOnly: true
+        from_location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        to_location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        transferred_on:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferLineDetail'
+          readOnly: true
+        total_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        validated_by:
+          type: string
+          readOnly: true
+        validated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        confirmed_by:
+          type: string
+          readOnly: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - confirmed_at
+      - confirmed_by
+      - created_at
+      - created_by
+      - from_location
+      - id
+      - kind
+      - lines
+      - notes
+      - number
+      - status
+      - to_location
+      - total_amount
+      - total_quantity
+      - transferred_on
+      - validated_at
+      - validated_by
+    TransferKindEnum:
+      enum:
+      - load
+      - return
+      - internal
+      type: string
+      description: |-
+        * `load` - Chargement
+        * `return` - Retour
+        * `internal` - Entre emplacements
+    TransferLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+      required:
+      - amount
+      - id
+      - product
+      - quantity
+      - unit_price
+    TransferLineDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+        batches:
+          type: array
+          items:
+            $ref: '#/components/schemas/MovedBatch'
+          readOnly: true
+      required:
+      - amount
+      - batches
+      - id
+      - product
+      - quantity
+      - unit_price
+    TransferLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+        unit_price:
+          type: string
+          nullable: true
+      required:
+      - product
+      - quantity
+    TransferStatusEnum:
+      enum:
+      - draft
+      - validated
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `validated` - Validé
+        * `cancelled` - Annulé
+    TransferWrite:
+      type: object
+      properties:
+        from_location:
+          type: integer
+          minimum: 1
+        to_location:
+          type: integer
+          minimum: 1
+        transferred_on:
+          type: string
+          format: date
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferLineWrite'
+        validate_now:
+          type: boolean
+          default: false
+      required:
+      - from_location
+      - lines
+      - to_location
+      - transferred_on
     Truck:
       type: object
       properties:
@@ -3778,6 +4432,80 @@ components:
           format: date
       required:
       - truck
+    TruckDay:
+      type: object
+      properties:
+        location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TruckDayLine'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - date
+      - lines
+      - location
+    TruckDayLine:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_reference:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        loaded:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        sold_or_lost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - loaded
+      - product_id
+      - product_name
+      - product_reference
+      - returned
+      - sold_or_lost
+      - unit_price
     TruckRef:
       type: object
       properties:

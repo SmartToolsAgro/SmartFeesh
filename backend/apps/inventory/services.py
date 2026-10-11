@@ -3,8 +3,9 @@
 import datetime as dt
 import itertools
 import uuid
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -12,12 +13,25 @@ from django.db import connection, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.catalog import selectors as catalog
 from apps.core import audit
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity
 
 from . import selectors
-from .models import FIFO_ORDER, Batch, BatchCounter, StockLocation, StockMovement, StockOnHand
+from .models import (
+    FIFO_ORDER,
+    Batch,
+    BatchCounter,
+    DocumentCounter,
+    StockLocation,
+    StockMovement,
+    StockOnHand,
+    Transfer,
+    TransferKind,
+    TransferLine,
+    TransferStatus,
+)
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
 from .models import MovementKind as MovementKind  # re-exported for apps that post movements
 
@@ -462,3 +476,336 @@ def rebuild_on_hand(*, organization: Organization, actor: User | None) -> list[s
 
 def _difference_entry(difference: selectors.OnHandDifference, quantity: Decimal) -> dict[str, Any]:
     return {"location": difference.location_id, "batch": difference.batch_id, "quantity": quantity}
+
+
+# ---- Transfers between locations (P1-T09, D-044) ----
+
+TRANSFER_SERIES = "TR"
+
+
+class TransferLineFields(TypedDict, total=False):
+    product: "Product"
+    quantity: Number
+    # DT per kg, on a truck load only; empty takes the sale price in force.
+    unit_price: Number | None
+
+
+def line_error_key(index: int, field: str) -> str:
+    """Errors of a document line are reported on `lines.<index>.<field>`, under the line's own input."""
+    return f"lines.{index}.{field}"
+
+
+def _next_document_number(organization: Organization, series: str) -> str:
+    """TR-0001, TR-0002... per organization and series, taken under a row lock (same scheme as batches)."""
+    DocumentCounter.objects.bulk_create(
+        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
+    )
+    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
+    counter.last_number += 1
+    counter.save(update_fields=["last_number"])
+    return f"{series}-{counter.last_number:04d}"
+
+
+def transfer_kind(from_location: StockLocation, to_location: StockLocation) -> str:
+    """A load goes into a truck, a return comes out of one; anything else moves between two places."""
+    from_truck = from_location.kind == LocationKind.TRUCK
+    to_truck = to_location.kind == LocationKind.TRUCK
+    if to_truck and not from_truck:
+        return TransferKind.LOAD
+    if from_truck and not to_truck:
+        return TransferKind.RETURN
+    return TransferKind.INTERNAL
+
+
+def moment_of(day: dt.date) -> dt.datetime:
+    """When a document of `day` happened: now when it is today, noon of that day otherwise.
+
+    Noon keeps the ledger in date order for a day typed afterwards, as goods receipts do (D-039).
+    """
+    if day == timezone.localdate():
+        return timezone.now()
+    return timezone.make_aware(dt.datetime.combine(day, dt.time(12, 0)))
+
+
+def _transfer_header_errors(
+    organization: Organization, from_location: StockLocation, to_location: StockLocation
+) -> dict[str, str]:
+    errors: dict[str, str] = {}
+    for field, location in (("from_location", from_location), ("to_location", to_location)):
+        if location.organization_id != organization.pk:
+            errors[field] = _("Emplacement inconnu.")
+        elif not location.is_active:
+            errors[field] = _("« %(name)s » est archivé.") % {"name": location.name}
+    if not errors and from_location.pk == to_location.pk:
+        errors["to_location"] = _("Les emplacements de départ et d'arrivée doivent être différents.")
+    return errors
+
+
+def _checked_load_price(product: "Product | None", price: Any, at: dt.datetime) -> Decimal | str:
+    """The price per kg of a load line, or the message saying why there is none.
+
+    Empty takes the sale price in force at `at` (`catalog.ProductPrice`); a typed price is checked.
+    """
+    if price in (None, ""):
+        in_force = catalog.price_at(product, at) if product is not None else None
+        if in_force is None:
+            return _("Aucun prix de vente en vigueur : indiquez le prix du jour.")
+        return in_force.price
+    try:
+        amount = checked_amount(price)
+    except (ValueError, TypeError):
+        amount = None
+    if amount is None or amount <= 0:
+        return _("Indiquez un prix en DT par kg, supérieur à zéro, au millime près.")
+    return amount
+
+
+def _checked_transfer_lines(
+    organization: Organization,
+    kind: str,
+    lines: Sequence[TransferLineFields],
+    at: dt.datetime,
+    errors: dict[str, str],
+) -> list[dict[str, Any]]:
+    """The lines' values once checked; each problem is added to `errors` under the line's own keys.
+
+    Only a load carries a price per kg (the driver sells at it); the other kinds keep none.
+    """
+    checked_lines: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for index, line in enumerate(lines):
+        product = line.get("product")
+        checked: dict[str, Any] = {"product": product, "quantity": None, "unit_price": None}
+        if product is None or product.organization_id != organization.pk:
+            errors[line_error_key(index, "product")] = _("Produit inconnu.")
+        elif not product.is_active:
+            errors[line_error_key(index, "product")] = _("Ce produit est archivé.")
+        elif product.pk in seen:
+            errors[line_error_key(index, "product")] = _("Ce produit est déjà sur une autre ligne.")
+        else:
+            seen.add(product.pk)
+        try:
+            value: Any = line.get("quantity", "")
+            checked["quantity"] = checked_quantity(value)
+        except (ValueError, TypeError):
+            errors[line_error_key(index, "quantity")] = _("Indiquez un poids en kg, supérieur à zéro.")
+        if kind == TransferKind.LOAD and line_error_key(index, "product") not in errors:
+            price = _checked_load_price(product, line.get("unit_price"), at)
+            if isinstance(price, Decimal):
+                checked["unit_price"] = price
+            else:
+                errors[line_error_key(index, "unit_price")] = price
+        checked_lines.append(checked)
+    return checked_lines
+
+
+def _transfer_snapshot(transfer: Transfer) -> dict[str, Any]:
+    return {
+        "number": transfer.number,
+        "kind": transfer.kind,
+        "status": transfer.status,
+        "from_location": transfer.from_location.name,
+        "to_location": transfer.to_location.name,
+        "transferred_on": transfer.transferred_on.isoformat(),
+        "lines": [
+            {
+                "product": line.product.reference,
+                "quantity": str(line.quantity),
+                "unit_price": str(line.unit_price) if line.unit_price is not None else None,
+            }
+            for line in transfer.lines.select_related("product").order_by("id")
+        ],
+    }
+
+
+def _write_transfer_lines(transfer: Transfer, checked_lines: list[dict[str, Any]]) -> None:
+    TransferLine.objects.bulk_create(
+        [
+            TransferLine(
+                organization_id=transfer.organization_id,
+                transfer=transfer,
+                product=values["product"],
+                quantity=values["quantity"],
+                unit_price=values["unit_price"],
+            )
+            for values in checked_lines
+        ]
+    )
+
+
+def _prepared_transfer(
+    organization: Organization,
+    from_location: StockLocation,
+    to_location: StockLocation,
+    transferred_on: dt.date,
+    lines: Sequence[TransferLineFields],
+) -> tuple[str, list[dict[str, Any]]]:
+    """The kind and the checked lines of a transfer, or a ValidationError with every problem at once."""
+    errors = _transfer_header_errors(organization, from_location, to_location)
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un produit.")
+    kind = transfer_kind(from_location, to_location)
+    checked_lines = _checked_transfer_lines(organization, kind, lines, moment_of(transferred_on), errors)
+    if errors:
+        raise ValidationError(errors)
+    return kind, checked_lines
+
+
+@transaction.atomic
+def create_transfer(
+    *,
+    organization: Organization,
+    actor: User | None,
+    from_location: StockLocation,
+    to_location: StockLocation,
+    transferred_on: dt.date,
+    lines: Sequence[TransferLineFields],
+    notes: str = "",
+    client_uuid: uuid.UUID | None = None,
+    validate: bool = False,
+) -> Transfer:
+    """Prepare a transfer as a draft; with `validate`, also move the stock at once (one transaction).
+
+    The kind (load, return, between places) comes from the two locations. A load line without a price
+    takes the sale price in force. A `client_uuid` already used returns that transfer.
+    """
+    if client_uuid is not None:
+        existing = Transfer.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            return existing
+    kind, checked_lines = _prepared_transfer(organization, from_location, to_location, transferred_on, lines)
+    transfer = Transfer.objects.create(
+        organization=organization,
+        number=_next_document_number(organization, TRANSFER_SERIES),
+        kind=kind,
+        from_location=from_location,
+        to_location=to_location,
+        transferred_on=transferred_on,
+        notes=notes.strip(),
+        created_by=actor,
+        client_uuid=client_uuid,
+    )
+    _write_transfer_lines(transfer, checked_lines)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="transfer.created",
+        target=transfer,
+        after=_transfer_snapshot(transfer),
+    )
+    if validate:
+        return validate_transfer(transfer=transfer, actor=actor)
+    return transfer
+
+
+def _locked_draft(transfer: Transfer) -> Transfer:
+    """The transfer locked until commit, refused when it is no longer a draft."""
+    locked = (
+        Transfer.objects.select_for_update(of=("self",))
+        .select_related("organization", "from_location", "to_location")
+        .get(pk=transfer.pk)
+    )
+    if locked.status == TransferStatus.VALIDATED:
+        raise ValidationError(_("Ce transfert est déjà validé : il ne se modifie plus."))
+    if locked.status == TransferStatus.CANCELLED:
+        raise ValidationError(_("Ce transfert est annulé."))
+    return locked
+
+
+@transaction.atomic
+def update_transfer(
+    *,
+    transfer: Transfer,
+    actor: User | None,
+    from_location: StockLocation,
+    to_location: StockLocation,
+    transferred_on: dt.date,
+    lines: Sequence[TransferLineFields],
+    notes: str = "",
+    validate: bool = False,
+) -> Transfer:
+    """Change a draft: its places, day, notes and lines (all replaced). With `validate`, validate it too."""
+    transfer = _locked_draft(transfer)
+    organization = transfer.organization
+    before = _transfer_snapshot(transfer)
+    kind, checked_lines = _prepared_transfer(organization, from_location, to_location, transferred_on, lines)
+    transfer.kind = kind
+    transfer.from_location = from_location
+    transfer.to_location = to_location
+    transfer.transferred_on = transferred_on
+    transfer.notes = notes.strip()
+    transfer.save()
+    transfer.lines.all().delete()
+    _write_transfer_lines(transfer, checked_lines)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="transfer.updated",
+        target=transfer,
+        before=before,
+        after=_transfer_snapshot(transfer),
+    )
+    if validate:
+        return validate_transfer(transfer=transfer, actor=actor)
+    return transfer
+
+
+@transaction.atomic
+def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
+    """Move the stock of a draft: each line's kg leave the source oldest batch first (D-037).
+
+    Refused as a whole when any line asks more than the source holds (each on `lines.<index>.quantity`),
+    when a location is archived, or for a day still to come. Lines are posted in product order, so two
+    transfers validated at once lock the same rows in the same order and never wait for each other forever.
+    """
+    transfer = _locked_draft(transfer)
+    organization = transfer.organization
+    errors = _transfer_header_errors(organization, transfer.from_location, transfer.to_location)
+    if transfer.transferred_on > timezone.localdate():
+        errors["transferred_on"] = _("Un transfert d'un jour à venir se valide ce jour-là.")
+    if errors:
+        raise ValidationError(errors)
+    occurred_at = moment_of(transfer.transferred_on)
+    lines = list(transfer.lines.order_by("id"))
+    for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
+        try:
+            post_fifo_movements(
+                organization=organization,
+                actor=actor,
+                kind=MovementKind.TRANSFER,
+                product_id=line.product_id,
+                quantity=line.quantity,
+                from_location=transfer.from_location,
+                to_location=transfer.to_location,
+                source=line,
+                occurred_at=occurred_at,
+            )
+        except ValidationError as error:
+            # The line's own savepoint is rolled back; the other lines are still checked, then all is refused.
+            for field, messages in getattr(error, "message_dict", {"lines": error.messages}).items():
+                key = line_error_key(index, "quantity") if field == "quantity" else field
+                errors.setdefault(key, messages[0])
+    if errors:
+        raise ValidationError(errors)
+    transfer.status = TransferStatus.VALIDATED
+    transfer.validated_by = actor
+    transfer.validated_at = timezone.now()
+    transfer.save(update_fields=["status", "validated_by", "validated_at", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="transfer.validated",
+        target=transfer,
+        after=_transfer_snapshot(transfer),
+    )
+    return transfer
+
+
+@transaction.atomic
+def cancel_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
+    """Give up a draft. A validated transfer is corrected by a transfer the other way instead."""
+    transfer = _locked_draft(transfer)
+    transfer.status = TransferStatus.CANCELLED
+    transfer.save(update_fields=["status", "updated_at"])
+    audit.record(organization=transfer.organization, actor=actor, action="transfer.cancelled", target=transfer)
+    return transfer
