@@ -34,10 +34,10 @@ _Coarse plan: detail each task when the phase starts._
       calendar entry linked to a lot shows on the lot.
 
 ### P5-T04 · Employees and salaries · M
-- [ ] Employee profile, position, fixed monthly salary (Q6). No fixed truck (D-042).
-- [ ] Monthly salary record (base, bonus, overtime, deductions, employer CNSS contributions) = expense.
-- [ ] Salary payments = cash out. Unpaid salaries visible. The expense and the payment are separate records.
-- [ ] **Days on a lot:** record that an employee worked n days on a lot → lot cost = n × monthly
+- [x] Employee profile, position, fixed monthly salary (Q6). No fixed truck (D-042).
+- [x] Monthly salary record (base, bonus, overtime, deductions, employer CNSS contributions) = expense.
+- [x] Salary payments = cash out. Unpaid salaries visible. The expense and the payment are separate records.
+- [x] **Days on a lot:** record that an employee worked n days on a lot → lot cost = n × monthly
       salary / 26 (client). Optional per lot.
 
 ### P5-T05 · General costs on lots · S
