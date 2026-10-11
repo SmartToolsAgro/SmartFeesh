@@ -549,6 +549,218 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/day-labour:
+    get:
+      operationId: listDayLabour
+      description: |-
+        Days worked by day labourers, by day then name: a month for the calendar (`date_from`,
+        `date_to`, inclusive), or the days of one lot or one labourer. Each day is also an expense.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: labourer
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - day-labour
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayLabourEntry'
+          description: ''
+    post:
+      operationId: createDayLabour
+      description: |-
+        Record a day worked, from the calendar or from a lot (the same single record, an expense of
+        category day labour). Without `amount`, the labourer's usual daily pay; without `batch`, a general
+        cost. A draft until approved (`approve_now` approves at once).
+      tags:
+      - day-labour
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayLabourWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayLabourWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayLabourWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayLabourEntry'
+          description: ''
+  /api/v1/day-labour/{entry_id}:
+    put:
+      operationId: updateDayLabour
+      description: Correct a day not approved yet; with `approve_now`, approve it
+        too.
+      parameters:
+      - in: path
+        name: entry_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-labour
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayLabourWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayLabourWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayLabourWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayLabourEntry'
+          description: ''
+    delete:
+      operationId: deleteDayLabour
+      description: Delete a day typed by mistake while it is a draft (its expense
+        goes with it).
+      parameters:
+      - in: path
+        name: entry_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-labour
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/day-labourers:
+    get:
+      operationId: listDayLabourers
+      description: Day labourers by name.
+      parameters:
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - day-labourers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayLabourer'
+          description: ''
+    post:
+      operationId: createDayLabourer
+      description: 'Add a day labourer (not an employee: no payroll).'
+      tags:
+      - day-labourers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayLabourerWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayLabourerWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayLabourerWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayLabourer'
+          description: ''
+  /api/v1/day-labourers/{labourer_id}:
+    put:
+      operationId: updateDayLabourer
+      description: 'Change a day labourer, or archive them (`is_active` false): their
+        days stay.'
+      parameters:
+      - in: path
+        name: labourer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-labourers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayLabourerWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayLabourerWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayLabourerWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayLabourer'
+          description: ''
   /api/v1/employees:
     get:
       operationId: listEmployees
@@ -709,6 +921,426 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Employee'
+          description: ''
+  /api/v1/expense-categories:
+    get:
+      operationId: listExpenseCategories
+      description: 'Expense categories: the default ones first, in the brief''s order,
+        then the owner''s.'
+      parameters:
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - expense-categories
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseCategory'
+          description: ''
+    post:
+      operationId: createExpenseCategory
+      description: Add a category (owner only).
+      tags:
+      - expense-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseCategoryWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExpenseCategoryWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExpenseCategoryWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseCategory'
+          description: ''
+  /api/v1/expense-categories/{category_id}:
+    patch:
+      operationId: updateExpenseCategory
+      description: Rename a category or archive it (owner only). A default category
+        is never archived.
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expense-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedExpenseCategoryUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedExpenseCategoryUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedExpenseCategoryUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseCategory'
+          description: ''
+  /api/v1/expenses:
+    get:
+      operationId: listExpenses
+      description: |-
+        Expenses, newest day first, paginated (`limit`, `offset`). Filter by status, category, lot,
+        truck, days (inclusive) or `search` (number, description, payee, lot number).
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: category
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - pending
+          - approved
+          - rejected
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `pending` - À approuver
+          * `approved` - Approuvée
+          * `rejected` - Refusée
+      - in: query
+        name: truck
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedExpenseList'
+          description: ''
+    post:
+      operationId: createExpense
+      description: |-
+        Record an expense as a draft, or with `approve_now` approved at once. `batch` charges it to a
+        lot; `truck` makes it a truck cost of that day, split over the lots loaded that day by kg. A day
+        labourer's day is recorded in the day-labour calendar instead.
+      tags:
+      - expenses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExpenseWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExpenseWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+          description: ''
+  /api/v1/expenses/{expense_id}:
+    get:
+      operationId: getExpense
+      description: One expense; a truck cost of the day comes with its split over
+        the lots loaded that day.
+      parameters:
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+          description: ''
+    put:
+      operationId: updateExpense
+      description: |-
+        Correct a draft or an expense waiting for approval; with `approve_now`, approve it too. An approved
+        or refused expense never changes: a correction is a new expense.
+      parameters:
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expenses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExpenseWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExpenseWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+          description: ''
+    delete:
+      operationId: deleteExpense
+      description: Delete a draft typed by mistake. An expense sent for approval is
+        refused instead.
+      parameters:
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/expenses/{expense_id}/approve:
+    post:
+      operationId: approveExpense
+      description: 'Approve a draft or a waiting expense (owner or manager): it counts
+        in the costs from now on.'
+      parameters:
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+          description: ''
+  /api/v1/expenses/{expense_id}/receipt:
+    put:
+      operationId: addExpenseReceipt
+      description: |-
+        Join the receipt: a photo (turned upright, shrunk, stored as WebP without metadata) or a PDF.
+        It can be replaced while the expense is open; once decided, only joined if there was none.
+      parameters:
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expenses
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExpenseReceipt'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+          description: ''
+        '400':
+          description: Not a photo or a PDF
+  /api/v1/expenses/{expense_id}/reject:
+    post:
+      operationId: rejectExpense
+      description: Refuse a draft or a waiting expense, saying why. It never counts.
+      parameters:
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expenses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseReject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExpenseReject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExpenseReject'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+          description: ''
+  /api/v1/expenses/totals:
+    get:
+      operationId: getExpenseTotals
+      description: |-
+        How many expenses the same filters as `listExpenses` keep, and their totals: approved, and still
+        waiting (drafts and sent for approval).
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: category
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - pending
+          - approved
+          - rejected
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `pending` - À approuver
+          * `approved` - Approuvée
+          * `rejected` - Refusée
+      - in: query
+        name: truck
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseTotals'
           description: ''
   /api/v1/health:
     get:
@@ -1103,6 +1735,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LossDetail'
+          description: ''
+  /api/v1/lot-costs:
+    get:
+      operationId: getLotCosts
+      description: |-
+        The costs charged to one lot so far: expenses typed on it and its share of the truck costs of
+        each day it was on a truck (by kg loaded). `total` counts approved lines only; drafts and waiting
+        expenses are listed for information.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - lot-costs
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotCosts'
           description: ''
   /api/v1/lot-work-days:
     get:
@@ -4091,6 +4748,169 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    DayLabourEntry:
+      type: object
+      description: A day worked, with the expense it is (one record, D-054).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        expense_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        worked_on:
+          type: string
+          format: date
+          readOnly: true
+        labourer:
+          allOf:
+          - $ref: '#/components/schemas/DayLabourLabourer'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseLot'
+          readOnly: true
+          nullable: true
+        work_type:
+          allOf:
+          - $ref: '#/components/schemas/WorkTypeEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        entered_by:
+          type: string
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - batch
+      - entered_by
+      - expense_id
+      - id
+      - labourer
+      - notes
+      - number
+      - payment_method
+      - rejection_reason
+      - status
+      - work_type
+      - worked_on
+    DayLabourLabourer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    DayLabourWrite:
+      type: object
+      properties:
+        labourer:
+          type: integer
+          minimum: 1
+        worked_on:
+          type: string
+          format: date
+        amount:
+          type: string
+          nullable: true
+        batch:
+          type: integer
+          minimum: 1
+          nullable: true
+        work_type:
+          allOf:
+          - $ref: '#/components/schemas/WorkTypeEnum'
+          default: other
+        notes:
+          type: string
+          default: ''
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: cash
+        approve_now:
+          type: boolean
+          default: false
+      required:
+      - labourer
+      - worked_on
+    DayLabourer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        usual_daily_pay:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - is_active
+      - name
+      - notes
+      - phone
+      - usual_daily_pay
+    DayLabourerWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        phone:
+          type: string
+          default: ''
+          maxLength: 60
+        usual_daily_pay:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - name
     DifferenceLine:
       type: object
       properties:
@@ -4310,6 +5130,383 @@ components:
           maxLength: 2000
       required:
       - name
+    Expense:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        spent_on:
+          type: string
+          format: date
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseCategoryRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        payee:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseLot'
+          readOnly: true
+          nullable: true
+        truck:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseTruck'
+          readOnly: true
+          nullable: true
+        receipt_url:
+          type: string
+          nullable: true
+          readOnly: true
+        receipt_type:
+          type: string
+          readOnly: true
+        entered_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        decided_by:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        rejection_reason:
+          type: string
+          readOnly: true
+        day_labour_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        labourer_name:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - batch
+      - category
+      - created_at
+      - day_labour_id
+      - decided_at
+      - decided_by
+      - description
+      - entered_by
+      - id
+      - labourer_name
+      - notes
+      - number
+      - payee
+      - payment_method
+      - receipt_type
+      - receipt_url
+      - rejection_reason
+      - spent_on
+      - status
+      - truck
+    ExpenseCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - code
+      - id
+      - is_active
+      - name
+    ExpenseCategoryRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - code
+      - id
+      - name
+    ExpenseCategoryWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+      required:
+      - name
+    ExpenseDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        spent_on:
+          type: string
+          format: date
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseCategoryRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        payee:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseLot'
+          readOnly: true
+          nullable: true
+        truck:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseTruck'
+          readOnly: true
+          nullable: true
+        receipt_url:
+          type: string
+          nullable: true
+          readOnly: true
+        receipt_type:
+          type: string
+          readOnly: true
+        entered_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        decided_by:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        rejection_reason:
+          type: string
+          readOnly: true
+        day_labour_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        labourer_name:
+          type: string
+          readOnly: true
+        shares:
+          type: array
+          items:
+            $ref: '#/components/schemas/TruckDayShare'
+          readOnly: true
+      required:
+      - amount
+      - batch
+      - category
+      - created_at
+      - day_labour_id
+      - decided_at
+      - decided_by
+      - description
+      - entered_by
+      - id
+      - labourer_name
+      - notes
+      - number
+      - payee
+      - payment_method
+      - receipt_type
+      - receipt_url
+      - rejection_reason
+      - shares
+      - spent_on
+      - status
+      - truck
+    ExpenseLot:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
+      - product_name
+    ExpenseReceipt:
+      type: object
+      properties:
+        receipt:
+          type: string
+          format: binary
+      required:
+      - receipt
+    ExpenseReject:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - reason
+    ExpenseStatusEnum:
+      enum:
+      - draft
+      - pending
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `pending` - À approuver
+        * `approved` - Approuvée
+        * `rejected` - Refusée
+    ExpenseTotals:
+      type: object
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        approved:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        waiting:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - approved
+      - count
+      - waiting
+    ExpenseTruck:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        plate:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - plate
+    ExpenseWrite:
+      type: object
+      properties:
+        spent_on:
+          type: string
+          format: date
+        category:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: cash
+        description:
+          type: string
+          default: ''
+          maxLength: 255
+        payee:
+          type: string
+          default: ''
+          maxLength: 150
+        notes:
+          type: string
+          default: ''
+        batch:
+          type: integer
+          minimum: 1
+          nullable: true
+        truck:
+          type: integer
+          minimum: 1
+          nullable: true
+        approve_now:
+          type: boolean
+          default: false
+      required:
+      - amount
+      - category
+      - spent_on
     GeneratedMonth:
       type: object
       properties:
@@ -4773,6 +5970,103 @@ components:
       - product
       - quantity
       - reason
+    LotCostKindEnum:
+      enum:
+      - lot
+      - truck_day
+      type: string
+      description: |-
+        * `lot` - Sur le lot
+        * `truck_day` - Frais du camion du jour
+    LotCostLine:
+      type: object
+      properties:
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/LotCostKindEnum'
+          readOnly: true
+        expense_id:
+          type: integer
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        spent_on:
+          type: string
+          format: date
+          readOnly: true
+        category_code:
+          type: string
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        day_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - category_code
+      - category_name
+      - day_quantity
+      - description
+      - expense_amount
+      - expense_id
+      - expense_number
+      - kind
+      - quantity
+      - spent_on
+      - status
+      - truck_name
+    LotCosts:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LotCostLine'
+          readOnly: true
+      required:
+      - batch_id
+      - lines
+      - total
     LotWorkDay:
       type: object
       properties:
@@ -4977,6 +6271,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DifferenceLine'
+    PaginatedExpenseList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Expense'
     PaginatedLossList:
       type: object
       required:
@@ -5245,6 +6562,14 @@ components:
           type: string
           default: ''
           maxLength: 2000
+    PatchedExpenseCategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        is_active:
+          type: boolean
     PatchedLanguage:
       type: object
       properties:
@@ -8225,6 +9550,40 @@ components:
       - returned
       - sold_or_lost
       - unit_price
+    TruckDayShare:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        day_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - batch_id
+      - batch_number
+      - day_quantity
+      - product_name
+      - quantity
     TruckRef:
       type: object
       properties:
@@ -8286,6 +9645,20 @@ components:
       - language
       - last_name
       - username
+    WorkTypeEnum:
+      enum:
+      - loading
+      - stock
+      - store
+      - cleaning
+      - other
+      type: string
+      description: |-
+        * `loading` - Chargement, déchargement
+        * `stock` - Rangement du stock
+        * `store` - Magasin
+        * `cleaning` - Nettoyage
+        * `other` - Autre
   securitySchemes:
     cookieAuth:
       type: apiKey
