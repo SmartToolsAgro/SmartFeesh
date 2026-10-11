@@ -45,7 +45,7 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 - [x] Cancel = reversal (returns to the same batches), never deletion.
 - [x] Counter sale at a cold room is a first-class flow (regular, Q8): same service, location = cold room,
       walk-in customer by default. (Quick screen: P2-T04b.)
-- [ ] T04b: "Ventes" list/detail, sale form, quick counter-sale screen, "Convertir en vente" on a quote,
+- [x] T04b: "Ventes" list/detail, sale form, quick counter-sale screen, "Convertir en vente" on a quote,
       a lot's sales on the batch page, Playwright tests.
 
 ### P2-T05 · Invoices · M
@@ -80,7 +80,8 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 
 ### P2-T09 · Admin screens · M
 - [ ] Quotes, sales, invoices, customers, payments screens. Customer page shows balance + history.
-- [ ] Quick counter-sale screen for the cold room.
+      (Quotes P2-T03, sales P2-T04b and customers P2-T01 done; invoices, payments and the balance remain.)
+- [x] Quick counter-sale screen for the cold room (`/ventes/comptoir`, P2-T04b, D-052).
 
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays

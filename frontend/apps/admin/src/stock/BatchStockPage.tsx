@@ -8,6 +8,7 @@ import { Link, useOutletContext, useParams } from "react-router";
 import { LotCostsCard } from "../expenses/LotCostsCard";
 
 import { StockTabs } from "../lib/StockTabs";
+import { BatchSalesSection } from "../sales/BatchSalesSection";
 import { MovementsTable } from "./MovementsTable";
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -86,6 +87,7 @@ export function BatchStockPage() {
         </dl>
       </Card>
 
+      <BatchSalesSection batchId={batchId} />
       <LotCostsCard batchId={batchId} session={session} />
 
       <section aria-labelledby="batch-history" className="flex flex-col gap-2">

@@ -38,6 +38,10 @@ import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
 import { ReceiptFormPage } from "./receipts/ReceiptFormPage";
 import { ReceiptsPage } from "./receipts/ReceiptsPage";
+import { CounterSalePage } from "./sales/CounterSalePage";
+import { SaleDetailPage } from "./sales/SaleDetailPage";
+import { SaleEditPage, SaleFormPage } from "./sales/SaleFormPage";
+import { SalesPage } from "./sales/SalesPage";
 import { CustomerDetailPage } from "./customers/CustomerDetailPage";
 import { CustomersPage } from "./customers/CustomersPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
@@ -97,13 +101,12 @@ const SCREENS: Record<string, ReactNode> = {
   "/clients": <CustomersPage />,
   "/prix": <PriceBoardPage />,
   "/devis": <QuotesPage />,
+  "/ventes": <SalesPage />,
   "/salaires": <PayrollPage />,
   "/charges": <ExpensesPage />,
 };
 
-const ILLUSTRATIONS: Record<string, IllustrationName> = {
-  "/ventes": "truck",
-};
+const ILLUSTRATIONS: Record<string, IllustrationName> = {};
 
 function displayName(session: Session): string {
   return `${session.user.first_name} ${session.user.last_name}`.trim() || session.user.username;
@@ -175,6 +178,11 @@ function AppRoutes() {
         <Route path="/devis/nouveau" element={<QuoteFormPage />} />
         <Route path="/devis/:quoteId" element={<QuoteDetailPage />} />
         <Route path="/devis/:quoteId/modifier" element={<QuoteEditPage />} />
+        {/* Sales (P2-T04) */}
+        <Route path="/ventes/nouvelle" element={<SaleFormPage />} />
+        <Route path="/ventes/comptoir" element={<CounterSalePage />} />
+        <Route path="/ventes/:saleId" element={<SaleDetailPage />} />
+        <Route path="/ventes/:saleId/modifier" element={<SaleEditPage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         <Route path="/achats/factures" element={<SupplierInvoicesPage />} />
