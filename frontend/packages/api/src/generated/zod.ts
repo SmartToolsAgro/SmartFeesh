@@ -2082,6 +2082,544 @@ export const RestoreProductResponse = zod.object({
 
 
 /**
+ * Quotes, newest first, paginated (`limit`, `offset`). Filter by status (a sent quote past its
+ * validity date counts as expired), customer, days (inclusive) or `search` (number, customer).
+ */
+
+export const listQuotesQuerySearchDefault = ``;
+export const listQuotesQuerySearchMax = 100;
+
+
+
+export const ListQuotesQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listQuotesQuerySearchMax).default(listQuotesQuerySearchDefault),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).optional().describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré')
+})
+
+export const listQuotesResponseResultsItemSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listQuotesResponseResultsItemDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listQuotesResponseResultsItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listQuotesResponseResultsItemTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listQuotesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListQuotesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', listQuotesResponseResultsItemSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', listQuotesResponseResultsItemDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', listQuotesResponseResultsItemTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', listQuotesResponseResultsItemTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', listQuotesResponseResultsItemTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "sent_by": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}).nullable(),
+  "answered_by": zod.string(),
+  "answered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "refusal_reason": zod.string(),
+  "expired_at": zod.iso.datetime({"offset":true}).nullable()
+}))
+})
+
+
+/**
+ * Prepare a quote (a draft), or with `send_now` mark it sent at once. A line without `unit_price`
+ * takes the sale price in force on the quote's day; without `valid_until` it is valid 3 days.
+ * Errors of a line come back on `lines.<index>.<field>`.
+ */
+
+
+export const createQuoteBodyNotesDefault = ``;
+export const createQuoteBodySendNowDefault = false;
+
+export const CreateQuoteBody = zod.object({
+  "customer": zod.int().min(1),
+  "location": zod.int().min(1).nullish(),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date().nullish(),
+  "notes": zod.string().default(createQuoteBodyNotesDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "unit_price": zod.string().nullish(),
+  "discount_rate": zod.string().nullish()
+})),
+  "send_now": zod.boolean().default(createQuoteBodySendNowDefault)
+})
+
+export const createQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateQuoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', createQuoteResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', createQuoteResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', createQuoteResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', createQuoteResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', createQuoteResponseTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "sent_by": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}).nullable(),
+  "answered_by": zod.string(),
+  "answered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "refusal_reason": zod.string(),
+  "expired_at": zod.iso.datetime({"offset":true}).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', createQuoteResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', createQuoteResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', createQuoteResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', createQuoteResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', createQuoteResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', createQuoteResponseLinesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * One quote with its lines and totals (without VAT until P2-T05).
+ */
+export const GetQuoteParams = zod.object({
+  "quote_id": zod.int()
+})
+
+export const getQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetQuoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', getQuoteResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', getQuoteResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', getQuoteResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', getQuoteResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', getQuoteResponseTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "sent_by": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}).nullable(),
+  "answered_by": zod.string(),
+  "answered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "refusal_reason": zod.string(),
+  "expired_at": zod.iso.datetime({"offset":true}).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', getQuoteResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', getQuoteResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', getQuoteResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', getQuoteResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', getQuoteResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', getQuoteResponseLinesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Change a draft (every line is replaced), and with `send_now` send it too. A sent quote no longer
+ * changes.
+ */
+export const UpdateQuoteParams = zod.object({
+  "quote_id": zod.int()
+})
+
+
+
+export const updateQuoteBodyNotesDefault = ``;
+export const updateQuoteBodySendNowDefault = false;
+
+export const UpdateQuoteBody = zod.object({
+  "customer": zod.int().min(1),
+  "location": zod.int().min(1).nullish(),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date().nullish(),
+  "notes": zod.string().default(updateQuoteBodyNotesDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "unit_price": zod.string().nullish(),
+  "discount_rate": zod.string().nullish()
+})),
+  "send_now": zod.boolean().default(updateQuoteBodySendNowDefault)
+})
+
+export const updateQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateQuoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', updateQuoteResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', updateQuoteResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', updateQuoteResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', updateQuoteResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', updateQuoteResponseTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "sent_by": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}).nullable(),
+  "answered_by": zod.string(),
+  "answered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "refusal_reason": zod.string(),
+  "expired_at": zod.iso.datetime({"offset":true}).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', updateQuoteResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', updateQuoteResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', updateQuoteResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Record the customer's yes on a sent quote, up to its validity date included. No stock is
+ * reserved; the sale comes from it in P2-T04.
+ */
+export const AcceptQuoteParams = zod.object({
+  "quote_id": zod.int()
+})
+
+export const acceptQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const acceptQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AcceptQuoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', acceptQuoteResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', acceptQuoteResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', acceptQuoteResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', acceptQuoteResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', acceptQuoteResponseTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "sent_by": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}).nullable(),
+  "answered_by": zod.string(),
+  "answered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "refusal_reason": zod.string(),
+  "expired_at": zod.iso.datetime({"offset":true}).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', acceptQuoteResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', acceptQuoteResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', acceptQuoteResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Record the customer's no on a sent quote, with an optional reason.
+ */
+export const RefuseQuoteParams = zod.object({
+  "quote_id": zod.int()
+})
+
+export const refuseQuoteBodyReasonDefault = ``;
+export const refuseQuoteBodyReasonMax = 255;
+
+
+
+export const RefuseQuoteBody = zod.object({
+  "reason": zod.string().max(refuseQuoteBodyReasonMax).default(refuseQuoteBodyReasonDefault)
+})
+
+export const refuseQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const refuseQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RefuseQuoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', refuseQuoteResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', refuseQuoteResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', refuseQuoteResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', refuseQuoteResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', refuseQuoteResponseTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "sent_by": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}).nullable(),
+  "answered_by": zod.string(),
+  "answered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "refusal_reason": zod.string(),
+  "expired_at": zod.iso.datetime({"offset":true}).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', refuseQuoteResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', refuseQuoteResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', refuseQuoteResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Mark a draft as given to the customer: it no longer changes. Refused once its validity date has
+ * passed.
+ */
+export const SendQuoteParams = zod.object({
+  "quote_id": zod.int()
+})
+
+export const sendQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const sendQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SendQuoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "quoted_on": zod.iso.date(),
+  "valid_until": zod.iso.date(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', sendQuoteResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', sendQuoteResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', sendQuoteResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', sendQuoteResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', sendQuoteResponseTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "sent_by": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}).nullable(),
+  "answered_by": zod.string(),
+  "answered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "refusal_reason": zod.string(),
+  "expired_at": zod.iso.datetime({"offset":true}).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', sendQuoteResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', sendQuoteResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', sendQuoteResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemAmountRegExp)
+}))
+})
+
+
+/**
  * Goods receipts, newest first, paginated (`limit`, `offset`), each with its lines and totals.
  * Filter by supplier, by `search` (number, supplier's reference, supplier name) or to receipts with
  * a weight difference.
