@@ -3,6 +3,11 @@
 Camion 1 goes to the demo driver; the sample's other drivers are not demo logins, so trucks 2 and 3 have none.
 """
 
+from contextlib import suppress
+
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
 from apps.core.models import Organization, User
 from apps.fleet import selectors as fleet_selectors
 from apps.fleet import services as fleet
@@ -52,4 +57,19 @@ def seed_locations(*, organization: Organization, actor: User | None, driver: Us
             driver=driver if for_driver and not driver_has_truck else None,
         )
         created += 1
+    _seed_truck_of_the_day(organization=organization, actor=actor, driver=driver)
     return created
+
+
+def _seed_truck_of_the_day(*, organization: Organization, actor: User | None, driver: User | None) -> None:
+    """Today's assignment: the demo driver takes Camion 1, so the day view of the admin has a row to show."""
+    first_truck = TRUCKS[0][0]
+    truck = fleet_selectors.trucks_of(organization).filter(location__name__iexact=first_truck).first()
+    if driver is None or truck is None:
+        return
+    today = timezone.localdate()
+    if fleet_selectors.assignments_on(organization, today).filter(driver=driver).exists():
+        return
+    # Refused when the truck was given to someone else today: then the day is left as it is.
+    with suppress(ValidationError):
+        fleet.assign_truck(organization=organization, actor=actor, truck=truck, driver=driver, date=today)

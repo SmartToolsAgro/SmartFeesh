@@ -38,6 +38,7 @@ import type {
   ListReceiptDifferencesParams,
   ListReceiptsParams,
   ListSuppliersParams,
+  ListTruckAssignmentsParams,
   ListTrucksParams,
   Login,
   Member,
@@ -64,6 +65,8 @@ import type {
   Supplier,
   SupplierWrite,
   Truck,
+  TruckAssignment,
+  TruckAssignmentWrite,
   TruckWrite
 } from './models';
 
@@ -4067,6 +4070,268 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRestoreSupplierMutationOptions(options), queryClient);
+    }
+
+export const getListTruckAssignmentsUrl = (params?: ListTruckAssignmentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/truck-assignments?${stringifiedParams}` : `/api/v1/truck-assignments`
+}
+
+/**
+ * Who drives which truck on a day (today by default). A driver sees only their own assignment.
+ */
+export const listTruckAssignments = async (params?: ListTruckAssignmentsParams, options?: Parameters<typeof apiFetch>[1]): Promise<TruckAssignment[]> => {
+
+  return apiFetch<TruckAssignment[]>(getListTruckAssignmentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTruckAssignmentsQueryKey = (params?: ListTruckAssignmentsParams,) => {
+    return [
+    `/api/v1/truck-assignments`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTruckAssignmentsQueryOptions = <TData = Awaited<ReturnType<typeof listTruckAssignments>>, TError = unknown>(params?: ListTruckAssignmentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckAssignments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTruckAssignmentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTruckAssignments>>> = ({ signal }) => listTruckAssignments(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTruckAssignments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTruckAssignmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listTruckAssignments>>>
+export type ListTruckAssignmentsQueryError = unknown
+
+
+export function useListTruckAssignments<TData = Awaited<ReturnType<typeof listTruckAssignments>>, TError = unknown>(
+ params: undefined |  ListTruckAssignmentsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckAssignments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTruckAssignments>>,
+          TError,
+          Awaited<ReturnType<typeof listTruckAssignments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTruckAssignments<TData = Awaited<ReturnType<typeof listTruckAssignments>>, TError = unknown>(
+ params?: ListTruckAssignmentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckAssignments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTruckAssignments>>,
+          TError,
+          Awaited<ReturnType<typeof listTruckAssignments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTruckAssignments<TData = Awaited<ReturnType<typeof listTruckAssignments>>, TError = unknown>(
+ params?: ListTruckAssignmentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckAssignments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListTruckAssignments<TData = Awaited<ReturnType<typeof listTruckAssignments>>, TError = unknown>(
+ params?: ListTruckAssignmentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckAssignments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTruckAssignmentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAssignTruckUrl = () => {
+
+
+
+
+  return `/api/v1/truck-assignments`
+}
+
+/**
+ * Give a truck to a driver for a day. A driver can only take a truck for themselves; they may
+ * change their own mind, the office must remove the first assignment before giving another truck.
+ */
+export const assignTruck = async (truckAssignmentWrite: TruckAssignmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TruckAssignment> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TruckAssignment>(getAssignTruckUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(truckAssignmentWrite)
+  }
+);}
+
+
+
+
+
+export const getAssignTruckMutationKey = () => ['assignTruck'] as const;
+
+export const getAssignTruckMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignTruck>>, TError,AssignTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignTruck>>, TError,AssignTruckMutationVariables, TContext> => {
+
+const mutationKey = getAssignTruckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignTruck>>, AssignTruckMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  assignTruck(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignTruckMutationResult = NonNullable<Awaited<ReturnType<typeof assignTruck>>>
+    export type AssignTruckMutationBody = TruckAssignmentWrite
+    export type AssignTruckMutationError = unknown
+    export type AssignTruckMutationVariables = {data: TruckAssignmentWrite}
+
+    export const useAssignTruck = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignTruck>>, TError,AssignTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof assignTruck>>,
+        TError,
+        AssignTruckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssignTruckMutationOptions(options), queryClient);
+    }
+
+export const getUnassignTruckUrl = (assignmentId: number,) => {
+
+
+
+
+  return `/api/v1/truck-assignments/${assignmentId}`
+}
+
+/**
+ * Take an assignment back: the truck falls back to its usual driver for that day.
+ */
+export const unassignTruck = async (assignmentId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getUnassignTruckUrl(assignmentId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnassignTruckMutationKey = () => ['unassignTruck'] as const;
+
+export const getUnassignTruckMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unassignTruck>>, TError,UnassignTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unassignTruck>>, TError,UnassignTruckMutationVariables, TContext> => {
+
+const mutationKey = getUnassignTruckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unassignTruck>>, UnassignTruckMutationVariables> = (props) => {
+          const {assignmentId} = props ?? {};
+
+          return  unassignTruck(assignmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnassignTruckMutationResult = NonNullable<Awaited<ReturnType<typeof unassignTruck>>>
+
+    export type UnassignTruckMutationError = unknown
+    export type UnassignTruckMutationVariables = {assignmentId: number}
+
+    export const useUnassignTruck = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unassignTruck>>, TError,UnassignTruckMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unassignTruck>>,
+        TError,
+        UnassignTruckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnassignTruckMutationOptions(options), queryClient);
     }
 
 export const getListTrucksUrl = (params?: ListTrucksParams,) => {

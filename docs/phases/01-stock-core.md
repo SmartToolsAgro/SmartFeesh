@@ -122,10 +122,10 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
 
 ### P1-T12 · Truck of the day · S
 Client meeting 2026-10-11, D-042: a driver is not tied to one truck.
-- [ ] Drop the "one active truck per driver" constraint; `Truck.driver` becomes the usual driver only.
-- [ ] Truck assignment per date (truck, driver, date), set by the office or by the driver; provisional:
+- [x] Drop the "one active truck per driver" constraint; `Truck.driver` becomes the usual driver only.
+- [x] Truck assignment per date (truck, driver, date), set by the office or by the driver; provisional:
       one driver per truck and one truck per driver each day. Phase 3's `DriverDay` builds on it.
-- [ ] `may_use_location`, `may_use_truck` and `/me` read today's assignment, falling back to the usual
+- [x] `may_use_location`, `may_use_truck` and `/me` read today's assignment, falling back to the usual
       driver when there is none.
 
 **Phase acceptance test (end-to-end):** receive 60 kg dorade (62 invoiced) → load 15 kg to truck 1 →

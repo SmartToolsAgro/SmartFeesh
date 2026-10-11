@@ -6,7 +6,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.models import Organization, User
-from apps.fleet.models import Truck
+from apps.fleet.models import Truck, TruckAssignment
 
 
 class DriverRefSerializer(serializers.ModelSerializer[User]):
@@ -45,6 +45,31 @@ class TruckWriteSerializer(serializers.Serializer[Any]):
     plate = serializers.CharField(max_length=20)
     # A driver's user id; null leaves the truck without a driver.
     driver = OrganizationUserField(allow_null=True, required=False, default=None)
+
+
+class TruckAssignmentSerializer(serializers.ModelSerializer[TruckAssignment]):
+    truck_id = serializers.IntegerField(read_only=True)
+    truck_name = serializers.CharField(source="truck.location.name", read_only=True)
+    plate = serializers.CharField(source="truck.plate", read_only=True)
+    driver = DriverRefSerializer(read_only=True)
+
+    class Meta:
+        model = TruckAssignment
+        fields = ("id", "date", "truck_id", "truck_name", "plate", "driver")
+        read_only_fields = fields
+
+
+class TruckAssignmentWriteSerializer(serializers.Serializer[Any]):
+    truck = serializers.IntegerField()
+    # Absent for a driver (always themselves); the office names the driver.
+    driver = OrganizationUserField(required=False)
+    # Absent means today.
+    date = serializers.DateField(required=False)
+
+
+class TruckAssignmentFilterSerializer(serializers.Serializer[Any]):
+    # Absent means today.
+    date = serializers.DateField(required=False)
 
 
 class TruckFilterSerializer(serializers.Serializer[Any]):

@@ -1,12 +1,4 @@
-import {
-  archiveTruck,
-  createTruck,
-  restoreTruck,
-  type Truck,
-  updateTruck,
-  useListMembers,
-  useListTrucks,
-} from "@frutti/api";
+import { archiveTruck, createTruck, restoreTruck, type Truck, updateTruck, useListMembers } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -40,19 +32,12 @@ export function TruckDialog({ truck, onDone }: { truck?: Truck; onDone: () => vo
   const queryClient = useQueryClient();
   const formId = useId();
   const members = useListMembers();
-  // Tells which drivers already drive another truck.
-  const activeTrucks = useListTrucks({ status: "active" });
   const [name, setName] = useState(truck?.name ?? "");
   const [plate, setPlate] = useState(truck?.plate ?? "");
   const [driver, setDriver] = useState(truck?.driver ? String(truck.driver.id) : NO_DRIVER);
   const [errors, setErrors] = useState<Errors>({});
 
   const drivers = (members.data ?? []).filter((member) => member.role === "driver" && member.is_active);
-  const truckOf = new Map(
-    (activeTrucks.data ?? [])
-      .filter((other) => other.driver && other.id !== truck?.id)
-      .map((other) => [other.driver?.id, other.name]),
-  );
 
   const save = useMutation({
     mutationFn: () => {
@@ -138,10 +123,9 @@ export function TruckDialog({ truck, onDone }: { truck?: Truck; onDone: () => vo
               )}
               {drivers.map(({ user }) => {
                 const fullName = `${user.first_name} ${user.last_name}`.trim() || user.username;
-                const other = truckOf.get(user.id);
                 return (
                   <SelectItem key={user.id} value={String(user.id)}>
-                    {other ? t("admin.locations.form.alreadyDriving", { name: fullName, truck: other }) : fullName}
+                    {fullName}
                   </SelectItem>
                 );
               })}

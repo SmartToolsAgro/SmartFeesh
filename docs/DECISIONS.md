@@ -461,3 +461,19 @@ Supersedes the "one active truck per driver" and "own truck" parts of D-033 (cli
   they come from sales, invoices and payments (P2-T04 to P2-T06). The seed loads limits and terms only.
 - `ENUM_NAME_OVERRIDES` in the schema settings names the customer kind enum `CustomerKindEnum`: several
   models have a `kind` field and the generated names collided.
+
+**D-046 · Truck of the day: assignment per date (P1-T12)** · accepted · 2026-10-11
+Builds D-042 before Phase 3's `DriverDay` exists.
+- `fleet.TruckAssignment` (organization, truck, driver, date): unique per truck and date and per driver and
+  date (database constraints, plus clear service errors naming who has the truck or where the driver is).
+  `Truck.driver` stays as the **usual driver**; the "one active truck per driver" constraint is gone, a
+  driver may be the usual driver of several trucks.
+- Truck of the driver today = today's assignment; without one, the truck they usually drive unless
+  another driver was assigned to it that day (then none). Several usual trucks: first by name.
+  `may_use_truck`, `may_use_location`, the truck list for drivers and `/me` all use it.
+- Set by owner/manager for any driver and any day, or by a driver for themselves (today or later).
+  The office must remove an assignment before giving the driver another truck; a driver's own new choice
+  replaces their previous one. Accountant reads only. Archiving a truck drops its assignments from today.
+- API: `GET/POST /api/v1/truck-assignments`, `DELETE /api/v1/truck-assignments/<id>`. Admin: "Camions du
+  jour" section on the stock screen. A driver-side screen to pick the truck comes with Phase 3.
+

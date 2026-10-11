@@ -4,8 +4,22 @@ from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
+from apps.core.models import Role
 from apps.core.permissions import IsOwnerOrManager, membership_of
 from apps.fleet import selectors
+
+
+class AssignmentsOfficeOrOwnDriver(BasePermission):
+    """Every member reads the day's assignments (a driver sees their own rows only); owners and managers
+    change them, and a driver changes their own. Views narrow a driver to their own rows."""
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        membership = membership_of(request)
+        if membership is None:
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        return membership.role in IsOwnerOrManager.roles or membership.role == Role.DRIVER
 
 
 class OwnTruckOrOffice(BasePermission):

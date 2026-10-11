@@ -9,6 +9,7 @@ import { useOutletContext } from "react-router";
 import { type Status, StatusFilter } from "../lib/StatusFilter";
 import { LocationDialog } from "./LocationDialog";
 import { canEditLocations } from "./shared";
+import { TruckDayPanel } from "./TruckDayPanel";
 import { TruckDialog } from "./TruckDialog";
 
 type Open = { kind: "room" | "truck"; id: number | "new" } | null;
@@ -171,6 +172,8 @@ export function LocationsPage() {
           </section>
         </>
       )}
+
+      <TruckDayPanel canEdit={canEdit} />
 
       <Dialog open={open !== null} onOpenChange={(isOpen) => !isOpen && setOpen(null)}>
         {open?.kind === "room" && open.id === "new" && <LocationDialog onDone={() => setOpen(null)} />}
