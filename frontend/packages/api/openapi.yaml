@@ -7388,6 +7388,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        remaining:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         is_voided:
           type: boolean
           readOnly: true
@@ -7422,6 +7427,7 @@ components:
       - number
       - received_on
       - reference
+      - remaining
       - unallocated
       - void_reason
       - voided_at
@@ -7487,6 +7493,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        remaining:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         is_voided:
           type: boolean
           readOnly: true
@@ -7527,6 +7538,7 @@ components:
       - number
       - received_on
       - reference
+      - remaining
       - unallocated
       - void_reason
       - voided_at

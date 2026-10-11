@@ -775,6 +775,7 @@ export const ListCustomerPaymentsQueryParams = zod.object({
 export const listCustomerPaymentsResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listCustomerPaymentsResponseResultsItemAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listCustomerPaymentsResponseResultsItemUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCustomerPaymentsResponseResultsItemRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListCustomerPaymentsResponse = zod.object({
@@ -799,6 +800,7 @@ export const ListCustomerPaymentsResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -837,6 +839,7 @@ export const CreateCustomerPaymentBody = zod.object({
 export const createCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -858,6 +861,7 @@ export const CreateCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', createCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', createCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', createCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -886,6 +890,7 @@ export const GetCustomerPaymentParams = zod.object({
 export const getCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -907,6 +912,7 @@ export const GetCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', getCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', getCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', getCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -946,6 +952,7 @@ export const AllocateCustomerPaymentBody = zod.object({
 export const allocateCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const allocateCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const allocateCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const allocateCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -967,6 +974,7 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', allocateCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', allocateCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', allocateCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -1004,6 +1012,7 @@ export const VoidCustomerPaymentBody = zod.object({
 export const voidCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -1025,6 +1034,7 @@ export const VoidCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', voidCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', voidCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', voidCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),

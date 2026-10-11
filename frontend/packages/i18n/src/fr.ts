@@ -721,6 +721,7 @@ export const fr = {
         method: "Mode",
         amount: "Montant",
         credit: "Crédit restant",
+        remaining: "Reste à payer",
       },
       ageing: {
         title: "Créances par ancienneté",
