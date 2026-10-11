@@ -10,6 +10,10 @@ export function refreshExpenses(queryClient: QueryClient) {
     "/api/v1/day-labour",
     "/api/v1/day-labourers",
     "/api/v1/lot-costs",
+    "/api/v1/cold-room",
+    "/api/v1/electricity-bills",
+    "/api/v1/recurring-costs",
+    "/api/v1/general-costs",
   ];
   return queryClient.invalidateQueries({
     predicate: (query) =>
