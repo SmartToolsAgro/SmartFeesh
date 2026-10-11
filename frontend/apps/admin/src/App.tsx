@@ -18,6 +18,8 @@ import { ProductsPage } from "./products/ProductsPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
 import { ReceiptFormPage } from "./receipts/ReceiptFormPage";
 import { ReceiptsPage } from "./receipts/ReceiptsPage";
+import { CustomerDetailPage } from "./customers/CustomerDetailPage";
+import { CustomersPage } from "./customers/CustomersPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
 import { SuppliersPage } from "./suppliers/SuppliersPage";
 
@@ -63,6 +65,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/produits": <ProductsPage />,
   "/achats": <ReceiptsPage />,
   "/fournisseurs": <SuppliersPage />,
+  "/clients": <CustomersPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
@@ -131,6 +134,7 @@ function AppRoutes() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
+        <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         {nav.flatMap((group) =>

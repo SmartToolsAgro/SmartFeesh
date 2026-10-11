@@ -177,6 +177,423 @@ export const RenameCategoryResponse = zod.object({
 
 
 /**
+ * Customers sorted by name, with their contacts. Archived ones only when asked (`status`); `kind`
+ * keeps one type. Not paginated (D-047).
+ */
+export const listCustomersQuerySearchDefault = ``;
+export const listCustomersQuerySearchMax = 100;
+
+export const listCustomersQueryStatusDefault = `active`;
+
+export const ListCustomersQueryParams = zod.object({
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).optional().describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "search": zod.string().max(listCustomersQuerySearchMax).default(listCustomersQuerySearchDefault),
+  "status": zod.enum(['active', 'archived', 'all']).default(listCustomersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listCustomersResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCustomersResponseContactsItemNameMax = 150;
+
+export const listCustomersResponseContactsItemRoleDefault = ``;
+export const listCustomersResponseContactsItemRoleMax = 100;
+
+export const listCustomersResponseContactsItemPhoneDefault = ``;
+export const listCustomersResponseContactsItemPhoneMax = 30;
+
+export const listCustomersResponseContactsItemEmailOneDefault = ``;
+export const listCustomersResponseContactsItemEmailOneMax = 254;
+
+export const listCustomersResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const ListCustomersResponseItem = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "credit_limit": zod.stringFormat('decimal', listCustomersResponseCreditLimitRegExp),
+  "payment_terms_days": zod.int(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(listCustomersResponseContactsItemNameMax),
+  "role": zod.string().max(listCustomersResponseContactsItemRoleMax).default(listCustomersResponseContactsItemRoleDefault),
+  "phone": zod.string().max(listCustomersResponseContactsItemPhoneMax).default(listCustomersResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(listCustomersResponseContactsItemEmailOneMax).default(listCustomersResponseContactsItemEmailOneDefault),zod.string().max(listCustomersResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_walk_in": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListCustomersResponse = zod.array(ListCustomersResponseItem)
+
+
+/**
+ * A new customer. Without a reference it gets the next free `C-NNN`.
+ */
+export const createCustomerBodyReferenceDefault = ``;
+export const createCustomerBodyReferenceMax = 30;
+
+export const createCustomerBodyNameMax = 150;
+
+export const createCustomerBodyKindDefault = `restaurant`;
+export const createCustomerBodyTaxIdDefault = ``;
+export const createCustomerBodyTaxIdMax = 20;
+
+export const createCustomerBodyPhoneDefault = ``;
+export const createCustomerBodyPhoneMax = 30;
+
+export const createCustomerBodyEmailOneDefault = ``;
+export const createCustomerBodyEmailTwoMax = 0;
+
+export const createCustomerBodyAddressDefault = ``;
+export const createCustomerBodyAddressMax = 255;
+
+export const createCustomerBodyCityDefault = ``;
+export const createCustomerBodyCityMax = 100;
+
+export const createCustomerBodyNotesDefault = ``;
+export const createCustomerBodyNotesMax = 2000;
+
+export const createCustomerBodyCreditLimitDefault = `0.000`;
+export const createCustomerBodyCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createCustomerBodyPaymentTermsDaysDefault = 0;
+export const createCustomerBodyPaymentTermsDaysMin = 0;
+export const createCustomerBodyPaymentTermsDaysMax = 365;
+
+export const createCustomerBodyContactsItemNameMax = 150;
+
+export const createCustomerBodyContactsItemRoleDefault = ``;
+export const createCustomerBodyContactsItemRoleMax = 100;
+
+export const createCustomerBodyContactsItemPhoneDefault = ``;
+export const createCustomerBodyContactsItemPhoneMax = 30;
+
+export const createCustomerBodyContactsItemEmailOneDefault = ``;
+export const createCustomerBodyContactsItemEmailOneMax = 254;
+
+export const createCustomerBodyContactsItemEmailTwoMax = 0;
+
+
+
+export const CreateCustomerBody = zod.object({
+  "reference": zod.string().max(createCustomerBodyReferenceMax).default(createCustomerBodyReferenceDefault),
+  "name": zod.string().max(createCustomerBodyNameMax),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier').default(createCustomerBodyKindDefault),
+  "tax_id": zod.string().max(createCustomerBodyTaxIdMax).default(createCustomerBodyTaxIdDefault),
+  "phone": zod.string().max(createCustomerBodyPhoneMax).default(createCustomerBodyPhoneDefault),
+  "email": zod.union([zod.email().default(createCustomerBodyEmailOneDefault),zod.string().max(createCustomerBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(createCustomerBodyAddressMax).default(createCustomerBodyAddressDefault),
+  "city": zod.string().max(createCustomerBodyCityMax).default(createCustomerBodyCityDefault),
+  "notes": zod.string().max(createCustomerBodyNotesMax).default(createCustomerBodyNotesDefault),
+  "credit_limit": zod.stringFormat('decimal', createCustomerBodyCreditLimitRegExp).default(createCustomerBodyCreditLimitDefault),
+  "payment_terms_days": zod.int().min(createCustomerBodyPaymentTermsDaysMin).max(createCustomerBodyPaymentTermsDaysMax).default(createCustomerBodyPaymentTermsDaysDefault),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(createCustomerBodyContactsItemNameMax),
+  "role": zod.string().max(createCustomerBodyContactsItemRoleMax).default(createCustomerBodyContactsItemRoleDefault),
+  "phone": zod.string().max(createCustomerBodyContactsItemPhoneMax).default(createCustomerBodyContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(createCustomerBodyContactsItemEmailOneMax).default(createCustomerBodyContactsItemEmailOneDefault),zod.string().max(createCustomerBodyContactsItemEmailTwoMax)]).optional()
+})).optional()
+})
+
+export const createCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createCustomerResponseContactsItemNameMax = 150;
+
+export const createCustomerResponseContactsItemRoleDefault = ``;
+export const createCustomerResponseContactsItemRoleMax = 100;
+
+export const createCustomerResponseContactsItemPhoneDefault = ``;
+export const createCustomerResponseContactsItemPhoneMax = 30;
+
+export const createCustomerResponseContactsItemEmailOneDefault = ``;
+export const createCustomerResponseContactsItemEmailOneMax = 254;
+
+export const createCustomerResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const CreateCustomerResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "credit_limit": zod.stringFormat('decimal', createCustomerResponseCreditLimitRegExp),
+  "payment_terms_days": zod.int(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(createCustomerResponseContactsItemNameMax),
+  "role": zod.string().max(createCustomerResponseContactsItemRoleMax).default(createCustomerResponseContactsItemRoleDefault),
+  "phone": zod.string().max(createCustomerResponseContactsItemPhoneMax).default(createCustomerResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(createCustomerResponseContactsItemEmailOneMax).default(createCustomerResponseContactsItemEmailOneDefault),zod.string().max(createCustomerResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_walk_in": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetCustomerParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const getCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getCustomerResponseContactsItemNameMax = 150;
+
+export const getCustomerResponseContactsItemRoleDefault = ``;
+export const getCustomerResponseContactsItemRoleMax = 100;
+
+export const getCustomerResponseContactsItemPhoneDefault = ``;
+export const getCustomerResponseContactsItemPhoneMax = 30;
+
+export const getCustomerResponseContactsItemEmailOneDefault = ``;
+export const getCustomerResponseContactsItemEmailOneMax = 254;
+
+export const getCustomerResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const GetCustomerResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "credit_limit": zod.stringFormat('decimal', getCustomerResponseCreditLimitRegExp),
+  "payment_terms_days": zod.int(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(getCustomerResponseContactsItemNameMax),
+  "role": zod.string().max(getCustomerResponseContactsItemRoleMax).default(getCustomerResponseContactsItemRoleDefault),
+  "phone": zod.string().max(getCustomerResponseContactsItemPhoneMax).default(getCustomerResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(getCustomerResponseContactsItemEmailOneMax).default(getCustomerResponseContactsItemEmailOneDefault),zod.string().max(getCustomerResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_walk_in": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Change a customer. `contacts`, when sent, replaces the whole list.
+ */
+export const UpdateCustomerParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const updateCustomerBodyReferenceDefault = ``;
+export const updateCustomerBodyReferenceMax = 30;
+
+export const updateCustomerBodyNameMax = 150;
+
+export const updateCustomerBodyKindDefault = `restaurant`;
+export const updateCustomerBodyTaxIdDefault = ``;
+export const updateCustomerBodyTaxIdMax = 20;
+
+export const updateCustomerBodyPhoneDefault = ``;
+export const updateCustomerBodyPhoneMax = 30;
+
+export const updateCustomerBodyEmailOneDefault = ``;
+export const updateCustomerBodyEmailTwoMax = 0;
+
+export const updateCustomerBodyAddressDefault = ``;
+export const updateCustomerBodyAddressMax = 255;
+
+export const updateCustomerBodyCityDefault = ``;
+export const updateCustomerBodyCityMax = 100;
+
+export const updateCustomerBodyNotesDefault = ``;
+export const updateCustomerBodyNotesMax = 2000;
+
+export const updateCustomerBodyCreditLimitDefault = `0.000`;
+export const updateCustomerBodyCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateCustomerBodyPaymentTermsDaysDefault = 0;
+export const updateCustomerBodyPaymentTermsDaysMin = 0;
+export const updateCustomerBodyPaymentTermsDaysMax = 365;
+
+export const updateCustomerBodyContactsItemNameMax = 150;
+
+export const updateCustomerBodyContactsItemRoleDefault = ``;
+export const updateCustomerBodyContactsItemRoleMax = 100;
+
+export const updateCustomerBodyContactsItemPhoneDefault = ``;
+export const updateCustomerBodyContactsItemPhoneMax = 30;
+
+export const updateCustomerBodyContactsItemEmailOneDefault = ``;
+export const updateCustomerBodyContactsItemEmailOneMax = 254;
+
+export const updateCustomerBodyContactsItemEmailTwoMax = 0;
+
+
+
+export const UpdateCustomerBody = zod.object({
+  "reference": zod.string().max(updateCustomerBodyReferenceMax).default(updateCustomerBodyReferenceDefault),
+  "name": zod.string().max(updateCustomerBodyNameMax).optional(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier').default(updateCustomerBodyKindDefault),
+  "tax_id": zod.string().max(updateCustomerBodyTaxIdMax).default(updateCustomerBodyTaxIdDefault),
+  "phone": zod.string().max(updateCustomerBodyPhoneMax).default(updateCustomerBodyPhoneDefault),
+  "email": zod.union([zod.email().default(updateCustomerBodyEmailOneDefault),zod.string().max(updateCustomerBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(updateCustomerBodyAddressMax).default(updateCustomerBodyAddressDefault),
+  "city": zod.string().max(updateCustomerBodyCityMax).default(updateCustomerBodyCityDefault),
+  "notes": zod.string().max(updateCustomerBodyNotesMax).default(updateCustomerBodyNotesDefault),
+  "credit_limit": zod.stringFormat('decimal', updateCustomerBodyCreditLimitRegExp).default(updateCustomerBodyCreditLimitDefault),
+  "payment_terms_days": zod.int().min(updateCustomerBodyPaymentTermsDaysMin).max(updateCustomerBodyPaymentTermsDaysMax).default(updateCustomerBodyPaymentTermsDaysDefault),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(updateCustomerBodyContactsItemNameMax),
+  "role": zod.string().max(updateCustomerBodyContactsItemRoleMax).default(updateCustomerBodyContactsItemRoleDefault),
+  "phone": zod.string().max(updateCustomerBodyContactsItemPhoneMax).default(updateCustomerBodyContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(updateCustomerBodyContactsItemEmailOneMax).default(updateCustomerBodyContactsItemEmailOneDefault),zod.string().max(updateCustomerBodyContactsItemEmailTwoMax)]).optional()
+})).optional()
+})
+
+export const updateCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateCustomerResponseContactsItemNameMax = 150;
+
+export const updateCustomerResponseContactsItemRoleDefault = ``;
+export const updateCustomerResponseContactsItemRoleMax = 100;
+
+export const updateCustomerResponseContactsItemPhoneDefault = ``;
+export const updateCustomerResponseContactsItemPhoneMax = 30;
+
+export const updateCustomerResponseContactsItemEmailOneDefault = ``;
+export const updateCustomerResponseContactsItemEmailOneMax = 254;
+
+export const updateCustomerResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const UpdateCustomerResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "credit_limit": zod.stringFormat('decimal', updateCustomerResponseCreditLimitRegExp),
+  "payment_terms_days": zod.int(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(updateCustomerResponseContactsItemNameMax),
+  "role": zod.string().max(updateCustomerResponseContactsItemRoleMax).default(updateCustomerResponseContactsItemRoleDefault),
+  "phone": zod.string().max(updateCustomerResponseContactsItemPhoneMax).default(updateCustomerResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(updateCustomerResponseContactsItemEmailOneMax).default(updateCustomerResponseContactsItemEmailOneDefault),zod.string().max(updateCustomerResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_walk_in": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Archived customers keep their history but can no longer be sold to. The walk-in one cannot be archived.
+ */
+export const ArchiveCustomerParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const archiveCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const archiveCustomerResponseContactsItemNameMax = 150;
+
+export const archiveCustomerResponseContactsItemRoleDefault = ``;
+export const archiveCustomerResponseContactsItemRoleMax = 100;
+
+export const archiveCustomerResponseContactsItemPhoneDefault = ``;
+export const archiveCustomerResponseContactsItemPhoneMax = 30;
+
+export const archiveCustomerResponseContactsItemEmailOneDefault = ``;
+export const archiveCustomerResponseContactsItemEmailOneMax = 254;
+
+export const archiveCustomerResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const ArchiveCustomerResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "credit_limit": zod.stringFormat('decimal', archiveCustomerResponseCreditLimitRegExp),
+  "payment_terms_days": zod.int(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(archiveCustomerResponseContactsItemNameMax),
+  "role": zod.string().max(archiveCustomerResponseContactsItemRoleMax).default(archiveCustomerResponseContactsItemRoleDefault),
+  "phone": zod.string().max(archiveCustomerResponseContactsItemPhoneMax).default(archiveCustomerResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(archiveCustomerResponseContactsItemEmailOneMax).default(archiveCustomerResponseContactsItemEmailOneDefault),zod.string().max(archiveCustomerResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_walk_in": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreCustomerParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const restoreCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const restoreCustomerResponseContactsItemNameMax = 150;
+
+export const restoreCustomerResponseContactsItemRoleDefault = ``;
+export const restoreCustomerResponseContactsItemRoleMax = 100;
+
+export const restoreCustomerResponseContactsItemPhoneDefault = ``;
+export const restoreCustomerResponseContactsItemPhoneMax = 30;
+
+export const restoreCustomerResponseContactsItemEmailOneDefault = ``;
+export const restoreCustomerResponseContactsItemEmailOneMax = 254;
+
+export const restoreCustomerResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const RestoreCustomerResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "credit_limit": zod.stringFormat('decimal', restoreCustomerResponseCreditLimitRegExp),
+  "payment_terms_days": zod.int(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(restoreCustomerResponseContactsItemNameMax),
+  "role": zod.string().max(restoreCustomerResponseContactsItemRoleMax).default(restoreCustomerResponseContactsItemRoleDefault),
+  "phone": zod.string().max(restoreCustomerResponseContactsItemPhoneMax).default(restoreCustomerResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(restoreCustomerResponseContactsItemEmailOneMax).default(restoreCustomerResponseContactsItemEmailOneDefault),zod.string().max(restoreCustomerResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_walk_in": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Liveness + database check, used by Docker, the load balancer and uptime monitoring.
  */
 export const GetHealthResponse = zod.object({

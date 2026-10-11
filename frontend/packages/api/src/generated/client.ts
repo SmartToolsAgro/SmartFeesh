@@ -26,9 +26,12 @@ import type {
 import type {
   Batch,
   Category,
+  Customer,
+  CustomerWrite,
   Health,
   LastCost,
   ListBatchesParams,
+  ListCustomersParams,
   ListLastPurchaseCostsParams,
   ListLocationsParams,
   ListProductsParams,
@@ -42,6 +45,7 @@ import type {
   PaginatedDifferenceLineList,
   PaginatedReceiptList,
   PatchedCategory,
+  PatchedCustomerWrite,
   PatchedLanguage,
   PatchedProductUpdate,
   PatchedStockLocationUpdate,
@@ -818,6 +822,517 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRenameCategoryMutationOptions(options), queryClient);
+    }
+
+export const getListCustomersUrl = (params?: ListCustomersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/customers?${stringifiedParams}` : `/api/v1/customers`
+}
+
+/**
+ * Customers sorted by name, with their contacts. Archived ones only when asked (`status`); `kind`
+ * keeps one type. Not paginated (D-047).
+ */
+export const listCustomers = async (params?: ListCustomersParams, options?: Parameters<typeof apiFetch>[1]): Promise<Customer[]> => {
+
+  return apiFetch<Customer[]>(getListCustomersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustomersQueryKey = (params?: ListCustomersParams,) => {
+    return [
+    `/api/v1/customers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCustomersQueryOptions = <TData = Awaited<ReturnType<typeof listCustomers>>, TError = unknown>(params?: ListCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustomersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustomers>>> = ({ signal }) => listCustomers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustomers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCustomersQueryResult = NonNullable<Awaited<ReturnType<typeof listCustomers>>>
+export type ListCustomersQueryError = unknown
+
+
+export function useListCustomers<TData = Awaited<ReturnType<typeof listCustomers>>, TError = unknown>(
+ params: undefined |  ListCustomersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomers<TData = Awaited<ReturnType<typeof listCustomers>>, TError = unknown>(
+ params?: ListCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomers<TData = Awaited<ReturnType<typeof listCustomers>>, TError = unknown>(
+ params?: ListCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCustomers<TData = Awaited<ReturnType<typeof listCustomers>>, TError = unknown>(
+ params?: ListCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCustomerUrl = () => {
+
+
+
+
+  return `/api/v1/customers`
+}
+
+/**
+ * A new customer. Without a reference it gets the next free `C-NNN`.
+ */
+export const createCustomer = async (customerWrite: CustomerWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Customer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Customer>(getCreateCustomerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateCustomerMutationKey = () => ['createCustomer'] as const;
+
+export const getCreateCustomerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustomer>>, TError,CreateCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCustomer>>, TError,CreateCustomerMutationVariables, TContext> => {
+
+const mutationKey = getCreateCustomerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCustomer>>, CreateCustomerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCustomer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof createCustomer>>>
+    export type CreateCustomerMutationBody = CustomerWrite
+    export type CreateCustomerMutationError = unknown
+    export type CreateCustomerMutationVariables = {data: CustomerWrite}
+
+    export const useCreateCustomer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustomer>>, TError,CreateCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createCustomer>>,
+        TError,
+        CreateCustomerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCustomerMutationOptions(options), queryClient);
+    }
+
+export const getGetCustomerUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/v1/customers/${customerId}`
+}
+
+export const getCustomer = async (customerId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Customer> => {
+
+  return apiFetch<Customer>(getGetCustomerUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerQueryKey = (customerId: number,) => {
+    return [
+    `/api/v1/customers/${customerId}`
+    ] as const;
+    }
+
+
+export const getGetCustomerQueryOptions = <TData = Awaited<ReturnType<typeof getCustomer>>, TError = unknown>(customerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomer>>> = ({ signal }) => getCustomer(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCustomerQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomer>>>
+export type GetCustomerQueryError = unknown
+
+
+export function useGetCustomer<TData = Awaited<ReturnType<typeof getCustomer>>, TError = unknown>(
+ customerId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomer>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCustomer<TData = Awaited<ReturnType<typeof getCustomer>>, TError = unknown>(
+ customerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomer>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCustomer<TData = Awaited<ReturnType<typeof getCustomer>>, TError = unknown>(
+ customerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetCustomer<TData = Awaited<ReturnType<typeof getCustomer>>, TError = unknown>(
+ customerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCustomerQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateCustomerUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/v1/customers/${customerId}`
+}
+
+/**
+ * Change a customer. `contacts`, when sent, replaces the whole list.
+ */
+export const updateCustomer = async (customerId: number,
+    patchedCustomerWrite?: PatchedCustomerWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Customer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Customer>(getUpdateCustomerUrl(customerId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedCustomerWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateCustomerMutationKey = () => ['updateCustomer'] as const;
+
+export const getUpdateCustomerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCustomer>>, TError,UpdateCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCustomer>>, TError,UpdateCustomerMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCustomerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCustomer>>, UpdateCustomerMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  updateCustomer(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof updateCustomer>>>
+    export type UpdateCustomerMutationBody = PatchedCustomerWrite | undefined
+    export type UpdateCustomerMutationError = unknown
+    export type UpdateCustomerMutationVariables = {customerId: number;data?: PatchedCustomerWrite}
+
+    export const useUpdateCustomer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCustomer>>, TError,UpdateCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCustomer>>,
+        TError,
+        UpdateCustomerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCustomerMutationOptions(options), queryClient);
+    }
+
+export const getArchiveCustomerUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/v1/customers/${customerId}/archive`
+}
+
+/**
+ * Archived customers keep their history but can no longer be sold to. The walk-in one cannot be archived.
+ */
+export const archiveCustomer = async (customerId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Customer> => {
+
+  return apiFetch<Customer>(getArchiveCustomerUrl(customerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveCustomerMutationKey = () => ['archiveCustomer'] as const;
+
+export const getArchiveCustomerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCustomer>>, TError,ArchiveCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveCustomer>>, TError,ArchiveCustomerMutationVariables, TContext> => {
+
+const mutationKey = getArchiveCustomerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveCustomer>>, ArchiveCustomerMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  archiveCustomer(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof archiveCustomer>>>
+
+    export type ArchiveCustomerMutationError = unknown
+    export type ArchiveCustomerMutationVariables = {customerId: number}
+
+    export const useArchiveCustomer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCustomer>>, TError,ArchiveCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof archiveCustomer>>,
+        TError,
+        ArchiveCustomerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getArchiveCustomerMutationOptions(options), queryClient);
+    }
+
+export const getRestoreCustomerUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/v1/customers/${customerId}/restore`
+}
+
+export const restoreCustomer = async (customerId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Customer> => {
+
+  return apiFetch<Customer>(getRestoreCustomerUrl(customerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreCustomerMutationKey = () => ['restoreCustomer'] as const;
+
+export const getRestoreCustomerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCustomer>>, TError,RestoreCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreCustomer>>, TError,RestoreCustomerMutationVariables, TContext> => {
+
+const mutationKey = getRestoreCustomerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreCustomer>>, RestoreCustomerMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  restoreCustomer(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof restoreCustomer>>>
+
+    export type RestoreCustomerMutationError = unknown
+    export type RestoreCustomerMutationVariables = {customerId: number}
+
+    export const useRestoreCustomer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCustomer>>, TError,RestoreCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreCustomer>>,
+        TError,
+        RestoreCustomerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreCustomerMutationOptions(options), queryClient);
     }
 
 export const getGetHealthUrl = () => {
