@@ -16,6 +16,11 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from
 import { EmployeeDetailPage } from "./hr/EmployeeDetailPage";
 import { EmployeesPage } from "./hr/EmployeesPage";
 import { PayrollPage } from "./hr/PayrollPage";
+import { DayLabourCalendarPage } from "./expenses/DayLabourCalendarPage";
+import { DayLabourersPage } from "./expenses/DayLabourersPage";
+import { ExpenseDetailPage } from "./expenses/ExpenseDetailPage";
+import { ExpenseEditPage, ExpenseFormPage } from "./expenses/ExpenseFormPage";
+import { ExpensesPage } from "./expenses/ExpensesPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
@@ -98,6 +103,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/devis": <QuotesPage />,
   "/ventes": <SalesPage />,
   "/salaires": <PayrollPage />,
+  "/charges": <ExpensesPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};
@@ -194,6 +200,12 @@ function AppRoutes() {
         <Route path="/stock/transferts/nouveau" element={<TransferFormPage />} />
         <Route path="/stock/transferts/:transferId" element={<TransferDetailPage />} />
         <Route path="/stock/transferts/:transferId/modifier" element={<TransferEditPage />} />
+        {/* Expenses and day labour (P5-T01, P5-T03) */}
+        <Route path="/charges/nouvelle" element={<ExpenseFormPage />} />
+        <Route path="/charges/calendrier" element={<DayLabourCalendarPage />} />
+        <Route path="/charges/journaliers" element={<DayLabourersPage />} />
+        <Route path="/charges/:expenseId" element={<ExpenseDetailPage />} />
+        <Route path="/charges/:expenseId/modifier" element={<ExpenseEditPage />} />
         {/* Stock sections (P1-T10) */}
         <Route path="/stock/pertes" element={<LossesPage />} />
         <Route path="/stock/pertes/nouvelle" element={<LossFormPage />} />

@@ -947,6 +947,252 @@ export const RestoreCustomerResponse = zod.object({
 
 
 /**
+ * Days worked by day labourers, by day then name: a month for the calendar (`date_from`,
+ * `date_to`, inclusive), or the days of one lot or one labourer. Each day is also an expense.
+ */
+
+
+
+
+export const ListDayLabourQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "labourer": zod.int().min(1).optional()
+})
+
+export const listDayLabourResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDayLabourResponseItem = zod.object({
+  "id": zod.int(),
+  "expense_id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "worked_on": zod.iso.date(),
+  "labourer": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', listDayLabourResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "work_type": zod.enum(['loading', 'stock', 'store', 'cleaning', 'other']).describe('* `loading` - Chargement, déchargement\n* `stock` - Rangement du stock\n* `store` - Magasin\n* `cleaning` - Nettoyage\n* `other` - Autre'),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "rejection_reason": zod.string()
+}).describe('A day worked, with the expense it is (one record, D-054).')
+export const ListDayLabourResponse = zod.array(ListDayLabourResponseItem)
+
+
+/**
+ * Record a day worked, from the calendar or from a lot (the same single record, an expense of
+ * category day labour). Without `amount`, the labourer's usual daily pay; without `batch`, a general
+ * cost. A draft until approved (`approve_now` approves at once).
+ */
+
+
+export const createDayLabourBodyWorkTypeDefault = `other`;
+export const createDayLabourBodyNotesDefault = ``;
+export const createDayLabourBodyPaymentMethodDefault = `cash`;
+export const createDayLabourBodyApproveNowDefault = false;
+
+export const CreateDayLabourBody = zod.object({
+  "labourer": zod.int().min(1),
+  "worked_on": zod.iso.date(),
+  "amount": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish(),
+  "work_type": zod.enum(['loading', 'stock', 'store', 'cleaning', 'other']).describe('* `loading` - Chargement, déchargement\n* `stock` - Rangement du stock\n* `store` - Magasin\n* `cleaning` - Nettoyage\n* `other` - Autre').default(createDayLabourBodyWorkTypeDefault),
+  "notes": zod.string().default(createDayLabourBodyNotesDefault),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(createDayLabourBodyPaymentMethodDefault),
+  "approve_now": zod.boolean().default(createDayLabourBodyApproveNowDefault)
+})
+
+export const createDayLabourResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateDayLabourResponse = zod.object({
+  "id": zod.int(),
+  "expense_id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "worked_on": zod.iso.date(),
+  "labourer": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', createDayLabourResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "work_type": zod.enum(['loading', 'stock', 'store', 'cleaning', 'other']).describe('* `loading` - Chargement, déchargement\n* `stock` - Rangement du stock\n* `store` - Magasin\n* `cleaning` - Nettoyage\n* `other` - Autre'),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "rejection_reason": zod.string()
+}).describe('A day worked, with the expense it is (one record, D-054).')
+
+
+/**
+ * Correct a day not approved yet; with `approve_now`, approve it too.
+ */
+export const UpdateDayLabourParams = zod.object({
+  "entry_id": zod.int()
+})
+
+
+
+export const updateDayLabourBodyWorkTypeDefault = `other`;
+export const updateDayLabourBodyNotesDefault = ``;
+export const updateDayLabourBodyPaymentMethodDefault = `cash`;
+export const updateDayLabourBodyApproveNowDefault = false;
+
+export const UpdateDayLabourBody = zod.object({
+  "labourer": zod.int().min(1),
+  "worked_on": zod.iso.date(),
+  "amount": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish(),
+  "work_type": zod.enum(['loading', 'stock', 'store', 'cleaning', 'other']).describe('* `loading` - Chargement, déchargement\n* `stock` - Rangement du stock\n* `store` - Magasin\n* `cleaning` - Nettoyage\n* `other` - Autre').default(updateDayLabourBodyWorkTypeDefault),
+  "notes": zod.string().default(updateDayLabourBodyNotesDefault),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(updateDayLabourBodyPaymentMethodDefault),
+  "approve_now": zod.boolean().default(updateDayLabourBodyApproveNowDefault)
+})
+
+export const updateDayLabourResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateDayLabourResponse = zod.object({
+  "id": zod.int(),
+  "expense_id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "worked_on": zod.iso.date(),
+  "labourer": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', updateDayLabourResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "work_type": zod.enum(['loading', 'stock', 'store', 'cleaning', 'other']).describe('* `loading` - Chargement, déchargement\n* `stock` - Rangement du stock\n* `store` - Magasin\n* `cleaning` - Nettoyage\n* `other` - Autre'),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "rejection_reason": zod.string()
+}).describe('A day worked, with the expense it is (one record, D-054).')
+
+
+/**
+ * Delete a day typed by mistake while it is a draft (its expense goes with it).
+ */
+export const DeleteDayLabourParams = zod.object({
+  "entry_id": zod.int()
+})
+
+export const DeleteDayLabourResponse = zod.void()
+
+
+/**
+ * Day labourers by name.
+ */
+export const listDayLabourersQueryStatusDefault = `active`;
+
+export const ListDayLabourersQueryParams = zod.object({
+  "status": zod.enum(['active', 'archived', 'all']).default(listDayLabourersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listDayLabourersResponseUsualDailyPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDayLabourersResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "usual_daily_pay": zod.stringFormat('decimal', listDayLabourersResponseUsualDailyPayRegExp).nullable(),
+  "notes": zod.string(),
+  "is_active": zod.boolean()
+})
+export const ListDayLabourersResponse = zod.array(ListDayLabourersResponseItem)
+
+
+/**
+ * Add a day labourer (not an employee: no payroll).
+ */
+export const createDayLabourerBodyNameMax = 200;
+
+export const createDayLabourerBodyPhoneDefault = ``;
+export const createDayLabourerBodyPhoneMax = 60;
+
+export const createDayLabourerBodyNotesDefault = ``;
+export const createDayLabourerBodyIsActiveDefault = true;
+
+export const CreateDayLabourerBody = zod.object({
+  "name": zod.string().max(createDayLabourerBodyNameMax),
+  "phone": zod.string().max(createDayLabourerBodyPhoneMax).default(createDayLabourerBodyPhoneDefault),
+  "usual_daily_pay": zod.string().nullish(),
+  "notes": zod.string().default(createDayLabourerBodyNotesDefault),
+  "is_active": zod.boolean().default(createDayLabourerBodyIsActiveDefault)
+})
+
+export const createDayLabourerResponseUsualDailyPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateDayLabourerResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "usual_daily_pay": zod.stringFormat('decimal', createDayLabourerResponseUsualDailyPayRegExp).nullable(),
+  "notes": zod.string(),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * Change a day labourer, or archive them (`is_active` false): their days stay.
+ */
+export const UpdateDayLabourerParams = zod.object({
+  "labourer_id": zod.int()
+})
+
+export const updateDayLabourerBodyNameMax = 200;
+
+export const updateDayLabourerBodyPhoneDefault = ``;
+export const updateDayLabourerBodyPhoneMax = 60;
+
+export const updateDayLabourerBodyNotesDefault = ``;
+export const updateDayLabourerBodyIsActiveDefault = true;
+
+export const UpdateDayLabourerBody = zod.object({
+  "name": zod.string().max(updateDayLabourerBodyNameMax),
+  "phone": zod.string().max(updateDayLabourerBodyPhoneMax).default(updateDayLabourerBodyPhoneDefault),
+  "usual_daily_pay": zod.string().nullish(),
+  "notes": zod.string().default(updateDayLabourerBodyNotesDefault),
+  "is_active": zod.boolean().default(updateDayLabourerBodyIsActiveDefault)
+})
+
+export const updateDayLabourerResponseUsualDailyPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateDayLabourerResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "usual_daily_pay": zod.stringFormat('decimal', updateDayLabourerResponseUsualDailyPayRegExp).nullable(),
+  "notes": zod.string(),
+  "is_active": zod.boolean()
+})
+
+
+/**
  * Employees sorted by name, each with what is still unpaid. Archived ones only when asked (`status`).
  * Not paginated: the company has 6 to 10 employees (Q6).
  */
@@ -1211,6 +1457,589 @@ export const RestoreEmployeeResponse = zod.object({
   "unpaid": zod.stringFormat('decimal', restoreEmployeeResponseUnpaidRegExp),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Expense categories: the default ones first, in the brief's order, then the owner's.
+ */
+export const listExpenseCategoriesQueryStatusDefault = `active`;
+
+export const ListExpenseCategoriesQueryParams = zod.object({
+  "status": zod.enum(['active', 'archived', 'all']).default(listExpenseCategoriesQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const ListExpenseCategoriesResponseItem = zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+})
+export const ListExpenseCategoriesResponse = zod.array(ListExpenseCategoriesResponseItem)
+
+
+/**
+ * Add a category (owner only).
+ */
+export const createExpenseCategoryBodyNameMax = 200;
+
+
+
+export const CreateExpenseCategoryBody = zod.object({
+  "name": zod.string().max(createExpenseCategoryBodyNameMax)
+})
+
+export const CreateExpenseCategoryResponse = zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * Rename a category or archive it (owner only). A default category is never archived.
+ */
+export const UpdateExpenseCategoryParams = zod.object({
+  "category_id": zod.int()
+})
+
+export const updateExpenseCategoryBodyNameMax = 200;
+
+
+
+export const UpdateExpenseCategoryBody = zod.object({
+  "name": zod.string().max(updateExpenseCategoryBodyNameMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const UpdateExpenseCategoryResponse = zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * Expenses, newest day first, paginated (`limit`, `offset`). Filter by status, category, lot,
+ * truck, days (inclusive) or `search` (number, description, payee, lot number).
+ */
+
+
+export const listExpensesQuerySearchDefault = ``;
+export const listExpensesQuerySearchMax = 100;
+
+
+
+
+export const ListExpensesQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "category": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listExpensesQuerySearchMax).default(listExpensesQuerySearchDefault),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).optional().describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "truck": zod.int().min(1).optional()
+})
+
+export const listExpensesResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListExpensesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', listExpensesResponseResultsItemAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string()
+}),zod.null()]),
+  "receipt_url": zod.string().nullable(),
+  "receipt_type": zod.string(),
+  "entered_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "day_labour_id": zod.int().nullable(),
+  "labourer_name": zod.string()
+}))
+})
+
+
+/**
+ * Record an expense as a draft, or with `approve_now` approved at once. `batch` charges it to a
+ * lot; `truck` makes it a truck cost of that day, split over the lots loaded that day by kg. A day
+ * labourer's day is recorded in the day-labour calendar instead.
+ */
+
+export const createExpenseBodyPaymentMethodDefault = `cash`;
+export const createExpenseBodyDescriptionDefault = ``;
+export const createExpenseBodyDescriptionMax = 255;
+
+export const createExpenseBodyPayeeDefault = ``;
+export const createExpenseBodyPayeeMax = 150;
+
+export const createExpenseBodyNotesDefault = ``;
+
+export const createExpenseBodyApproveNowDefault = false;
+
+export const CreateExpenseBody = zod.object({
+  "spent_on": zod.iso.date(),
+  "category": zod.int().min(1),
+  "amount": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(createExpenseBodyPaymentMethodDefault),
+  "description": zod.string().max(createExpenseBodyDescriptionMax).default(createExpenseBodyDescriptionDefault),
+  "payee": zod.string().max(createExpenseBodyPayeeMax).default(createExpenseBodyPayeeDefault),
+  "notes": zod.string().default(createExpenseBodyNotesDefault),
+  "batch": zod.int().min(1).nullish(),
+  "truck": zod.int().min(1).nullish(),
+  "approve_now": zod.boolean().default(createExpenseBodyApproveNowDefault)
+})
+
+export const createExpenseResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createExpenseResponseSharesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createExpenseResponseSharesItemDayQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createExpenseResponseSharesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateExpenseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', createExpenseResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string()
+}),zod.null()]),
+  "receipt_url": zod.string().nullable(),
+  "receipt_type": zod.string(),
+  "entered_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "day_labour_id": zod.int().nullable(),
+  "labourer_name": zod.string(),
+  "shares": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', createExpenseResponseSharesItemQuantityRegExp),
+  "day_quantity": zod.stringFormat('decimal', createExpenseResponseSharesItemDayQuantityRegExp),
+  "amount": zod.stringFormat('decimal', createExpenseResponseSharesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * One expense; a truck cost of the day comes with its split over the lots loaded that day.
+ */
+export const GetExpenseParams = zod.object({
+  "expense_id": zod.int()
+})
+
+export const getExpenseResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getExpenseResponseSharesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getExpenseResponseSharesItemDayQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getExpenseResponseSharesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetExpenseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', getExpenseResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string()
+}),zod.null()]),
+  "receipt_url": zod.string().nullable(),
+  "receipt_type": zod.string(),
+  "entered_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "day_labour_id": zod.int().nullable(),
+  "labourer_name": zod.string(),
+  "shares": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getExpenseResponseSharesItemQuantityRegExp),
+  "day_quantity": zod.stringFormat('decimal', getExpenseResponseSharesItemDayQuantityRegExp),
+  "amount": zod.stringFormat('decimal', getExpenseResponseSharesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Correct a draft or an expense waiting for approval; with `approve_now`, approve it too. An approved
+ * or refused expense never changes: a correction is a new expense.
+ */
+export const UpdateExpenseParams = zod.object({
+  "expense_id": zod.int()
+})
+
+
+export const updateExpenseBodyPaymentMethodDefault = `cash`;
+export const updateExpenseBodyDescriptionDefault = ``;
+export const updateExpenseBodyDescriptionMax = 255;
+
+export const updateExpenseBodyPayeeDefault = ``;
+export const updateExpenseBodyPayeeMax = 150;
+
+export const updateExpenseBodyNotesDefault = ``;
+
+export const updateExpenseBodyApproveNowDefault = false;
+
+export const UpdateExpenseBody = zod.object({
+  "spent_on": zod.iso.date(),
+  "category": zod.int().min(1),
+  "amount": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(updateExpenseBodyPaymentMethodDefault),
+  "description": zod.string().max(updateExpenseBodyDescriptionMax).default(updateExpenseBodyDescriptionDefault),
+  "payee": zod.string().max(updateExpenseBodyPayeeMax).default(updateExpenseBodyPayeeDefault),
+  "notes": zod.string().default(updateExpenseBodyNotesDefault),
+  "batch": zod.int().min(1).nullish(),
+  "truck": zod.int().min(1).nullish(),
+  "approve_now": zod.boolean().default(updateExpenseBodyApproveNowDefault)
+})
+
+export const updateExpenseResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateExpenseResponseSharesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateExpenseResponseSharesItemDayQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateExpenseResponseSharesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateExpenseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', updateExpenseResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string()
+}),zod.null()]),
+  "receipt_url": zod.string().nullable(),
+  "receipt_type": zod.string(),
+  "entered_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "day_labour_id": zod.int().nullable(),
+  "labourer_name": zod.string(),
+  "shares": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', updateExpenseResponseSharesItemQuantityRegExp),
+  "day_quantity": zod.stringFormat('decimal', updateExpenseResponseSharesItemDayQuantityRegExp),
+  "amount": zod.stringFormat('decimal', updateExpenseResponseSharesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Delete a draft typed by mistake. An expense sent for approval is refused instead.
+ */
+export const DeleteExpenseParams = zod.object({
+  "expense_id": zod.int()
+})
+
+export const DeleteExpenseResponse = zod.void()
+
+
+/**
+ * Approve a draft or a waiting expense (owner or manager): it counts in the costs from now on.
+ */
+export const ApproveExpenseParams = zod.object({
+  "expense_id": zod.int()
+})
+
+export const approveExpenseResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveExpenseResponseSharesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveExpenseResponseSharesItemDayQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveExpenseResponseSharesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveExpenseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', approveExpenseResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string()
+}),zod.null()]),
+  "receipt_url": zod.string().nullable(),
+  "receipt_type": zod.string(),
+  "entered_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "day_labour_id": zod.int().nullable(),
+  "labourer_name": zod.string(),
+  "shares": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', approveExpenseResponseSharesItemQuantityRegExp),
+  "day_quantity": zod.stringFormat('decimal', approveExpenseResponseSharesItemDayQuantityRegExp),
+  "amount": zod.stringFormat('decimal', approveExpenseResponseSharesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Join the receipt: a photo (turned upright, shrunk, stored as WebP without metadata) or a PDF.
+ * It can be replaced while the expense is open; once decided, only joined if there was none.
+ */
+export const AddExpenseReceiptParams = zod.object({
+  "expense_id": zod.int()
+})
+
+export const AddExpenseReceiptBody = zod.object({
+  "receipt": zod.instanceof(Blob)
+})
+
+export const addExpenseReceiptResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const addExpenseReceiptResponseSharesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const addExpenseReceiptResponseSharesItemDayQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const addExpenseReceiptResponseSharesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AddExpenseReceiptResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', addExpenseReceiptResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string()
+}),zod.null()]),
+  "receipt_url": zod.string().nullable(),
+  "receipt_type": zod.string(),
+  "entered_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "day_labour_id": zod.int().nullable(),
+  "labourer_name": zod.string(),
+  "shares": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', addExpenseReceiptResponseSharesItemQuantityRegExp),
+  "day_quantity": zod.stringFormat('decimal', addExpenseReceiptResponseSharesItemDayQuantityRegExp),
+  "amount": zod.stringFormat('decimal', addExpenseReceiptResponseSharesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Refuse a draft or a waiting expense, saying why. It never counts.
+ */
+export const RejectExpenseParams = zod.object({
+  "expense_id": zod.int()
+})
+
+export const rejectExpenseBodyReasonMax = 255;
+
+
+
+export const RejectExpenseBody = zod.object({
+  "reason": zod.string().max(rejectExpenseBodyReasonMax)
+})
+
+export const rejectExpenseResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rejectExpenseResponseSharesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const rejectExpenseResponseSharesItemDayQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const rejectExpenseResponseSharesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RejectExpenseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', rejectExpenseResponseAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string()
+}),zod.null()]),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string()
+}),zod.null()]),
+  "receipt_url": zod.string().nullable(),
+  "receipt_type": zod.string(),
+  "entered_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "day_labour_id": zod.int().nullable(),
+  "labourer_name": zod.string(),
+  "shares": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', rejectExpenseResponseSharesItemQuantityRegExp),
+  "day_quantity": zod.stringFormat('decimal', rejectExpenseResponseSharesItemDayQuantityRegExp),
+  "amount": zod.stringFormat('decimal', rejectExpenseResponseSharesItemAmountRegExp)
+}))
+})
+
+
+/**
+ * How many expenses the same filters as `listExpenses` keep, and their totals: approved, and still
+ * waiting (drafts and sent for approval).
+ */
+
+
+export const getExpenseTotalsQuerySearchDefault = ``;
+export const getExpenseTotalsQuerySearchMax = 100;
+
+
+
+
+export const GetExpenseTotalsQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "category": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "search": zod.string().max(getExpenseTotalsQuerySearchMax).default(getExpenseTotalsQuerySearchDefault),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).optional().describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "truck": zod.int().min(1).optional()
+})
+
+export const getExpenseTotalsResponseApprovedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getExpenseTotalsResponseWaitingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetExpenseTotalsResponse = zod.object({
+  "count": zod.int(),
+  "approved": zod.stringFormat('decimal', getExpenseTotalsResponseApprovedRegExp),
+  "waiting": zod.stringFormat('decimal', getExpenseTotalsResponseWaitingRegExp)
 })
 
 
@@ -1656,6 +2485,46 @@ export const RejectLossResponse = zod.object({
   "quantity": zod.stringFormat('decimal', rejectLossResponseBatchesItemQuantityRegExp)
 }).describe('One batch a line took, oldest first: the movement posted for it.')),
   "cost_amount": zod.stringFormat('decimal', rejectLossResponseCostAmountRegExp).nullable()
+})
+
+
+/**
+ * The costs charged to one lot so far: expenses typed on it and its share of the truck costs of
+ * each day it was on a truck (by kg loaded). `total` counts approved lines only; drafts and waiting
+ * expenses are listed for information.
+ */
+
+
+
+export const GetLotCostsQueryParams = zod.object({
+  "batch": zod.int().min(1)
+})
+
+export const getLotCostsResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotCostsResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotCostsResponseLinesItemExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotCostsResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotCostsResponseLinesItemDayQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const GetLotCostsResponse = zod.object({
+  "batch_id": zod.int(),
+  "total": zod.stringFormat('decimal', getLotCostsResponseTotalRegExp),
+  "lines": zod.array(zod.object({
+  "kind": zod.enum(['lot', 'truck_day']).describe('* `lot` - Sur le lot\n* `truck_day` - Frais du camion du jour'),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category_code": zod.string(),
+  "category_name": zod.string(),
+  "description": zod.string(),
+  "amount": zod.stringFormat('decimal', getLotCostsResponseLinesItemAmountRegExp),
+  "expense_amount": zod.stringFormat('decimal', getLotCostsResponseLinesItemExpenseAmountRegExp),
+  "truck_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getLotCostsResponseLinesItemQuantityRegExp).nullable(),
+  "day_quantity": zod.stringFormat('decimal', getLotCostsResponseLinesItemDayQuantityRegExp).nullable()
+}))
 })
 
 

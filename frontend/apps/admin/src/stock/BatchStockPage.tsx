@@ -1,8 +1,11 @@
+import type { Session } from "@frutti/auth";
 import { ApiError, useGetBatch, useGetProductStock, useListMovements } from "@frutti/api";
 import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Card, PageHeader } from "@frutti/ui";
 import { type ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useOutletContext, useParams } from "react-router";
+
+import { LotCostsCard } from "../expenses/LotCostsCard";
 
 import { StockTabs } from "../lib/StockTabs";
 import { BatchSalesSection } from "../sales/BatchSalesSection";
@@ -20,6 +23,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 /** One batch: where it comes from, where it is now, and every movement that touched it. */
 export function BatchStockPage() {
   const { t } = useTranslation();
+  const session = useOutletContext<Session>();
   const batchId = Number(useParams().batchId);
   const batch = useGetBatch(batchId);
   const productId = batch.data?.product.id;
@@ -84,6 +88,7 @@ export function BatchStockPage() {
       </Card>
 
       <BatchSalesSection batchId={batchId} />
+      <LotCostsCard batchId={batchId} session={session} />
 
       <section aria-labelledby="batch-history" className="flex flex-col gap-2">
         <h2 id="batch-history">{t("admin.stock.batch.history")}</h2>

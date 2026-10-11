@@ -10,6 +10,7 @@ from apps.demo.batches import seed_batches
 from apps.demo.catalogue import seed_catalogue
 from apps.demo.customers import seed_customers
 from apps.demo.employees import seed_employees
+from apps.demo.expenses import seed_expenses
 from apps.demo.locations import seed_locations
 from apps.demo.losses import seed_losses
 from apps.demo.prices import seed_prices
@@ -83,6 +84,7 @@ class Command(BaseCommand):
         quotes = seed_quotes(organization=organization, actor=owner)
         sales = seed_sales(organization=organization, actor=owner, driver=driver)
         employees = seed_employees(organization=organization, actor=owner, driver=driver)
+        expenses = seed_expenses(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
@@ -100,3 +102,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"{quotes} new quotes"))
         self.stdout.write(self.style.SUCCESS(f"{sales} new sales"))
         self.stdout.write(self.style.SUCCESS(f"{employees} new employees"))
+        self.stdout.write(self.style.SUCCESS(f"{expenses} new expenses, day labourers and days worked"))
