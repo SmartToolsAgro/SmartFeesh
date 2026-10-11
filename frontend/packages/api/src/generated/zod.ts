@@ -1780,6 +1780,23 @@ export const UpdateDayLabourerResponse = zod.object({
 
 
 /**
+ * The PDF of a quote (`quote`), invoice (`invoice`), credit note (`credit_note`) or customer payment
+ * receipt (`receipt`). 200 is the file; 202 `pending` means it is being made (ask again in a second);
+ * 500 `failed` means the last attempt failed (`?retry=1` tries again). Office data: drivers get 403.
+ */
+export const GetDocumentPdfParams = zod.object({
+  "kind": zod.string(),
+  "object_id": zod.int()
+})
+
+export const GetDocumentPdfQueryParams = zod.object({
+  "retry": zod.boolean().optional().describe('Try again after a failure.')
+})
+
+export const GetDocumentPdfResponse = zod.unknown()
+
+
+/**
  * Electricity bills, newest month first.
  */
 export const listElectricityBillsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');

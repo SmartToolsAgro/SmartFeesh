@@ -1,0 +1,39 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% block heading %}Reçu{% endblock %}
+{% block subtitle %}
+  <p class="muted num">Règlement du {{ payment.received_on|day }}</p>
+  {% if payment.voided_at %}<p class="banner">ANNULÉ</p>{% endif %}
+{% endblock %}
+{% block body %}
+<div class="parties">
+  <div>
+    <h2>Reçu de</h2>
+    <p><b>{{ customer.name }}</b></p>
+    {% if customer.address or customer.city %}<p>{{ customer.address }}{% if customer.address and customer.city %}, {% endif %}{{ customer.city }}</p>{% endif %}
+    {% if customer.tax_id %}<p class="small muted">M.F. {{ customer.tax_id }}</p>{% endif %}
+  </div>
+  <div>
+    <h2>Paiement</h2>
+    <p>{{ method_label }}{% if payment.reference %} · {{ payment.reference }}{% endif %}</p>
+    {% if payment.voided_at %}<p class="small muted">Annulé : {{ payment.void_reason }}</p>{% endif %}
+  </div>
+</div>
+
+<div class="totals num" style="margin-bottom: 6mm">
+  <div class="grand"><span>Montant reçu</span><span>{{ payment.amount|money }} DT</span></div>
+</div>
+
+{% if allocations %}
+<h2>Imputé sur</h2>
+<table class="lines">
+  <thead><tr><th>Vente</th><th>Facture</th><th class="r">Montant</th></tr></thead>
+  <tbody>
+    {% for row in allocations %}
+    <tr><td class="num">{{ row.sale_number }}</td><td class="num">{{ row.invoice_number }}</td><td class="r num">{{ row.amount|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% if unallocated %}<p class="muted">Non imputé (reste en crédit du client) : <span class="num">{{ unallocated|money }} DT</span></p>{% endif %}
+{% if payment.notes %}<div class="note"><h2>Remarques</h2><p>{{ payment.notes|linebreaksbr }}</p></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,64 @@
+{% load pdf_format %}<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}{{ number }}{% endblock %}</title>
+<style>
+  /* Colours follow the app's tokens: deep sea blue, ink, soft lines. */
+  :root { --ink: #0c2633; --ink-2: #4a6270; --sea: #0f5e7a; --line: #d6e0e6; --soft: #eef5f8; --bad: #b3261e; }
+  @page {
+    size: A4;
+    margin: 16mm 15mm 20mm;
+    @bottom-left { content: "{{ seller.name }}"; font: 7.5pt "DejaVu Sans", sans-serif; color: #4a6270; }
+    @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 7.5pt "DejaVu Sans", sans-serif; color: #4a6270; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 9.5pt/1.4 "DejaVu Sans", "Liberation Sans", Arial, sans-serif; color: var(--ink); }
+  h1 { font-size: 17pt; margin: 0 0 2mm; letter-spacing: .01em; }
+  h2 { font-size: 8pt; margin: 0 0 1.5mm; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); font-weight: 700; }
+  p { margin: 0; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8pt; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .r { text-align: right; }
+  header.doc-head { display: flex; justify-content: space-between; gap: 10mm; padding-bottom: 5mm; border-bottom: 0.6mm solid var(--ink); margin-bottom: 6mm; }
+  .brand { font-size: 13pt; font-weight: 700; color: var(--sea); margin-bottom: 1.5mm; }
+  .doc-title { text-align: right; }
+  .parties { display: flex; gap: 8mm; margin-bottom: 6mm; }
+  .parties > div { flex: 1; background: var(--soft); border-radius: 2mm; padding: 3mm 4mm; }
+  .parties b { font-size: 10.5pt; }
+  table.lines { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
+  table.lines th { text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); border-bottom: 0.4mm solid var(--ink); padding: 1.5mm 2mm; }
+  table.lines th.r { text-align: right; }
+  table.lines td { padding: 2mm; border-bottom: 0.2mm solid var(--line); vertical-align: top; }
+  table.lines tr { page-break-inside: avoid; }
+  .totals { margin-left: auto; width: 82mm; page-break-inside: avoid; }
+  .totals div { display: flex; justify-content: space-between; padding: 0.8mm 0; }
+  .totals .grand { border-top: 0.5mm solid var(--ink); margin-top: 1.5mm; padding-top: 2mm; font-weight: 700; font-size: 11.5pt; }
+  .vat { margin-top: 4mm; width: 82mm; font-size: 8pt; page-break-inside: avoid; }
+  .vat table { width: 100%; border-collapse: collapse; }
+  .vat th, .vat td { padding: 0.8mm 1mm; border-bottom: 0.2mm solid var(--line); text-align: right; }
+  .vat th:first-child, .vat td:first-child { text-align: left; }
+  .note { margin-top: 6mm; padding: 3mm 4mm; border-left: 1mm solid var(--sea); background: var(--soft); page-break-inside: avoid; }
+  .legal { margin-top: 8mm; font-size: 7.5pt; color: var(--ink-2); }
+  .banner { display: inline-block; margin-top: 2mm; padding: 1mm 4mm; font-weight: 700; font-size: 8.5pt; letter-spacing: .1em; color: var(--bad); border: 0.4mm solid var(--bad); border-radius: 1mm; }
+  {% block style %}{% endblock %}
+</style>
+</head>
+<body>
+<header class="doc-head">
+  <div>
+    <div class="brand">{{ seller.name }}</div>
+    {% if seller.address %}<p class="small">{{ seller.address }}</p>{% endif %}
+    {% if seller.phone %}<p class="small">Tél. {{ seller.phone }}</p>{% endif %}
+    {% if seller.tax_id %}<p class="small">M.F. {{ seller.tax_id }}{% if seller.trade_register %} · RC {{ seller.trade_register }}{% endif %}</p>{% endif %}
+  </div>
+  <div class="doc-title">
+    <h1>{% block heading %}{% endblock %} {{ number }}</h1>
+    {% block subtitle %}{% endblock %}
+  </div>
+</header>
+
+{% block body %}{% endblock %}
+</body>
+</html>

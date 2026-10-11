@@ -31,6 +31,7 @@ import { useState } from "react";
 import { Link, useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { PdfButton } from "../lib/PdfButton";
 import { useDebounced } from "../lib/useDebounced";
 import { PaymentDialog } from "./PaymentDialog";
 import { canCollect, refreshAfterPayment } from "./shared";
@@ -238,7 +239,7 @@ export function PaymentsPage() {
                 <Th>{t("admin.payments.columns.method")}</Th>
                 <Th numeric>{t("admin.payments.columns.amount")}</Th>
                 <Th numeric>{t("admin.payments.columns.credit")}</Th>
-                {canWrite && <Th>{null}</Th>}
+                <Th>{null}</Th>
               </tr>
             </thead>
             <tbody>
@@ -266,15 +267,16 @@ export function PaymentsPage() {
                   </Td>
                   <Td numeric>{formatMoney(payment.amount)}</Td>
                   <Td numeric>{formatMoney(payment.unallocated)}</Td>
-                  {canWrite && (
-                    <Td>
-                      {!payment.is_voided && (
+                  <Td>
+                    <div className="flex items-center justify-end gap-1">
+                      <PdfButton kind="receipt" id={payment.id} variant="ghost" />
+                      {canWrite && !payment.is_voided && (
                         <Button variant="ghost" onClick={() => setVoiding(payment)}>
                           {t("admin.payments.void.action")}
                         </Button>
                       )}
-                    </Td>
-                  )}
+                    </div>
+                  </Td>
                 </tr>
               ))}
             </tbody>

@@ -17,6 +17,17 @@ services:
       timeout: 5s
       retries: 20
 
+  # Broker of the background jobs (PDFs, D-071). Nothing is kept: a lost job is asked again by the screen.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   backend:
     build: { context: .., target: backend }
     image: frutti-backend:${RELEASE:?set by the deploy script}
@@ -33,11 +44,13 @@ services:
       DJANGO_SECURE_HSTS_SECONDS: "0"
       # Host nginx, then the web container.
       DJANGO_NUM_PROXIES: "2"
+      CELERY_BROKER_URL: redis://redis:6379/0
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: staging
-    volumes: [media:/app/media] # product photos, served by the API to members only
+    volumes: [media:/app/media] # product photos and PDFs, served by the API to members only
     depends_on:
       db: { condition: service_healthy }
+      redis: { condition: service_healthy }
     healthcheck:
       # Sends the public host name: Django refuses any Host not in DJANGO_ALLOWED_HOSTS.
       test:
@@ -48,6 +61,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+
+  # Runs the background jobs: the PDFs of quotes, invoices, credit notes and receipts. Same image, same media
+  # volume as the API, which serves the finished files.
+  worker:
+    image: frutti-backend:${RELEASE}
+    restart: unless-stopped
+    environment: *backend-env
+    volumes: [media:/app/media]
+    command: celery -A config worker --loglevel=INFO --concurrency=2
+    depends_on:
+      backend: { condition: service_healthy }
+      redis: { condition: service_healthy }
 
   web:
     build: { context: .., target: web }

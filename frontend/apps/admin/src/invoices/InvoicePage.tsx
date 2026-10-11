@@ -42,6 +42,7 @@ import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { PdfButton } from "../lib/PdfButton";
 import { formatRate } from "../quotes/shared";
 import { CertificateCard } from "./CertificateCard";
 import { CreditNoteDialog } from "./CreditNoteDialog";
@@ -530,6 +531,7 @@ function CreditNotesCard({ notes }: { notes: readonly CreditNote[] }) {
             <Pill tone="sea">{t(`admin.invoices.creditKinds.${note.kind}`)}</Pill>
             <span className="num text-ink-2">{formatDate(note.issued_on)}</span>
             <span className="num ms-auto font-semibold">{formatMoney(note.net_amount)}</span>
+            <PdfButton kind="credit_note" id={note.id} variant="ghost" className="print:hidden" />
             <span className="w-full text-[0.85rem] text-ink-2">
               {note.reason}
               {note.stock !== "none" && ` · ${t(`admin.invoices.creditDialog.stocks.${note.stock}`)}`}
@@ -590,6 +592,7 @@ export function InvoicePage() {
       {back}
       <PageHeader eyebrow={t("admin.invoices.title")} title={title}>
         <Pill tone={STATUS_TONES[invoice.status]}>{t(`admin.invoices.statuses.${invoice.status}`)}</Pill>
+        {!draft && <PdfButton kind="invoice" id={invoice.id} className="print:hidden" />}
         {!draft && (
           <Button onClick={() => window.print()} className="print:hidden">
             <Icon name="receipt" />

@@ -20,6 +20,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     PATH=/venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=config.settings.prod
+# WeasyPrint draws PDFs with Pango; DejaVu is the font of the printed documents (D-071).
+RUN apt-get update \n && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 fonts-dejavu-core \n && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --frozen --no-dev --no-install-project

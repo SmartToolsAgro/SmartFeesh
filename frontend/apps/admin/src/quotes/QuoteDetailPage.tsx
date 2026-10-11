@@ -42,6 +42,7 @@ import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { PdfButton } from "../lib/PdfButton";
 import { refreshAfterSale } from "../sales/shared";
 import { canWriteQuotes, formatRate, refreshAfterQuote, STATUS_TONES } from "./shared";
 
@@ -159,6 +160,7 @@ export function QuoteDetailPage() {
       {back}
       <PageHeader eyebrow={t("admin.quotes.title")} title={data.number}>
         <Pill tone={STATUS_TONES[data.status]}>{t(`admin.quotes.statuses.${data.status}`)}</Pill>
+        <PdfButton kind="quote" id={data.id} />
         {canWrite && data.status === "draft" && (
           <>
             <Button onClick={() => void navigate(`/devis/${data.id}/modifier`)}>{t("admin.quotes.detail.edit")}</Button>
