@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(gh pr merge *)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" pr merge *)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" pr merge *)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
