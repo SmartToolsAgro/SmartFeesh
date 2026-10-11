@@ -20,7 +20,7 @@ test("the bottom bar has the four tabs of the prototype and switches screen", as
   await tabs.getByRole("link", { name: "Vente" }).click();
 
   await expect(page).toHaveURL(/\/vente$/);
-  await expect(page.getByRole("heading", { name: "Vente", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pour quel client ?" })).toBeVisible();
   await expect(tabs.getByRole("link", { name: "Vente" })).toHaveAttribute("aria-current", "page");
 });
 
