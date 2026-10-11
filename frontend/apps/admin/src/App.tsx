@@ -13,6 +13,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
 
+import { EmployeeDetailPage } from "./hr/EmployeeDetailPage";
+import { EmployeesPage } from "./hr/EmployeesPage";
+import { PayrollPage } from "./hr/PayrollPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
@@ -94,6 +97,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/prix": <PriceBoardPage />,
   "/devis": <QuotesPage />,
   "/ventes": <SalesPage />,
+  "/salaires": <PayrollPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};
@@ -161,6 +165,9 @@ function AppRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
+        {/* Employees and payroll (P5-T04) */}
+        <Route path="/salaires/employes" element={<EmployeesPage />} />
+        <Route path="/salaires/employes/:employeeId" element={<EmployeeDetailPage />} />
         {/* Quotes (P2-T03) */}
         <Route path="/devis/nouveau" element={<QuoteFormPage />} />
         <Route path="/devis/:quoteId" element={<QuoteDetailPage />} />

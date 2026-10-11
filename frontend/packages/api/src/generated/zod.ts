@@ -947,6 +947,274 @@ export const RestoreCustomerResponse = zod.object({
 
 
 /**
+ * Employees sorted by name, each with what is still unpaid. Archived ones only when asked (`status`).
+ * Not paginated: the company has 6 to 10 employees (Q6).
+ */
+export const listEmployeesQuerySearchDefault = ``;
+export const listEmployeesQuerySearchMax = 100;
+
+export const listEmployeesQueryStatusDefault = `active`;
+
+export const ListEmployeesQueryParams = zod.object({
+  "search": zod.string().max(listEmployeesQuerySearchMax).default(listEmployeesQuerySearchDefault),
+  "status": zod.enum(['active', 'archived', 'all']).default(listEmployeesQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listEmployeesResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listEmployeesResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listEmployeesResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListEmployeesResponseItem = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string(),
+  "phone": zod.string(),
+  "hire_date": zod.iso.date().nullable(),
+  "monthly_salary": zod.stringFormat('decimal', listEmployeesResponseMonthlySalaryRegExp),
+  "cnss_number": zod.string(),
+  "cnss_rate": zod.stringFormat('decimal', listEmployeesResponseCnssRateRegExp),
+  "user": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string()
+}),zod.null()]),
+  "notes": zod.string(),
+  "unpaid": zod.stringFormat('decimal', listEmployeesResponseUnpaidRegExp),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
+
+
+/**
+ * A new employee. Without a reference it gets the next free `E-NNN`; the CNSS rate defaults to 17.07 %.
+ */
+export const createEmployeeBodyReferenceDefault = ``;
+export const createEmployeeBodyReferenceMax = 30;
+
+export const createEmployeeBodyNameMax = 150;
+
+export const createEmployeeBodyPositionDefault = ``;
+export const createEmployeeBodyPositionMax = 100;
+
+export const createEmployeeBodyPhoneDefault = ``;
+export const createEmployeeBodyPhoneMax = 30;
+
+export const createEmployeeBodyMonthlySalaryDefault = `0.000`;
+export const createEmployeeBodyMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createEmployeeBodyCnssNumberDefault = ``;
+export const createEmployeeBodyCnssNumberMax = 30;
+
+export const createEmployeeBodyCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+
+export const createEmployeeBodyNotesDefault = ``;
+export const createEmployeeBodyNotesMax = 2000;
+
+
+
+export const CreateEmployeeBody = zod.object({
+  "reference": zod.string().max(createEmployeeBodyReferenceMax).default(createEmployeeBodyReferenceDefault),
+  "name": zod.string().max(createEmployeeBodyNameMax),
+  "position": zod.string().max(createEmployeeBodyPositionMax).default(createEmployeeBodyPositionDefault),
+  "phone": zod.string().max(createEmployeeBodyPhoneMax).default(createEmployeeBodyPhoneDefault),
+  "hire_date": zod.iso.date().nullish(),
+  "monthly_salary": zod.stringFormat('decimal', createEmployeeBodyMonthlySalaryRegExp).default(createEmployeeBodyMonthlySalaryDefault),
+  "cnss_number": zod.string().max(createEmployeeBodyCnssNumberMax).default(createEmployeeBodyCnssNumberDefault),
+  "cnss_rate": zod.stringFormat('decimal', createEmployeeBodyCnssRateRegExp).optional(),
+  "user": zod.int().min(1).nullish(),
+  "notes": zod.string().max(createEmployeeBodyNotesMax).default(createEmployeeBodyNotesDefault)
+})
+
+export const createEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateEmployeeResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string(),
+  "phone": zod.string(),
+  "hire_date": zod.iso.date().nullable(),
+  "monthly_salary": zod.stringFormat('decimal', createEmployeeResponseMonthlySalaryRegExp),
+  "cnss_number": zod.string(),
+  "cnss_rate": zod.stringFormat('decimal', createEmployeeResponseCnssRateRegExp),
+  "user": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string()
+}),zod.null()]),
+  "notes": zod.string(),
+  "unpaid": zod.stringFormat('decimal', createEmployeeResponseUnpaidRegExp),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetEmployeeParams = zod.object({
+  "employee_id": zod.int()
+})
+
+export const getEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetEmployeeResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string(),
+  "phone": zod.string(),
+  "hire_date": zod.iso.date().nullable(),
+  "monthly_salary": zod.stringFormat('decimal', getEmployeeResponseMonthlySalaryRegExp),
+  "cnss_number": zod.string(),
+  "cnss_rate": zod.stringFormat('decimal', getEmployeeResponseCnssRateRegExp),
+  "user": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string()
+}),zod.null()]),
+  "notes": zod.string(),
+  "unpaid": zod.stringFormat('decimal', getEmployeeResponseUnpaidRegExp),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Change an employee. A new salary applies to the months generated afterwards.
+ */
+export const UpdateEmployeeParams = zod.object({
+  "employee_id": zod.int()
+})
+
+export const updateEmployeeBodyReferenceDefault = ``;
+export const updateEmployeeBodyReferenceMax = 30;
+
+export const updateEmployeeBodyNameMax = 150;
+
+export const updateEmployeeBodyPositionDefault = ``;
+export const updateEmployeeBodyPositionMax = 100;
+
+export const updateEmployeeBodyPhoneDefault = ``;
+export const updateEmployeeBodyPhoneMax = 30;
+
+export const updateEmployeeBodyMonthlySalaryDefault = `0.000`;
+export const updateEmployeeBodyMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateEmployeeBodyCnssNumberDefault = ``;
+export const updateEmployeeBodyCnssNumberMax = 30;
+
+export const updateEmployeeBodyCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+
+export const updateEmployeeBodyNotesDefault = ``;
+export const updateEmployeeBodyNotesMax = 2000;
+
+
+
+export const UpdateEmployeeBody = zod.object({
+  "reference": zod.string().max(updateEmployeeBodyReferenceMax).default(updateEmployeeBodyReferenceDefault),
+  "name": zod.string().max(updateEmployeeBodyNameMax).optional(),
+  "position": zod.string().max(updateEmployeeBodyPositionMax).default(updateEmployeeBodyPositionDefault),
+  "phone": zod.string().max(updateEmployeeBodyPhoneMax).default(updateEmployeeBodyPhoneDefault),
+  "hire_date": zod.iso.date().nullish(),
+  "monthly_salary": zod.stringFormat('decimal', updateEmployeeBodyMonthlySalaryRegExp).default(updateEmployeeBodyMonthlySalaryDefault),
+  "cnss_number": zod.string().max(updateEmployeeBodyCnssNumberMax).default(updateEmployeeBodyCnssNumberDefault),
+  "cnss_rate": zod.stringFormat('decimal', updateEmployeeBodyCnssRateRegExp).optional(),
+  "user": zod.int().min(1).nullish(),
+  "notes": zod.string().max(updateEmployeeBodyNotesMax).default(updateEmployeeBodyNotesDefault)
+})
+
+export const updateEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateEmployeeResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string(),
+  "phone": zod.string(),
+  "hire_date": zod.iso.date().nullable(),
+  "monthly_salary": zod.stringFormat('decimal', updateEmployeeResponseMonthlySalaryRegExp),
+  "cnss_number": zod.string(),
+  "cnss_rate": zod.stringFormat('decimal', updateEmployeeResponseCnssRateRegExp),
+  "user": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string()
+}),zod.null()]),
+  "notes": zod.string(),
+  "unpaid": zod.stringFormat('decimal', updateEmployeeResponseUnpaidRegExp),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * An archived employee keeps their history and gets no new salary record.
+ */
+export const ArchiveEmployeeParams = zod.object({
+  "employee_id": zod.int()
+})
+
+export const archiveEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const archiveEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const archiveEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ArchiveEmployeeResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string(),
+  "phone": zod.string(),
+  "hire_date": zod.iso.date().nullable(),
+  "monthly_salary": zod.stringFormat('decimal', archiveEmployeeResponseMonthlySalaryRegExp),
+  "cnss_number": zod.string(),
+  "cnss_rate": zod.stringFormat('decimal', archiveEmployeeResponseCnssRateRegExp),
+  "user": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string()
+}),zod.null()]),
+  "notes": zod.string(),
+  "unpaid": zod.stringFormat('decimal', archiveEmployeeResponseUnpaidRegExp),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const RestoreEmployeeParams = zod.object({
+  "employee_id": zod.int()
+})
+
+export const restoreEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const restoreEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const restoreEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RestoreEmployeeResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string(),
+  "phone": zod.string(),
+  "hire_date": zod.iso.date().nullable(),
+  "monthly_salary": zod.stringFormat('decimal', restoreEmployeeResponseMonthlySalaryRegExp),
+  "cnss_number": zod.string(),
+  "cnss_rate": zod.stringFormat('decimal', restoreEmployeeResponseCnssRateRegExp),
+  "user": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string()
+}),zod.null()]),
+  "notes": zod.string(),
+  "unpaid": zod.stringFormat('decimal', restoreEmployeeResponseUnpaidRegExp),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Liveness + database check, used by Docker, the load balancer and uptime monitoring.
  */
 export const GetHealthResponse = zod.object({
@@ -1392,6 +1660,101 @@ export const RejectLossResponse = zod.object({
 
 
 /**
+ * Days worked on lots, newest first, each with its cost (days × salary / 26). Filter by `employee`,
+ * `batch` or `month`.
+ */
+
+
+
+
+export const ListLotWorkDaysQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "employee": zod.int().min(1).optional(),
+  "month": zod.iso.date().optional()
+})
+
+export const listLotWorkDaysResponseDaysRegExp = new RegExp('^-?\\d{0,2}(?:\\.\\d{0,2})?$');
+export const listLotWorkDaysResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotWorkDaysResponseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListLotWorkDaysResponseItem = zod.object({
+  "id": zod.int(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "work_date": zod.iso.date(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "days": zod.stringFormat('decimal', listLotWorkDaysResponseDaysRegExp),
+  "monthly_salary": zod.stringFormat('decimal', listLotWorkDaysResponseMonthlySalaryRegExp),
+  "cost": zod.stringFormat('decimal', listLotWorkDaysResponseCostRegExp),
+  "notes": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListLotWorkDaysResponse = zod.array(ListLotWorkDaysResponseItem)
+
+
+/**
+ * Record days an employee worked on a lot (a fraction of a day, at most 1 per employee and date).
+ */
+
+
+export const createLotWorkDayBodyNotesDefault = ``;
+export const createLotWorkDayBodyNotesMax = 200;
+
+
+
+export const CreateLotWorkDayBody = zod.object({
+  "employee": zod.int().min(1),
+  "work_date": zod.iso.date(),
+  "batch": zod.int().min(1).nullish(),
+  "days": zod.string(),
+  "notes": zod.string().max(createLotWorkDayBodyNotesMax).default(createLotWorkDayBodyNotesDefault)
+})
+
+export const createLotWorkDayResponseDaysRegExp = new RegExp('^-?\\d{0,2}(?:\\.\\d{0,2})?$');
+export const createLotWorkDayResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createLotWorkDayResponseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateLotWorkDayResponse = zod.object({
+  "id": zod.int(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "work_date": zod.iso.date(),
+  "batch": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "days": zod.stringFormat('decimal', createLotWorkDayResponseDaysRegExp),
+  "monthly_salary": zod.stringFormat('decimal', createLotWorkDayResponseMonthlySalaryRegExp),
+  "cost": zod.stringFormat('decimal', createLotWorkDayResponseCostRegExp),
+  "notes": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Remove a mistaken entry.
+ */
+export const DeleteLotWorkDayParams = zod.object({
+  "work_day_id": zod.int()
+})
+
+export const DeleteLotWorkDayResponse = zod.void()
+
+
+/**
  * The logged-in user, their organization and their role.
  */
 export const GetSessionResponse = zod.object({
@@ -1461,6 +1824,38 @@ export const ListMembersResponseItem = zod.object({
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * Totals of one month (gross, employer CNSS, net, expense, paid, outstanding) and the unpaid salaries
+ * of all months.
+ */
+export const GetPayrollSummaryQueryParams = zod.object({
+  "month": zod.iso.date()
+})
+
+export const getPayrollSummaryResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPayrollSummaryResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPayrollSummaryResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPayrollSummaryResponseExpenseRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPayrollSummaryResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPayrollSummaryResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPayrollSummaryResponseUnpaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPayrollSummaryResponse = zod.object({
+  "month": zod.iso.date(),
+  "records": zod.int(),
+  "drafts": zod.int(),
+  "gross": zod.stringFormat('decimal', getPayrollSummaryResponseGrossRegExp),
+  "employer_cnss": zod.stringFormat('decimal', getPayrollSummaryResponseEmployerCnssRegExp),
+  "net": zod.stringFormat('decimal', getPayrollSummaryResponseNetRegExp),
+  "expense": zod.stringFormat('decimal', getPayrollSummaryResponseExpenseRegExp),
+  "paid": zod.stringFormat('decimal', getPayrollSummaryResponsePaidRegExp),
+  "outstanding": zod.stringFormat('decimal', getPayrollSummaryResponseOutstandingRegExp),
+  "unpaid_total": zod.stringFormat('decimal', getPayrollSummaryResponseUnpaidTotalRegExp),
+  "unpaid_records": zod.int()
+})
 
 
 /**
@@ -3136,6 +3531,618 @@ export const ListLastPurchaseCostsResponseItem = zod.object({
   "batch_number": zod.string()
 }).describe('What was last paid a supplier for one product: the cost of their latest batch of it.')
 export const ListLastPurchaseCostsResponse = zod.array(ListLastPurchaseCostsResponseItem)
+
+
+/**
+ * Salary payments, newest first, with the salaries each settled and the part not allocated.
+ * Filter by `employee` or `search` (number, reference, name). Not paginated.
+ */
+
+export const listSalaryPaymentsQuerySearchDefault = ``;
+export const listSalaryPaymentsQuerySearchMax = 100;
+
+
+
+export const ListSalaryPaymentsQueryParams = zod.object({
+  "employee": zod.int().min(1).optional(),
+  "search": zod.string().max(listSalaryPaymentsQuerySearchMax).default(listSalaryPaymentsQuerySearchDefault)
+})
+
+export const listSalaryPaymentsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryPaymentsResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryPaymentsResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSalaryPaymentsResponseItem = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listSalaryPaymentsResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "salary_record_id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listSalaryPaymentsResponseAllocationsItemAmountRegExp)
+})),
+  "unallocated": zod.stringFormat('decimal', listSalaryPaymentsResponseUnallocatedRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListSalaryPaymentsResponse = zod.array(ListSalaryPaymentsResponseItem)
+
+
+/**
+ * Record cash paid to an employee and the approved salaries it settles. What is not allocated is an
+ * advance. Errors of an allocation come back on `allocations.<index>.<field>`.
+ */
+
+export const recordSalaryPaymentBodyReferenceDefault = ``;
+export const recordSalaryPaymentBodyReferenceMax = 50;
+
+export const recordSalaryPaymentBodyNotesDefault = ``;
+export const recordSalaryPaymentBodyNotesMax = 2000;
+
+
+
+
+export const RecordSalaryPaymentBody = zod.object({
+  "employee": zod.int().min(1),
+  "paid_on": zod.iso.date(),
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "reference": zod.string().max(recordSalaryPaymentBodyReferenceMax).default(recordSalaryPaymentBodyReferenceDefault),
+  "notes": zod.string().max(recordSalaryPaymentBodyNotesMax).default(recordSalaryPaymentBodyNotesDefault),
+  "allocations": zod.array(zod.object({
+  "salary_record": zod.int().min(1),
+  "amount": zod.string()
+})).optional()
+})
+
+export const recordSalaryPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const recordSalaryPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const recordSalaryPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RecordSalaryPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', recordSalaryPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "salary_record_id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', recordSalaryPaymentResponseAllocationsItemAmountRegExp)
+})),
+  "unallocated": zod.stringFormat('decimal', recordSalaryPaymentResponseUnallocatedRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetSalaryPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+export const getSalaryPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSalaryPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getSalaryPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "salary_record_id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getSalaryPaymentResponseAllocationsItemAmountRegExp)
+})),
+  "unallocated": zod.stringFormat('decimal', getSalaryPaymentResponseUnallocatedRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Allocate the part of a payment not allocated yet (an advance) to approved salaries of its employee.
+ */
+export const AllocateSalaryPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+
+
+
+export const AllocateSalaryPaymentBody = zod.object({
+  "allocations": zod.array(zod.object({
+  "salary_record": zod.int().min(1),
+  "amount": zod.string()
+}))
+})
+
+export const allocateSalaryPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateSalaryPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateSalaryPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AllocateSalaryPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', allocateSalaryPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "salary_record_id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', allocateSalaryPaymentResponseAllocationsItemAmountRegExp)
+})),
+  "unallocated": zod.stringFormat('decimal', allocateSalaryPaymentResponseUnallocatedRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Salary records, newest month first, with what is paid and still owed. Filter by `month` (any day of
+ * it), `employee` or `status`. Not paginated (6 to 10 employees).
+ */
+
+
+
+export const ListSalaryRecordsQueryParams = zod.object({
+  "employee": zod.int().min(1).optional(),
+  "month": zod.iso.date().optional(),
+  "status": zod.enum(['draft', 'approved']).optional().describe('* `draft` - Brouillon\n* `approved` - Approuvée')
+})
+
+export const listSalaryRecordsResponseBaseSalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listSalaryRecordsResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseAdjustmentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSalaryRecordsResponseItem = zod.object({
+  "id": zod.int(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "month": zod.iso.date(),
+  "base_salary": zod.stringFormat('decimal', listSalaryRecordsResponseBaseSalaryRegExp),
+  "bonus": zod.stringFormat('decimal', listSalaryRecordsResponseBonusRegExp),
+  "overtime": zod.stringFormat('decimal', listSalaryRecordsResponseOvertimeRegExp),
+  "deductions": zod.stringFormat('decimal', listSalaryRecordsResponseDeductionsRegExp),
+  "cnss_rate": zod.stringFormat('decimal', listSalaryRecordsResponseCnssRateRegExp),
+  "gross": zod.stringFormat('decimal', listSalaryRecordsResponseGrossRegExp),
+  "employer_cnss": zod.stringFormat('decimal', listSalaryRecordsResponseEmployerCnssRegExp),
+  "net": zod.stringFormat('decimal', listSalaryRecordsResponseNetRegExp),
+  "expense_amount": zod.stringFormat('decimal', listSalaryRecordsResponseExpenseAmountRegExp),
+  "due_amount": zod.stringFormat('decimal', listSalaryRecordsResponseDueAmountRegExp),
+  "paid_amount": zod.stringFormat('decimal', listSalaryRecordsResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', listSalaryRecordsResponseOutstandingRegExp),
+  "status": zod.enum(['draft', 'approved']).describe('* `draft` - Brouillon\n* `approved` - Approuvée'),
+  "notes": zod.string(),
+  "adjustments": zod.array(zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', listSalaryRecordsResponseAdjustmentsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
+}),
+  "amount": zod.stringFormat('decimal', listSalaryRecordsResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the salary.')),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListSalaryRecordsResponse = zod.array(ListSalaryRecordsResponseItem)
+
+
+export const GetSalaryRecordParams = zod.object({
+  "record_id": zod.int()
+})
+
+export const getSalaryRecordResponseBaseSalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getSalaryRecordResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseAdjustmentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSalaryRecordResponse = zod.object({
+  "id": zod.int(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "month": zod.iso.date(),
+  "base_salary": zod.stringFormat('decimal', getSalaryRecordResponseBaseSalaryRegExp),
+  "bonus": zod.stringFormat('decimal', getSalaryRecordResponseBonusRegExp),
+  "overtime": zod.stringFormat('decimal', getSalaryRecordResponseOvertimeRegExp),
+  "deductions": zod.stringFormat('decimal', getSalaryRecordResponseDeductionsRegExp),
+  "cnss_rate": zod.stringFormat('decimal', getSalaryRecordResponseCnssRateRegExp),
+  "gross": zod.stringFormat('decimal', getSalaryRecordResponseGrossRegExp),
+  "employer_cnss": zod.stringFormat('decimal', getSalaryRecordResponseEmployerCnssRegExp),
+  "net": zod.stringFormat('decimal', getSalaryRecordResponseNetRegExp),
+  "expense_amount": zod.stringFormat('decimal', getSalaryRecordResponseExpenseAmountRegExp),
+  "due_amount": zod.stringFormat('decimal', getSalaryRecordResponseDueAmountRegExp),
+  "paid_amount": zod.stringFormat('decimal', getSalaryRecordResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', getSalaryRecordResponseOutstandingRegExp),
+  "status": zod.enum(['draft', 'approved']).describe('* `draft` - Brouillon\n* `approved` - Approuvée'),
+  "notes": zod.string(),
+  "adjustments": zod.array(zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', getSalaryRecordResponseAdjustmentsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
+}),
+  "amount": zod.stringFormat('decimal', getSalaryRecordResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the salary.')),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Change a draft (bonus, overtime, deductions...). An approved salary no longer changes (400): add an
+ * adjustment.
+ */
+export const UpdateSalaryRecordParams = zod.object({
+  "record_id": zod.int()
+})
+
+export const updateSalaryRecordBodyBaseSalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordBodyBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordBodyOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordBodyDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordBodyCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateSalaryRecordBodyNotesMax = 2000;
+
+
+
+export const UpdateSalaryRecordBody = zod.object({
+  "base_salary": zod.stringFormat('decimal', updateSalaryRecordBodyBaseSalaryRegExp).optional(),
+  "bonus": zod.stringFormat('decimal', updateSalaryRecordBodyBonusRegExp).optional(),
+  "overtime": zod.stringFormat('decimal', updateSalaryRecordBodyOvertimeRegExp).optional(),
+  "deductions": zod.stringFormat('decimal', updateSalaryRecordBodyDeductionsRegExp).optional(),
+  "cnss_rate": zod.stringFormat('decimal', updateSalaryRecordBodyCnssRateRegExp).optional(),
+  "notes": zod.string().max(updateSalaryRecordBodyNotesMax).optional()
+})
+
+export const updateSalaryRecordResponseBaseSalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateSalaryRecordResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseAdjustmentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateSalaryRecordResponse = zod.object({
+  "id": zod.int(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "month": zod.iso.date(),
+  "base_salary": zod.stringFormat('decimal', updateSalaryRecordResponseBaseSalaryRegExp),
+  "bonus": zod.stringFormat('decimal', updateSalaryRecordResponseBonusRegExp),
+  "overtime": zod.stringFormat('decimal', updateSalaryRecordResponseOvertimeRegExp),
+  "deductions": zod.stringFormat('decimal', updateSalaryRecordResponseDeductionsRegExp),
+  "cnss_rate": zod.stringFormat('decimal', updateSalaryRecordResponseCnssRateRegExp),
+  "gross": zod.stringFormat('decimal', updateSalaryRecordResponseGrossRegExp),
+  "employer_cnss": zod.stringFormat('decimal', updateSalaryRecordResponseEmployerCnssRegExp),
+  "net": zod.stringFormat('decimal', updateSalaryRecordResponseNetRegExp),
+  "expense_amount": zod.stringFormat('decimal', updateSalaryRecordResponseExpenseAmountRegExp),
+  "due_amount": zod.stringFormat('decimal', updateSalaryRecordResponseDueAmountRegExp),
+  "paid_amount": zod.stringFormat('decimal', updateSalaryRecordResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', updateSalaryRecordResponseOutstandingRegExp),
+  "status": zod.enum(['draft', 'approved']).describe('* `draft` - Brouillon\n* `approved` - Approuvée'),
+  "notes": zod.string(),
+  "adjustments": zod.array(zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', updateSalaryRecordResponseAdjustmentsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
+}),
+  "amount": zod.stringFormat('decimal', updateSalaryRecordResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the salary.')),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Delete a draft. An approved salary is never deleted (400).
+ */
+export const DeleteSalaryRecordParams = zod.object({
+  "record_id": zod.int()
+})
+
+export const DeleteSalaryRecordResponse = zod.void()
+
+
+/**
+ * Correct an approved salary with a signed amount and a reason.
+ */
+export const AdjustSalaryRecordParams = zod.object({
+  "record_id": zod.int()
+})
+
+export const adjustSalaryRecordBodyReasonMax = 200;
+
+
+
+export const AdjustSalaryRecordBody = zod.object({
+  "amount": zod.string(),
+  "reason": zod.string().max(adjustSalaryRecordBodyReasonMax)
+})
+
+export const adjustSalaryRecordResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AdjustSalaryRecordResponse = zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', adjustSalaryRecordResponseAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Approve a draft: it becomes the month's expense and is final.
+ */
+export const ApproveSalaryRecordParams = zod.object({
+  "record_id": zod.int()
+})
+
+export const approveSalaryRecordResponseBaseSalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const approveSalaryRecordResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseAdjustmentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveSalaryRecordResponse = zod.object({
+  "id": zod.int(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "month": zod.iso.date(),
+  "base_salary": zod.stringFormat('decimal', approveSalaryRecordResponseBaseSalaryRegExp),
+  "bonus": zod.stringFormat('decimal', approveSalaryRecordResponseBonusRegExp),
+  "overtime": zod.stringFormat('decimal', approveSalaryRecordResponseOvertimeRegExp),
+  "deductions": zod.stringFormat('decimal', approveSalaryRecordResponseDeductionsRegExp),
+  "cnss_rate": zod.stringFormat('decimal', approveSalaryRecordResponseCnssRateRegExp),
+  "gross": zod.stringFormat('decimal', approveSalaryRecordResponseGrossRegExp),
+  "employer_cnss": zod.stringFormat('decimal', approveSalaryRecordResponseEmployerCnssRegExp),
+  "net": zod.stringFormat('decimal', approveSalaryRecordResponseNetRegExp),
+  "expense_amount": zod.stringFormat('decimal', approveSalaryRecordResponseExpenseAmountRegExp),
+  "due_amount": zod.stringFormat('decimal', approveSalaryRecordResponseDueAmountRegExp),
+  "paid_amount": zod.stringFormat('decimal', approveSalaryRecordResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', approveSalaryRecordResponseOutstandingRegExp),
+  "status": zod.enum(['draft', 'approved']).describe('* `draft` - Brouillon\n* `approved` - Approuvée'),
+  "notes": zod.string(),
+  "adjustments": zod.array(zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', approveSalaryRecordResponseAdjustmentsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
+}),
+  "amount": zod.stringFormat('decimal', approveSalaryRecordResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the salary.')),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Approve every draft of a month at once.
+ */
+export const ApproveSalaryMonthBody = zod.object({
+  "month": zod.iso.date()
+})
+
+export const ApproveSalaryMonthResponse = zod.object({
+  "month": zod.iso.date(),
+  "approved": zod.int()
+})
+
+
+/**
+ * Create the draft salary records of a month for every active employee who has none: base = monthly
+ * salary, employer CNSS from their rate. Running it twice creates nothing more.
+ */
+export const GenerateSalaryMonthBody = zod.object({
+  "month": zod.iso.date()
+})
+
+export const generateSalaryMonthResponseRecordsItemBaseSalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const generateSalaryMonthResponseRecordsItemGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemPaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemAdjustmentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemPaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GenerateSalaryMonthResponse = zod.object({
+  "month": zod.iso.date(),
+  "created": zod.int(),
+  "records": zod.array(zod.object({
+  "id": zod.int(),
+  "employee": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "position": zod.string()
+}),
+  "month": zod.iso.date(),
+  "base_salary": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemBaseSalaryRegExp),
+  "bonus": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemBonusRegExp),
+  "overtime": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemOvertimeRegExp),
+  "deductions": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemDeductionsRegExp),
+  "cnss_rate": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemCnssRateRegExp),
+  "gross": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemGrossRegExp),
+  "employer_cnss": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemEmployerCnssRegExp),
+  "net": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemNetRegExp),
+  "expense_amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemExpenseAmountRegExp),
+  "due_amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemDueAmountRegExp),
+  "paid_amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemPaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemOutstandingRegExp),
+  "status": zod.enum(['draft', 'approved']).describe('* `draft` - Brouillon\n* `approved` - Approuvée'),
+  "notes": zod.string(),
+  "adjustments": zod.array(zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemAdjustmentsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
+}),
+  "amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemPaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the salary.')),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
 
 
 /**
