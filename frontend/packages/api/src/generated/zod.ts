@@ -223,6 +223,93 @@ export const RenameCategoryResponse = zod.object({
 
 
 /**
+ * One month of cold-room costs: the bill if any, and per room its weight and cost for the month
+ * and per day, estimated (the previous month's daily rate) until the bill is approved.
+ */
+export const GetColdRoomMonthQueryParams = zod.object({
+  "month": zod.iso.date().optional()
+})
+
+export const getColdRoomMonthResponseBillOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getColdRoomMonthResponseRoomsItemWeightRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,3})?$');
+export const getColdRoomMonthResponseRoomsItemMonthAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getColdRoomMonthResponseRoomsItemDayAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getColdRoomMonthResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetColdRoomMonthResponse = zod.object({
+  "month": zod.iso.date(),
+  "days": zod.int(),
+  "bill": zod.union([zod.object({
+  "id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getColdRoomMonthResponseBillOneAmountRegExp),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "finalized": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable()
+}),zod.null()]),
+  "estimated": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable(),
+  "rooms": zod.array(zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "weight": zod.stringFormat('decimal', getColdRoomMonthResponseRoomsItemWeightRegExp),
+  "month_amount": zod.stringFormat('decimal', getColdRoomMonthResponseRoomsItemMonthAmountRegExp).nullable(),
+  "day_amount": zod.stringFormat('decimal', getColdRoomMonthResponseRoomsItemDayAmountRegExp).nullable(),
+  "estimated": zod.boolean()
+})),
+  "total": zod.stringFormat('decimal', getColdRoomMonthResponseTotalRegExp).nullable()
+})
+
+
+/**
+ * The active cold rooms with their weight in the split of the electricity bill (equal, 1, unless
+ * the owner set another) and the share it gives.
+ */
+export const listColdRoomWeightsResponseWeightRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,3})?$');
+export const listColdRoomWeightsResponseSharePercentRegExp = new RegExp('^-?\\d{0,4}(?:\\.\\d{0,2})?$');
+
+
+export const ListColdRoomWeightsResponseItem = zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "weight": zod.stringFormat('decimal', listColdRoomWeightsResponseWeightRegExp),
+  "share_percent": zod.stringFormat('decimal', listColdRoomWeightsResponseSharePercentRegExp)
+})
+export const ListColdRoomWeightsResponse = zod.array(ListColdRoomWeightsResponseItem)
+
+
+/**
+ * Set a cold room's weight (owner only): used by the bills approved from now on.
+ */
+export const UpdateColdRoomWeightParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const UpdateColdRoomWeightBody = zod.object({
+  "weight": zod.string()
+})
+
+export const updateColdRoomWeightResponseWeightRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,3})?$');
+export const updateColdRoomWeightResponseSharePercentRegExp = new RegExp('^-?\\d{0,4}(?:\\.\\d{0,2})?$');
+
+
+export const UpdateColdRoomWeightResponseItem = zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "weight": zod.stringFormat('decimal', updateColdRoomWeightResponseWeightRegExp),
+  "share_percent": zod.stringFormat('decimal', updateColdRoomWeightResponseSharePercentRegExp)
+})
+export const UpdateColdRoomWeightResponse = zod.array(UpdateColdRoomWeightResponseItem)
+
+
+/**
  * Stock counts, newest first, paginated, each with its sheet. Filter by status or location.
  */
 
@@ -1193,6 +1280,148 @@ export const UpdateDayLabourerResponse = zod.object({
 
 
 /**
+ * Electricity bills, newest month first.
+ */
+export const listElectricityBillsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListElectricityBillsResponseItem = zod.object({
+  "id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listElectricityBillsResponseAmountRegExp),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "finalized": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable()
+})
+export const ListElectricityBillsResponse = zod.array(ListElectricityBillsResponseItem)
+
+
+/**
+ * Type the electricity bill of a finished month (one expense of category cold storage). A draft
+ * until approved; `approve_now` approves it at once, which fixes the rooms' shares and corrects the
+ * lots' estimates.
+ */
+export const createElectricityBillBodyPaymentMethodDefault = `transfer`;
+export const createElectricityBillBodyPayeeDefault = ``;
+export const createElectricityBillBodyPayeeMax = 150;
+
+export const createElectricityBillBodyNotesDefault = ``;
+export const createElectricityBillBodyApproveNowDefault = false;
+
+export const CreateElectricityBillBody = zod.object({
+  "month": zod.iso.date(),
+  "amount": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(createElectricityBillBodyPaymentMethodDefault),
+  "payee": zod.string().max(createElectricityBillBodyPayeeMax).default(createElectricityBillBodyPayeeDefault),
+  "notes": zod.string().default(createElectricityBillBodyNotesDefault),
+  "approve_now": zod.boolean().default(createElectricityBillBodyApproveNowDefault)
+})
+
+export const createElectricityBillResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateElectricityBillResponse = zod.object({
+  "id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', createElectricityBillResponseAmountRegExp),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "finalized": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable()
+})
+
+
+/**
+ * Correct a bill not approved yet (the month cannot change); with `approve_now`, approve it too.
+ */
+export const UpdateElectricityBillParams = zod.object({
+  "bill_id": zod.int()
+})
+
+export const updateElectricityBillBodyPaymentMethodDefault = `transfer`;
+export const updateElectricityBillBodyPayeeDefault = ``;
+export const updateElectricityBillBodyPayeeMax = 150;
+
+export const updateElectricityBillBodyNotesDefault = ``;
+export const updateElectricityBillBodyApproveNowDefault = false;
+
+export const UpdateElectricityBillBody = zod.object({
+  "month": zod.iso.date(),
+  "amount": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(updateElectricityBillBodyPaymentMethodDefault),
+  "payee": zod.string().max(updateElectricityBillBodyPayeeMax).default(updateElectricityBillBodyPayeeDefault),
+  "notes": zod.string().default(updateElectricityBillBodyNotesDefault),
+  "approve_now": zod.boolean().default(updateElectricityBillBodyApproveNowDefault)
+})
+
+export const updateElectricityBillResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateElectricityBillResponse = zod.object({
+  "id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', updateElectricityBillResponseAmountRegExp),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "finalized": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable()
+})
+
+
+/**
+ * Delete a bill typed by mistake while it is a draft.
+ */
+export const DeleteElectricityBillParams = zod.object({
+  "bill_id": zod.int()
+})
+
+export const DeleteElectricityBillResponse = zod.void()
+
+
+/**
+ * Approve a draft bill: fixes the rooms' shares and books the difference with the estimate on
+ * each lot, dated today.
+ */
+export const ApproveElectricityBillParams = zod.object({
+  "bill_id": zod.int()
+})
+
+export const approveElectricityBillResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveElectricityBillResponse = zod.object({
+  "id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', approveElectricityBillResponseAmountRegExp),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "finalized": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable()
+})
+
+
+/**
  * Employees sorted by name, each with what is still unpaid. Archived ones only when asked (`status`).
  * Not paginated: the company has 6 to 10 employees (Q6).
  */
@@ -2044,6 +2273,102 @@ export const GetExpenseTotalsResponse = zod.object({
 
 
 /**
+ * General costs spread over the lots, newest first; with `month`, those covering that month.
+ */
+export const ListGeneralCostsQueryParams = zod.object({
+  "month": zod.iso.date().optional()
+})
+
+export const listGeneralCostsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListGeneralCostsResponseItem = zod.object({
+  "id": zod.int(),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', listGeneralCostsResponseAmountRegExp),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "first_month": zod.iso.date(),
+  "months": zod.int(),
+  "recurring_id": zod.int().nullable()
+})
+export const ListGeneralCostsResponse = zod.array(ListGeneralCostsResponseItem)
+
+
+/**
+ * Type a bill covering one or several months (an insurance for a year): one expense spread
+ * equally over the months, each month charged to the lots "like a salary" (monthly / 26 per day by
+ * kg held). A draft until approved (`approve_now` approves it at once).
+ */
+
+export const createGeneralCostBodyMonthsDefault = 1;
+export const createGeneralCostBodyMonthsMax = 60;
+
+export const createGeneralCostBodyPaymentMethodDefault = `transfer`;
+export const createGeneralCostBodyDescriptionDefault = ``;
+export const createGeneralCostBodyDescriptionMax = 255;
+
+export const createGeneralCostBodyPayeeDefault = ``;
+export const createGeneralCostBodyPayeeMax = 150;
+
+export const createGeneralCostBodyNotesDefault = ``;
+export const createGeneralCostBodyApproveNowDefault = false;
+
+export const CreateGeneralCostBody = zod.object({
+  "spent_on": zod.iso.date(),
+  "category": zod.int().min(1),
+  "amount": zod.string(),
+  "first_month": zod.iso.date(),
+  "months": zod.int().min(1).max(createGeneralCostBodyMonthsMax).default(createGeneralCostBodyMonthsDefault),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(createGeneralCostBodyPaymentMethodDefault),
+  "description": zod.string().max(createGeneralCostBodyDescriptionMax).default(createGeneralCostBodyDescriptionDefault),
+  "payee": zod.string().max(createGeneralCostBodyPayeeMax).default(createGeneralCostBodyPayeeDefault),
+  "notes": zod.string().default(createGeneralCostBodyNotesDefault),
+  "approve_now": zod.boolean().default(createGeneralCostBodyApproveNowDefault)
+})
+
+export const createGeneralCostResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateGeneralCostResponse = zod.object({
+  "id": zod.int(),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', createGeneralCostResponseAmountRegExp),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "first_month": zod.iso.date(),
+  "months": zod.int(),
+  "recurring_id": zod.int().nullable()
+})
+
+
+/**
+ * Delete a general cost typed by mistake while it is a draft (with its expense).
+ */
+export const DeleteGeneralCostParams = zod.object({
+  "period_id": zod.int()
+})
+
+export const DeleteGeneralCostResponse = zod.void()
+
+
+/**
  * Liveness + database check, used by Docker, the load balancer and uptime monitoring.
  */
 export const GetHealthResponse = zod.object({
@@ -2511,8 +2836,8 @@ export const GetLotCostsResponse = zod.object({
   "batch_id": zod.int(),
   "total": zod.stringFormat('decimal', getLotCostsResponseTotalRegExp),
   "lines": zod.array(zod.object({
-  "kind": zod.enum(['lot', 'truck_day']).describe('* `lot` - Sur le lot\n* `truck_day` - Frais du camion du jour'),
-  "expense_id": zod.int(),
+  "kind": zod.enum(['lot', 'truck_day', 'cold_room', 'cold_room_adjustment', 'general']).describe('* `lot` - Sur le lot\n* `truck_day` - Frais du camion du jour\n* `cold_room` - Chambre froide\n* `cold_room_adjustment` - Correction chambre froide\n* `general` - Frais généraux'),
+  "expense_id": zod.int().nullable(),
   "expense_number": zod.string(),
   "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
   "spent_on": zod.iso.date(),
@@ -2523,7 +2848,10 @@ export const GetLotCostsResponse = zod.object({
   "expense_amount": zod.stringFormat('decimal', getLotCostsResponseLinesItemExpenseAmountRegExp),
   "truck_name": zod.string(),
   "quantity": zod.stringFormat('decimal', getLotCostsResponseLinesItemQuantityRegExp).nullable(),
-  "day_quantity": zod.stringFormat('decimal', getLotCostsResponseLinesItemDayQuantityRegExp).nullable()
+  "day_quantity": zod.stringFormat('decimal', getLotCostsResponseLinesItemDayQuantityRegExp).nullable(),
+  "location_name": zod.string(),
+  "month": zod.iso.date().nullable(),
+  "estimated": zod.boolean()
 }))
 })
 
@@ -4400,6 +4728,162 @@ export const ListLastPurchaseCostsResponseItem = zod.object({
   "batch_number": zod.string()
 }).describe('What was last paid a supplier for one product: the cost of their latest batch of it.')
 export const ListLastPurchaseCostsResponse = zod.array(ListLastPurchaseCostsResponseItem)
+
+
+/**
+ * Monthly costs (rent, accountant, insurance), by name.
+ */
+export const listRecurringCostsQueryActiveOnlyDefault = false;
+
+export const ListRecurringCostsQueryParams = zod.object({
+  "active_only": zod.boolean().default(listRecurringCostsQueryActiveOnlyDefault)
+})
+
+export const listRecurringCostsResponseMonthlyAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListRecurringCostsResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "monthly_amount": zod.stringFormat('decimal', listRecurringCostsResponseMonthlyAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "start_month": zod.iso.date(),
+  "end_month": zod.iso.date().nullable(),
+  "is_active": zod.boolean()
+})
+export const ListRecurringCostsResponse = zod.array(ListRecurringCostsResponseItem)
+
+
+/**
+ * Add a monthly cost (owner only): a template that generates the month's expense.
+ */
+export const createRecurringCostBodyNameMax = 100;
+
+
+export const createRecurringCostBodyPaymentMethodDefault = `transfer`;
+export const createRecurringCostBodyPayeeDefault = ``;
+export const createRecurringCostBodyPayeeMax = 150;
+
+export const createRecurringCostBodyIsActiveDefault = true;
+
+export const CreateRecurringCostBody = zod.object({
+  "name": zod.string().max(createRecurringCostBodyNameMax),
+  "category": zod.int().min(1),
+  "monthly_amount": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(createRecurringCostBodyPaymentMethodDefault),
+  "payee": zod.string().max(createRecurringCostBodyPayeeMax).default(createRecurringCostBodyPayeeDefault),
+  "start_month": zod.iso.date(),
+  "end_month": zod.iso.date().nullish(),
+  "is_active": zod.boolean().default(createRecurringCostBodyIsActiveDefault)
+})
+
+export const createRecurringCostResponseMonthlyAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateRecurringCostResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "monthly_amount": zod.stringFormat('decimal', createRecurringCostResponseMonthlyAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "start_month": zod.iso.date(),
+  "end_month": zod.iso.date().nullable(),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * Change a monthly cost or stop it (`is_active` false), owner only. Months already generated keep
+ * their amount.
+ */
+export const UpdateRecurringCostParams = zod.object({
+  "cost_id": zod.int()
+})
+
+export const updateRecurringCostBodyNameMax = 100;
+
+
+export const updateRecurringCostBodyPaymentMethodDefault = `transfer`;
+export const updateRecurringCostBodyPayeeDefault = ``;
+export const updateRecurringCostBodyPayeeMax = 150;
+
+export const updateRecurringCostBodyIsActiveDefault = true;
+
+export const UpdateRecurringCostBody = zod.object({
+  "name": zod.string().max(updateRecurringCostBodyNameMax),
+  "category": zod.int().min(1),
+  "monthly_amount": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(updateRecurringCostBodyPaymentMethodDefault),
+  "payee": zod.string().max(updateRecurringCostBodyPayeeMax).default(updateRecurringCostBodyPayeeDefault),
+  "start_month": zod.iso.date(),
+  "end_month": zod.iso.date().nullish(),
+  "is_active": zod.boolean().default(updateRecurringCostBodyIsActiveDefault)
+})
+
+export const updateRecurringCostResponseMonthlyAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateRecurringCostResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "monthly_amount": zod.stringFormat('decimal', updateRecurringCostResponseMonthlyAmountRegExp),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "start_month": zod.iso.date(),
+  "end_month": zod.iso.date().nullable(),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * Generate the month's expense of every active monthly cost that has none yet (safe to repeat):
+ * drafts, or approved with `approve_now`. Returns the ones created.
+ */
+export const generateRecurringCostsBodyApproveNowDefault = false;
+
+export const GenerateRecurringCostsBody = zod.object({
+  "month": zod.iso.date(),
+  "approve_now": zod.boolean().default(generateRecurringCostsBodyApproveNowDefault)
+})
+
+export const generateRecurringCostsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GenerateRecurringCostsResponseItem = zod.object({
+  "id": zod.int(),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "spent_on": zod.iso.date(),
+  "category": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', generateRecurringCostsResponseAmountRegExp),
+  "description": zod.string(),
+  "payee": zod.string(),
+  "first_month": zod.iso.date(),
+  "months": zod.int(),
+  "recurring_id": zod.int().nullable()
+})
+export const GenerateRecurringCostsResponse = zod.array(GenerateRecurringCostsResponseItem)
 
 
 /**

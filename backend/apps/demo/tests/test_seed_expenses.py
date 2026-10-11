@@ -16,7 +16,7 @@ def test_the_seed_records_expenses_labourers_and_days_worked(settings):
     call_command("seed_dev")  # running it again creates nothing
 
     organization = Organization.objects.get()
-    rows = expenses.expenses_of(organization).order_by("number")
+    rows = expenses.expenses_of(organization).filter(number__lte="DP-0009").order_by("number")
     assert [(row.number, row.category.code, row.status, str(row.amount)) for row in rows] == [
         ("DP-0001", "fuel", "approved", "85.000"),
         ("DP-0002", "transport", "approved", "45.000"),

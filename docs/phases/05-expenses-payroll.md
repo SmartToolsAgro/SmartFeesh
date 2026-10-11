@@ -21,10 +21,10 @@ _Coarse plan: detail each task when the phase starts._
 - [x] Approval workflow; driver expenses from P3-T04 land here.
 
 ### P5-T02 · Cold-room cost per day · M
-- [ ] Monthly electricity bill per company (or per meter), typed by the owner.
-- [ ] A weight per cold room (default equal, set by the owner; −20 °C rooms may weigh more, D-041).
-- [ ] Cost per cold room per day, then per lot by kg held that day, from the stock ledger.
-- [ ] Before the bill is typed: estimate from the previous month; difference booked when it arrives.
+- [x] Monthly electricity bill per company (or per meter), typed by the owner.
+- [x] A weight per cold room (default equal, set by the owner; −20 °C rooms may weigh more, D-041).
+- [x] Cost per cold room per day, then per lot by kg held that day, from the stock ledger.
+- [x] Before the bill is typed: estimate from the previous month; difference booked when it arrives.
 
 ### P5-T03 · Day-labour calendar · M
 - [x] Day labourers (name, phone, usual daily pay). Not employees: no payroll, no CNSS.
@@ -41,9 +41,9 @@ _Coarse plan: detail each task when the phase starts._
       salary / 26 (client). Optional per lot.
 
 ### P5-T05 · General costs on lots · S
-- [ ] Recurring monthly costs (rent, accountant, insurance); bills that cover several months spread
+- [x] Recurring monthly costs (rent, accountant, insurance); bills that cover several months spread
       over them.
-- [ ] "Like a salary" (client): monthly amount / 26 per day; each day's amount split over the lots in
+- [x] "Like a salary" (client): monthly amount / 26 per day; each day's amount split over the lots in
       stock that day by kg held (D-041, Q21 to confirm), shown as one line on each lot.
 
 ### P5-T06 · Assets and depreciation · S

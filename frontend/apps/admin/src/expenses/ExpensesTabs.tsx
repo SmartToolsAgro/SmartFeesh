@@ -7,6 +7,8 @@ const TABS = [
   { to: "/charges", label: "admin.expenseTabs.expenses", end: true },
   { to: "/charges/calendrier", label: "admin.expenseTabs.calendar", end: false },
   { to: "/charges/journaliers", label: "admin.expenseTabs.labourers", end: false },
+  { to: "/charges/froid", label: "admin.expenseTabs.coldRooms", end: false },
+  { to: "/charges/frais-generaux", label: "admin.expenseTabs.general", end: false },
 ] as const;
 
 /** Links between the sections of the expenses module, the current one marked. */

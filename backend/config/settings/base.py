@@ -149,5 +149,7 @@ SPECTACULAR_SETTINGS = {
         "ExpenseStatusEnum": "apps.expenses.models.ExpenseStatus",
         "LotCostKindEnum": "apps.expenses.models.LotCostKind",
         "WorkTypeEnum": "apps.expenses.models.WorkType",
+        # P5-T02 / P5-T05 · cold-room cost, general costs
+        "LotCostAdjustmentKindEnum": "apps.expenses.models.LotCostAdjustmentKind",
     },
 }
