@@ -32,7 +32,7 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [x] Receipt: on screen + share. Printing is P3-T10.
 
 ### P3-T04 · Expenses on the road · S
-- [ ] Fuel, tolls, ice… with a photo of the receipt; status "waiting for approval"; paid from the cash box.
+- [x] Fuel, tolls, ice… with a photo of the receipt; status "waiting for approval"; paid from the cash box.
 
 ### P3-T05 · Losses and returns · S
 - [ ] Report damaged/spoiled product with reason and photo; return unsold stock to the cold room.

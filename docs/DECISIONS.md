@@ -1176,3 +1176,10 @@ D-051 still open). The driver types the kg and what the customer pays; the rest 
 refuses above the credit limit (its message is shown). Payment is cash for now. A `client_uuid` per sale makes
 a retry safe. Receipt: on screen and the phone's share sheet. Not yet: recent customers first, creating a
 customer, other payment methods, offline (P3-T07).
+
+**D-092 · Expenses from the road (P3-T04)** · accepted · 2026-10-11
+A driver enters an expense with `POST /my-expenses` (multipart: category, amount, optional note, optional receipt
+photo, `client_uuid`), through `expenses.services.submit_road_expense`: cash, today, a cost of the driver's truck of
+the day (D-041), status "À approuver" until the office decides; the photo is joined in the same transaction. The
+driver picks among four categories only (fuel, transport, handling, miscellaneous: `ROAD_CATEGORY_CODES`), listed by
+`GET /my-expense-categories`; `GET /my-expenses` shows their own entries of today with the decision.

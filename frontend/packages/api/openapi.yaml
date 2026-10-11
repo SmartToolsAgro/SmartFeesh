@@ -3094,6 +3094,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/DriverDay'
           description: ''
+  /api/v1/my-expense-categories:
+    get:
+      operationId: listRoadCategories
+      description: 'The few categories a driver can spend on from the road: fuel,
+        transport, handling, other.'
+      tags:
+      - my-expense-categories
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoadCategory'
+          description: ''
+  /api/v1/my-expenses:
+    get:
+      operationId: listMyExpenses
+      description: What the driver entered today, newest first.
+      tags:
+      - my-expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoadExpense'
+          description: ''
+    post:
+      operationId: addMyExpense
+      description: |-
+        Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
+        of the day and waits for the office to approve it.
+      tags:
+      - my-expenses
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoadExpenseWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadExpense'
+          description: ''
   /api/v1/my-stock:
     get:
       operationId: listMyStock
@@ -13524,6 +13581,75 @@ components:
       - reason
       - unit_cost
       - value
+    RoadCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    RoadExpense:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - category_name
+      - description
+      - id
+      - number
+      - rejection_reason
+      - status
+    RoadExpenseWrite:
+      type: object
+      properties:
+        category:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        description:
+          type: string
+          default: ''
+          maxLength: 255
+        receipt:
+          type: string
+          format: binary
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - amount
+      - category
     RoleEnum:
       enum:
       - owner

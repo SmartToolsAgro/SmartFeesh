@@ -4,6 +4,7 @@ import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "
 import { Button, Card, EmptyState, Field, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router";
 
 // "Ma journée", three steps and nothing else: pick the truck, check the load, start the day.
 export function DayPage() {
@@ -96,6 +97,9 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
           </ul>
         </Card>
       )}
+      <Button asChild size="lg" className="py-4 text-lg">
+        <Link to="/depense">{t("truck.expense.add")}</Link>
+      </Button>
       {day.isLoading ? null : started ? (
         <Card>
           <p className="text-lg font-semibold">{t("truck.day.started")}</p>

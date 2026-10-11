@@ -180,6 +180,9 @@ import type {
   RecurringCost,
   RecurringCostWrite,
   ReopenLot,
+  RoadCategory,
+  RoadExpense,
+  RoadExpenseWrite,
   SalaryAdjustment,
   SalaryPayment,
   SalaryPaymentAllocate,
@@ -9746,6 +9749,286 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getOpenMyDayMutationOptions(options), queryClient);
+    }
+
+export const getListRoadCategoriesUrl = () => {
+
+
+
+
+  return `/api/v1/my-expense-categories`
+}
+
+/**
+ * The few categories a driver can spend on from the road: fuel, transport, handling, other.
+ */
+export const listRoadCategories = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RoadCategory[]> => {
+
+  return apiFetch<RoadCategory[]>(getListRoadCategoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRoadCategoriesQueryKey = () => {
+    return [
+    `/api/v1/my-expense-categories`
+    ] as const;
+    }
+
+
+export const getListRoadCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRoadCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoadCategories>>> = ({ signal }) => listRoadCategories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRoadCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listRoadCategories>>>
+export type ListRoadCategoriesQueryError = unknown
+
+
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRoadCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listRoadCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRoadCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listRoadCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRoadCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMyExpensesUrl = () => {
+
+
+
+
+  return `/api/v1/my-expenses`
+}
+
+/**
+ * What the driver entered today, newest first.
+ */
+export const listMyExpenses = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RoadExpense[]> => {
+
+  return apiFetch<RoadExpense[]>(getListMyExpensesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyExpensesQueryKey = () => {
+    return [
+    `/api/v1/my-expenses`
+    ] as const;
+    }
+
+
+export const getListMyExpensesQueryOptions = <TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyExpensesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyExpenses>>> = ({ signal }) => listMyExpenses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyExpensesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyExpenses>>>
+export type ListMyExpensesQueryError = unknown
+
+
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof listMyExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof listMyExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyExpensesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddMyExpenseUrl = () => {
+
+
+
+
+  return `/api/v1/my-expenses`
+}
+
+/**
+ * Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
+ * of the day and waits for the office to approve it.
+ */
+export const addMyExpense = async (roadExpenseWrite: RoadExpenseWrite, options?: Parameters<typeof apiFetch>[1]): Promise<RoadExpense> => {
+    const formData = new FormData();
+formData.append(`category`, roadExpenseWrite.category.toString())
+formData.append(`amount`, roadExpenseWrite.amount);
+if(roadExpenseWrite.description !== undefined) {
+ formData.append(`description`, roadExpenseWrite.description);
+ }
+if(roadExpenseWrite.receipt !== undefined) {
+ formData.append(`receipt`, roadExpenseWrite.receipt);
+ }
+if(roadExpenseWrite.client_uuid !== undefined && roadExpenseWrite.client_uuid !== null) {
+ formData.append(`client_uuid`, roadExpenseWrite.client_uuid);
+ }
+
+  return apiFetch<RoadExpense>(getAddMyExpenseUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAddMyExpenseMutationKey = () => ['addMyExpense'] as const;
+
+export const getAddMyExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyExpense>>, TError,AddMyExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMyExpense>>, TError,AddMyExpenseMutationVariables, TContext> => {
+
+const mutationKey = getAddMyExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMyExpense>>, AddMyExpenseMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addMyExpense(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMyExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof addMyExpense>>>
+    export type AddMyExpenseMutationBody = RoadExpenseWrite
+    export type AddMyExpenseMutationError = unknown
+    export type AddMyExpenseMutationVariables = {data: RoadExpenseWrite}
+
+    export const useAddMyExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyExpense>>, TError,AddMyExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addMyExpense>>,
+        TError,
+        AddMyExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMyExpenseMutationOptions(options), queryClient);
     }
 
 export const getListMyStockUrl = () => {

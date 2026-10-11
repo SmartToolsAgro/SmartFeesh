@@ -5625,6 +5625,66 @@ export const OpenMyDayResponse = zod.object({
 
 
 /**
+ * The few categories a driver can spend on from the road: fuel, transport, handling, other.
+ */
+export const ListRoadCategoriesResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})
+export const ListRoadCategoriesResponse = zod.array(ListRoadCategoriesResponseItem)
+
+
+/**
+ * What the driver entered today, newest first.
+ */
+export const listMyExpensesResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMyExpensesResponseItem = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "category_name": zod.string(),
+  "amount": zod.stringFormat('decimal', listMyExpensesResponseAmountRegExp),
+  "description": zod.string(),
+  "rejection_reason": zod.string()
+})
+export const ListMyExpensesResponse = zod.array(ListMyExpensesResponseItem)
+
+
+/**
+ * Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
+ * of the day and waits for the office to approve it.
+ */
+
+export const addMyExpenseBodyDescriptionDefault = ``;
+export const addMyExpenseBodyDescriptionMax = 255;
+
+
+
+export const AddMyExpenseBody = zod.object({
+  "category": zod.int().min(1),
+  "amount": zod.string(),
+  "description": zod.string().max(addMyExpenseBodyDescriptionMax).default(addMyExpenseBodyDescriptionDefault),
+  "receipt": zod.instanceof(Blob).optional(),
+  "client_uuid": zod.uuid().nullish()
+})
+
+export const addMyExpenseResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AddMyExpenseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "category_name": zod.string(),
+  "amount": zod.stringFormat('decimal', addMyExpenseResponseAmountRegExp),
+  "description": zod.string(),
+  "rejection_reason": zod.string()
+})
+
+
+/**
  * What the driver's truck holds now per product, with today's price per kg. 404 without a truck.
  */
 export const listMyStockResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
