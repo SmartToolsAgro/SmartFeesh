@@ -40,6 +40,8 @@ test("the partnership lot shows its result so far, step by step, with what lies 
   // Not closable yet: 11 kg are still in the cold room, and the screen says so.
   await expect(result.getByText(/Il reste 11,000\skg en stock/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Clôturer le lot" })).toBeDisabled();
+  // Nothing to settle with the partner before the lot is closed (P6-T03).
+  await expect(page.getByRole("region", { name: "Règlement du partenaire" })).toHaveCount(0);
 
   // The sale behind the revenue is one click away.
   await result.getByText(/^Ventes du lot \(4,000\skg\)/).click();

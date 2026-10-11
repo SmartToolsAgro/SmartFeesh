@@ -8,12 +8,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.closing import engine, selectors, services
-from apps.closing.models import LotResult, LotResultStatus
+from apps.closing.models import LotResult, LotResultStatus, SettlementState
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOwnerOrAccountantWriteOwner, membership_of
 from apps.inventory import selectors as inventory
+from apps.partners import selectors as suppliers
+from apps.partnerships import selectors as partnerships
 
-from .serializers import CloseLotSerializer, LotResultViewSerializer, ReopenLotSerializer
+from .serializers import (
+    CloseLotSerializer,
+    LotResultViewSerializer,
+    LotSettlementViewSerializer,
+    PartnerBalancesSerializer,
+    ReopenLotSerializer,
+    SettleLotSerializer,
+)
 
 
 def person_name(user: Any) -> str:
@@ -118,6 +127,135 @@ class CloseLotView(LotResultBaseView):
             costs_confirmed=serializer.validated_data["costs_confirmed"],
         )
         return self.answer(batch_id)
+
+
+def _settlement_record(settlement: Any) -> dict[str, Any]:
+    return {
+        "id": settlement.pk,
+        "settled_on": settlement.settled_on,
+        "capital_returned": settlement.capital_returned,
+        "lot_share": settlement.lot_share,
+        "uncovered_loss": settlement.uncovered_loss,
+        "carried_in": settlement.carried_in,
+        "share_paid": settlement.share_paid,
+        "amount_paid": settlement.amount_paid,
+        "carried_out": settlement.carried_out,
+        "notes": settlement.notes,
+        "created_by_name": person_name(settlement.created_by),
+        "payments": list(settlement.payments.all()),
+    }
+
+
+def partner_balances_payload(organization: Organization, partner_id: int, partner_name: str) -> dict[str, Any]:
+    balances = partnerships.partner_balances(organization, partner_id=partner_id)
+    return {
+        "partner_id": partner_id,
+        "partner_name": partner_name,
+        "trade_payable": balances.trade_payable,
+        "capital": balances.capital,
+        "profit_share": balances.profit_share,
+        "lots": balances.lots,
+    }
+
+
+def lot_settlement_payload(organization: Organization, batch_id: int) -> dict[str, Any]:
+    """Where the lot stands with its partner: what settling would pay, or what was paid, the late costs
+    waiting for the next settlement, and the partner's three balances."""
+    partnership = partnerships.live_partnership_of_batch(organization, batch_id=batch_id)
+    empty: dict[str, Any] = {
+        "batch_id": batch_id,
+        "state": SettlementState.NONE,
+        "partnership_id": None,
+        "partner_id": None,
+        "partner_name": "",
+        "preview": None,
+        "settlement": None,
+        "late": None,
+        "entries": [],
+        "balances": None,
+    }
+    if partnership is None:
+        return empty
+    payload = {
+        **empty,
+        "partnership_id": partnership.pk,
+        "partner_id": partnership.partner_id,
+        "partner_name": partnership.partner.name,
+        "entries": list(partnerships.profit_share_entries_of(partnership)),
+        "balances": partner_balances_payload(organization, partnership.partner_id, partnership.partner.name),
+        "state": SettlementState.NOT_CLOSED,
+    }
+    result = selectors.closed_result_of(organization, batch_id=batch_id)
+    if result is None:
+        return payload
+    drift = selectors.late_drift(organization, result)
+    if drift is not None:
+        payload["late"] = {
+            "drift": drift.drift,
+            "booked": drift.booked,
+            "pending_basis": drift.pending_basis,
+            "pending_share": drift.pending_share,
+        }
+    settlement = partnerships.settlement_of(partnership)
+    if settlement is not None:
+        payload["state"] = SettlementState.SETTLED
+        payload["settlement"] = _settlement_record(settlement)
+    else:
+        payload["state"] = SettlementState.READY
+        payload["preview"] = selectors.settlement_preview(organization, result)
+    return payload
+
+
+class LotSettlementView(LotResultBaseView):
+    @extend_schema(operation_id="getLotSettlement", responses=LotSettlementViewSerializer)
+    def get(self, request: Request, batch_id: int) -> Response:
+        """The lot's settlement with its partner: what settling would pay (capital back ± share, minus what
+        the partner owes from earlier lots), or what was paid; the late costs waiting for the next
+        settlement; and the partner's three balances (trade payable, capital, profit share)."""
+        self.check_batch(batch_id)
+        return Response(LotSettlementViewSerializer(lot_settlement_payload(self.organization, batch_id)).data)
+
+
+class SettleLotView(LotResultBaseView):
+    @extend_schema(operation_id="settleLot", request=SettleLotSerializer, responses=LotSettlementViewSerializer)
+    def post(self, request: Request, batch_id: int) -> Response:
+        """Settle a closed partnership lot with its partner (owner only): pay their capital back and their
+        profit share. The payments must add up to the amount shown by `getLotSettlement`."""
+        self.check_batch(batch_id)
+        serializer = SettleLotSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.settle_lot(
+            organization=self.organization,
+            actor=self.membership.user,
+            batch_id=batch_id,
+            payments=[dict(payment) for payment in serializer.validated_data.get("payments", [])],
+            notes=serializer.validated_data["notes"],
+        )
+        return Response(LotSettlementViewSerializer(lot_settlement_payload(self.organization, batch_id)).data)
+
+
+class BookLateAdjustmentsView(LotResultBaseView):
+    @extend_schema(operation_id="bookLateAdjustments", request=None, responses=LotSettlementViewSerializer)
+    def post(self, request: Request, batch_id: int) -> Response:
+        """Carry the costs recorded after the lot closed to the partner's balance now (owner only), without
+        reopening the lot. Settling does it too; this makes the amount visible on the partner's balance."""
+        self.check_batch(batch_id)
+        services.book_late_adjustments(organization=self.organization, actor=self.membership.user, batch_id=batch_id)
+        return Response(LotSettlementViewSerializer(lot_settlement_payload(self.organization, batch_id)).data)
+
+
+class PartnerBalancesView(LotResultBaseView):
+    @extend_schema(operation_id="getPartnerBalances", responses=PartnerBalancesSerializer)
+    def get(self, request: Request, partner_id: int) -> Response:
+        """A partner's three balances, kept apart: what is owed for goods (trade payable), their capital
+        still in lots, and their profit share (owed to them, or by them)."""
+        try:
+            partner = suppliers.supplier_of(self.organization, partner_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        return Response(
+            PartnerBalancesSerializer(partner_balances_payload(self.organization, partner.pk, partner.name)).data
+        )
 
 
 class ReopenLotView(LotResultBaseView):

@@ -6,6 +6,7 @@ import { type ReactNode } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
 import { LotResultCard } from "../closing/LotResultCard";
+import { SettlementCard } from "../closing/SettlementCard";
 import { LotCostsCard } from "../expenses/LotCostsCard";
 
 import { StockTabs } from "../lib/StockTabs";
@@ -93,6 +94,8 @@ export function BatchStockPage() {
       {/* P6-T01 / P6-T02: the owner's and accountant's view of the lot's partner and result */}
       {canReadResults(session) && <PartnershipSection batch={{ id: batchId, number: data.number }} session={session} />}
       {canReadResults(session) && <LotResultCard batchId={batchId} session={session} />}
+      {/* P6-T03: settlement with the partner (capital back ± share), late costs, the three balances */}
+      {canReadResults(session) && <SettlementCard batchId={batchId} number={data.number} session={session} />}
       <BatchSalesSection batchId={batchId} />
       <LotCostsCard batchId={batchId} session={session} />
 

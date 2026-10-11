@@ -1,6 +1,6 @@
 """Closing and reopening a lot: its result frozen, or unfrozen with a reason (P6-T02, D-061)."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -15,6 +15,9 @@ from apps.partnerships import services as partnership_services
 
 from . import engine, selectors
 from .models import LotResult, LotResultStatus
+
+if TYPE_CHECKING:
+    from apps.partnerships.models import PartnerSettlement
 
 
 def _refusals(checks: list[selectors.ClosingCheck]) -> list[str]:
@@ -142,3 +145,73 @@ def reopen_lot(*, result: LotResult, actor: User | None, reason: str) -> LotResu
         after={**_summary(result), "reason": result.reopen_reason},
     )
     return result
+
+
+# ---- Late costs and settlement with the partner (P6-T03, D-066) ----
+
+
+def _book_late_adjustment(organization: Organization, actor: User | None, result: LotResult) -> bool:
+    """Carry what changed on a closed lot after its closing to the partner's profit-share balance. A lot
+    without a partner has nothing to carry: its drift is only shown. Returns whether an entry was posted."""
+    drift = selectors.late_drift(organization, result)
+    if drift is None or drift.pending_basis == 0:
+        return False
+    partnership = partnerships.partnership_of(organization, result.partnership_id or 0)
+    partnership_services.record_late_adjustment(
+        partnership=partnership,
+        actor=actor,
+        lot_result_id=result.pk,
+        amount=drift.pending_share,
+        basis=drift.pending_basis,
+        note=_("Écart de %(amount)s DT sur le résultat du lot après sa clôture") % {"amount": drift.pending_basis},
+    )
+    return True
+
+
+@transaction.atomic
+def book_late_adjustments(*, organization: Organization, actor: User | None, batch_id: int) -> bool:
+    """Book the lot's late costs (and sales) on the partner's next settlement, without reopening the lot
+    (D-041): the partner's share of the change goes on their profit-share balance, once. Returns whether
+    there was anything to book."""
+    lock_lot(batch_id)
+    result = selectors.closed_result_of(organization, batch_id=batch_id)
+    if result is None or result.partnership_id is None:
+        raise ValidationError(_("Ce lot n'est pas un lot de partenariat clôturé."))
+    return _book_late_adjustment(organization, actor, result)
+
+
+@transaction.atomic
+def settle_lot(
+    *,
+    organization: Organization,
+    actor: User | None,
+    batch_id: int,
+    payments: list[dict[str, Any]],
+    notes: str = "",
+) -> "PartnerSettlement":
+    """Settle a closed partnership lot with its partner (owner only): capital back ± share, minus what the
+    partner owes from earlier lots, paid by the given payments (which must add up to it).
+
+    Before settling, the late costs of every closed lot of this partner are carried to their balance (the
+    "next settlement" of D-041), in lot order under each lot's lock. A lot reopened since, or never closed,
+    is refused; so is a lot settled twice.
+    """
+    result = selectors.closed_result_of(organization, batch_id=batch_id)
+    if result is None or result.partnership_id is None:
+        raise ValidationError(_("Ce lot n'est pas un lot de partenariat clôturé."))
+    partnership = partnerships.partnership_of(organization, result.partnership_id)
+    others = selectors.partner_closed_results(organization, partner_id=partnership.partner_id)
+    for lot_id in sorted({batch_id, *(other.batch_id for other in others)}):
+        lock_lot(lot_id)
+    result = selectors.closed_result_of(organization, batch_id=batch_id) or result
+    for other in others:
+        _book_late_adjustment(organization, actor, other)
+    return partnership_services.settle_partnership(
+        partnership=partnership,
+        actor=actor,
+        lot_result_id=result.pk,
+        lot_share=result.partner_share,
+        uncovered_loss=result.uncovered_loss,
+        payments=payments,
+        notes=notes,
+    )

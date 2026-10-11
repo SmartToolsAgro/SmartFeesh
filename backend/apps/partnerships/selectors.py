@@ -6,8 +6,22 @@ from decimal import Decimal
 from django.db.models import Count, Q, QuerySet, Sum
 
 from apps.core.models import Organization
+from apps.purchasing import selectors as purchasing
 
-from .models import CapitalEntry, CapitalEntryKind, LotPartnership, PartnershipStatus
+from .models import (
+    CapitalEntry,
+    CapitalEntryKind,
+    LotPartnership,
+    PartnerSettlement,
+    PartnershipStatus,
+    ProfitShareEntry,
+)
+from .models import (
+    ProfitShareKind as ProfitShareKind,
+)
+from .models import (
+    SettlementPaymentMethod as SettlementPaymentMethod,
+)
 
 ZERO = Decimal("0.000")
 
@@ -125,3 +139,74 @@ def capital_by_partner(organization: Organization) -> dict[int, PartnerCapital]:
         )
         for row in rows
     }
+
+
+# ---- The partner's profit share, and their three balances (P6-T03, D-066) ----
+
+
+def profit_share_entries_of(partnership: LotPartnership) -> QuerySet[ProfitShareEntry]:
+    """The partner's profit-share ledger in this lot, oldest first."""
+    return (
+        ProfitShareEntry.objects.for_organization(partnership.organization)
+        .filter(partnership=partnership)
+        .select_related("created_by")
+        .order_by("entry_date", "id")
+    )
+
+
+def profit_share_balance_of_partner(organization: Organization, *, partner_id: int) -> Decimal:
+    """What the company owes the partner out of profit shares over all their lots: + owed to them, − owed by
+    them (an uncovered loss or a late cost, recovered from their next share)."""
+    total = (
+        ProfitShareEntry.objects.for_organization(organization)
+        .filter(partnership__partner_id=partner_id)
+        .aggregate(total=Sum("amount"))["total"]
+    )
+    return total if total is not None else ZERO
+
+
+def late_adjustments_booked(partnership: LotPartnership, *, lot_result_id: int) -> Decimal:
+    """The change of the lot's net result already carried to the partner's settlements (sum of `basis`)."""
+    total = (
+        ProfitShareEntry.objects.for_organization(partnership.organization)
+        .filter(partnership=partnership, kind=ProfitShareKind.LATE_ADJUSTMENT, lot_result_id=lot_result_id)
+        .aggregate(total=Sum("basis"))["total"]
+    )
+    return total if total is not None else ZERO
+
+
+def settlement_of(partnership: LotPartnership) -> PartnerSettlement | None:
+    return (
+        PartnerSettlement.objects.for_organization(partnership.organization)
+        .filter(partnership=partnership)
+        .select_related("created_by")
+        .prefetch_related("payments", "entries")
+        .first()
+    )
+
+
+@dataclass(frozen=True)
+class PartnerBalances:
+    """The three balances of one partner, kept apart (D-031, D-040): never added together.
+
+    - `trade_payable`: owed for goods bought from them (D-043), from `purchasing`.
+    - `capital`: their money still in the company's lots (all their partnership lots).
+    - `profit_share`: shares of profit owed to them (+) or losses and late costs they owe (−).
+    """
+
+    partner_id: int
+    trade_payable: Decimal
+    capital: Decimal
+    profit_share: Decimal
+    lots: int
+
+
+def partner_balances(organization: Organization, *, partner_id: int) -> PartnerBalances:
+    capital = capital_by_partner(organization).get(partner_id)
+    return PartnerBalances(
+        partner_id=partner_id,
+        trade_payable=purchasing.supplier_balance(organization, partner_id).balance,
+        capital=capital.capital if capital is not None else ZERO,
+        profit_share=profit_share_balance_of_partner(organization, partner_id=partner_id),
+        lots=capital.lots if capital is not None else 0,
+    )
