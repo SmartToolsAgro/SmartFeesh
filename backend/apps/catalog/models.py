@@ -86,6 +86,9 @@ class Product(OrganizationScopedModel, TimeStampedModel):
     is_active = models.BooleanField(default=True)
     # Selling below this price only warns (and is logged in the audit), it never blocks (D-049).
     min_price = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    # The product's own VAT rate in percent, proposed on invoices instead of the organization's rate (D-056).
+    # Empty = the finance settings' rate; 0 = exempt (Tunisian fishing products, to check with the accountant).
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     class Meta:
         ordering = ["name", "id"]
@@ -99,6 +102,10 @@ class Product(OrganizationScopedModel, TimeStampedModel):
                 | models.Q(storage_temp_max__isnull=True)
                 | models.Q(storage_temp_min__lte=models.F("storage_temp_max")),
                 name="product_storage_temp_range_ordered",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(vat_rate__isnull=True) | models.Q(vat_rate__gte=0, vat_rate__lte=100),
+                name="product_vat_rate_percent",
             ),
         ]
 

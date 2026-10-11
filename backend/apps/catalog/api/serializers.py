@@ -48,6 +48,8 @@ class ProductSerializer(serializers.ModelSerializer[Product]):
     current_price = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True, allow_null=True)
     current_price_from = serializers.DateTimeField(read_only=True, allow_null=True)
     min_price = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True, allow_null=True)
+    # The product's own VAT rate in percent (0 = exempt); null = the finance settings' rate (D-056).
+    vat_rate = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True, allow_null=True)
 
     class Meta:
         model = Product
@@ -67,6 +69,7 @@ class ProductSerializer(serializers.ModelSerializer[Product]):
             "current_price",
             "current_price_from",
             "min_price",
+            "vat_rate",
             "updated_at",
         )
         read_only_fields = fields
@@ -100,6 +103,16 @@ class ProductUpdateSerializer(serializers.Serializer[Any]):
     storage_temp_min = temperature_field()
     storage_temp_max = temperature_field()
     illustration = serializers.ChoiceField(choices=Illustration.choices, required=False, default=Illustration.FISH)
+    # Percent; 0 = exempt; null = the finance settings' rate (D-056). Left out of a change: kept as it is.
+    vat_rate = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        required=False,
+        allow_null=True,
+        default=None,
+    )
 
 
 class ProductCreateSerializer(ProductUpdateSerializer):

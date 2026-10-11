@@ -30,6 +30,8 @@ class ProductFields(TypedDict, total=False):
     storage_temp_min: Decimal | None
     storage_temp_max: Decimal | None
     illustration: str
+    # The product's own VAT rate in percent (0 = exempt); None = the finance settings' rate (D-056).
+    vat_rate: Decimal | None
 
 
 def _snapshot(product: Product) -> dict[str, Any]:
@@ -42,6 +44,7 @@ def _snapshot(product: Product) -> dict[str, Any]:
         "storage_temp_min": product.storage_temp_min,
         "storage_temp_max": product.storage_temp_max,
         "illustration": product.illustration,
+        "vat_rate": product.vat_rate,
     }
 
 
@@ -115,6 +118,9 @@ def _clean_product(product: Product) -> None:
     low, high = product.storage_temp_min, product.storage_temp_max
     if low is not None and high is not None and low > high:
         errors["storage_temp_max"] = _("La température maximale doit être supérieure ou égale à la minimale.")
+    rate = product.vat_rate
+    if rate is not None and (rate != rate.quantize(Decimal("0.01")) or not 0 <= rate <= 100):
+        errors["vat_rate"] = _("Indiquez un taux de TVA en %, de 0 à 100, ou laissez vide (taux de la société).")
     if errors:
         raise ValidationError(errors)
 
