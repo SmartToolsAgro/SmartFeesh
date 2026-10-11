@@ -602,7 +602,9 @@ class InvoiceCreditNoteView(InvoiceView):
     def post(self, request: Request, invoice_id: int) -> Response:
         """Correct an issued invoice with a credit note (AV-2026-0001...), the only correction. `full` gives back
         everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
-        amount without VAT (`amount`), with the line's VAT. Errors: `lines.<index>.<field>`, `reason`."""
+        amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
+        `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
+        (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`."""
         invoice = self.invoice(invoice_id)
         serializer = CreditNoteWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -613,7 +615,12 @@ class InvoiceCreditNoteView(InvoiceView):
             for row in data["lines"]
         ]
         note = services.create_credit_note(
-            invoice=invoice, actor=self.membership.user, kind=data["kind"], reason=data["reason"], lines=lines
+            invoice=invoice,
+            actor=self.membership.user,
+            kind=data["kind"],
+            reason=data["reason"],
+            lines=lines,
+            stock=data["stock"],
         )
         detail = CreditNoteSerializer(selectors.credit_notes_of(self.organization).get(pk=note.pk)).data
         return Response(detail, status=status.HTTP_201_CREATED)

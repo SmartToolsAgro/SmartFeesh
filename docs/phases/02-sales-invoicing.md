@@ -76,7 +76,7 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
       (D-062 to D-065. Screens: "Règlements", balance and history on the customer page, certificate card on the invoice.)
 
 ### P2-T07 · Customer returns · S
-- [ ] Return → stock movement back (or to loss) + credit note.
+- [x] Return → stock movement back (or to loss) + credit note. (D-070: a credit note with a stock choice.)
 
 ### P2-T08 · PDFs · M
 - [ ] WeasyPrint templates for quote, invoice, receipt, credit note, styled like the prototype's quote.

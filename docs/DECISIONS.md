@@ -1111,3 +1111,22 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - `AdminShell` shows a "Retour" button on every page that is not a menu entry (previous page, or the parent menu
   entry when opened directly). "Camions du jour" (D-046) is its own menu entry `/camions`, no longer a section of
   the Stock page. Filter bars of list pages use the `filter-bar` class: sticky under the 62px top bar.
+**D-070 · Customer returns on credit notes (P2-T07)** · accepted, provisional points marked · 2026-10-11
+
+- **No separate "return" document:** a return is a credit note (D-057) with a `stock` choice for the kilos it
+  gives back: `none` (default: weight dispute, price gesture; nothing moves), `restock` or `loss`. One choice
+  per note, in the dialog and in `createCreditNote`.
+- **`restock`:** the kilos re-enter the sale's place (cold room or truck) by `customer_return` movements, on
+  the batches the sale line left (`SaleLineBatch`, in order, up to what each has not yet got back), at the
+  cost they left with. **`loss`:** the same, then a `loss` movement writes them off on the same batch at once,
+  with the credit note as reason: no owner approval (D-045), the note is the proof. Provisional: the client may
+  want a threshold or a photo for returned goods.
+- **`CreditNoteLineBatch`** records, per credit note line and sale batch, the revenue taken back and, when goods
+  came back, kilos and cost. `selectors.batch_sales_totals` and the lot result (`closing` reads
+  `selectors.net_of`) are **net** of them, so a return lowers the lot's revenue and COGS; a `loss` then adds
+  the spoilage through the ledger. A price correction lowers revenue only. `batch_sales` rows keep gross
+  values and add `returned_quantity`, `credited_revenue`, `returned_cost`.
+- **A sale cancelled after a full credit note** returns only the kilos not already returned.
+- **Not done (provisional):** a return on a lot that is already **closed** changes the live numbers but not
+  the closed snapshot (use the late-adjustment path, D-067, by hand); no refund of money (P2-T06 credit);
+  a return cannot exceed the sale's kilos still out, per batch.

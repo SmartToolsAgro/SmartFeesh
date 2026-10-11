@@ -6,10 +6,12 @@
  */
 import type { CreditNoteKindEnum } from './creditNoteKindEnum';
 import type { CreditNoteLineWrite } from './creditNoteLineWrite';
+import type { CreditNoteStockEnum } from './creditNoteStockEnum';
 
 export interface CreditNoteWrite {
   kind: CreditNoteKindEnum;
   /** @maxLength 255 */
   reason: string;
+  stock?: CreditNoteStockEnum;
   lines?: CreditNoteLineWrite[];
 }

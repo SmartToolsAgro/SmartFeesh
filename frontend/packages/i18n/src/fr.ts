@@ -640,6 +640,13 @@ export const fr = {
           partial: "Rend des kilos ou un montant HT, ligne par ligne, avec la TVA de la ligne.",
         },
         left: "reste {{quantity}}",
+        stock: "Que deviennent les kilos rendus ?",
+        stocks: { none: "Rien dans le stock", restock: "Remis en stock", loss: "Mis en perte" },
+        stockHints: {
+          none: "Écart de poids, geste commercial : les marchandises ne reviennent pas.",
+          restock: "Les kilos reviennent au même endroit, dans les lots d'où ils sont partis.",
+          loss: "Les kilos reviennent puis sont passés en perte sur le même lot (produit avarié).",
+        },
         quantity: "Kilos à rendre : {{name}}",
         amount: "Montant HT à rendre (DT) : {{name}}",
         reason: "Motif",

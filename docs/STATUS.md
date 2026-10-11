@@ -4,10 +4,12 @@ _Last updated: 2026-10-11_
 
 ## Where we are
 
-- **Phase:** 1 is done. Phase 2 (sales) is half done, Phase 5 (costs) is mostly done, Phase 6 (lot
-  profit and partner share) is next. Phase 0 agent work is done; its human items are under Blockers.
-- **On `main`:** P1-T02 to P1-T12; P2-T01 to P2-T04 (customers, prices, quotes, sales and counter sale);
-  P5-T01, P5-T03, P5-T04 (expenses, day-labour calendar, employees and salaries); PRs #3 to #25.
+- **Phase:** 1 is done. Phase 2 (sales) is mostly done (T07 returns, T08 PDFs and the T09 remainder are
+  left), Phase 5 (costs) is done, Phase 6 has T01 to T03 done. Phase 0 agent work is done; its human items
+  are under Blockers.
+- **On `main`:** P1-T02 to P1-T12; P2-T01 to P2-T06 (customers, prices, quotes, sales, invoices, customer
+  payments and credit limit); P5-T01 to T05; P6-T01 to T03 (partnership lots, lot result, closing and
+  partner settlement); PRs #3 to #34.
   Every merge to `main` deploys staging.
 - **Staging** (D-036, `docs/runbook.md`): admin http://admin.217-182-205-137.sslip.io:8095, driver
   http://chauffeur.217-182-205-137.sslip.io:8096. Demo logins `owner` / `driver`, password in
@@ -25,12 +27,10 @@ _Last updated: 2026-10-11_
 
 ## Next step (do this first)
 
-1. Agents (parallel): **P2-T05** invoices (finance settings, VAT, stamp, withholding, gap-free numbers);
-   **P5-T02 + P5-T05** cold-room cost per day and rent/accountant "like a salary" on lots;
-   **P6-T01..T03** partnership lots and the lot result engine (reads sales per lot `batch_sales_totals`,
-   `expenses.lot_cost_lines`, hr `LotWorkDay`; cold-room and general cost lines plug in when they land).
-2. Then P2-T06 customer payments and credit limit (hooks `check_credit` / `record_receivable` in
-   `sales.services`), P2-T07 returns, P2-T08 PDFs, Phase 3 driver app, P6-T04..T07 statements/closing.
+1. Agents (parallel): **P2-T07** customer returns (credit note + stock back or loss); **P2-T08** PDFs
+   (quote, invoice, receipt, credit note; Celery + Redis); **P6-T04** partner statement PDF;
+   **P6-T05/T06** month-end valuation, COGS and monthly closing. Then **P6-T07** lot and partnership screens.
+2. Phase 3 driver app (collecting payments on the phone, credit-limit behaviour from `FinanceSettings`).
 3. Phase 3 leftovers: narrow customer endpoint for drivers (D-047), driver truck-of-day screen (D-046),
    driver confirmation of loads (D-044), a truck sale should use the load's price (D-051).
 4. Mahmoud: check the apps on staging; get the real lot for P0-T02.
@@ -49,6 +49,9 @@ _Last updated: 2026-10-11_
   invoices carry no VAT until then (D-043).
 - **Provisional, to confirm with the client:** supplier due date +30 days and payment methods (D-043);
   loss approval threshold 2 kg (D-045); no supplier credit note yet (a posted invoice cannot be corrected).
+- **Provisional (P2-T06, P6-T03):** default credit policy `block`; ageing runs from invoice/sale date;
+  a loss beyond the partner's capital stays on the profit-share balance (D-066); no customer-credit
+  refund yet; no owner override with reason to close a lot with unpaid sales (D-068).
 
 ## Watch out
 
@@ -76,18 +79,14 @@ _Last updated: 2026-10-11_
 
 ## Last session (2026-10-11)
 
-Second and third parallel waves (Opus for the money-critical tasks, Sonnet for the rest):
-- **P1-T11** stock screens + average purchase price (D-048); **P2-T02** "Prix du jour", price lists,
-  `price_in_force` (D-049); **P2-T03** quotes, new `sales` app (D-050).
-- **P2-T04** sales (D-051, D-052): FIFO lot rows with cost snapshots, cancel by reversal, quote
-  conversion, quick counter sale, `batch_sales_totals` per lot.
-- **P5-T01/T03** expenses with lot/truck-day costs, day-labour calendar (D-053, D-054); **P5-T04** `hr`
-  employees, salaries, days on a lot (D-055).
-- Two Opus agents were cut off by the API rate limit; resumed or finished by hand. A time-of-day
-  dependent inventory test was fixed (it failed CI after 11:00 UTC).
+Fourth parallel wave: **P2-T06** payments, ageing, credit policy, withholding certificates, "Règlements"
+page (D-062 to D-065, PRs #33, #34); **P6-T03** lot closing, reopen audit, partner settlement, three
+balances, late-cost adjustments (D-066 to D-069, PR #32). Closing now blocks on unpaid sales. PR #33 was
+merged while one e2e run was red and briefly broke `main`; #34 fixed a selector. Check the last `main` CI.
 
 ## Recently done
 
+- 2026-10-11 · P2-T05, P2-T06, P5-T02, P5-T05, P6-T01, P6-T02, P6-T03
 - 2026-10-11 · P1-T11, P2-T02, P2-T03, P2-T04, P5-T01, P5-T03, P5-T04
 - 2026-10-11 · P1-T08, P1-T09, P1-T10, P1-T12, P2-T01 (first parallel wave)
 - 2026-10-11 · Plan updated after the client meeting (per-lot profit)

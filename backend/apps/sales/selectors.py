@@ -4,6 +4,7 @@ import datetime as dt
 from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any
 
 from django.db.models import (
     Case,
@@ -28,6 +29,7 @@ from apps.core.models import Organization
 from .models import (
     CreditNote,
     CreditNoteLine,
+    CreditNoteLineBatch,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -179,12 +181,63 @@ def sale_of(organization: Organization, sale_id: int) -> Sale:
     return sales_of(organization).get(pk=sale_id)
 
 
+def returned_by_sale_batch(sale_line_batch_ids: Iterable[int]) -> dict[int, Decimal]:
+    """Kilos credit notes already took back, per sale line batch id (customer returns, D-070)."""
+    rows = (
+        CreditNoteLineBatch.objects.filter(sale_line_batch_id__in=list(sale_line_batch_ids))
+        .values("sale_line_batch_id")
+        .annotate(quantity=Sum("quantity"))
+        .order_by("sale_line_batch_id")
+    )
+    return {row["sale_line_batch_id"]: row["quantity"] for row in rows}
+
+
+def _credit_sum(field: str) -> Coalesce:
+    """What the credit notes took back of `field`, for the sale line batch row being read."""
+    subquery = (
+        CreditNoteLineBatch.objects.filter(sale_line_batch_id=OuterRef("pk"))
+        .values("sale_line_batch_id")
+        .annotate(total=Sum(field))
+        .values("total")
+    )
+    return Coalesce(
+        Subquery(subquery, output_field=DecimalField(max_digits=14, decimal_places=3)),
+        Value(Decimal("0.000")),
+        output_field=DecimalField(max_digits=14, decimal_places=3),
+    )
+
+
+@dataclass(frozen=True)
+class NetSale:
+    """What a `batch_sales` row still counts after the credit notes: kg, revenue and cost of goods."""
+
+    quantity: Decimal
+    revenue: Decimal
+    cost: Decimal
+
+
+def net_of(row: SaleLineBatch) -> NetSale:
+    """A row of `batch_sales` net of what credit notes took back of it (D-070)."""
+    annotated: Any = row  # the three annotations of `batch_sales`
+    return NetSale(
+        quantity=row.quantity - annotated.returned_quantity,
+        revenue=row.revenue_amount - annotated.credited_revenue,
+        cost=row.cost_amount - annotated.returned_cost,
+    )
+
+
 def batch_sales(organization: Organization, *, batch_id: int) -> QuerySet[SaleLineBatch]:
     """What one lot (batch) sold, line by line, oldest sale first: confirmed sales only (a cancelled sale's
-    kilos came back). Each row has its line (price, product) and sale (number, moment, customer, place)."""
+    kilos came back). Each row has its line (price, product) and sale (number, moment, customer, place), and
+    what credit notes took back of it: `returned_quantity`, `credited_revenue`, `returned_cost` (D-070)."""
     return (
         SaleLineBatch.objects.for_organization(organization)
         .filter(batch_id=batch_id, line__sale__status=SaleStatus.CONFIRMED)
+        .annotate(
+            returned_quantity=_credit_sum("quantity"),
+            credited_revenue=_credit_sum("revenue_amount"),
+            returned_cost=_credit_sum("cost_amount"),
+        )
         .select_related("line__product", "line__sale__customer", "line__sale__location", "batch")
         .order_by("line__sale__sold_at", "line__sale_id", "id")
     )
@@ -207,20 +260,37 @@ class BatchSalesTotal:
 def batch_sales_totals(
     organization: Organization, *, batch_ids: Iterable[int] | None = None
 ) -> dict[int, BatchSalesTotal]:
-    """Kg sold, revenue and cost of goods per lot (batch id), over confirmed sales: the sales side of a lot's
-    result (D-040; Phase 6 adds the lot's own costs). Lots that sold nothing are left out."""
+    """Kg sold, revenue and cost of goods per lot (batch id), over confirmed sales, net of what credit notes
+    took back (D-070): the sales side of a lot's result (D-040; Phase 6 adds the lot's own costs). Lots that
+    sold nothing are left out."""
     rows = SaleLineBatch.objects.for_organization(organization).filter(line__sale__status=SaleStatus.CONFIRMED)
     if batch_ids is not None:
         rows = rows.filter(batch_id__in=list(batch_ids))
     totals = rows.values("batch_id").annotate(
         quantity=Sum("quantity"), revenue=Sum("revenue_amount"), cost=Sum("cost_amount")
     )
-    return {
-        row["batch_id"]: BatchSalesTotal(
-            batch_id=row["batch_id"], quantity=row["quantity"], revenue=row["revenue"], cost=row["cost"]
+    credits = CreditNoteLineBatch.objects.for_organization(organization).filter(
+        sale_line_batch__line__sale__status=SaleStatus.CONFIRMED
+    )
+    if batch_ids is not None:
+        credits = credits.filter(sale_line_batch__batch_id__in=list(batch_ids))
+    credited = {
+        row["sale_line_batch__batch_id"]: row
+        for row in credits.values("sale_line_batch__batch_id").annotate(
+            quantity=Sum("quantity"), revenue=Sum("revenue_amount"), cost=Sum("cost_amount")
         )
-        for row in totals.order_by("batch_id")
     }
+    zero = Decimal("0.000")
+    result = {}
+    for row in totals.order_by("batch_id"):
+        back = credited.get(row["batch_id"])
+        result[row["batch_id"]] = BatchSalesTotal(
+            batch_id=row["batch_id"],
+            quantity=row["quantity"] - (back["quantity"] if back else zero),
+            revenue=row["revenue"] - (back["revenue"] if back else zero),
+            cost=row["cost"] - (back["cost"] if back else zero),
+        )
+    return result
 
 
 # ---- Finance settings (P2-T05, D-056) ----

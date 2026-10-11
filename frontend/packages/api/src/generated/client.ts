@@ -6776,7 +6776,9 @@ export const getCreateCreditNoteUrl = (invoiceId: number,) => {
 /**
  * Correct an issued invoice with a credit note (AV-2026-0001...), the only correction. `full` gives back
  * everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
- * amount without VAT (`amount`), with the line's VAT. Errors: `lines.<index>.<field>`, `reason`.
+ * amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
+ * `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
+ * (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`.
  */
 export const createCreditNote = async (invoiceId: number,
     creditNoteWrite: CreditNoteWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CreditNote> => {

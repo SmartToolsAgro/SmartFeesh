@@ -2137,7 +2137,9 @@ paths:
       description: |-
         Correct an issued invoice with a credit note (AV-2026-0001...), the only correction. `full` gives back
         everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
-        amount without VAT (`amount`), with the line's VAT. Errors: `lines.<index>.<field>`, `reason`.
+        amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
+        `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
+        (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`.
       parameters:
       - in: path
         name: invoice_id
@@ -6264,13 +6266,31 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        returned_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        credited_revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        returned_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - cost_amount
+      - credited_revenue
       - customer
       - discount_rate
       - id
       - location
       - quantity
+      - returned_cost
+      - returned_quantity
       - revenue_amount
       - sale
       - sold_at
@@ -6278,8 +6298,8 @@ components:
       - unit_price
     BatchSales:
       type: object
-      description: 'What one lot sold over its confirmed sales: the sales side of
-        its result (D-040).'
+      description: 'What one lot sold over its confirmed sales, net of credit notes:
+        the sales side of its result (D-040).'
       properties:
         batch_id:
           type: integer
@@ -6885,6 +6905,10 @@ components:
         reason:
           type: string
           readOnly: true
+        stock:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteStockEnum'
+          readOnly: true
         total_excl_tax:
           type: string
           format: decimal
@@ -6948,6 +6972,7 @@ components:
       - net_amount
       - number
       - reason
+      - stock
       - total_excl_tax
       - total_incl_tax
       - vat_total
@@ -7045,6 +7070,16 @@ components:
           nullable: true
       required:
       - invoice_line
+    CreditNoteStockEnum:
+      enum:
+      - none
+      - restock
+      - loss
+      type: string
+      description: |-
+        * `none` - Aucun mouvement de stock
+        * `restock` - Remis en stock
+        * `loss` - Mis en perte
     CreditNoteWrite:
       type: object
       properties:
@@ -7053,6 +7088,10 @@ components:
         reason:
           type: string
           maxLength: 255
+        stock:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteStockEnum'
+          default: none
         lines:
           type: array
           items:

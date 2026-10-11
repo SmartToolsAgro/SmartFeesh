@@ -143,6 +143,9 @@ export const getBatchSalesResponseRowsItemDiscountRateRegExp = new RegExp('^-?\\
 export const getBatchSalesResponseRowsItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getBatchSalesResponseRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getBatchSalesResponseRowsItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getBatchSalesResponseRowsItemReturnedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getBatchSalesResponseRowsItemCreditedRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getBatchSalesResponseRowsItemReturnedCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetBatchSalesResponse = zod.object({
@@ -166,9 +169,12 @@ export const GetBatchSalesResponse = zod.object({
   "discount_rate": zod.stringFormat('decimal', getBatchSalesResponseRowsItemDiscountRateRegExp),
   "revenue_amount": zod.stringFormat('decimal', getBatchSalesResponseRowsItemRevenueAmountRegExp),
   "unit_cost": zod.stringFormat('decimal', getBatchSalesResponseRowsItemUnitCostRegExp),
-  "cost_amount": zod.stringFormat('decimal', getBatchSalesResponseRowsItemCostAmountRegExp)
+  "cost_amount": zod.stringFormat('decimal', getBatchSalesResponseRowsItemCostAmountRegExp),
+  "returned_quantity": zod.stringFormat('decimal', getBatchSalesResponseRowsItemReturnedQuantityRegExp),
+  "credited_revenue": zod.stringFormat('decimal', getBatchSalesResponseRowsItemCreditedRevenueRegExp),
+  "returned_cost": zod.stringFormat('decimal', getBatchSalesResponseRowsItemReturnedCostRegExp)
 }).describe('The kilos of one lot sold by one sale line.'))
-}).describe('What one lot sold over its confirmed sales: the sales side of its result (D-040).')
+}).describe('What one lot sold over its confirmed sales, net of credit notes: the sales side of its result (D-040).')
 
 
 export const listCategoriesResponseNameMax = 100;
@@ -664,6 +670,7 @@ export const ListCreditNotesResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
   "total_excl_tax": zod.stringFormat('decimal', listCreditNotesResponseResultsItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', listCreditNotesResponseResultsItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', listCreditNotesResponseResultsItemFiscalStampRegExp),
@@ -721,6 +728,7 @@ export const GetCreditNoteResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
   "total_excl_tax": zod.stringFormat('decimal', getCreditNoteResponseTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', getCreditNoteResponseVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', getCreditNoteResponseFiscalStampRegExp),
@@ -3279,6 +3287,7 @@ export const CreateInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
   "total_excl_tax": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemFiscalStampRegExp),
@@ -3480,6 +3489,7 @@ export const GetInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
   "total_excl_tax": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemFiscalStampRegExp),
@@ -3702,6 +3712,7 @@ export const UpdateInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
   "total_excl_tax": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemFiscalStampRegExp),
@@ -3740,7 +3751,9 @@ export const DeleteInvoiceResponse = zod.void()
 /**
  * Correct an issued invoice with a credit note (AV-2026-0001...), the only correction. `full` gives back
  * everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
- * amount without VAT (`amount`), with the line's VAT. Errors: `lines.<index>.<field>`, `reason`.
+ * amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
+ * `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
+ * (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`.
  */
 export const CreateCreditNoteParams = zod.object({
   "invoice_id": zod.int()
@@ -3748,12 +3761,13 @@ export const CreateCreditNoteParams = zod.object({
 
 export const createCreditNoteBodyReasonMax = 255;
 
-
+export const createCreditNoteBodyStockDefault = `none`;
 
 
 export const CreateCreditNoteBody = zod.object({
   "kind": zod.enum(['full', 'partial']).describe('* `full` - Totale\n* `partial` - Partielle'),
   "reason": zod.string().max(createCreditNoteBodyReasonMax),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte').default(createCreditNoteBodyStockDefault),
   "lines": zod.array(zod.object({
   "invoice_line": zod.int().min(1),
   "quantity": zod.string().nullish(),
@@ -3786,6 +3800,7 @@ export const CreateCreditNoteResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
   "total_excl_tax": zod.stringFormat('decimal', createCreditNoteResponseTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', createCreditNoteResponseVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', createCreditNoteResponseFiscalStampRegExp),
@@ -3987,6 +4002,7 @@ export const IssueInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
   "total_excl_tax": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemFiscalStampRegExp),
