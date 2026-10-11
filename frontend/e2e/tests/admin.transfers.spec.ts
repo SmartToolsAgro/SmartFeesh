@@ -24,6 +24,8 @@ test("the evening return of the demo truck shows loaded − returned = sold or l
   await openTransfers(page);
   await page.getByRole("group", { name: "Type de transfert" }).getByRole("button", { name: "Retour" }).click();
   await page.getByRole("searchbox").fill("Camion 2");
+  // Wait for the search to apply: the list re-renders under the pointer otherwise.
+  await expect(page.getByText("1 transfert", { exact: true })).toBeVisible();
 
   await page
     .getByRole("row", { name: /Camion 2 → Chambre froide 1/ })
@@ -31,6 +33,7 @@ test("the evening return of the demo truck shows loaded − returned = sold or l
     .first()
     .click();
 
+  await expect(page.getByRole("heading", { name: /^TR-\d+$/, level: 1 })).toBeVisible();
   await expect(page.getByText("Validé", { exact: true })).toBeVisible();
   const day = page.getByRole("region", { name: /Journée de Camion 2/ });
   await expect(day).toContainText("Chargé − retourné = vendu ou perdu");
