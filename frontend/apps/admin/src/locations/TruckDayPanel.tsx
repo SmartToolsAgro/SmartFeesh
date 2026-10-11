@@ -90,8 +90,7 @@ export function TruckDayPanel({ canEdit }: { canEdit: boolean }) {
   const list = trucks.data ?? [];
 
   return (
-    <section aria-labelledby="truck-day-title" className="flex flex-col gap-3">
-      <h2 id="truck-day-title">{t("admin.truckDay.title")}</h2>
+    <section aria-label={t("admin.truckDay.title")} className="flex flex-col gap-3">
       <p className="text-ink-2">{t(canEdit ? "admin.truckDay.intro" : "admin.truckDay.readOnly")}</p>
       <div className="max-w-[220px]">
         <Field label={t("admin.truckDay.date")} htmlFor={dateId}>

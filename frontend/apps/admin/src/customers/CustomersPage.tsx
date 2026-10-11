@@ -65,7 +65,7 @@ export function CustomersPage() {
 
       {!canEdit && <p className="text-ink-2">{t("admin.customers.readOnly")}</p>}
 
-      <Card className="flex flex-wrap items-center gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <Input
           type="search"
           aria-label={t("admin.customers.search")}

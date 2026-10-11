@@ -63,7 +63,7 @@ export function MovementsPage() {
       <StockTabs />
       <p className="text-ink-2">{t("admin.stock.movements.intro")}</p>
 
-      <Card className="flex flex-wrap items-end gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-end gap-3 p-3">
         <label className={LABEL_CLASSES}>
           {t("admin.stock.movements.location")}
           <select className={SELECT_CLASSES} value={location} onChange={change(setLocation)}>

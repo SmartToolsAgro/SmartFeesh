@@ -99,7 +99,7 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
       <HrTabs />
       {!canEdit && <p className="text-ink-2">{t("admin.hr.readOnly")}</p>}
 
-      <Card className="flex flex-wrap items-center gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <Button
           size="icon"
           variant="ghost"

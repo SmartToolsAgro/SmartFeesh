@@ -206,7 +206,7 @@ export function PaymentsPage() {
       <p className="text-ink-2">{t("admin.payments.intro")}</p>
       <AgeingCard canWrite={canWrite} />
       <WithholdingCard />
-      <Card className="flex flex-wrap items-center gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <Input
           type="search"
           aria-label={t("admin.payments.search")}

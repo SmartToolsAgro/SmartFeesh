@@ -234,7 +234,7 @@ export function InvoicesPage() {
       </PageHeader>
       <p className="text-ink-2">{t("admin.invoices.intro")}</p>
 
-      <Card className="flex flex-wrap items-center gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <Segmented
           label={t("admin.invoices.tabsLabel")}
           value={tab}

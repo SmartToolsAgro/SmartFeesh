@@ -8,7 +8,7 @@ test.use({ storageState: OWNER_STATE });
 
 async function openDay(page: Page, date: string) {
   await page.goto("/");
-  await page.getByRole("link", { name: "Stock frigo & camions" }).click();
+  await page.getByRole("link", { name: "Camions du jour" }).click();
   await expect(page.getByRole("heading", { name: "Camions du jour" })).toBeVisible();
   await page.getByLabel("Jour", { exact: true }).fill(date);
 }
