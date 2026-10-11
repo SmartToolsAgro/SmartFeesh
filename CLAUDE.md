@@ -2,7 +2,7 @@
 
 Seafood distribution ERP for Frutti Del Mare (Sakiet Ezzit, Sfax, Tunisia): purchases, cold-room and
 truck stock, quotes, sales and invoicing, a driver phone app, expenses and payroll, and the key feature,
-**month-end supplier profit sharing**. The UI is in French (Arabic planned) and amounts are in Tunisian
+**profit per lot, shared with partner suppliers** (changed from month-end sharing on 2026-10-11, D-040). The UI is in French (Arabic planned) and amounts are in Tunisian
 dinars (DT) with 3 decimals.
 
 ## Read this first: how to work in this repo (saves context)

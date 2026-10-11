@@ -55,8 +55,8 @@ backend/
     expenses/             expense categories, expenses, approvals
     hr/                   employees, salary records, salary payments
     assets/               fixed assets, depreciation
-    partnerships/         agreements (versioned), investments, capital ledger
-    closing/              monthly closing, allocation engine, profit engine, settlements
+    partnerships/         partnership lots, capital ledger
+    closing/              lot costs and results, lot settlements, monthly closing (D-040)
     reporting/            read-only report queries and exports
     demo/                 seed_dev: demo organization, logins and catalogue (may call every app)
   manage.py
@@ -104,7 +104,7 @@ never its models' internals or private helpers. `core` depends on nothing.
 7. **Idempotency.** Write endpoints used by the driver app accept a client-generated UUID
    (`client_uuid`, unique per organization). Retrying the same request never creates a duplicate.
 8. **Permissions** are checked in the API layer (DRF permission classes + per-object checks). Roles today:
-   `owner`, `manager`, `driver`. Drivers only see their own truck, their own day, and allowed customers.
+   `owner`, `manager`, `driver`. Drivers only see their truck of the day (D-042), their own day, and allowed customers.
 9. **Audit.** Create/approve/cancel actions on financial and stock records write an `AuditLog` entry
    (who, what, when, before/after).
 10. **API** is versioned under `/api/v1/`. The OpenAPI schema is the contract; the TS client is generated.

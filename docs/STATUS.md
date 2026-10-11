@@ -15,10 +15,15 @@ _Last updated: 2026-10-11_
 - **Merging (2026-10-11):** Mahmoud lets agents open, merge (green CI only) and verify PRs with `gh`
   (`C:\Program Files\GitHub CLI\gh.exe` on his machine).
 - **On `main` too:** P1-T06c (PR #9, nightly stock check on staging).
-- **This branch:** `p1-t07-receipts` (P1-T07, goods receipts), PR to `main`.
-- **Next task:** P1-T08 · Supplier invoices and payments (D-040+).
-- The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
-  (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
+- **P1-T07** is PR #10 (`p1-t07-receipts`, CI green, waiting for merge).
+- **This branch:** `plan-client-meeting` (on top of P1-T07): the plan after the client meeting of
+  2026-10-11. Docs only.
+- **Next task:** P1-T08 · Supplier invoices and payments (D-043+).
+- **The plan changed (2026-10-11, `docs/spec/client-meeting-2026-10-11.md`):** profit is computed and
+  shared **per lot**, not per month (D-040); lots carry their own costs: day labour, monthly employees
+  at days × salary / 26, cold room per day, rent and accountant (D-041); a driver's truck is chosen per
+  day (D-042, new task P1-T12); loads carry the price per kg. Phases 5 and 6 were rewritten. New
+  provisional points are Q19 to Q23 in `OPEN_QUESTIONS.md`.
 
 ## Next step (do this first)
 
@@ -28,15 +33,18 @@ _Last updated: 2026-10-11_
    accepted for 62 invoiced) and a new receipt can be recorded.
 3. Agent: P1-T08 supplier invoices and payments: `SupplierInvoice` linked to receipts (invoiced kg ×
    cost is the line's `invoiced_amount`, D-039), due date, status; `SupplierPayment` with allocation;
-   supplier balance. Nothing touches capital or profit shares (separate balances).
-4. Mahmoud: check the two apps side by side in one browser on the new host names; upload one product
+   supplier balance. Nothing touches capital or profit shares (separate balances). A partnership
+   lot's partner is a supplier (D-040): keep the invoice and the partner's capital separate.
+4. Then P1-T09 (loads with price per kg), P1-T10, P1-T11 (with the average purchase price), P1-T12
+   (truck of the day).
+5. Mahmoud: check the two apps side by side in one browser on the new host names; upload one product
    photo on staging.
 
 ## Blockers / waiting on client
 
-- **P0-T02** (worked example on one real month) is not started. Phase 6 has no target without it. The
-  rule for a loss larger than a supplier's remaining capital is provisional (D-031); P0-T02 should
-  confirm it.
+- **P0-T02** (worked example) is not started; it is now **one real lot** worked out by hand with the
+  owner (purchase, sales, each cost, partner share) instead of one month. Phase 6 has no target
+  without it. D-031, D-041 and Q19 to Q23 are provisional; P0-T02 should confirm them.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
 - **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
   The CI deploy key logs in as `debian` (full sudo): a separate server or a server-side pull is advised.
@@ -64,6 +72,8 @@ _Last updated: 2026-10-11_
 
 ## Last session (2026-10-11)
 
+- **Plan update** after the client meeting: meeting notes, D-040 to D-042, Q2/Q3/Q7/Q9 updated, Q19 to
+  Q23 added, Phases 5 and 6 rewritten, P1-T09/T11 extended, P1-T12 added, Phase 3 start/end of day.
 - **P1-T07:** new `purchasing` app: `GoodsReceipt` + lines (ordered, invoiced, accepted net kg, cost);
   saving creates the batches and receipt movements in one transaction; per-line errors on
   `lines.<i>.<field>`; differences report; last cost per product and supplier. Admin "Achats": list,
@@ -75,6 +85,7 @@ _Last updated: 2026-10-11_
 
 ## Recently done
 
+- 2026-10-11 · Plan updated after the client meeting (per-lot profit)
 - 2026-10-11 · P1-T07 goods receipts
 - 2026-10-11 · P1-T06c rebuild and nightly check
 - 2026-10-10 · P1-T06b FIFO allocation

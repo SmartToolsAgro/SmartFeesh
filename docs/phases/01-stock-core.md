@@ -106,6 +106,9 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
 - [ ] Transfer document (morning load, evening return, cold room → cold room) with lines → transfer
       movements, FIFO batches.
 - [ ] Validation by owner/manager; driver confirms receipt in Phase 3.
+- [ ] Client meeting 2026-10-11: a morning load carries the **price per kg of each product** for the
+      day (from `ProductPrice`, editable on the load) so the driver knows what to sell at. The evening
+      return shows loaded − returned = sold or lost, per product.
 
 ### P1-T10 · Losses, adjustments and stock counts · M
 - [ ] Loss / spoilage with reason and optional photo; above a threshold needs owner approval.
@@ -114,6 +117,16 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
 ### P1-T11 · Stock screens · M
 - [ ] Admin stock page like the prototype: location cards, product cards with per-location kg, low-stock badge.
 - [ ] Product → batch → movement history drill-down; movement list with filters.
+- [ ] **Average purchase price** per product: weighted by kg over the batches still on hand, with the
+      last cost next to it (client meeting 2026-10-11). For pricing only; sales stay FIFO (D-040).
+
+### P1-T12 · Truck of the day · S
+Client meeting 2026-10-11, D-042: a driver is not tied to one truck.
+- [ ] Drop the "one active truck per driver" constraint; `Truck.driver` becomes the usual driver only.
+- [ ] Truck assignment per date (truck, driver, date), set by the office or by the driver; provisional:
+      one driver per truck and one truck per driver each day. Phase 3's `DriverDay` builds on it.
+- [ ] `may_use_location`, `may_use_truck` and `/me` read today's assignment, falling back to the usual
+      driver when there is none.
 
 **Phase acceptance test (end-to-end):** receive 60 kg dorade (62 invoiced) → load 15 kg to truck 1 →
 record 1.5 kg loss on truck 1 → count cold room → all on-hand numbers match the ledger, and the supplier
