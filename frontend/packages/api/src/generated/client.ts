@@ -29,6 +29,7 @@ import type {
   Batch,
   BatchSales,
   Category,
+  CloseLot,
   ColdRoomMonth,
   ColdRoomWeight,
   ColdRoomWeightWrite,
@@ -77,6 +78,7 @@ import type {
   ListLossesParams,
   ListLotWorkDaysParams,
   ListMovementsParams,
+  ListPartnershipsParams,
   ListPriceListsParams,
   ListProductsParams,
   ListQuotesParams,
@@ -99,6 +101,10 @@ import type {
   LossReject,
   LossWrite,
   LotCosts,
+  LotPartnershipCancel,
+  LotPartnershipDetail,
+  LotPartnershipWrite,
+  LotResultView,
   LotWorkDay,
   LotWorkDayWrite,
   Member,
@@ -108,6 +114,7 @@ import type {
   PaginatedDifferenceLineList,
   PaginatedExpenseList,
   PaginatedLossList,
+  PaginatedLotPartnershipList,
   PaginatedQuoteList,
   PaginatedReceiptList,
   PaginatedSaleList,
@@ -120,6 +127,7 @@ import type {
   PatchedEmployeeWrite,
   PatchedExpenseCategoryUpdate,
   PatchedLanguage,
+  PatchedLotPartnershipUpdate,
   PatchedProductUpdate,
   PatchedSalaryRecordUpdate,
   PatchedStockLocationUpdate,
@@ -143,6 +151,7 @@ import type {
   ReceiptWrite,
   RecurringCost,
   RecurringCostWrite,
+  ReopenLot,
   SalaryAdjustment,
   SalaryPayment,
   SalaryPaymentAllocate,
@@ -6822,6 +6831,280 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getDeleteLotWorkDayMutationOptions(options), queryClient);
     }
 
+export const getCloseLotUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${batchId}/close`
+}
+
+/**
+ * Close the lot and freeze its result (owner only): its stock must be 0 (sold or written off),
+ * its costs approved, and `costs_confirmed` given. A partner's loss share is taken from their capital.
+ */
+export const closeLot = async (batchId: number,
+    closeLotBody?: CloseLot, options?: Parameters<typeof apiFetch>[1]): Promise<LotResultView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotResultView>(getCloseLotUrl(batchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(closeLotBody)
+  }
+);}
+
+
+
+
+
+export const getCloseLotMutationKey = () => ['closeLot'] as const;
+
+export const getCloseLotMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeLot>>, TError,CloseLotMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeLot>>, TError,CloseLotMutationVariables, TContext> => {
+
+const mutationKey = getCloseLotMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeLot>>, CloseLotMutationVariables> = (props) => {
+          const {batchId,data} = props ?? {};
+
+          return  closeLot(batchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseLotMutationResult = NonNullable<Awaited<ReturnType<typeof closeLot>>>
+    export type CloseLotMutationBody = CloseLot | undefined
+    export type CloseLotMutationError = unknown
+    export type CloseLotMutationVariables = {batchId: number;data?: CloseLot}
+
+    export const useCloseLot = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeLot>>, TError,CloseLotMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof closeLot>>,
+        TError,
+        CloseLotMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCloseLotMutationOptions(options), queryClient);
+    }
+
+export const getReopenLotUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${batchId}/reopen`
+}
+
+/**
+ * Reopen a closed lot (owner only, reason required, audited). The frozen result stays as history.
+ */
+export const reopenLot = async (batchId: number,
+    reopenLotBody: ReopenLot, options?: Parameters<typeof apiFetch>[1]): Promise<LotResultView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotResultView>(getReopenLotUrl(batchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reopenLotBody)
+  }
+);}
+
+
+
+
+
+export const getReopenLotMutationKey = () => ['reopenLot'] as const;
+
+export const getReopenLotMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenLot>>, TError,ReopenLotMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reopenLot>>, TError,ReopenLotMutationVariables, TContext> => {
+
+const mutationKey = getReopenLotMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reopenLot>>, ReopenLotMutationVariables> = (props) => {
+          const {batchId,data} = props ?? {};
+
+          return  reopenLot(batchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReopenLotMutationResult = NonNullable<Awaited<ReturnType<typeof reopenLot>>>
+    export type ReopenLotMutationBody = ReopenLot
+    export type ReopenLotMutationError = unknown
+    export type ReopenLotMutationVariables = {batchId: number;data: ReopenLot}
+
+    export const useReopenLot = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenLot>>, TError,ReopenLotMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reopenLot>>,
+        TError,
+        ReopenLotMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReopenLotMutationOptions(options), queryClient);
+    }
+
+export const getGetLotResultUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${batchId}/result`
+}
+
+/**
+ * The result of one lot with every step: revenue, purchase cost of the kg sold, kg written off,
+ * each kind of cost, net result, and on a partnership lot the partner's share, the loss share taken
+ * from their capital and the capital to give back. Live ("so far") on an open lot, frozen on a
+ * closed one, with what closing the lot needs.
+ */
+export const getLotResult = async (batchId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LotResultView> => {
+
+  return apiFetch<LotResultView>(getGetLotResultUrl(batchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLotResultQueryKey = (batchId: number,) => {
+    return [
+    `/api/v1/lots/${batchId}/result`
+    ] as const;
+    }
+
+
+export const getGetLotResultQueryOptions = <TData = Awaited<ReturnType<typeof getLotResult>>, TError = unknown>(batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotResult>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLotResultQueryKey(batchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLotResult>>> = ({ signal }) => getLotResult(batchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLotResult>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLotResultQueryResult = NonNullable<Awaited<ReturnType<typeof getLotResult>>>
+export type GetLotResultQueryError = unknown
+
+
+export function useGetLotResult<TData = Awaited<ReturnType<typeof getLotResult>>, TError = unknown>(
+ batchId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotResult>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotResult>>,
+          TError,
+          Awaited<ReturnType<typeof getLotResult>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotResult<TData = Awaited<ReturnType<typeof getLotResult>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotResult>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotResult>>,
+          TError,
+          Awaited<ReturnType<typeof getLotResult>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotResult<TData = Awaited<ReturnType<typeof getLotResult>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotResult>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLotResult<TData = Awaited<ReturnType<typeof getLotResult>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotResult>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLotResultQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetSessionUrl = () => {
 
 
@@ -7102,6 +7385,470 @@ export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, 
 
 
 
+
+export const getListPartnershipsUrl = (params?: ListPartnershipsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/partnerships?${stringifiedParams}` : `/api/v1/partnerships`
+}
+
+/**
+ * Partnership lots, newest first, paginated (`limit`, `offset`), each with the partner's capital
+ * now. Cancelled ones only when asked for by `status`. Filter by partner, lot, or `search`.
+ */
+export const listPartnerships = async (params?: ListPartnershipsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedLotPartnershipList> => {
+
+  return apiFetch<PaginatedLotPartnershipList>(getListPartnershipsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPartnershipsQueryKey = (params?: ListPartnershipsParams,) => {
+    return [
+    `/api/v1/partnerships`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPartnershipsQueryOptions = <TData = Awaited<ReturnType<typeof listPartnerships>>, TError = unknown>(params?: ListPartnershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartnerships>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPartnershipsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPartnerships>>> = ({ signal }) => listPartnerships(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPartnerships>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPartnershipsQueryResult = NonNullable<Awaited<ReturnType<typeof listPartnerships>>>
+export type ListPartnershipsQueryError = unknown
+
+
+export function useListPartnerships<TData = Awaited<ReturnType<typeof listPartnerships>>, TError = unknown>(
+ params: undefined |  ListPartnershipsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartnerships>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartnerships>>,
+          TError,
+          Awaited<ReturnType<typeof listPartnerships>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartnerships<TData = Awaited<ReturnType<typeof listPartnerships>>, TError = unknown>(
+ params?: ListPartnershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartnerships>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartnerships>>,
+          TError,
+          Awaited<ReturnType<typeof listPartnerships>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartnerships<TData = Awaited<ReturnType<typeof listPartnerships>>, TError = unknown>(
+ params?: ListPartnershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartnerships>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPartnerships<TData = Awaited<ReturnType<typeof listPartnerships>>, TError = unknown>(
+ params?: ListPartnershipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartnerships>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPartnershipsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePartnershipUrl = () => {
+
+
+
+
+  return `/api/v1/partnerships`
+}
+
+/**
+ * Put a lot in partnership with one supplier (owner only): at receipt or on an open lot before its
+ * first sale. One partner per lot; the partner's capital opens their capital ledger in this lot.
+ */
+export const createPartnership = async (lotPartnershipWrite: LotPartnershipWrite, options?: Parameters<typeof apiFetch>[1]): Promise<LotPartnershipDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotPartnershipDetail>(getCreatePartnershipUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lotPartnershipWrite)
+  }
+);}
+
+
+
+
+
+export const getCreatePartnershipMutationKey = () => ['createPartnership'] as const;
+
+export const getCreatePartnershipMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPartnership>>, TError,CreatePartnershipMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPartnership>>, TError,CreatePartnershipMutationVariables, TContext> => {
+
+const mutationKey = getCreatePartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPartnership>>, CreatePartnershipMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPartnership(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof createPartnership>>>
+    export type CreatePartnershipMutationBody = LotPartnershipWrite
+    export type CreatePartnershipMutationError = unknown
+    export type CreatePartnershipMutationVariables = {data: LotPartnershipWrite}
+
+    export const useCreatePartnership = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPartnership>>, TError,CreatePartnershipMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createPartnership>>,
+        TError,
+        CreatePartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePartnershipMutationOptions(options), queryClient);
+    }
+
+export const getGetPartnershipUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/v1/partnerships/${partnershipId}`
+}
+
+/**
+ * One partnership with the partner's capital ledger in this lot.
+ */
+export const getPartnership = async (partnershipId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LotPartnershipDetail> => {
+
+  return apiFetch<LotPartnershipDetail>(getGetPartnershipUrl(partnershipId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnershipQueryKey = (partnershipId: number,) => {
+    return [
+    `/api/v1/partnerships/${partnershipId}`
+    ] as const;
+    }
+
+
+export const getGetPartnershipQueryOptions = <TData = Awaited<ReturnType<typeof getPartnership>>, TError = unknown>(partnershipId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnership>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnershipQueryKey(partnershipId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnership>>> = ({ signal }) => getPartnership(partnershipId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partnershipId !== null && partnershipId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnership>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPartnershipQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnership>>>
+export type GetPartnershipQueryError = unknown
+
+
+export function useGetPartnership<TData = Awaited<ReturnType<typeof getPartnership>>, TError = unknown>(
+ partnershipId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnership>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartnership>>,
+          TError,
+          Awaited<ReturnType<typeof getPartnership>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartnership<TData = Awaited<ReturnType<typeof getPartnership>>, TError = unknown>(
+ partnershipId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnership>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartnership>>,
+          TError,
+          Awaited<ReturnType<typeof getPartnership>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartnership<TData = Awaited<ReturnType<typeof getPartnership>>, TError = unknown>(
+ partnershipId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnership>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetPartnership<TData = Awaited<ReturnType<typeof getPartnership>>, TError = unknown>(
+ partnershipId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnership>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPartnershipQueryOptions(partnershipId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePartnershipUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/v1/partnerships/${partnershipId}`
+}
+
+/**
+ * Change the terms (owner only) while the partnership is open and the lot not sold yet. A changed
+ * partner capital posts a correction on the ledger.
+ */
+export const updatePartnership = async (partnershipId: number,
+    patchedLotPartnershipUpdate?: PatchedLotPartnershipUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<LotPartnershipDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotPartnershipDetail>(getUpdatePartnershipUrl(partnershipId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedLotPartnershipUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePartnershipMutationKey = () => ['updatePartnership'] as const;
+
+export const getUpdatePartnershipMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePartnership>>, TError,UpdatePartnershipMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePartnership>>, TError,UpdatePartnershipMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePartnership>>, UpdatePartnershipMutationVariables> = (props) => {
+          const {partnershipId,data} = props ?? {};
+
+          return  updatePartnership(partnershipId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof updatePartnership>>>
+    export type UpdatePartnershipMutationBody = PatchedLotPartnershipUpdate | undefined
+    export type UpdatePartnershipMutationError = unknown
+    export type UpdatePartnershipMutationVariables = {partnershipId: number;data?: PatchedLotPartnershipUpdate}
+
+    export const useUpdatePartnership = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePartnership>>, TError,UpdatePartnershipMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updatePartnership>>,
+        TError,
+        UpdatePartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePartnershipMutationOptions(options), queryClient);
+    }
+
+export const getCancelPartnershipUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/v1/partnerships/${partnershipId}/cancel`
+}
+
+/**
+ * Cancel a partnership set by mistake, before the lot's first sale (owner only, reason required).
+ * The capital still in goes back to the partner.
+ */
+export const cancelPartnership = async (partnershipId: number,
+    lotPartnershipCancel: LotPartnershipCancel, options?: Parameters<typeof apiFetch>[1]): Promise<LotPartnershipDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotPartnershipDetail>(getCancelPartnershipUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lotPartnershipCancel)
+  }
+);}
+
+
+
+
+
+export const getCancelPartnershipMutationKey = () => ['cancelPartnership'] as const;
+
+export const getCancelPartnershipMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelPartnership>>, TError,CancelPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelPartnership>>, TError,CancelPartnershipMutationVariables, TContext> => {
+
+const mutationKey = getCancelPartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelPartnership>>, CancelPartnershipMutationVariables> = (props) => {
+          const {partnershipId,data} = props ?? {};
+
+          return  cancelPartnership(partnershipId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelPartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof cancelPartnership>>>
+    export type CancelPartnershipMutationBody = LotPartnershipCancel
+    export type CancelPartnershipMutationError = unknown
+    export type CancelPartnershipMutationVariables = {partnershipId: number;data: LotPartnershipCancel}
+
+    export const useCancelPartnership = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelPartnership>>, TError,CancelPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelPartnership>>,
+        TError,
+        CancelPartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelPartnershipMutationOptions(options), queryClient);
+    }
 
 export const getGetPayrollSummaryUrl = (params: GetPayrollSummaryParams,) => {
   const normalizedParams = new URLSearchParams();

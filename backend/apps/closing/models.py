@@ -1,0 +1,93 @@
+from typing import Any
+
+from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+from apps.core.models import OrganizationScopedModel, OrganizationScopedQuerySet
+from apps.core.money import MoneyField
+
+
+class LotResultStatus(models.TextChoices):
+    # The lot is closed: this is its result, frozen.
+    CLOSED = "closed", _("Clôturé")
+    # The owner reopened the lot (reason kept): this copy is history, a new closing makes a new one.
+    REOPENED = "reopened", _("Rouvert")
+
+
+class LotOutcome(models.TextChoices):
+    """What a net result is (engine.outcome_of): it decides which of the partner's two rates applies."""
+
+    PROFIT = "profit", _("Bénéfice")
+    ZERO = "zero", _("Nul")
+    LOSS = "loss", _("Perte")
+
+
+class LotState(models.TextChoices):
+    """Where a lot stands for its result: still open (live result) or closed (frozen result)."""
+
+    OPEN = "open", _("En cours")
+    CLOSED = "closed", _("Clôturé")
+
+
+class LotResultQuerySet(OrganizationScopedQuerySet["LotResult"]):
+    def update(self, **kwargs: Any) -> int:
+        raise TypeError("A lot result is frozen: reopen the lot (with a reason) and close it again")
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise TypeError("A lot result is never deleted: reopening keeps it as history")
+
+
+class LotResult(OrganizationScopedModel):
+    """The frozen result of a closed lot (P6-T02, D-061): the whole computation as it was, kept as JSON with
+    its main figures as columns for lists and totals.
+
+    Immutable once written (ARCHITECTURE §4.5): only `status` and the reopening fields change, once, when
+    the owner reopens the lot with a reason. A cost or a payment arriving later never rewrites it: it goes
+    to the partner's next settlement (D-041, P6-T03).
+    """
+
+    # By name, not by import (ARCHITECTURE §3).
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    partnership = models.ForeignKey(
+        "partnerships.LotPartnership", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    status = models.CharField(max_length=20, choices=LotResultStatus.choices, default=LotResultStatus.CLOSED)
+    revenue = MoneyField()
+    cogs = MoneyField()
+    spoilage = MoneyField()
+    costs_total = MoneyField()
+    net_result = MoneyField()
+    owner_share = MoneyField()
+    # The partner's side (zero without a partnership): signed share, loss share taken from the capital,
+    # the part the capital could not cover (carried, D-031) and the capital to give back.
+    partner_share = MoneyField(default=0)
+    capital_deducted = MoneyField(default=0)
+    uncovered_loss = MoneyField(default=0)
+    capital_to_return = MoneyField(default=0)
+    # Customers still owed money on the lot's sales when it closed: customer payments are not tracked yet
+    # (P2-T06), so this is a warning kept with the result, not a refusal.
+    payments_unverified = models.BooleanField(default=False)
+    # `engine.to_json` of the result, with the closing checks as they were.
+    data = models.JSONField(encoder=DjangoJSONEncoder)
+    closed_at = models.DateTimeField()
+    closed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="+")
+    reopened_at = models.DateTimeField(null=True, blank=True)
+    reopened_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    reopen_reason = models.CharField(max_length=300, blank=True)
+
+    objects = LotResultQuerySet.as_manager()  # type: ignore[misc]
+
+    class Meta:
+        ordering = ["-closed_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["batch"], condition=models.Q(status="closed"), name="one_closed_result_per_lot"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.batch} · {self.get_status_display()}"

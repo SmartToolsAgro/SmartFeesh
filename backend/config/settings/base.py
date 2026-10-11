@@ -42,6 +42,8 @@ LOCAL_APPS = [
     "apps.sales",
     "apps.hr",
     "apps.expenses",
+    "apps.partnerships",
+    "apps.closing",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -151,5 +153,11 @@ SPECTACULAR_SETTINGS = {
         "WorkTypeEnum": "apps.expenses.models.WorkType",
         # P5-T02 / P5-T05 · cold-room cost, general costs
         "LotCostAdjustmentKindEnum": "apps.expenses.models.LotCostAdjustmentKind",
+        # P6-T01 / P6-T02 · partnership lots and lot results
+        "PartnershipStatusEnum": "apps.partnerships.models.PartnershipStatus",
+        "CapitalEntryKindEnum": "apps.partnerships.models.CapitalEntryKind",
+        "LotResultStatusEnum": "apps.closing.models.LotResultStatus",
+        "LotOutcomeEnum": "apps.closing.models.LotOutcome",
+        "LotStateEnum": "apps.closing.models.LotState",
     },
 }

@@ -56,6 +56,21 @@ class ReadMemberWriteOwnerOrManager(HasRole):
         return membership.role in IsOwnerOrManager.roles
 
 
+class ReadOwnerOrAccountantWriteOwner(HasRole):
+    """The owner's own money (lot results, partners' shares and capital, D-060, D-061): the owner reads and
+    changes, the accountant reads; managers and drivers get 403."""
+
+    roles = frozenset({Role.OWNER, Role.ACCOUNTANT})
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        if not super().has_permission(request, view):
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        membership = membership_of(request)
+        return membership is not None and membership.role == Role.OWNER
+
+
 class ReadOfficeWriteOwnerOrManager(HasRole):
     """Office data drivers have no use for (suppliers, purchases): owners, managers and the accountant read;
     only owners and managers change."""
