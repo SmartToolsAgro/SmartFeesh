@@ -4163,6 +4163,531 @@ export const DeleteLotWorkDayResponse = zod.void()
 
 
 /**
+ * Close the lot and freeze its result (owner only): its stock must be 0 (sold or written off),
+ * its costs approved, and `costs_confirmed` given. A partner's loss share is taken from their capital.
+ */
+export const CloseLotParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const closeLotBodyCostsConfirmedDefault = false;
+
+export const CloseLotBody = zod.object({
+  "costs_confirmed": zod.boolean().default(closeLotBodyCostsConfirmedDefault)
+})
+
+export const closeLotResponseResultOneBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneBatchOneReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneBatchOneReturnedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneBatchOneOnHandQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneQuantitySoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneQuantityWrittenOffRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneSpoilageRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneCostsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneOwnerShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePurchaseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneStockValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneSalesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneSalesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneSalesItemRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneSalesItemCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneSalesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneStockRowsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneStockRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneStockRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneCostGroupsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneCostGroupsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePartnerOneOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePartnerOnePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePartnerOneProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const closeLotResponseResultOnePartnerOneLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const closeLotResponseResultOnePartnerOneRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const closeLotResponseResultOnePartnerOneShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePartnerOneCapitalDeductedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePartnerOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePartnerOneCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOnePartnerOnePayableToPartnerRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneStepsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseResultOneStepsItemRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const closeLotResponseChecksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeLotResponseChecksItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseClosingOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseLiveNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeLotResponseHistoryItemNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CloseLotResponse = zod.object({
+  "batch_id": zod.int(),
+  "state": zod.enum(['open', 'closed']).describe('* `open` - En cours\n* `closed` - Clôturé'),
+  "result": zod.object({
+  "batch": zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', closeLotResponseResultOneBatchOneUnitCostRegExp),
+  "received_quantity": zod.stringFormat('decimal', closeLotResponseResultOneBatchOneReceivedQuantityRegExp),
+  "returned_quantity": zod.stringFormat('decimal', closeLotResponseResultOneBatchOneReturnedQuantityRegExp),
+  "on_hand_quantity": zod.stringFormat('decimal', closeLotResponseResultOneBatchOneOnHandQuantityRegExp)
+}),
+  "quantity_sold": zod.stringFormat('decimal', closeLotResponseResultOneQuantitySoldRegExp),
+  "quantity_written_off": zod.stringFormat('decimal', closeLotResponseResultOneQuantityWrittenOffRegExp),
+  "revenue": zod.stringFormat('decimal', closeLotResponseResultOneRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', closeLotResponseResultOneCogsRegExp),
+  "spoilage": zod.stringFormat('decimal', closeLotResponseResultOneSpoilageRegExp),
+  "costs_total": zod.stringFormat('decimal', closeLotResponseResultOneCostsTotalRegExp),
+  "net_result": zod.stringFormat('decimal', closeLotResponseResultOneNetResultRegExp),
+  "outcome": zod.enum(['profit', 'zero', 'loss']).describe('* `profit` - Bénéfice\n* `zero` - Nul\n* `loss` - Perte'),
+  "owner_share": zod.stringFormat('decimal', closeLotResponseResultOneOwnerShareRegExp),
+  "purchase_cost": zod.stringFormat('decimal', closeLotResponseResultOnePurchaseCostRegExp),
+  "stock_value": zod.stringFormat('decimal', closeLotResponseResultOneStockValueRegExp),
+  "sales": zod.array(zod.object({
+  "sale_id": zod.int(),
+  "sale_number": zod.string(),
+  "sold_on": zod.iso.date(),
+  "customer": zod.string(),
+  "quantity": zod.stringFormat('decimal', closeLotResponseResultOneSalesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', closeLotResponseResultOneSalesItemUnitPriceRegExp),
+  "revenue": zod.stringFormat('decimal', closeLotResponseResultOneSalesItemRevenueRegExp),
+  "cost": zod.stringFormat('decimal', closeLotResponseResultOneSalesItemCostRegExp),
+  "amount_due": zod.stringFormat('decimal', closeLotResponseResultOneSalesItemAmountDueRegExp)
+})),
+  "stock_rows": zod.array(zod.object({
+  "movement_id": zod.int(),
+  "kind": zod.string(),
+  "occurred_on": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', closeLotResponseResultOneStockRowsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', closeLotResponseResultOneStockRowsItemUnitCostRegExp),
+  "reason": zod.string(),
+  "value": zod.stringFormat('decimal', closeLotResponseResultOneStockRowsItemValueRegExp)
+})),
+  "cost_groups": zod.array(zod.object({
+  "kind": zod.string(),
+  "total": zod.stringFormat('decimal', closeLotResponseResultOneCostGroupsItemTotalRegExp),
+  "lines": zod.array(zod.object({
+  "kind": zod.string(),
+  "on": zod.iso.date(),
+  "title": zod.string(),
+  "amount": zod.stringFormat('decimal', closeLotResponseResultOneCostGroupsItemLinesItemAmountRegExp),
+  "description": zod.string(),
+  "source_type": zod.string(),
+  "source_id": zod.int().nullable(),
+  "reference": zod.string(),
+  "detail": zod.string()
+}))
+})),
+  "partner": zod.union([zod.object({
+  "partnership_id": zod.int(),
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "owner_capital": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOnePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneLossRateRegExp),
+  "rate": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneRateRegExp).nullable(),
+  "share": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneShareRegExp),
+  "capital_deducted": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneCapitalDeductedRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneUncoveredLossRegExp),
+  "capital_to_return": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOneCapitalToReturnRegExp),
+  "payable_to_partner": zod.stringFormat('decimal', closeLotResponseResultOnePartnerOnePayableToPartnerRegExp)
+}),zod.null()]),
+  "steps": zod.array(zod.object({
+  "code": zod.string(),
+  "sign": zod.string(),
+  "amount": zod.stringFormat('decimal', closeLotResponseResultOneStepsItemAmountRegExp),
+  "kind": zod.string(),
+  "rate": zod.stringFormat('decimal', closeLotResponseResultOneStepsItemRateRegExp).nullable()
+}))
+}),
+  "checks": zod.array(zod.object({
+  "code": zod.string(),
+  "ok": zod.boolean(),
+  "blocking": zod.boolean(),
+  "quantity": zod.stringFormat('decimal', closeLotResponseChecksItemQuantityRegExp).nullable(),
+  "count": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', closeLotResponseChecksItemAmountRegExp).nullable()
+})),
+  "can_close": zod.boolean(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['closed', 'reopened']).describe('* `closed` - Clôturé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', closeLotResponseClosingOneNetResultRegExp),
+  "closed_at": zod.iso.datetime({"offset":true}),
+  "closed_by_name": zod.string(),
+  "payments_unverified": zod.boolean(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}),zod.null()]),
+  "live_net_result": zod.stringFormat('decimal', closeLotResponseLiveNetResultRegExp).nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['closed', 'reopened']).describe('* `closed` - Clôturé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', closeLotResponseHistoryItemNetResultRegExp),
+  "closed_at": zod.iso.datetime({"offset":true}),
+  "closed_by_name": zod.string(),
+  "payments_unverified": zod.boolean(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}))
+})
+
+
+/**
+ * Reopen a closed lot (owner only, reason required, audited). The frozen result stays as history.
+ */
+export const ReopenLotParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const reopenLotBodyReasonMax = 300;
+
+
+
+export const ReopenLotBody = zod.object({
+  "reason": zod.string().max(reopenLotBodyReasonMax)
+})
+
+export const reopenLotResponseResultOneBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneBatchOneReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneBatchOneReturnedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneBatchOneOnHandQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneQuantitySoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneQuantityWrittenOffRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneSpoilageRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneCostsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneOwnerShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePurchaseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneStockValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneSalesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneSalesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneSalesItemRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneSalesItemCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneSalesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneStockRowsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneStockRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneStockRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneCostGroupsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneCostGroupsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePartnerOneOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePartnerOnePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePartnerOneProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const reopenLotResponseResultOnePartnerOneLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const reopenLotResponseResultOnePartnerOneRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const reopenLotResponseResultOnePartnerOneShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePartnerOneCapitalDeductedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePartnerOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePartnerOneCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOnePartnerOnePayableToPartnerRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneStepsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseResultOneStepsItemRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const reopenLotResponseChecksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseChecksItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseClosingOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseLiveNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenLotResponseHistoryItemNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ReopenLotResponse = zod.object({
+  "batch_id": zod.int(),
+  "state": zod.enum(['open', 'closed']).describe('* `open` - En cours\n* `closed` - Clôturé'),
+  "result": zod.object({
+  "batch": zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', reopenLotResponseResultOneBatchOneUnitCostRegExp),
+  "received_quantity": zod.stringFormat('decimal', reopenLotResponseResultOneBatchOneReceivedQuantityRegExp),
+  "returned_quantity": zod.stringFormat('decimal', reopenLotResponseResultOneBatchOneReturnedQuantityRegExp),
+  "on_hand_quantity": zod.stringFormat('decimal', reopenLotResponseResultOneBatchOneOnHandQuantityRegExp)
+}),
+  "quantity_sold": zod.stringFormat('decimal', reopenLotResponseResultOneQuantitySoldRegExp),
+  "quantity_written_off": zod.stringFormat('decimal', reopenLotResponseResultOneQuantityWrittenOffRegExp),
+  "revenue": zod.stringFormat('decimal', reopenLotResponseResultOneRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', reopenLotResponseResultOneCogsRegExp),
+  "spoilage": zod.stringFormat('decimal', reopenLotResponseResultOneSpoilageRegExp),
+  "costs_total": zod.stringFormat('decimal', reopenLotResponseResultOneCostsTotalRegExp),
+  "net_result": zod.stringFormat('decimal', reopenLotResponseResultOneNetResultRegExp),
+  "outcome": zod.enum(['profit', 'zero', 'loss']).describe('* `profit` - Bénéfice\n* `zero` - Nul\n* `loss` - Perte'),
+  "owner_share": zod.stringFormat('decimal', reopenLotResponseResultOneOwnerShareRegExp),
+  "purchase_cost": zod.stringFormat('decimal', reopenLotResponseResultOnePurchaseCostRegExp),
+  "stock_value": zod.stringFormat('decimal', reopenLotResponseResultOneStockValueRegExp),
+  "sales": zod.array(zod.object({
+  "sale_id": zod.int(),
+  "sale_number": zod.string(),
+  "sold_on": zod.iso.date(),
+  "customer": zod.string(),
+  "quantity": zod.stringFormat('decimal', reopenLotResponseResultOneSalesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', reopenLotResponseResultOneSalesItemUnitPriceRegExp),
+  "revenue": zod.stringFormat('decimal', reopenLotResponseResultOneSalesItemRevenueRegExp),
+  "cost": zod.stringFormat('decimal', reopenLotResponseResultOneSalesItemCostRegExp),
+  "amount_due": zod.stringFormat('decimal', reopenLotResponseResultOneSalesItemAmountDueRegExp)
+})),
+  "stock_rows": zod.array(zod.object({
+  "movement_id": zod.int(),
+  "kind": zod.string(),
+  "occurred_on": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', reopenLotResponseResultOneStockRowsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', reopenLotResponseResultOneStockRowsItemUnitCostRegExp),
+  "reason": zod.string(),
+  "value": zod.stringFormat('decimal', reopenLotResponseResultOneStockRowsItemValueRegExp)
+})),
+  "cost_groups": zod.array(zod.object({
+  "kind": zod.string(),
+  "total": zod.stringFormat('decimal', reopenLotResponseResultOneCostGroupsItemTotalRegExp),
+  "lines": zod.array(zod.object({
+  "kind": zod.string(),
+  "on": zod.iso.date(),
+  "title": zod.string(),
+  "amount": zod.stringFormat('decimal', reopenLotResponseResultOneCostGroupsItemLinesItemAmountRegExp),
+  "description": zod.string(),
+  "source_type": zod.string(),
+  "source_id": zod.int().nullable(),
+  "reference": zod.string(),
+  "detail": zod.string()
+}))
+})),
+  "partner": zod.union([zod.object({
+  "partnership_id": zod.int(),
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "owner_capital": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOnePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneLossRateRegExp),
+  "rate": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneRateRegExp).nullable(),
+  "share": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneShareRegExp),
+  "capital_deducted": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneCapitalDeductedRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneUncoveredLossRegExp),
+  "capital_to_return": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOneCapitalToReturnRegExp),
+  "payable_to_partner": zod.stringFormat('decimal', reopenLotResponseResultOnePartnerOnePayableToPartnerRegExp)
+}),zod.null()]),
+  "steps": zod.array(zod.object({
+  "code": zod.string(),
+  "sign": zod.string(),
+  "amount": zod.stringFormat('decimal', reopenLotResponseResultOneStepsItemAmountRegExp),
+  "kind": zod.string(),
+  "rate": zod.stringFormat('decimal', reopenLotResponseResultOneStepsItemRateRegExp).nullable()
+}))
+}),
+  "checks": zod.array(zod.object({
+  "code": zod.string(),
+  "ok": zod.boolean(),
+  "blocking": zod.boolean(),
+  "quantity": zod.stringFormat('decimal', reopenLotResponseChecksItemQuantityRegExp).nullable(),
+  "count": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', reopenLotResponseChecksItemAmountRegExp).nullable()
+})),
+  "can_close": zod.boolean(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['closed', 'reopened']).describe('* `closed` - Clôturé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', reopenLotResponseClosingOneNetResultRegExp),
+  "closed_at": zod.iso.datetime({"offset":true}),
+  "closed_by_name": zod.string(),
+  "payments_unverified": zod.boolean(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}),zod.null()]),
+  "live_net_result": zod.stringFormat('decimal', reopenLotResponseLiveNetResultRegExp).nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['closed', 'reopened']).describe('* `closed` - Clôturé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', reopenLotResponseHistoryItemNetResultRegExp),
+  "closed_at": zod.iso.datetime({"offset":true}),
+  "closed_by_name": zod.string(),
+  "payments_unverified": zod.boolean(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}))
+})
+
+
+/**
+ * The result of one lot with every step: revenue, purchase cost of the kg sold, kg written off,
+ * each kind of cost, net result, and on a partnership lot the partner's share, the loss share taken
+ * from their capital and the capital to give back. Live ("so far") on an open lot, frozen on a
+ * closed one, with what closing the lot needs.
+ */
+export const GetLotResultParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const getLotResultResponseResultOneBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneBatchOneReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneBatchOneReturnedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneBatchOneOnHandQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneQuantitySoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneQuantityWrittenOffRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneSpoilageRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneCostsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneOwnerShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePurchaseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneStockValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneSalesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneSalesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneSalesItemRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneSalesItemCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneSalesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneStockRowsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneStockRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneStockRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneCostGroupsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneCostGroupsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePartnerOneOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePartnerOnePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePartnerOneProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getLotResultResponseResultOnePartnerOneLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getLotResultResponseResultOnePartnerOneRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getLotResultResponseResultOnePartnerOneShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePartnerOneCapitalDeductedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePartnerOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePartnerOneCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOnePartnerOnePayableToPartnerRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneStepsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseResultOneStepsItemRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getLotResultResponseChecksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseChecksItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseClosingOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseLiveNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResultResponseHistoryItemNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetLotResultResponse = zod.object({
+  "batch_id": zod.int(),
+  "state": zod.enum(['open', 'closed']).describe('* `open` - En cours\n* `closed` - Clôturé'),
+  "result": zod.object({
+  "batch": zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', getLotResultResponseResultOneBatchOneUnitCostRegExp),
+  "received_quantity": zod.stringFormat('decimal', getLotResultResponseResultOneBatchOneReceivedQuantityRegExp),
+  "returned_quantity": zod.stringFormat('decimal', getLotResultResponseResultOneBatchOneReturnedQuantityRegExp),
+  "on_hand_quantity": zod.stringFormat('decimal', getLotResultResponseResultOneBatchOneOnHandQuantityRegExp)
+}),
+  "quantity_sold": zod.stringFormat('decimal', getLotResultResponseResultOneQuantitySoldRegExp),
+  "quantity_written_off": zod.stringFormat('decimal', getLotResultResponseResultOneQuantityWrittenOffRegExp),
+  "revenue": zod.stringFormat('decimal', getLotResultResponseResultOneRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', getLotResultResponseResultOneCogsRegExp),
+  "spoilage": zod.stringFormat('decimal', getLotResultResponseResultOneSpoilageRegExp),
+  "costs_total": zod.stringFormat('decimal', getLotResultResponseResultOneCostsTotalRegExp),
+  "net_result": zod.stringFormat('decimal', getLotResultResponseResultOneNetResultRegExp),
+  "outcome": zod.enum(['profit', 'zero', 'loss']).describe('* `profit` - Bénéfice\n* `zero` - Nul\n* `loss` - Perte'),
+  "owner_share": zod.stringFormat('decimal', getLotResultResponseResultOneOwnerShareRegExp),
+  "purchase_cost": zod.stringFormat('decimal', getLotResultResponseResultOnePurchaseCostRegExp),
+  "stock_value": zod.stringFormat('decimal', getLotResultResponseResultOneStockValueRegExp),
+  "sales": zod.array(zod.object({
+  "sale_id": zod.int(),
+  "sale_number": zod.string(),
+  "sold_on": zod.iso.date(),
+  "customer": zod.string(),
+  "quantity": zod.stringFormat('decimal', getLotResultResponseResultOneSalesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', getLotResultResponseResultOneSalesItemUnitPriceRegExp),
+  "revenue": zod.stringFormat('decimal', getLotResultResponseResultOneSalesItemRevenueRegExp),
+  "cost": zod.stringFormat('decimal', getLotResultResponseResultOneSalesItemCostRegExp),
+  "amount_due": zod.stringFormat('decimal', getLotResultResponseResultOneSalesItemAmountDueRegExp)
+})),
+  "stock_rows": zod.array(zod.object({
+  "movement_id": zod.int(),
+  "kind": zod.string(),
+  "occurred_on": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', getLotResultResponseResultOneStockRowsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', getLotResultResponseResultOneStockRowsItemUnitCostRegExp),
+  "reason": zod.string(),
+  "value": zod.stringFormat('decimal', getLotResultResponseResultOneStockRowsItemValueRegExp)
+})),
+  "cost_groups": zod.array(zod.object({
+  "kind": zod.string(),
+  "total": zod.stringFormat('decimal', getLotResultResponseResultOneCostGroupsItemTotalRegExp),
+  "lines": zod.array(zod.object({
+  "kind": zod.string(),
+  "on": zod.iso.date(),
+  "title": zod.string(),
+  "amount": zod.stringFormat('decimal', getLotResultResponseResultOneCostGroupsItemLinesItemAmountRegExp),
+  "description": zod.string(),
+  "source_type": zod.string(),
+  "source_id": zod.int().nullable(),
+  "reference": zod.string(),
+  "detail": zod.string()
+}))
+})),
+  "partner": zod.union([zod.object({
+  "partnership_id": zod.int(),
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "owner_capital": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOnePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneLossRateRegExp),
+  "rate": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneRateRegExp).nullable(),
+  "share": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneShareRegExp),
+  "capital_deducted": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneCapitalDeductedRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneUncoveredLossRegExp),
+  "capital_to_return": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOneCapitalToReturnRegExp),
+  "payable_to_partner": zod.stringFormat('decimal', getLotResultResponseResultOnePartnerOnePayableToPartnerRegExp)
+}),zod.null()]),
+  "steps": zod.array(zod.object({
+  "code": zod.string(),
+  "sign": zod.string(),
+  "amount": zod.stringFormat('decimal', getLotResultResponseResultOneStepsItemAmountRegExp),
+  "kind": zod.string(),
+  "rate": zod.stringFormat('decimal', getLotResultResponseResultOneStepsItemRateRegExp).nullable()
+}))
+}),
+  "checks": zod.array(zod.object({
+  "code": zod.string(),
+  "ok": zod.boolean(),
+  "blocking": zod.boolean(),
+  "quantity": zod.stringFormat('decimal', getLotResultResponseChecksItemQuantityRegExp).nullable(),
+  "count": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', getLotResultResponseChecksItemAmountRegExp).nullable()
+})),
+  "can_close": zod.boolean(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['closed', 'reopened']).describe('* `closed` - Clôturé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', getLotResultResponseClosingOneNetResultRegExp),
+  "closed_at": zod.iso.datetime({"offset":true}),
+  "closed_by_name": zod.string(),
+  "payments_unverified": zod.boolean(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}),zod.null()]),
+  "live_net_result": zod.stringFormat('decimal', getLotResultResponseLiveNetResultRegExp).nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['closed', 'reopened']).describe('* `closed` - Clôturé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', getLotResultResponseHistoryItemNetResultRegExp),
+  "closed_at": zod.iso.datetime({"offset":true}),
+  "closed_by_name": zod.string(),
+  "payments_unverified": zod.boolean(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}))
+})
+
+
+/**
  * The logged-in user, their organization and their role.
  */
 export const GetSessionResponse = zod.object({
@@ -4232,6 +4757,317 @@ export const ListMembersResponseItem = zod.object({
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * Partnership lots, newest first, paginated (`limit`, `offset`), each with the partner's capital
+ * now. Cancelled ones only when asked for by `status`. Filter by partner, lot, or `search`.
+ */
+
+
+export const listPartnershipsQuerySearchDefault = ``;
+
+export const ListPartnershipsQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "partner": zod.int().min(1).optional(),
+  "search": zod.string().default(listPartnershipsQuerySearchDefault),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).optional().describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé')
+})
+
+export const listPartnershipsResponseResultsItemBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listPartnershipsResponseResultsItemOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listPartnershipsResponseResultsItemPartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listPartnershipsResponseResultsItemProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listPartnershipsResponseResultsItemLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listPartnershipsResponseResultsItemCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListPartnershipsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', listPartnershipsResponseResultsItemBatchOneUnitCostRegExp)
+}),
+  "partner": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "owner_capital": zod.stringFormat('decimal', listPartnershipsResponseResultsItemOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', listPartnershipsResponseResultsItemPartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', listPartnershipsResponseResultsItemProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', listPartnershipsResponseResultsItemLossRateRegExp),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "capital": zod.stringFormat('decimal', listPartnershipsResponseResultsItemCapitalRegExp),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string()
+}))
+})
+
+
+/**
+ * Put a lot in partnership with one supplier (owner only): at receipt or on an open lot before its
+ * first sale. One partner per lot; the partner's capital opens their capital ledger in this lot.
+ */
+
+
+export const createPartnershipBodyNotesDefault = ``;
+
+export const CreatePartnershipBody = zod.object({
+  "batch": zod.int().min(1),
+  "partner": zod.int().min(1),
+  "owner_capital": zod.string(),
+  "partner_capital": zod.string(),
+  "profit_rate": zod.string(),
+  "loss_rate": zod.string(),
+  "notes": zod.string().default(createPartnershipBodyNotesDefault)
+})
+
+export const createPartnershipResponseBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createPartnershipResponseOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createPartnershipResponsePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createPartnershipResponseProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createPartnershipResponseLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createPartnershipResponseCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createPartnershipResponseCapitalEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreatePartnershipResponse = zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', createPartnershipResponseBatchOneUnitCostRegExp)
+}),
+  "partner": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "owner_capital": zod.stringFormat('decimal', createPartnershipResponseOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', createPartnershipResponsePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', createPartnershipResponseProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', createPartnershipResponseLossRateRegExp),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "capital": zod.stringFormat('decimal', createPartnershipResponseCapitalRegExp),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "capital_entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "amount": zod.stringFormat('decimal', createPartnershipResponseCapitalEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string(),
+  "lot_result_id": zod.int().nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string()
+})),
+  "has_sold": zod.boolean()
+})
+
+
+/**
+ * One partnership with the partner's capital ledger in this lot.
+ */
+export const GetPartnershipParams = zod.object({
+  "partnership_id": zod.int()
+})
+
+export const getPartnershipResponseBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnershipResponseOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnershipResponsePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnershipResponseProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getPartnershipResponseLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getPartnershipResponseCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnershipResponseCapitalEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPartnershipResponse = zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', getPartnershipResponseBatchOneUnitCostRegExp)
+}),
+  "partner": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "owner_capital": zod.stringFormat('decimal', getPartnershipResponseOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', getPartnershipResponsePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', getPartnershipResponseProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', getPartnershipResponseLossRateRegExp),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "capital": zod.stringFormat('decimal', getPartnershipResponseCapitalRegExp),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "capital_entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "amount": zod.stringFormat('decimal', getPartnershipResponseCapitalEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string(),
+  "lot_result_id": zod.int().nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string()
+})),
+  "has_sold": zod.boolean()
+})
+
+
+/**
+ * Change the terms (owner only) while the partnership is open and the lot not sold yet. A changed
+ * partner capital posts a correction on the ledger.
+ */
+export const UpdatePartnershipParams = zod.object({
+  "partnership_id": zod.int()
+})
+
+
+
+
+export const UpdatePartnershipBody = zod.object({
+  "partner": zod.int().min(1).optional(),
+  "owner_capital": zod.string().optional(),
+  "partner_capital": zod.string().optional(),
+  "profit_rate": zod.string().optional(),
+  "loss_rate": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const updatePartnershipResponseBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updatePartnershipResponseOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updatePartnershipResponsePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updatePartnershipResponseProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updatePartnershipResponseLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updatePartnershipResponseCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updatePartnershipResponseCapitalEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdatePartnershipResponse = zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', updatePartnershipResponseBatchOneUnitCostRegExp)
+}),
+  "partner": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "owner_capital": zod.stringFormat('decimal', updatePartnershipResponseOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', updatePartnershipResponsePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', updatePartnershipResponseProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', updatePartnershipResponseLossRateRegExp),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "capital": zod.stringFormat('decimal', updatePartnershipResponseCapitalRegExp),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "capital_entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "amount": zod.stringFormat('decimal', updatePartnershipResponseCapitalEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string(),
+  "lot_result_id": zod.int().nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string()
+})),
+  "has_sold": zod.boolean()
+})
+
+
+/**
+ * Cancel a partnership set by mistake, before the lot's first sale (owner only, reason required).
+ * The capital still in goes back to the partner.
+ */
+export const CancelPartnershipParams = zod.object({
+  "partnership_id": zod.int()
+})
+
+export const cancelPartnershipBodyReasonMax = 300;
+
+
+
+export const CancelPartnershipBody = zod.object({
+  "reason": zod.string().max(cancelPartnershipBodyReasonMax)
+})
+
+export const cancelPartnershipResponseBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelPartnershipResponseOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelPartnershipResponsePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelPartnershipResponseProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const cancelPartnershipResponseLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const cancelPartnershipResponseCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelPartnershipResponseCapitalEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CancelPartnershipResponse = zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', cancelPartnershipResponseBatchOneUnitCostRegExp)
+}),
+  "partner": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "owner_capital": zod.stringFormat('decimal', cancelPartnershipResponseOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', cancelPartnershipResponsePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', cancelPartnershipResponseProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', cancelPartnershipResponseLossRateRegExp),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "capital": zod.stringFormat('decimal', cancelPartnershipResponseCapitalRegExp),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "capital_entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "amount": zod.stringFormat('decimal', cancelPartnershipResponseCapitalEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string(),
+  "lot_result_id": zod.int().nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string()
+})),
+  "has_sold": zod.boolean()
+})
 
 
 /**

@@ -5,9 +5,12 @@ import { Card, PageHeader } from "@frutti/ui";
 import { type ReactNode } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { LotResultCard } from "../closing/LotResultCard";
 import { LotCostsCard } from "../expenses/LotCostsCard";
 
 import { StockTabs } from "../lib/StockTabs";
+import { PartnershipSection } from "../partnerships/PartnershipSection";
+import { canReadResults } from "../partnerships/shared";
 import { BatchSalesSection } from "../sales/BatchSalesSection";
 import { MovementsTable } from "./MovementsTable";
 
@@ -87,6 +90,9 @@ export function BatchStockPage() {
         </dl>
       </Card>
 
+      {/* P6-T01 / P6-T02: the owner's and accountant's view of the lot's partner and result */}
+      {canReadResults(session) && <PartnershipSection batch={{ id: batchId, number: data.number }} session={session} />}
+      {canReadResults(session) && <LotResultCard batchId={batchId} session={session} />}
       <BatchSalesSection batchId={batchId} />
       <LotCostsCard batchId={batchId} session={session} />
 

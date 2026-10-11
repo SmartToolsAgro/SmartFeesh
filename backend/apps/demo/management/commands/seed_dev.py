@@ -14,6 +14,7 @@ from apps.demo.employees import seed_employees
 from apps.demo.expenses import seed_expenses
 from apps.demo.locations import seed_locations
 from apps.demo.losses import seed_losses
+from apps.demo.partnerships import seed_partnership_costs, seed_partnerships
 from apps.demo.prices import seed_prices
 from apps.demo.quotes import seed_quotes
 from apps.demo.receipts import seed_receipts
@@ -84,11 +85,14 @@ class Command(BaseCommand):
         losses = seed_losses(organization=organization, actor=owner)
         prices = seed_prices(organization=organization, actor=owner)
         quotes = seed_quotes(organization=organization, actor=owner)
+        # Before the sales: a partnership is set before its lot's first sale (P6-T01).
+        partnerships = seed_partnerships(organization=organization, actor=owner)
         sales = seed_sales(organization=organization, actor=owner, driver=driver)
         sale_invoices = seed_invoices(organization=organization, actor=owner)
         employees = seed_employees(organization=organization, actor=owner, driver=driver)
         expenses = seed_expenses(organization=organization, actor=owner)
         costing = seed_costing(organization=organization, actor=owner)
+        partnership_costs = seed_partnership_costs(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
@@ -109,3 +113,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"{employees} new employees"))
         self.stdout.write(self.style.SUCCESS(f"{expenses} new expenses, day labourers and days worked"))
         self.stdout.write(self.style.SUCCESS(f"{costing} new cold-room costs and general costs"))
+        self.stdout.write(
+            self.style.SUCCESS(f"{partnerships} new partnership lots, {partnership_costs} new costs on them")
+        )

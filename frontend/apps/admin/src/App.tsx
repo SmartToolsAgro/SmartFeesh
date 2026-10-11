@@ -28,6 +28,7 @@ import { InvoicesPage } from "./invoices/InvoicesPage";
 
 import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
 import { LocationsPage } from "./locations/LocationsPage";
+import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
 import { ProductStockPage } from "./stock/ProductStockPage";
@@ -112,6 +113,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/factures": <InvoicesPage />,
   "/salaires": <PayrollPage />,
   "/charges": <ExpensesPage />,
+  "/partenariats": <PartnershipsPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};

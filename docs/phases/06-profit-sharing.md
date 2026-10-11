@@ -23,24 +23,27 @@ _Coarse plan: detail each task when the phase starts._
 ---
 
 ### P6-T01 · Partnership lots · M
-- [ ] Partnership on a lot: partner supplier, amount put in by each side, profit %, loss % (D-031). Set
+- [x] Partnership on a lot: partner supplier, amount put in by each side, profit %, loss % (D-031). Set
       at receipt (P1-T07 form gets a "partnership" section) or on an open lot before its first sale.
-- [ ] The partner's capital is a ledger per partner and lot: contribution, deduction for a loss, return.
+      _Done on the lot page (D-060); the receipt-form section is a TODO in D-060._
+- [x] The partner's capital is a ledger per partner and lot: contribution, deduction for a loss, return.
       Separate from the trade payable and from the profit share.
-- [ ] One partner per lot; a supplier can be in several lots at once, each with its own capital and
+- [x] One partner per lot; a supplier can be in several lots at once, each with its own capital and
       rates (Q22).
 
 ### P6-T02 · Lot result engine · L → split
-- [ ] Pure functions: lot data snapshot (sales lines, purchase cost, cost lines) → result with every step
+- [x] Pure functions: lot data snapshot (sales lines, purchase cost, cost lines) → result with every step
       shown.
-- [ ] Handles profit, zero, loss, lot sold in pieces at different prices, spoilage, a loss larger than
+- [x] Handles profit, zero, loss, lot sold in pieces at different prices, spoilage, a loss larger than
       the partner's capital (D-031).
-- [ ] Live view on an open lot ("so far"), frozen result on a closed lot.
-- [ ] **Golden test:** reproduces the hand-made lot of P0-T02 to the millime.
+- [x] Live view on an open lot ("so far"), frozen result on a closed lot.
+- [ ] **Golden test:** reproduces the hand-made lot of P0-T02 to the millime. _Waiting for P0-T02: the
+      golden tests use a lot worked out by hand to the millime (D-061)._
 
 ### P6-T03 · Lot closing and settlement · M
-- [ ] Close a lot: checks (stock 0 or written off, costs in, customer payments as agreed, see the
+- [x] Close a lot: checks (stock 0 or written off, costs in, customer payments as agreed, see the
       meeting's "still to confirm"), then lock + snapshot. Reopen only with reason and audit.
+      _Done with P6-T02 (D-061); customer payments are a warning until P2-T06._
 - [ ] Settlement to the partner: capital back ± share; payments; three balances per partner (trade
       payable, capital, profit share).
 - [ ] Electricity bill arriving after a lot closed: the difference goes to the partner's next
