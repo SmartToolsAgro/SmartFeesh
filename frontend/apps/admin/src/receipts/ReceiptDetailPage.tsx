@@ -149,6 +149,13 @@ export function ReceiptDetailPage() {
                 </Td>
                 <Td className="num whitespace-nowrap">
                   {line.batch.number}
+                  <Link
+                    to={`/fournisseurs/${data.supplier.id}`}
+                    className="flex items-center gap-1 font-sans text-[0.8rem] font-semibold text-sea hover:underline"
+                  >
+                    <Icon name="anchor" />
+                    {data.supplier.name}
+                  </Link>
                   {line.batch.use_by && <div className="text-[0.8rem] text-ink-2">{formatDate(line.batch.use_by)}</div>}
                 </Td>
                 <Td numeric className="whitespace-nowrap">
