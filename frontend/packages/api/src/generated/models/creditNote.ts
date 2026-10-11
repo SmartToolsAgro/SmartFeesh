@@ -7,6 +7,7 @@
 import type { CreditNoteInvoice } from './creditNoteInvoice';
 import type { CreditNoteKindEnum } from './creditNoteKindEnum';
 import type { CreditNoteLine } from './creditNoteLine';
+import type { CreditNoteStockEnum } from './creditNoteStockEnum';
 import type { EInvoiceStatusEnum } from './eInvoiceStatusEnum';
 
 export interface CreditNote {
@@ -16,6 +17,7 @@ export interface CreditNote {
   readonly invoice: CreditNoteInvoice;
   readonly issued_on: string;
   readonly reason: string;
+  readonly stock: CreditNoteStockEnum;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly total_excl_tax: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

@@ -9,6 +9,7 @@ from apps.sales.models import (
     CreditNote,
     CreditNoteKind,
     CreditNoteLine,
+    CreditNoteStock,
     CreditPolicy,
     CreditStatus,
     EInvoiceStatus,
@@ -427,10 +428,14 @@ class BatchSaleRowSerializer(serializers.Serializer[Any]):
     revenue_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     unit_cost = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     cost_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # What credit notes took back of this row (customer returns, D-070).
+    returned_quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    credited_revenue = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    returned_cost = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
 class BatchSalesSerializer(serializers.Serializer[Any]):
-    """What one lot sold over its confirmed sales: the sales side of its result (D-040)."""
+    """What one lot sold over its confirmed sales, net of credit notes: the sales side of its result (D-040)."""
 
     batch_id = serializers.IntegerField(read_only=True)
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
@@ -606,6 +611,7 @@ class CreditNoteInvoiceSerializer(serializers.Serializer[Any]):
 
 class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
     kind = serializers.ChoiceField(choices=CreditNoteKind.choices, read_only=True)
+    stock = serializers.ChoiceField(choices=CreditNoteStock.choices, read_only=True)
     einvoice_status = serializers.ChoiceField(choices=EInvoiceStatus.choices, read_only=True)
     invoice = CreditNoteInvoiceSerializer(read_only=True)
     lines = CreditNoteLineSerializer(many=True, read_only=True)
@@ -620,6 +626,7 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
             "invoice",
             "issued_on",
             "reason",
+            "stock",
             "total_excl_tax",
             "vat_total",
             "fiscal_stamp",
@@ -886,6 +893,8 @@ class CreditNoteLineWriteSerializer(serializers.Serializer[Any]):
 class CreditNoteWriteSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=CreditNoteKind.choices)
     reason = serializers.CharField(allow_blank=True, max_length=255)
+    # What happens to the kilos given back: nothing, back in stock, or written off (customer returns, D-070).
+    stock = serializers.ChoiceField(choices=CreditNoteStock.choices, required=False, default=CreditNoteStock.NONE)
     # Partial notes only; a full note gives back everything left.
     lines = CreditNoteLineWriteSerializer(many=True, required=False, default=list)
 

@@ -171,6 +171,21 @@ def test_invoice_a_sale_type_values_issue_and_credit(api, sale):
     assert again["credited_total"] == "44.800"
     assert again["remaining_to_pay"] == "180.200"
     assert api.get(reverse("credit-note-list")).json()["count"] == 1
+    assert note.json()["stock"] == "none"
+    restocked = api.post(
+        credit_url,
+        {
+            "kind": "partial",
+            "reason": "Retour en stock",
+            "stock": "restock",
+            "lines": [{"invoice_line": line_id, "quantity": "1"}],
+        },
+        format="json",
+    )
+    assert restocked.status_code == 201, restocked.json()
+    assert restocked.json()["stock"] == "restock"
+    bad = api.post(credit_url, {"kind": "full", "reason": "x", "stock": "burn"}, format="json")
+    assert bad.status_code == 400
     listed = api.get(reverse("invoice-list"), {"status": "issued", "search": "Corail"}).json()
     assert listed["count"] == 1
 

@@ -7,7 +7,7 @@
 import type { BatchSaleRow } from './batchSaleRow';
 
 /**
- * What one lot sold over its confirmed sales: the sales side of its result (D-040).
+ * What one lot sold over its confirmed sales, net of credit notes: the sales side of its result (D-040).
  */
 export interface BatchSales {
   readonly batch_id: number;

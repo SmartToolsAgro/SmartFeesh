@@ -530,7 +530,10 @@ function CreditNotesCard({ notes }: { notes: readonly CreditNote[] }) {
             <Pill tone="sea">{t(`admin.invoices.creditKinds.${note.kind}`)}</Pill>
             <span className="num text-ink-2">{formatDate(note.issued_on)}</span>
             <span className="num ms-auto font-semibold">{formatMoney(note.net_amount)}</span>
-            <span className="w-full text-[0.85rem] text-ink-2">{note.reason}</span>
+            <span className="w-full text-[0.85rem] text-ink-2">
+              {note.reason}
+              {note.stock !== "none" && ` · ${t(`admin.invoices.creditDialog.stocks.${note.stock}`)}`}
+            </span>
           </li>
         ))}
       </ul>
