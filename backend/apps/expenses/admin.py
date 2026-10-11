@@ -3,7 +3,7 @@ from typing import Any
 from django.contrib import admin
 from django.http import HttpRequest
 
-from .models import Expense, ExpenseCategory
+from .models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory
 
 
 class ReadOnlyAdmin[M: Any](admin.ModelAdmin[M]):
@@ -31,3 +31,17 @@ class ExpenseAdmin(ReadOnlyAdmin[Expense]):
     list_filter = ("organization", "status", "category")
     search_fields = ("number", "description", "payee")
     list_select_related = ("category", "batch", "truck__location", "organization")
+
+
+@admin.register(DayLabourer)
+class DayLabourerAdmin(ReadOnlyAdmin[DayLabourer]):
+    list_display = ("name", "phone", "usual_daily_pay", "is_active", "organization")
+    list_filter = ("organization", "is_active")
+    search_fields = ("name", "phone")
+
+
+@admin.register(DayLabourEntry)
+class DayLabourEntryAdmin(ReadOnlyAdmin[DayLabourEntry]):
+    list_display = ("expense", "labourer", "work_type", "organization")
+    list_filter = ("organization", "work_type")
+    list_select_related = ("expense", "labourer", "organization")

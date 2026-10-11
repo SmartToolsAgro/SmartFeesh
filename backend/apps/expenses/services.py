@@ -16,7 +16,16 @@ from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
 
-from .models import DocumentCounter, Expense, ExpenseCategory, ExpensePaymentMethod, ExpenseStatus
+from .models import (
+    DayLabourEntry,
+    DayLabourer,
+    DocumentCounter,
+    Expense,
+    ExpenseCategory,
+    ExpensePaymentMethod,
+    ExpenseStatus,
+    WorkType,
+)
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -449,3 +458,258 @@ def add_expense_receipt(*, expense: Expense, actor: User | None, upload: "Upload
     if previous:
         transaction.on_commit(lambda: storage.delete(previous))
     return expense
+
+
+# ---- Day labour (P5-T03, D-054) ----
+
+
+def _checked_labourer(
+    organization: Organization,
+    *,
+    name: str,
+    phone: str,
+    usual_daily_pay: Any,
+    exclude_id: int | None = None,
+) -> dict[str, Any]:
+    errors: dict[str, str] = {}
+    values: dict[str, Any] = {"name": " ".join(name.split()), "phone": " ".join(phone.split())[:30]}
+    if not values["name"]:
+        errors["name"] = _("Indiquez un nom.")
+    elif len(values["name"]) > 100:
+        errors["name"] = _("100 caractères au plus.")
+    else:
+        same = DayLabourer.objects.for_organization(organization).filter(name__iexact=values["name"])
+        if exclude_id is not None:
+            same = same.exclude(pk=exclude_id)
+        if same.exists():
+            errors["name"] = _("Un autre journalier porte déjà ce nom.")
+    values["usual_daily_pay"] = None
+    if usual_daily_pay not in (None, ""):
+        try:
+            values["usual_daily_pay"] = checked_amount(usual_daily_pay)
+            if values["usual_daily_pay"] <= 0:
+                errors["usual_daily_pay"] = _("Indiquez un montant supérieur à zéro, ou rien.")
+        except (ValueError, TypeError):
+            errors["usual_daily_pay"] = _("Indiquez un montant en DT, au millime près.")
+    if errors:
+        raise ValidationError(errors)
+    return values
+
+
+def _labourer_snapshot(labourer: DayLabourer) -> dict[str, Any]:
+    return {
+        "name": labourer.name,
+        "phone": labourer.phone,
+        "usual_daily_pay": str(labourer.usual_daily_pay) if labourer.usual_daily_pay is not None else None,
+        "is_active": labourer.is_active,
+    }
+
+
+@transaction.atomic
+def create_labourer(
+    *,
+    organization: Organization,
+    actor: User | None,
+    name: str,
+    phone: str = "",
+    usual_daily_pay: Number | None = None,
+    notes: str = "",
+) -> DayLabourer:
+    """Add a day labourer: a name, a phone and what they are usually paid for a day (optional)."""
+    values = _checked_labourer(organization, name=name, phone=phone, usual_daily_pay=usual_daily_pay)
+    labourer = DayLabourer.objects.create(organization=organization, notes=notes.strip(), **values)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="day_labourer.created",
+        target=labourer,
+        after=_labourer_snapshot(labourer),
+    )
+    return labourer
+
+
+@transaction.atomic
+def update_labourer(
+    *,
+    labourer: DayLabourer,
+    actor: User | None,
+    name: str,
+    phone: str = "",
+    usual_daily_pay: Number | None = None,
+    notes: str = "",
+    is_active: bool = True,
+) -> DayLabourer:
+    """Change a day labourer, or archive them (no longer offered; their days stay)."""
+    labourer = DayLabourer.objects.select_for_update().get(pk=labourer.pk)
+    before = _labourer_snapshot(labourer)
+    values = _checked_labourer(
+        labourer.organization, name=name, phone=phone, usual_daily_pay=usual_daily_pay, exclude_id=labourer.pk
+    )
+    for field, value in values.items():
+        setattr(labourer, field, value)
+    labourer.notes = notes.strip()
+    labourer.is_active = is_active
+    labourer.save()
+    audit.record(
+        organization=labourer.organization,
+        actor=actor,
+        action="day_labourer.updated",
+        target=labourer,
+        before=before,
+        after=_labourer_snapshot(labourer),
+    )
+    return labourer
+
+
+def _day_labour_values(
+    organization: Organization,
+    labourer: DayLabourer,
+    amount: Number | None,
+    work_type: str,
+    *,
+    current: DayLabourEntry | None = None,
+) -> Number:
+    """The amount paid (the labourer's usual pay when none is typed), or a ValidationError."""
+    errors: dict[str, str] = {}
+    if labourer.organization_id != organization.pk:
+        errors["labourer"] = _("Journalier inconnu.")
+    elif not labourer.is_active and (current is None or current.labourer_id != labourer.pk):
+        errors["labourer"] = _("« %(name)s » est archivé.") % {"name": labourer.name}
+    if work_type not in WorkType.values:
+        errors["work_type"] = _("Type de travail inconnu.")
+    if amount in (None, ""):
+        if labourer.usual_daily_pay is None:
+            errors["amount"] = _("Indiquez le montant payé : ce journalier n'a pas de paie habituelle.")
+        else:
+            amount = labourer.usual_daily_pay
+    if errors:
+        raise ValidationError(errors)
+    assert amount is not None
+    return amount
+
+
+def _day_labour_category(organization: Organization) -> ExpenseCategory:
+    ensure_default_categories(organization=organization)
+    return ExpenseCategory.objects.for_organization(organization).get(code=DAY_LABOUR)
+
+
+def _day_labour_snapshot(entry: DayLabourEntry) -> dict[str, Any]:
+    return {"labourer": entry.labourer.name, "work_type": entry.work_type, "expense": entry.expense.number}
+
+
+@transaction.atomic
+def create_day_labour(
+    *,
+    organization: Organization,
+    actor: User | None,
+    labourer: DayLabourer,
+    worked_on: dt.date,
+    amount: Number | None = None,
+    batch: "Batch | None" = None,
+    work_type: str = WorkType.OTHER,
+    notes: str = "",
+    payment_method: str = ExpensePaymentMethod.CASH,
+    approve: bool = False,
+    client_uuid: uuid.UUID | None = None,
+) -> DayLabourEntry:
+    """Record a day worked by a day labourer, from the calendar or from a lot: the same single record,
+    an expense of category day labour plus who worked (D-054). Without `amount`, their usual daily pay.
+    With `batch` it is a cost of that lot; without, a general cost. With `approve`, approved at once.
+    A `client_uuid` already used returns that day."""
+    if client_uuid is not None:
+        existing = (
+            DayLabourEntry.objects.for_organization(organization).filter(expense__client_uuid=client_uuid).first()
+        )
+        if existing is not None:
+            return existing
+    amount = _day_labour_values(organization, labourer, amount, work_type)
+    expense = create_expense(
+        organization=organization,
+        actor=actor,
+        spent_on=worked_on,
+        category=_day_labour_category(organization),
+        amount=amount,
+        payment_method=payment_method,
+        description=labourer.name,
+        payee=labourer.name,
+        notes=notes,
+        batch=batch,
+        client_uuid=client_uuid,
+        for_day_labour=True,
+    )
+    entry = DayLabourEntry.objects.create(
+        organization=organization, expense=expense, labourer=labourer, work_type=work_type
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="day_labour.created",
+        target=entry,
+        after=_day_labour_snapshot(entry),
+    )
+    if approve:
+        approve_expense(expense=expense, actor=actor)
+        entry.expense.refresh_from_db()
+    return entry
+
+
+@transaction.atomic
+def update_day_labour(
+    *,
+    entry: DayLabourEntry,
+    actor: User | None,
+    labourer: DayLabourer,
+    worked_on: dt.date,
+    amount: Number | None = None,
+    batch: "Batch | None" = None,
+    work_type: str = WorkType.OTHER,
+    notes: str = "",
+    payment_method: str = ExpensePaymentMethod.CASH,
+    approve: bool = False,
+) -> DayLabourEntry:
+    """Correct a day not approved yet (who, which day, how much, which lot, what work)."""
+    entry = DayLabourEntry.objects.select_for_update().select_related("expense", "labourer").get(pk=entry.pk)
+    organization = entry.expense.organization
+    before = _day_labour_snapshot(entry)
+    amount = _day_labour_values(organization, labourer, amount, work_type, current=entry)
+    update_expense(
+        expense=entry.expense,
+        actor=actor,
+        spent_on=worked_on,
+        category=entry.expense.category,
+        amount=amount,
+        payment_method=payment_method,
+        description=labourer.name,
+        payee=labourer.name,
+        notes=notes,
+        batch=batch,
+        approve=approve,
+        for_day_labour=True,
+    )
+    entry.labourer = labourer
+    entry.work_type = work_type
+    entry.save()
+    entry.expense.refresh_from_db()
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="day_labour.updated",
+        target=entry,
+        before=before,
+        after=_day_labour_snapshot(entry),
+    )
+    return entry
+
+
+@transaction.atomic
+def delete_day_labour(*, entry: DayLabourEntry, actor: User | None) -> None:
+    """Delete a day typed by mistake, while it is a draft (with its expense: they are one record)."""
+    entry = DayLabourEntry.objects.select_related("expense", "labourer").get(pk=entry.pk)
+    audit.record(
+        organization=entry.expense.organization,
+        actor=actor,
+        action="day_labour.deleted",
+        target=entry,
+        before=_day_labour_snapshot(entry),
+    )
+    delete_expense(expense=entry.expense, actor=actor, for_day_labour=True)

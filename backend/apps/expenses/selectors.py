@@ -13,7 +13,7 @@ from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 
 from .allocation import LoadedLot, TruckDayExpense, allocate_truck_day_costs
-from .models import Expense, ExpenseCategory, ExpenseStatus
+from .models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory, ExpenseStatus
 
 type CategoryStatus = Literal["active", "archived", "all"]
 
@@ -62,7 +62,9 @@ def expenses_of(
     matches the number, the description, the payee and the lot number."""
     expenses = (
         Expense.objects.for_organization(organization)
-        .select_related("category", "batch__product", "truck__location", "entered_by", "decided_by")
+        .select_related(
+            "category", "batch__product", "truck__location", "entered_by", "decided_by", "day_labour__labourer"
+        )
         .order_by("-spent_on", "-id")
     )
     if status:
@@ -277,3 +279,54 @@ def lot_cost_lines(organization: Organization, *, batch_id: int, approved_only: 
 def lot_cost_total(lines: list[LotCostLine]) -> Decimal:
     """What the approved lines add up to: the lot's costs so far."""
     return sum((line.amount for line in lines if line.status == ExpenseStatus.APPROVED), ZERO)
+
+
+# ---- Day labour (P5-T03, D-054) ----
+
+type LabourerStatus = Literal["active", "archived", "all"]
+
+
+def labourers_of(organization: Organization, *, status: LabourerStatus = "active") -> QuerySet[DayLabourer]:
+    """Day labourers by name."""
+    labourers = DayLabourer.objects.for_organization(organization).order_by("name", "id")
+    if status == "active":
+        labourers = labourers.filter(is_active=True)
+    elif status == "archived":
+        labourers = labourers.filter(is_active=False)
+    return labourers
+
+
+def labourer_of(organization: Organization, labourer_id: int) -> DayLabourer:
+    """One day labourer. Raises DayLabourer.DoesNotExist outside the organization."""
+    return DayLabourer.objects.for_organization(organization).get(pk=labourer_id)
+
+
+def day_labour_of(
+    organization: Organization,
+    *,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    labourer_id: int | None = None,
+    batch_id: int | None = None,
+) -> QuerySet[DayLabourEntry]:
+    """Days worked, by day then labourer name, each with its expense (amount, lot, status). The calendar
+    reads a month; a lot reads its own days."""
+    entries = (
+        DayLabourEntry.objects.for_organization(organization)
+        .select_related("labourer", "expense__batch__product", "expense__entered_by", "expense__decided_by")
+        .order_by("expense__spent_on", "labourer__name", "id")
+    )
+    if date_from is not None:
+        entries = entries.filter(expense__spent_on__gte=date_from)
+    if date_to is not None:
+        entries = entries.filter(expense__spent_on__lte=date_to)
+    if labourer_id is not None:
+        entries = entries.filter(labourer_id=labourer_id)
+    if batch_id is not None:
+        entries = entries.filter(expense__batch_id=batch_id)
+    return entries
+
+
+def day_labour_entry_of(organization: Organization, entry_id: int) -> DayLabourEntry:
+    """One day worked. Raises DayLabourEntry.DoesNotExist outside the organization."""
+    return day_labour_of(organization).get(pk=entry_id)

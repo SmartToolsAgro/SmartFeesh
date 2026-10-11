@@ -18,11 +18,17 @@ from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.expenses import selectors, services
-from apps.expenses.models import Expense, ExpenseCategory
+from apps.expenses.models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 
 from .serializers import (
+    DayLabourEntrySerializer,
+    DayLabourerFilterSerializer,
+    DayLabourerSerializer,
+    DayLabourerWriteSerializer,
+    DayLabourFilterSerializer,
+    DayLabourWriteSerializer,
     ExpenseCategoryFilterSerializer,
     ExpenseCategorySerializer,
     ExpenseCategoryUpdateSerializer,
@@ -298,3 +304,130 @@ class LotCostsView(OfficeView):
         lines = selectors.lot_cost_lines(self.organization, batch_id=batch_id, approved_only=False)
         answer = {"batch_id": batch_id, "total": selectors.lot_cost_total(lines), "lines": lines}
         return Response(LotCostsSerializer(answer).data)
+
+
+# ---- Day labour (P5-T03) ----
+
+
+class DayLabourerListView(OfficeView):
+    @extend_schema(
+        operation_id="listDayLabourers",
+        parameters=[DayLabourerFilterSerializer],
+        responses=DayLabourerSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Day labourers by name."""
+        filters = DayLabourerFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        labourers = selectors.labourers_of(self.organization, status=filters.validated_data["status"])
+        return Response(DayLabourerSerializer(labourers, many=True).data)
+
+    @extend_schema(
+        operation_id="createDayLabourer", request=DayLabourerWriteSerializer, responses={201: DayLabourerSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """Add a day labourer (not an employee: no payroll)."""
+        serializer = DayLabourerWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = {key: value for key, value in serializer.validated_data.items() if key != "is_active"}
+        labourer = services.create_labourer(organization=self.organization, actor=self.membership.user, **data)
+        return Response(DayLabourerSerializer(labourer).data, status=status.HTTP_201_CREATED)
+
+
+class DayLabourerDetailView(OfficeView):
+    @extend_schema(
+        operation_id="updateDayLabourer", request=DayLabourerWriteSerializer, responses=DayLabourerSerializer
+    )
+    def put(self, request: Request, labourer_id: int) -> Response:
+        """Change a day labourer, or archive them (`is_active` false): their days stay."""
+        try:
+            labourer = selectors.labourer_of(self.organization, labourer_id)
+        except DayLabourer.DoesNotExist:
+            raise Http404 from None
+        serializer = DayLabourerWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        labourer = services.update_labourer(labourer=labourer, actor=self.membership.user, **serializer.validated_data)
+        return Response(DayLabourerSerializer(labourer).data)
+
+
+def _day_labour_fields(organization: Organization, data: dict[str, Any]) -> dict[str, Any]:
+    errors: dict[str, str] = {}
+    fields = {key: value for key, value in data.items() if key != "approve_now"}
+    try:
+        fields["labourer"] = selectors.labourer_of(organization, data["labourer"])
+    except ObjectDoesNotExist:
+        errors["labourer"] = _("Journalier inconnu.")
+    if data["batch"] is not None:
+        try:
+            fields["batch"] = inventory.batch_of(organization, data["batch"])
+        except ObjectDoesNotExist:
+            errors["batch"] = _("Lot inconnu.")
+    if errors:
+        raise DjangoValidationError(errors)
+    return {**fields, "approve": data["approve_now"]}
+
+
+def _day_labour_answer(organization: Organization, entry_id: int, *, status_code: int = status.HTTP_200_OK) -> Response:
+    entry = selectors.day_labour_entry_of(organization, entry_id)
+    return Response(DayLabourEntrySerializer(entry).data, status=status_code)
+
+
+class DayLabourView(OfficeView):
+    def entry(self, entry_id: int) -> DayLabourEntry:
+        try:
+            return selectors.day_labour_entry_of(self.organization, entry_id)
+        except DayLabourEntry.DoesNotExist:
+            raise Http404 from None
+
+
+class DayLabourListView(DayLabourView):
+    @extend_schema(
+        operation_id="listDayLabour",
+        parameters=[DayLabourFilterSerializer],
+        responses=DayLabourEntrySerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Days worked by day labourers, by day then name: a month for the calendar (`date_from`,
+        `date_to`, inclusive), or the days of one lot or one labourer. Each day is also an expense."""
+        filters = DayLabourFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        data = filters.validated_data
+        entries = selectors.day_labour_of(
+            self.organization,
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+            labourer_id=data.get("labourer"),
+            batch_id=data.get("batch"),
+        )
+        return Response(DayLabourEntrySerializer(entries, many=True).data)
+
+    @extend_schema(
+        operation_id="createDayLabour", request=DayLabourWriteSerializer, responses={201: DayLabourEntrySerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """Record a day worked, from the calendar or from a lot (the same single record, an expense of
+        category day labour). Without `amount`, the labourer's usual daily pay; without `batch`, a general
+        cost. A draft until approved (`approve_now` approves at once)."""
+        serializer = DayLabourWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = _day_labour_fields(self.organization, serializer.validated_data)
+        entry = services.create_day_labour(organization=self.organization, actor=self.membership.user, **data)
+        return _day_labour_answer(self.organization, entry.pk, status_code=status.HTTP_201_CREATED)
+
+
+class DayLabourDetailView(DayLabourView):
+    @extend_schema(operation_id="updateDayLabour", request=DayLabourWriteSerializer, responses=DayLabourEntrySerializer)
+    def put(self, request: Request, entry_id: int) -> Response:
+        """Correct a day not approved yet; with `approve_now`, approve it too."""
+        entry = self.entry(entry_id)
+        serializer = DayLabourWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = _day_labour_fields(self.organization, serializer.validated_data)
+        services.update_day_labour(entry=entry, actor=self.membership.user, **data)
+        return _day_labour_answer(self.organization, entry.pk)
+
+    @extend_schema(operation_id="deleteDayLabour", responses={204: None})
+    def delete(self, request: Request, entry_id: int) -> Response:
+        """Delete a day typed by mistake while it is a draft (its expense goes with it)."""
+        services.delete_day_labour(entry=self.entry(entry_id), actor=self.membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

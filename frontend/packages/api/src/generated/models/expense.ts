@@ -33,4 +33,7 @@ export interface Expense {
   /** @nullable */
   readonly decided_at: string | null;
   readonly rejection_reason: string;
+  /** @nullable */
+  readonly day_labour_id: number | null;
+  readonly labourer_name: string;
 }

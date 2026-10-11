@@ -5,7 +5,16 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.expenses.models import Expense, ExpenseCategory, ExpensePaymentMethod, ExpenseStatus, LotCostKind
+from apps.expenses.models import (
+    DayLabourEntry,
+    DayLabourer,
+    Expense,
+    ExpenseCategory,
+    ExpensePaymentMethod,
+    ExpenseStatus,
+    LotCostKind,
+    WorkType,
+)
 
 
 def person_name(user: Any) -> str:
@@ -68,6 +77,9 @@ class ExpenseSerializer(serializers.ModelSerializer[Expense]):
     receipt_type = serializers.SerializerMethodField()
     entered_by = serializers.SerializerMethodField()
     decided_by = serializers.SerializerMethodField()
+    # A day labourer's day (P5-T03): changed from the calendar, not from the expense form.
+    day_labour_id = serializers.SerializerMethodField()
+    labourer_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Expense
@@ -91,8 +103,18 @@ class ExpenseSerializer(serializers.ModelSerializer[Expense]):
             "decided_by",
             "decided_at",
             "rejection_reason",
+            "day_labour_id",
+            "labourer_name",
         )
         read_only_fields: tuple[str, ...] = fields
+
+    def get_day_labour_id(self, expense: Expense) -> int | None:
+        entry = getattr(expense, "day_labour", None)
+        return entry.pk if entry is not None else None
+
+    def get_labourer_name(self, expense: Expense) -> str:
+        entry = getattr(expense, "day_labour", None)
+        return entry.labourer.name if entry is not None else ""
 
     def get_receipt_url(self, expense: Expense) -> str | None:
         if not expense.receipt.name:
@@ -214,3 +236,94 @@ class LotCostsSerializer(serializers.Serializer[Any]):
     total = serializers.DecimalField(read_only=True, max_digits=14, decimal_places=3)
     # Approved lines, then drafts and waiting ones (shown, not counted).
     lines = LotCostLineSerializer(many=True, read_only=True)
+
+
+# ---- Day labour (P5-T03) ----
+
+
+class DayLabourerSerializer(serializers.ModelSerializer[DayLabourer]):
+    class Meta:
+        model = DayLabourer
+        fields = ("id", "name", "phone", "usual_daily_pay", "notes", "is_active")
+        read_only_fields = fields
+
+
+class DayLabourerFilterSerializer(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=["active", "archived", "all"], required=False, default="active")
+
+
+class DayLabourerWriteSerializer(serializers.Serializer[Any]):
+    name = serializers.CharField(max_length=200)
+    phone = serializers.CharField(required=False, allow_blank=True, default="", max_length=60)
+    # DT for a usual day, as a string ("40.000"); empty when it varies.
+    usual_daily_pay = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    is_active = serializers.BooleanField(required=False, default=True)
+
+
+class DayLabourLabourerSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
+class DayLabourEntrySerializer(serializers.ModelSerializer[DayLabourEntry]):
+    """A day worked, with the expense it is (one record, D-054)."""
+
+    labourer = DayLabourLabourerSerializer(read_only=True)
+    expense_id = serializers.IntegerField(source="expense.id", read_only=True)
+    number = serializers.CharField(source="expense.number", read_only=True)
+    status = serializers.ChoiceField(source="expense.status", choices=ExpenseStatus.choices, read_only=True)
+    worked_on = serializers.DateField(source="expense.spent_on", read_only=True)
+    amount = serializers.DecimalField(source="expense.amount", read_only=True, max_digits=14, decimal_places=3)
+    payment_method = serializers.ChoiceField(
+        source="expense.payment_method", choices=ExpensePaymentMethod.choices, read_only=True
+    )
+    batch = ExpenseLotSerializer(source="expense.batch", read_only=True, allow_null=True)
+    notes = serializers.CharField(source="expense.notes", read_only=True)
+    entered_by = serializers.SerializerMethodField()
+    rejection_reason = serializers.CharField(source="expense.rejection_reason", read_only=True)
+
+    class Meta:
+        model = DayLabourEntry
+        fields = (
+            "id",
+            "expense_id",
+            "number",
+            "status",
+            "worked_on",
+            "labourer",
+            "amount",
+            "payment_method",
+            "batch",
+            "work_type",
+            "notes",
+            "entered_by",
+            "rejection_reason",
+        )
+        read_only_fields = fields
+
+    def get_entered_by(self, entry: DayLabourEntry) -> str:
+        return person_name(entry.expense.entered_by)
+
+
+class DayLabourFilterSerializer(serializers.Serializer[Any]):
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    labourer = serializers.IntegerField(required=False, min_value=1)
+    batch = serializers.IntegerField(required=False, min_value=1)
+
+
+class DayLabourWriteSerializer(serializers.Serializer[Any]):
+    labourer = serializers.IntegerField(min_value=1)
+    worked_on = serializers.DateField()
+    # DT paid for the day, as a string; empty takes the labourer's usual daily pay.
+    amount = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # The lot worked on; empty for general work (stock, store, cleaning): a general cost.
+    batch = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    work_type = serializers.ChoiceField(choices=WorkType.choices, required=False, default=WorkType.OTHER)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    payment_method = serializers.ChoiceField(
+        choices=ExpensePaymentMethod.choices, required=False, default=ExpensePaymentMethod.CASH
+    )
+    # Approve it at once (owner or manager); otherwise it stays a draft until approved.
+    approve_now = serializers.BooleanField(required=False, default=False)

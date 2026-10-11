@@ -159,3 +159,62 @@ class Expense(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number
+
+
+# ---- Day labour (P5-T03, D-054) ----
+
+
+class DayLabourer(OrganizationScopedModel, TimeStampedModel):
+    """Someone paid by the day when there is work (unloading, sorting, cleaning). Not an employee: no
+    payroll, no CNSS (P5-T04 is for employees)."""
+
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=30, blank=True)
+    # What they are usually paid for a day: proposed when a day is added. Empty when it varies.
+    usual_daily_pay = models.DecimalField[Decimal | None, Decimal | None](
+        max_digits=14, decimal_places=3, null=True, blank=True
+    )
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        constraints = [
+            models.UniqueConstraint("organization", Lower("name"), name="day_labourer_name_unique_per_organization"),
+            models.CheckConstraint(
+                condition=models.Q(usual_daily_pay__isnull=True) | models.Q(usual_daily_pay__gt=Decimal("0")),
+                name="day_labourer_pay_positive",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class WorkType(models.TextChoices):
+    # What the day was spent on (client meeting §6); "other" when nobody says.
+    LOADING = "loading", _("Chargement, déchargement")
+    STOCK = "stock", _("Rangement du stock")
+    STORE = "store", _("Magasin")
+    CLEANING = "cleaning", _("Nettoyage")
+    OTHER = "other", _("Autre")
+
+
+class DayLabourEntry(OrganizationScopedModel, TimeStampedModel):
+    """One day worked by a day labourer, and what they were paid.
+
+    It is **one record with its expense** (category day labour): the expense carries the day, the amount,
+    the lot and the approval; this row adds who worked and on what. Typed from a lot or from the calendar,
+    it is the same record, so it is never counted twice (D-041, D-054). Without a lot it is a general cost.
+    """
+
+    expense = models.OneToOneField(Expense, on_delete=models.CASCADE, related_name="day_labour")
+    labourer = models.ForeignKey(DayLabourer, on_delete=models.PROTECT, related_name="entries")
+    work_type = models.CharField(max_length=20, choices=WorkType.choices, default=WorkType.OTHER)
+
+    class Meta:
+        ordering = ["-expense__spent_on", "labourer__name", "id"]
+        verbose_name_plural = "day labour entries"
+
+    def __str__(self) -> str:
+        return f"{self.labourer} · {self.expense}"

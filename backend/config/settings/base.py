@@ -144,5 +144,6 @@ SPECTACULAR_SETTINGS = {
         "SalaryPaymentMethodEnum": "apps.hr.models.SalaryPaymentMethod",
         "ExpenseStatusEnum": "apps.expenses.models.ExpenseStatus",
         "LotCostKindEnum": "apps.expenses.models.LotCostKind",
+        "WorkTypeEnum": "apps.expenses.models.WorkType",
     },
 }
