@@ -15,11 +15,14 @@ _Coarse plan: detail each task when the phase starts._
 - [ ] Expense: date, category, amount, payment method, receipt file, entered by, approval status.
 - [ ] **Optional lot:** an expense typed on a lot (fuel, transport, misc.) is a cost of that lot.
       Without a lot it is a general cost (truck, location or "general" tag).
+- [ ] **Truck costs of the day:** an expense tagged to a truck and a date (transport, labour, misc.) is
+      split over the lots on that truck's load that day, by kg loaded (D-041, Q24 provisional), and
+      shows as a line on each lot.
 - [ ] Approval workflow; driver expenses from P3-T04 land here.
 
 ### P5-T02 · Cold-room cost per day · M
 - [ ] Monthly electricity bill per company (or per meter), typed by the owner.
-- [ ] A weight per cold room (default equal; −20 °C rooms may weigh more, D-041).
+- [ ] A weight per cold room (default equal, set by the owner; −20 °C rooms may weigh more, D-041).
 - [ ] Cost per cold room per day, then per lot by kg held that day, from the stock ledger.
 - [ ] Before the bill is typed: estimate from the previous month; difference booked when it arrives.
 
@@ -40,8 +43,8 @@ _Coarse plan: detail each task when the phase starts._
 ### P5-T05 · General costs on lots · S
 - [ ] Recurring monthly costs (rent, accountant, insurance); bills that cover several months spread
       over them.
-- [ ] Split over the lots sold in the month by their sales (D-041, provisional), shown as one line on
-      each lot.
+- [ ] "Like a salary" (client): monthly amount / 26 per day; each day's amount split over the lots in
+      stock that day by kg held (D-041, Q21 to confirm), shown as one line on each lot.
 
 ### P5-T06 · Assets and depreciation · S
 - [ ] Assets (trucks, cold room, equipment): value, residual value, useful life, method.

@@ -26,20 +26,24 @@ A lot carries its own costs, added by hand or computed:
 - day labourers who worked on it (from the day-labour calendar, §6);
 - monthly-paid employees who worked on it, at **days worked × monthly salary / 26**;
 - cold-room cost for the days it spent in a cold room (§3);
-- general costs: **rent and the accountant are included too** (split method: _provisional_, see below).
+- truck costs of the day (transport, labour, miscellaneous): when a truck carries several products from
+  several lots, those costs are **split over the lots on board** and added to each as a cost
+  (_provisional: by kg loaded_);
+- general costs: **rent and the accountant are included too, split "like a salary"**: monthly amount / 26
+  per day, and each day's amount split over the lots in stock that day (_by kg held: our reading_).
 
 ## 3. Cold-room cost per day
 
 - The owner types the monthly electricity bill. The system splits it over the cold rooms, then over the
   days of the month, giving a **cost per cold room per day**.
 - The client has 2 negative cold rooms (−20 °C) and 1 positive one (0 to 4 °C). A −20 °C room uses more
-  power, so each cold room gets a **weight** in the split (_provisional default: equal weights, the
-  owner can change them_).
+  power, so each cold room gets a **weight** in the split (default: equal weights, the owner can change
+  them; confirmed).
 - When several lots share a cold room on the same day, that day's cost is split **by kg held**, from the
   stock ledger.
-- _Provisional:_ the bill arrives after the month. Until it is typed, the last month's daily rate is used
-  as an estimate, and the lot's figures are corrected when the bill is entered (a lot already settled
-  is not reopened; the difference goes to the next settlement, see D-041).
+- The bill arrives after the month. Until it is typed, the last month's daily rate is used as an
+  estimate, and the lot's figures are corrected when the bill is entered (a lot already settled is not
+  reopened; the difference goes to the next settlement, see D-041). Confirmed.
 
 ## 4. Profit of a lot (owner's own lots)
 
@@ -47,8 +51,7 @@ A lot carries its own costs, added by hand or computed:
 - Profit of the lot = everything it sold for − its purchase cost − all its costs (§2, §3).
 - Spoiled product is a loss of the lot's owner(s); in a partnership the loss is shared.
 - **When:** a lot is closed when it is **fully sold and everything is settled** (customers have paid,
-  costs are in). _Our reading of "ki nokhlso fi kol chy"; confirm._ This replaces Q9's month-end accrual
-  for profit sharing.
+  costs are in). Confirmed. This replaces Q9's month-end accrual for profit sharing.
 
 ## 5. Lots in partnership
 
@@ -59,6 +62,8 @@ A lot carries its own costs, added by hand or computed:
 - Once the net profit is known, the owner gives the partner **a % of the net profit** and shows them a
   statement: "this is your share".
 - **Loss:** the partner shares it; their % of the loss is **deducted from their capital** (Q3 unchanged).
+- Confirmed: two rates (profit % and loss %, D-031); one partner per lot; when the lot closes the partner
+  gets their capital back ± their share. **A supplier can be a partner in several lots** at once.
 
 ## 6. Day-labour calendar
 
@@ -74,12 +79,11 @@ A lot carries its own costs, added by hand or computed:
 - Both the office and the driver (from the phone) can choose the truck of the day.
 - When a truck is loaded, the load carries the **price per kg of each product**, so the driver knows what
   to sell at. When the driver comes back, we see what was sold and what comes back.
+- One driver per truck per day (confirmed).
 
 ## Still to confirm
 
-- Rent and accountant: split over lots by sales (Q2's rule for administration), _provisional_.
-- Cold-room weights (−20 °C vs 0–4 °C), and the estimate-then-correct rule for the electricity bill.
-- "Closed when everything is settled": does a lot wait for every customer payment, or only for the
-  costs to be in?
-- Does the partner still have two rates (profit % and loss %, D-031), or one % for both?
-- Can one lot have more than one partner?
+- Truck costs of the day: split over the lots on board by kg loaded?
+- Rent and accountant "like a salary": is each day's amount (monthly / 26) split over the lots in stock
+  that day, as we read it, or charged in full to each lot?
+- The actual weights of the −20 °C and 0–4 °C rooms (the owner sets them in the app).

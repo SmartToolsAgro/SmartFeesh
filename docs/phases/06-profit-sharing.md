@@ -9,13 +9,15 @@ _Coarse plan: detail each task when the phase starts._
 
 **Rules (client meeting 2026-10-11, `docs/spec/client-meeting-2026-10-11.md`, D-040, D-041):**
 - Profit is computed **per lot**: what the lot sold for − its purchase cost − its own costs (typed
-  costs, day labour, monthly employees at days × salary / 26, cold-room days, share of rent and
-  accountant). Spoilage is a cost of its lot.
-- A lot is closed when fully sold and settled; its result is then frozen.
-- **Partnership lot:** the owner and a partner supplier each put money in. The partner gets their % of
-  the net profit; in a loss they carry their % of it, **deducted from their capital** (Q3).
-- Still provisional: D-031 (profit % and loss %, uncovered loss carried forward), the partner's
-  settlement order (D-040), the cost rules of D-041.
+  costs, day labour, monthly employees at days × salary / 26, cold-room days, its share of the truck
+  costs of the days it was on board, share of rent and accountant). Spoilage is a cost of its lot.
+- A lot is closed when fully sold, its costs are in and its customers have paid (Q19); its result is
+  then frozen.
+- **Partnership lot:** the owner and one partner supplier each put money in. The partner gets their
+  profit % of the net profit; in a loss they carry their loss % of it, **deducted from their capital**
+  (Q3, D-031). At closing they get their capital back ± their share (Q22). A supplier can be a partner
+  in several lots at once.
+- Still provisional: D-031's carried-forward loss beyond the capital; Q21 and Q24 cost splits (D-041).
 - Q1 (own products only) fits: a partner shares only in the lots they are in.
 
 ---
@@ -25,7 +27,8 @@ _Coarse plan: detail each task when the phase starts._
       at receipt (P1-T07 form gets a "partnership" section) or on an open lot before its first sale.
 - [ ] The partner's capital is a ledger per partner and lot: contribution, deduction for a loss, return.
       Separate from the trade payable and from the profit share.
-- [ ] Provisional, to confirm: one partner per lot.
+- [ ] One partner per lot; a supplier can be in several lots at once, each with its own capital and
+      rates (Q22).
 
 ### P6-T02 · Lot result engine · L → split
 - [ ] Pure functions: lot data snapshot (sales lines, purchase cost, cost lines) → result with every step

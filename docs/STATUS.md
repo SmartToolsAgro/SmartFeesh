@@ -21,9 +21,10 @@ _Last updated: 2026-10-11_
 - **Next task:** P1-T08 · Supplier invoices and payments (D-043+).
 - **The plan changed (2026-10-11, `docs/spec/client-meeting-2026-10-11.md`):** profit is computed and
   shared **per lot**, not per month (D-040); lots carry their own costs: day labour, monthly employees
-  at days × salary / 26, cold room per day, rent and accountant (D-041); a driver's truck is chosen per
-  day (D-042, new task P1-T12); loads carry the price per kg. Phases 5 and 6 were rewritten. New
-  provisional points are Q19 to Q23 in `OPEN_QUESTIONS.md`.
+  at days × salary / 26, cold room per day, truck costs of the day split over the lots on board, rent
+  and accountant "like a salary" (D-041); a driver's truck is chosen per day (D-042, new task P1-T12);
+  loads carry the price per kg. Phases 5 and 6 were rewritten. Q19, Q20, Q22, Q23 answered the same
+  day; Q21 (rent split) and Q24 (truck-cost split) are still provisional.
 
 ## Next step (do this first)
 
@@ -44,7 +45,7 @@ _Last updated: 2026-10-11_
 
 - **P0-T02** (worked example) is not started; it is now **one real lot** worked out by hand with the
   owner (purchase, sales, each cost, partner share) instead of one month. Phase 6 has no target
-  without it. D-031, D-041 and Q19 to Q23 are provisional; P0-T02 should confirm them.
+  without it. D-031's uncovered loss, Q21 and Q24 are provisional; P0-T02 should confirm them.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
 - **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
   The CI deploy key logs in as `debian` (full sudo): a separate server or a server-side pull is advised.
