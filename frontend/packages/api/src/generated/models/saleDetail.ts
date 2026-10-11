@@ -7,6 +7,7 @@
 import type { QuoteRef } from './quoteRef';
 import type { SaleCustomer } from './saleCustomer';
 import type { SaleDetailPaymentMethod } from './saleDetailPaymentMethod';
+import type { SaleInvoiceRef } from './saleInvoiceRef';
 import type { SaleLine } from './saleLine';
 import type { SaleLocation } from './saleLocation';
 import type { SaleStatusEnum } from './saleStatusEnum';
@@ -59,5 +60,6 @@ export interface SaleDetail {
   /** @nullable */
   readonly cancelled_at: string | null;
   readonly cancel_reason: string;
+  readonly invoice: SaleInvoiceRef | null;
   readonly lines: readonly SaleLine[];
 }

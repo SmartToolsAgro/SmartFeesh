@@ -22,10 +22,20 @@ from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.sales import selectors, services
-from apps.sales.models import Quote, Sale
+from apps.sales.models import CreditNote, Invoice, Quote, Sale
 
 from .serializers import (
     BatchSalesSerializer,
+    CreditNoteFilterSerializer,
+    CreditNoteSerializer,
+    CreditNoteWriteSerializer,
+    FinanceSettingsOverviewSerializer,
+    FinanceSettingsWriteSerializer,
+    InvoiceChoicesSerializer,
+    InvoiceCreateSerializer,
+    InvoiceDetailSerializer,
+    InvoiceFilterSerializer,
+    InvoiceSerializer,
     QuoteConvertSerializer,
     QuoteDetailSerializer,
     QuoteFilterSerializer,
@@ -413,3 +423,209 @@ class BatchSalesView(OfficeView):
             "rows": selectors.batch_sales(self.organization, batch_id=batch.pk),
         }
         return Response(BatchSalesSerializer(data).data)
+
+
+# ---- Finance settings (P2-T05, D-056) ----
+
+
+class FinanceSettingsView(OfficeView):
+    def overview(self) -> Response:
+        organization = self.organization
+        in_force = selectors.finance_settings_on(organization) or services.ensure_finance_settings(
+            organization=organization
+        )
+        data = {
+            "in_force": in_force,
+            "history": selectors.finance_settings_history(organization),
+            "may_edit": self.membership.role == Role.OWNER,
+        }
+        return Response(FinanceSettingsOverviewSerializer(data).data)
+
+    @extend_schema(operation_id="getFinanceSettings", responses=FinanceSettingsOverviewSerializer)
+    def get(self, request: Request) -> Response:
+        """The finance settings in force today (VAT rate, fiscal stamp, prices with or without VAT, withholding
+        rate, the seller printed on invoices) and every version with its start day. Office roles read."""
+        return self.overview()
+
+    @extend_schema(
+        operation_id="saveFinanceSettings",
+        request=FinanceSettingsWriteSerializer,
+        responses=FinanceSettingsOverviewSerializer,
+    )
+    def post(self, request: Request) -> Response:
+        """A new version of the finance settings from `valid_from` (today when empty; the past is refused). The
+        owner only: a manager gets 403. Saving again for the same day replaces that day's version."""
+        if self.membership.role != Role.OWNER:
+            raise PermissionDenied(_("Seul le propriétaire change les paramètres financiers."))
+        serializer = FinanceSettingsWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.save_finance_settings(
+            organization=self.organization, actor=self.membership.user, **serializer.validated_data
+        )
+        return self.overview()
+
+
+# ---- Invoices and credit notes (P2-T05, D-057) ----
+
+
+def _invoice_choices(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "apply_vat": data["apply_vat"],
+        "vat_rates": [line["vat_rate"] for line in data["lines"]] or None,
+        "vat_amounts": {row["rate"]: row["amount"] for row in data["vat_amounts"]},
+        "fiscal_stamp": data["fiscal_stamp"],
+        "withholding_applied": data["withholding_applied"],
+        "withholding_rate": data["withholding_rate"],
+        "notes": data["notes"],
+    }
+
+
+class InvoiceView(OfficeView):
+    def invoice(self, invoice_id: int) -> Invoice:
+        try:
+            return selectors.invoice_of(self.organization, invoice_id)
+        except Invoice.DoesNotExist:
+            raise Http404 from None
+
+    def answer(self, invoice_id: int, *, status_code: int = status.HTTP_200_OK) -> Response:
+        invoice = self.invoice(invoice_id)
+        context = {"credited": selectors.credited_by_line(invoice)}
+        return Response(InvoiceDetailSerializer(invoice, context=context).data, status=status_code)
+
+
+class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
+    serializer_class = InvoiceSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[Invoice]:
+        filters = InvoiceFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.invoices_of(
+            self.organization,
+            status=filters.validated_data.get("status"),
+            customer_id=filters.validated_data.get("customer"),
+            sale_id=filters.validated_data.get("sale"),
+            date_from=filters.validated_data.get("date_from"),
+            date_to=filters.validated_data.get("date_to"),
+            search=filters.validated_data["search"],
+        )
+
+    @extend_schema(operation_id="listInvoices", parameters=[InvoiceFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Invoices, drafts first then the newest issued, paginated (`limit`, `offset`). Filter by status,
+        customer, sale, issue days (inclusive) or `search` (number, sale number, customer). Office roles read."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="createInvoice", request=InvoiceCreateSerializer, responses={201: InvoiceDetailSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
+        once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
+        `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`."""
+        serializer = InvoiceCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            sale = selectors.sale_of(self.organization, data["sale"])
+        except Sale.DoesNotExist:
+            raise ValidationError({"sale": _("Vente inconnue.")}) from None
+        invoice = services.create_invoice(
+            sale=sale, actor=self.membership.user, issue=data["issue_now"], **_invoice_choices(data)
+        )
+        return self.answer(invoice.pk, status_code=status.HTTP_201_CREATED)
+
+
+class InvoiceDetailView(InvoiceView):
+    @extend_schema(operation_id="getInvoice", responses=InvoiceDetailSerializer)
+    def get(self, request: Request, invoice_id: int) -> Response:
+        """One invoice as printed: seller, customer, lines, VAT per rate, stamp, totals, withholding and its
+        credit notes. A draft shows the values the settings propose beside the typed ones."""
+        return self.answer(self.invoice(invoice_id).pk)
+
+    @extend_schema(operation_id="updateInvoice", request=InvoiceChoicesSerializer, responses=InvoiceDetailSerializer)
+    def put(self, request: Request, invoice_id: int) -> Response:
+        """Change a draft (every value given again; empty takes the settings), and with `issue_now` issue it.
+        An issued invoice never changes: make a credit note."""
+        invoice = self.invoice(invoice_id)
+        serializer = InvoiceChoicesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.update_invoice(
+            invoice=invoice, actor=self.membership.user, issue=data["issue_now"], **_invoice_choices(data)
+        )
+        return self.answer(invoice_id)
+
+    @extend_schema(operation_id="deleteInvoice", request=None, responses={204: None})
+    def delete(self, request: Request, invoice_id: int) -> Response:
+        """Throw a draft away (it has no number yet). An issued invoice is never deleted."""
+        services.delete_invoice(invoice=self.invoice(invoice_id), actor=self.membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class InvoiceIssueView(InvoiceView):
+    @extend_schema(operation_id="issueInvoice", request=None, responses=InvoiceDetailSerializer)
+    def post(self, request: Request, invoice_id: int) -> Response:
+        """Issue a draft: the next number of the year (FA-2026-0001...), today's date, the settings in force now
+        for what was not typed, seller and customer copied. From then on it never changes. Nothing is sent to
+        TTN / El Fatoora (D-016)."""
+        services.issue_invoice(invoice=self.invoice(invoice_id), actor=self.membership.user)
+        return self.answer(invoice_id)
+
+
+class InvoiceCreditNoteView(InvoiceView):
+    @extend_schema(
+        operation_id="createCreditNote", request=CreditNoteWriteSerializer, responses={201: CreditNoteSerializer}
+    )
+    def post(self, request: Request, invoice_id: int) -> Response:
+        """Correct an issued invoice with a credit note (AV-2026-0001...), the only correction. `full` gives back
+        everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
+        amount without VAT (`amount`), with the line's VAT. Errors: `lines.<index>.<field>`, `reason`."""
+        invoice = self.invoice(invoice_id)
+        serializer = CreditNoteWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        by_id = {line.pk: line for line in invoice.lines.all()}
+        lines: list[services.CreditLineFields] = [
+            {"invoice_line": by_id.get(row["invoice_line"]), "quantity": row["quantity"], "amount": row["amount"]}
+            for row in data["lines"]
+        ]
+        note = services.create_credit_note(
+            invoice=invoice, actor=self.membership.user, kind=data["kind"], reason=data["reason"], lines=lines
+        )
+        detail = CreditNoteSerializer(selectors.credit_notes_of(self.organization).get(pk=note.pk)).data
+        return Response(detail, status=status.HTTP_201_CREATED)
+
+
+class CreditNoteListView(OfficeView, ListAPIView[CreditNote]):
+    serializer_class = CreditNoteSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[CreditNote]:
+        filters = CreditNoteFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.credit_notes_of(
+            self.organization,
+            customer_id=filters.validated_data.get("customer"),
+            date_from=filters.validated_data.get("date_from"),
+            date_to=filters.validated_data.get("date_to"),
+            search=filters.validated_data["search"],
+        )
+
+    @extend_schema(operation_id="listCreditNotes", parameters=[CreditNoteFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Credit notes, newest first, paginated, with their invoice and lines. Filter by customer, days or
+        `search` (number, invoice number, customer)."""
+        return super().get(request, *args, **kwargs)
+
+
+class CreditNoteDetailView(OfficeView):
+    @extend_schema(operation_id="getCreditNote", responses=CreditNoteSerializer)
+    def get(self, request: Request, credit_note_id: int) -> Response:
+        """One credit note with its invoice and lines."""
+        try:
+            note = selectors.credit_notes_of(self.organization).get(pk=credit_note_id)
+        except CreditNote.DoesNotExist:
+            raise Http404 from None
+        return Response(CreditNoteSerializer(note).data)

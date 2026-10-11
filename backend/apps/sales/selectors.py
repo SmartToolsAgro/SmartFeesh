@@ -273,7 +273,7 @@ def invoices_of(
     )
     invoices = (
         Invoice.objects.for_organization(organization)
-        .select_related("sale", "customer", "created_by", "issued_by")
+        .select_related("organization", "sale", "customer", "settings_version", "created_by", "issued_by")
         .prefetch_related(Prefetch("lines", queryset=InvoiceLine.objects.select_related("product").order_by("id")))
         .prefetch_related(Prefetch("vat_lines", queryset=InvoiceVatLine.objects.order_by("-rate")))
         .prefetch_related(Prefetch("credit_notes", queryset=credit_notes))

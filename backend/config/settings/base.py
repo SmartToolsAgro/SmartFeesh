@@ -144,6 +144,10 @@ SPECTACULAR_SETTINGS = {
         "SaleStatusEnum": "apps.sales.models.SaleStatus",
         "SalePaymentMethodEnum": "apps.sales.models.SalePaymentMethod",
         "SalePriceSourceEnum": "apps.sales.models.PriceSource",
+        # P2-T05 · invoices
+        "InvoiceStatusEnum": "apps.sales.models.InvoiceStatus",
+        "EInvoiceStatusEnum": "apps.sales.models.EInvoiceStatus",
+        "CreditNoteKindEnum": "apps.sales.models.CreditNoteKind",
         "SalaryStatusEnum": "apps.hr.models.SalaryStatus",
         "SalaryPaymentMethodEnum": "apps.hr.models.SalaryPaymentMethod",
         "ExpenseStatusEnum": "apps.expenses.models.ExpenseStatus",

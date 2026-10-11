@@ -1430,9 +1430,12 @@ def _locked_draft_invoice(invoice: Invoice) -> Invoice:
 
 
 @transaction.atomic
-def update_invoice(*, invoice: Invoice, actor: User | None, **choices: Unpack[InvoiceChoices]) -> Invoice:
+def update_invoice(
+    *, invoice: Invoice, actor: User | None, issue: bool = False, **choices: Unpack[InvoiceChoices]
+) -> Invoice:
     """Change a draft: with or without VAT, rates, amounts of VAT, stamp, withholding and notes (all given
-    again: an empty value takes the settings). Every typed value is flagged and the change is audited."""
+    again: an empty value takes the settings). Every typed value is flagged and the change is audited. With
+    `issue`, issue it too (one transaction)."""
     invoice = _locked_draft_invoice(invoice)
     before = _invoice_snapshot(invoice)
     overrides = _checked_choices(choices, invoice.lines.count())
@@ -1445,6 +1448,8 @@ def update_invoice(*, invoice: Invoice, actor: User | None, **choices: Unpack[In
         before=before,
         after=_invoice_snapshot(invoice),
     )
+    if issue:
+        return issue_invoice(invoice=invoice, actor=actor)
     return invoice
 
 
@@ -1522,7 +1527,8 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
 
 
 class CreditLineFields(TypedDict, total=False):
-    invoice_line: InvoiceLine
+    # None: an id not on the invoice (reported on `lines.<index>.invoice_line`).
+    invoice_line: InvoiceLine | None
     # Kilos given back (a return, a weight dispute); empty or 0 for a price correction.
     quantity: Number | None
     # Amount without VAT given back; empty = the kilos' share of the line.

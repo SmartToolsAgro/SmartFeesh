@@ -6,6 +6,7 @@
  */
 import type { QuoteRef } from './quoteRef';
 import type { SaleCustomer } from './saleCustomer';
+import type { SaleInvoiceRef } from './saleInvoiceRef';
 import type { SaleLocation } from './saleLocation';
 import type { SalePaymentMethod } from './salePaymentMethod';
 import type { SaleStatusEnum } from './saleStatusEnum';
@@ -58,4 +59,5 @@ export interface Sale {
   /** @nullable */
   readonly cancelled_at: string | null;
   readonly cancel_reason: string;
+  readonly invoice: SaleInvoiceRef | null;
 }

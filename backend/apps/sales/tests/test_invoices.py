@@ -249,6 +249,7 @@ def test_typed_values_are_flagged_and_audited(sale, actor):
     assert invoice.withholding_amount == D("7.736")
     assert invoice.net_to_pay == invoice.total_incl_tax - D("7.736")
     entry = AuditLog.objects.get(action="invoice.updated")
+    assert entry.after is not None
     assert entry.after["overrides"]["vat_amounts"] == {"19.00": {"computed": "46.550", "typed": "46.000"}}
     assert entry.after["overrides"]["fiscal_stamp"] == "0.600"
 
@@ -610,7 +611,7 @@ def test_lists_and_live_invoice(organization, sale, actor):
     )
 
     listed = selectors.invoice_of(organization, invoice.pk)
-    assert listed.credited_total == D("49.980")
+    assert getattr(listed, "credited_total") == D("49.980")  # noqa: B009 - an annotation
     assert selectors.invoices_of(organization, search="Corail").count() == 1
     assert selectors.invoices_of(organization, status="draft").count() == 0
     assert selectors.live_invoice_of(selectors.sale_of(organization, sale.pk)) == invoice

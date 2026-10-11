@@ -27,6 +27,11 @@ export interface ProductCreate {
      */
   storage_temp_max?: string | null;
   illustration?: IllustrationEnum;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  vat_rate?: string | null;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   sale_price: string;
 }
