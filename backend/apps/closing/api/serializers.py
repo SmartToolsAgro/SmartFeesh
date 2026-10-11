@@ -5,7 +5,8 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.closing.models import LotOutcome, LotResultStatus, LotState
+from apps.closing.models import LotOutcome, LotResultStatus, LotState, SettlementState
+from apps.partnerships.selectors import ProfitShareKind, SettlementPaymentMethod
 
 
 def _money(**kwargs: Any) -> serializers.DecimalField:
@@ -166,3 +167,111 @@ class CloseLotSerializer(serializers.Serializer[Any]):
 
 class ReopenLotSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(max_length=300, allow_blank=True)
+
+
+# ---- Settlement with the partner (P6-T03, D-066) ----
+
+
+class SettlementPreviewSerializer(serializers.Serializer[Any]):
+    # Capital still in the lot after a loss share was taken: paid back whole.
+    capital_to_return = _money()
+    # The lot's share, signed (+ profit share, − loss share already taken from the capital).
+    lot_share = _money()
+    # The part of a loss their capital could not cover (they owe it).
+    uncovered_loss = _money()
+    # Late costs of this partner's closed lots still to carry to this settlement (signed).
+    pending_adjustments = _money()
+    # The partner's profit-share balance over all their lots, with those adjustments: + owed to them,
+    # − owed by them.
+    carried_in = _money()
+    # Paid out of the profit share, and in total with the capital: what the payments must add up to.
+    share_paid = _money()
+    total = _money()
+    # What they still owe after this settlement (0 or negative): recovered from their next share.
+    carried_out = _money()
+
+
+class SettlementPaymentSerializer(serializers.Serializer[Any]):
+    paid_on = serializers.DateField(read_only=True)
+    amount = _money()
+    method = serializers.ChoiceField(choices=SettlementPaymentMethod.choices, read_only=True)
+    reference = serializers.CharField(read_only=True)
+
+
+class SettlementRecordSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    settled_on = serializers.DateField(read_only=True)
+    capital_returned = _money()
+    lot_share = _money()
+    uncovered_loss = _money()
+    carried_in = _money()
+    share_paid = _money()
+    amount_paid = _money()
+    carried_out = _money()
+    notes = serializers.CharField(read_only=True)
+    created_by_name = serializers.CharField(read_only=True)
+    payments = SettlementPaymentSerializer(many=True, read_only=True)
+
+
+class ProfitShareEntrySerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    kind = serializers.ChoiceField(choices=ProfitShareKind.choices, read_only=True)
+    # Signed: + the company owes the partner, − the partner owes the company.
+    amount = _money()
+    entry_date = serializers.DateField(read_only=True)
+    note = serializers.CharField(read_only=True)
+
+
+class LateAdjustmentSerializer(serializers.Serializer[Any]):
+    # live net result − frozen net result: a cost recorded after the closing is negative.
+    drift = _money()
+    # The part of it already carried to the partner's balance, and the part still to carry.
+    booked = _money()
+    pending_basis = _money()
+    # The partner's share of the part still to carry (signed): the next settlement's adjustment.
+    pending_share = _money()
+
+
+class PartnerBalancesSerializer(serializers.Serializer[Any]):
+    """The three balances of a partner, kept apart: never added together (D-031, D-040)."""
+
+    partner_id = serializers.IntegerField(read_only=True)
+    partner_name = serializers.CharField(read_only=True)
+    # Owed for goods bought from them (supplier invoices less payments, D-043).
+    trade_payable = _money()
+    # Their money still in the company's lots.
+    capital = _money()
+    # + owed to them, − owed by them (an uncovered loss, a late cost).
+    profit_share = _money()
+    lots = serializers.IntegerField(read_only=True)
+
+
+class LotSettlementViewSerializer(serializers.Serializer[Any]):
+    batch_id = serializers.IntegerField(read_only=True)
+    state = serializers.ChoiceField(choices=SettlementState.choices, read_only=True)
+    partnership_id = serializers.IntegerField(read_only=True, allow_null=True)
+    partner_id = serializers.IntegerField(read_only=True, allow_null=True)
+    partner_name = serializers.CharField(read_only=True)
+    # What settling would pay now (state "ready"); None otherwise.
+    preview = SettlementPreviewSerializer(read_only=True, allow_null=True)
+    # The recorded settlement (state "settled").
+    settlement = SettlementRecordSerializer(read_only=True, allow_null=True)
+    # A cost or a sale recorded after the lot closed (D-041); None without a closed partnership lot.
+    late = LateAdjustmentSerializer(read_only=True, allow_null=True)
+    # The partner's profit-share ledger in this lot, oldest first.
+    entries = ProfitShareEntrySerializer(many=True, read_only=True)
+    balances = PartnerBalancesSerializer(read_only=True, allow_null=True)
+
+
+class SettlementPaymentWriteSerializer(serializers.Serializer[Any]):
+    # Amount in DT as a string ("1286.000"), checked by the service.
+    amount = serializers.CharField(allow_blank=True)
+    method = serializers.ChoiceField(choices=SettlementPaymentMethod.choices)
+    paid_on = serializers.DateField(required=False)
+    reference = serializers.CharField(required=False, allow_blank=True, max_length=50, default="")
+
+
+class SettleLotSerializer(serializers.Serializer[Any]):
+    # The ways the partner is paid; they must add up to the amount to settle (none when it is 0).
+    payments = SettlementPaymentWriteSerializer(many=True, required=False)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")

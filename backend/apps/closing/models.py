@@ -31,6 +31,16 @@ class LotState(models.TextChoices):
     CLOSED = "closed", _("Clôturé")
 
 
+class SettlementState(models.TextChoices):
+    """Where a lot stands with its partner (P6-T03, D-066): no partnership, still open, closed and ready to
+    settle, or settled."""
+
+    NONE = "none", _("Sans partenaire")
+    NOT_CLOSED = "not_closed", _("Lot non clôturé")
+    READY = "ready", _("À régler")
+    SETTLED = "settled", _("Réglé")
+
+
 class LotResultQuerySet(OrganizationScopedQuerySet["LotResult"]):
     def update(self, **kwargs: Any) -> int:
         raise TypeError("A lot result is frozen: reopen the lot (with a reason) and close it again")

@@ -44,10 +44,11 @@ _Coarse plan: detail each task when the phase starts._
 - [x] Close a lot: checks (stock 0 or written off, costs in, customer payments as agreed, see the
       meeting's "still to confirm"), then lock + snapshot. Reopen only with reason and audit.
       _Done with P6-T02 (D-061); customer payments are a warning until P2-T06._
-- [ ] Settlement to the partner: capital back ± share; payments; three balances per partner (trade
-      payable, capital, profit share).
-- [ ] Electricity bill arriving after a lot closed: the difference goes to the partner's next
-      settlement (D-041), never by reopening the lot.
+      _The customers-paid check reads receivables through one function, ready for P2-T06 (D-068)._
+- [x] Settlement to the partner: capital back ± share; payments; three balances per partner (trade
+      payable, capital, profit share). _D-066, D-069; loss beyond the capital stays provisional (D-031)._
+- [x] Electricity bill arriving after a lot closed: the difference goes to the partner's next
+      settlement (D-041), never by reopening the lot. _D-067._
 
 ### P6-T04 · Partner statement PDF · S
 - [ ] Per lot: purchase, sales (customer, kg, price), each cost line, net profit, %, share, payments,

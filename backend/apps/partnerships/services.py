@@ -17,7 +17,17 @@ from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
 
 from . import selectors
-from .models import CapitalEntry, CapitalEntryKind, LotPartnership, PartnershipStatus
+from .models import (
+    CapitalEntry,
+    CapitalEntryKind,
+    LotPartnership,
+    PartnerSettlement,
+    PartnershipStatus,
+    ProfitShareEntry,
+    ProfitShareKind,
+    SettlementPayment,
+    SettlementPaymentMethod,
+)
 
 if TYPE_CHECKING:
     from apps.inventory.models import Batch
@@ -313,3 +323,205 @@ def record_lot_reopened(
     partnership.status = PartnershipStatus.OPEN
     partnership.save(update_fields=["status", "updated_at"])
     return partnership
+
+
+# ---- Late costs and settlement with the partner (P6-T03, D-066), called by `closing` ----
+
+
+def _post_share_entry(
+    partnership: LotPartnership,
+    *,
+    actor: User | None,
+    kind: str,
+    amount: Decimal,
+    basis: Decimal = ZERO,
+    note: str = "",
+    lot_result_id: int | None = None,
+    settlement: PartnerSettlement | None = None,
+    on: dt.date | None = None,
+) -> ProfitShareEntry:
+    return ProfitShareEntry.objects.create(
+        organization=partnership.organization,
+        partnership=partnership,
+        kind=kind,
+        amount=amount,
+        basis=basis,
+        entry_date=on or timezone.localdate(),
+        note=note[:300],
+        lot_result_id=lot_result_id,
+        settlement=settlement,
+        created_by=actor,
+    )
+
+
+@transaction.atomic
+def record_late_adjustment(
+    *,
+    partnership: LotPartnership,
+    actor: User | None,
+    lot_result_id: int,
+    amount: Decimal,
+    basis: Decimal,
+    note: str = "",
+) -> ProfitShareEntry:
+    """A cost or a sale recorded after the lot closed changed its net result by `basis`: the difference in
+    the partner's share (`amount`, signed) goes on their profit-share balance, so their next settlement
+    pays or recovers it. The lot is never reopened (D-041) and its frozen result is not touched."""
+    partnership = _locked(partnership)
+    if partnership.status not in (PartnershipStatus.CLOSED, PartnershipStatus.SETTLED):
+        raise ValidationError(_("Ce partenariat n'est pas clôturé."))
+    entry = _post_share_entry(
+        partnership,
+        actor=actor,
+        kind=ProfitShareKind.LATE_ADJUSTMENT,
+        amount=amount,
+        basis=basis,
+        note=note,
+        lot_result_id=lot_result_id,
+    )
+    audit.record(
+        organization=partnership.organization,
+        actor=actor,
+        action="partnership.late_adjustment",
+        target=partnership,
+        after={"batch": partnership.batch.number, "amount": str(amount), "basis": str(basis), "note": note},
+    )
+    return entry
+
+
+def _checked_payments(payments: list[dict[str, Any]], on: dt.date) -> list[dict[str, Any]]:
+    checked: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for payment in payments:
+        try:
+            amount = checked_amount(payment.get("amount", ""))
+        except (ValueError, TypeError) as error:
+            errors.append(str(error))
+            continue
+        method = payment.get("method", "")
+        if amount <= 0:
+            errors.append(_("Un paiement doit être supérieur à zéro."))
+        elif method not in SettlementPaymentMethod.values:
+            errors.append(_("Mode de paiement inconnu."))
+        else:
+            checked.append(
+                {
+                    "amount": amount,
+                    "method": method,
+                    "paid_on": payment.get("paid_on") or on,
+                    "reference": str(payment.get("reference", ""))[:50],
+                }
+            )
+    if errors:
+        raise ValidationError({"payments": errors})
+    return checked
+
+
+@transaction.atomic
+def settle_partnership(
+    *,
+    partnership: LotPartnership,
+    actor: User | None,
+    lot_result_id: int,
+    lot_share: Decimal,
+    uncovered_loss: Decimal,
+    payments: list[dict[str, Any]],
+    settled_on: dt.date | None = None,
+    notes: str = "",
+) -> PartnerSettlement:
+    """Settle a closed partnership lot with its partner: pay their capital back and their profit share.
+
+    The three balances stay separate. The capital ledger gets a `return` of what is left of the capital
+    (after a loss share was deducted at closing). The profit-share ledger gets the lot's `share` (a
+    profit) or its `uncovered_loss` (D-031), then its balance over all the partner's lots decides the
+    payout: a positive balance is paid, a negative one (a loss beyond capital, a late cost) is recovered
+    from this share and, when the share is not enough, carried to the next settlement; it is never taken
+    from the capital. The payments given must add up to exactly what is paid; nothing to pay means none.
+    """
+    partnership = _locked(partnership)
+    organization = partnership.organization
+    if partnership.status == PartnershipStatus.SETTLED:
+        raise ValidationError(_("Ce lot est déjà réglé avec le partenaire."))
+    if partnership.status != PartnershipStatus.CLOSED:
+        raise ValidationError(_("Clôturez le lot avant de le régler avec le partenaire."))
+    on = settled_on or timezone.localdate()
+
+    capital = selectors.capital_balance(partnership)
+    carried_in = selectors.profit_share_balance_of_partner(organization, partner_id=partnership.partner_id)
+    lot_entry = lot_share if lot_share > 0 else -uncovered_loss
+    balance = carried_in + lot_entry
+    share_paid = balance if balance > 0 else ZERO
+    total = capital + share_paid
+
+    checked = _checked_payments(payments, on)
+    paid = sum((payment["amount"] for payment in checked), ZERO)
+    if paid != total:
+        raise ValidationError(
+            {
+                "payments": _("Les paiements (%(paid)s DT) doivent égaler le montant à régler (%(total)s DT).")
+                % {"paid": paid, "total": total}
+            }
+        )
+
+    settlement = PartnerSettlement.objects.create(
+        organization=organization,
+        partnership=partnership,
+        lot_result_id=lot_result_id,
+        settled_on=on,
+        capital_returned=capital,
+        lot_share=lot_share,
+        uncovered_loss=uncovered_loss,
+        carried_in=carried_in,
+        share_paid=share_paid,
+        amount_paid=total,
+        carried_out=balance - share_paid,
+        notes=notes.strip(),
+        created_by=actor,
+    )
+    entries = [
+        (ProfitShareKind.SHARE, lot_share) if lot_share > 0 else (ProfitShareKind.UNCOVERED_LOSS, -uncovered_loss),
+        (ProfitShareKind.PAYMENT, -share_paid),
+    ]
+    for kind, amount in entries:
+        if amount:
+            _post_share_entry(
+                partnership,
+                actor=actor,
+                kind=kind,
+                amount=amount,
+                lot_result_id=lot_result_id,
+                settlement=settlement,
+                on=on,
+            )
+    if capital > 0:
+        _post_entry(
+            partnership,
+            actor=actor,
+            kind=CapitalEntryKind.RETURN,
+            amount=-capital,
+            note=_("Règlement du lot"),
+            lot_result_id=lot_result_id,
+            on=on,
+        )
+    for payment in checked:
+        SettlementPayment.objects.create(organization=organization, settlement=settlement, **payment)
+    partnership.status = PartnershipStatus.SETTLED
+    partnership.save(update_fields=["status", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="partnership.settled",
+        target=partnership,
+        after={
+            "batch": partnership.batch.number,
+            "partner": partnership.partner.name,
+            "capital_returned": str(capital),
+            "lot_share": str(lot_share),
+            "uncovered_loss": str(uncovered_loss),
+            "carried_in": str(carried_in),
+            "share_paid": str(share_paid),
+            "amount_paid": str(total),
+            "carried_out": str(settlement.carried_out),
+        },
+    )
+    return settlement

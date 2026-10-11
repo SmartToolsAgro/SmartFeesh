@@ -191,6 +191,17 @@ class ClosingCheck:
     amount: Decimal | None = None
 
 
+def customers_owing(organization: Organization, snapshot: engine.LotSnapshot) -> dict[int, Decimal]:
+    """What customers still owe on the lot's sales, by sale id: the one place the "customers paid" check
+    (Q19) reads receivables from.
+
+    Today it is what the sales themselves know (`amount_due`: the sale total less the payment taken on the
+    spot). P2-T06 (customer payments) replaces this body with the receivables it keeps; nothing else in
+    closing, settlement or the screens changes (D-066).
+    """
+    return {sale.sale_id: sale.amount_due for sale in snapshot.sales if sale.amount_due > 0}
+
+
 def closing_checks(organization: Organization, result: engine.ComputedResult) -> list[ClosingCheck]:
     """What stands between the lot and its closing, with the figures the screen explains it with."""
     snapshot = result.snapshot
@@ -199,7 +210,7 @@ def closing_checks(organization: Organization, result: engine.ComputedResult) ->
         for line in expenses.lot_cost_lines(organization, batch_id=snapshot.batch_id, approved_only=False)
         if line.status != "approved"
     ]
-    owed = {sale.sale_id: sale.amount_due for sale in snapshot.sales if sale.amount_due > 0}
+    owed = customers_owing(organization, snapshot)
     return [
         # Stock 0: everything sold, sent back or written off as a loss.
         ClosingCheck(
@@ -265,3 +276,109 @@ def closed_batch_ids(organization: Organization, *, batch_ids: list[int] | None 
     if batch_ids is not None:
         results = results.filter(batch_id__in=batch_ids)
     return set(results.values_list("batch_id", flat=True))
+
+
+# ---- Late costs and settlement (P6-T03, D-066) ----
+
+
+@dataclass(frozen=True)
+class LateDrift:
+    """How far a closed lot's live net result has moved from its frozen one, and what of it is already
+    carried to the partner's settlements."""
+
+    lot_result_id: int
+    frozen_net: Decimal
+    live_net: Decimal
+    # live − frozen: a cost recorded after the closing is negative.
+    drift: Decimal
+    # The part of the drift already booked on the partner's profit-share balance (sum of `basis`).
+    booked: Decimal
+    # The part still to book, and the partner's share of it (signed): the next settlement's adjustment.
+    pending_basis: Decimal
+    pending_share: Decimal
+
+
+def late_drift(organization: Organization, result: LotResult) -> LateDrift | None:
+    """The late adjustment a closed partnership lot is waiting for, or None for a lot without partner.
+
+    The share is computed on the whole drift and the booked part taken off, so what is booked adds up to
+    `share(live net) − share(frozen net)` exactly, whatever the number of adjustments (no rounding drift)."""
+    if result.partnership_id is None:
+        return None
+    partnership = partnerships.partnership_of(organization, result.partnership_id)
+    terms = engine.PartnershipTerms(
+        partnership_id=partnership.pk,
+        partner_id=partnership.partner_id,
+        partner_name=partnership.partner.name,
+        owner_capital=partnership.owner_capital,
+        partner_capital=partnerships.capital_put_in(partnership),
+        profit_rate=partnership.profit_rate,
+        loss_rate=partnership.loss_rate,
+    )
+    live_net = live_result(organization, batch_id=result.batch_id).net_result
+    frozen = result.net_result
+    drift = live_net - frozen
+    booked = partnerships.late_adjustments_booked(partnership, lot_result_id=result.pk)
+    share_now = engine.partner_share(terms, frozen + drift).share
+    share_booked = engine.partner_share(terms, frozen + booked).share
+    return LateDrift(
+        lot_result_id=result.pk,
+        frozen_net=frozen,
+        live_net=live_net,
+        drift=drift,
+        booked=booked,
+        pending_basis=drift - booked,
+        pending_share=share_now - share_booked,
+    )
+
+
+@dataclass(frozen=True)
+class SettlementPreview:
+    """What settling a closed partnership lot would pay, step by step (mirrors `settle_partnership`)."""
+
+    capital_to_return: Decimal
+    lot_share: Decimal
+    uncovered_loss: Decimal
+    # Late adjustments still to book on this partner's lots (this one and the others) before settling.
+    pending_adjustments: Decimal
+    # The partner's profit-share balance after those adjustments, before this lot's share.
+    carried_in: Decimal
+    share_paid: Decimal
+    total: Decimal
+    carried_out: Decimal
+
+
+def partner_closed_results(organization: Organization, *, partner_id: int) -> list[LotResult]:
+    """The frozen results of every closed or settled partnership lot of one partner, oldest lot first."""
+    results = []
+    for partnership in partnerships.partnerships_of(organization, partner_id=partner_id):
+        if partnership.status == "open":
+            continue
+        result = closed_result_of(organization, batch_id=partnership.batch_id)
+        if result is not None and result.partnership_id == partnership.pk:
+            results.append(result)
+    return sorted(results, key=lambda result: result.batch_id)
+
+
+def settlement_preview(organization: Organization, result: LotResult) -> SettlementPreview:
+    partnership = partnerships.partnership_of(organization, result.partnership_id or 0)
+    pending = ZERO
+    for other in partner_closed_results(organization, partner_id=partnership.partner_id):
+        drift = late_drift(organization, other)
+        if drift is not None:
+            pending += drift.pending_share
+    carried_in = partnerships.profit_share_balance_of_partner(organization, partner_id=partnership.partner_id) + pending
+    lot_entry = result.partner_share if result.partner_share > 0 else -result.uncovered_loss
+    balance = carried_in + lot_entry
+    share_paid = balance if balance > 0 else ZERO
+    capital = partnerships.capital_balance(partnership)
+    return SettlementPreview(
+        capital_to_return=capital,
+        lot_share=result.partner_share,
+        uncovered_loss=result.uncovered_loss,
+        pending_adjustments=pending,
+        carried_in=carried_in,
+        share_paid=share_paid,
+        total=capital + share_paid,
+        carried_out=balance - share_paid,
+    )
