@@ -27,6 +27,11 @@ import { CustomerDetailPage } from "./customers/CustomerDetailPage";
 import { CustomersPage } from "./customers/CustomersPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
 import { SuppliersPage } from "./suppliers/SuppliersPage";
+import { CountPage } from "./counts/CountPage";
+import { CountsPage } from "./counts/CountsPage";
+import { LossDetailPage } from "./losses/LossDetailPage";
+import { LossesPage } from "./losses/LossesPage";
+import { LossFormPage } from "./losses/LossFormPage";
 import { TransferDetailPage } from "./transfers/TransferDetailPage";
 import { TransferEditPage, TransferFormPage } from "./transfers/TransferFormPage";
 import { TransfersPage } from "./transfers/TransfersPage";
@@ -156,6 +161,12 @@ function AppRoutes() {
         <Route path="/stock/transferts/nouveau" element={<TransferFormPage />} />
         <Route path="/stock/transferts/:transferId" element={<TransferDetailPage />} />
         <Route path="/stock/transferts/:transferId/modifier" element={<TransferEditPage />} />
+        {/* Stock sections (P1-T10) */}
+        <Route path="/stock/pertes" element={<LossesPage />} />
+        <Route path="/stock/pertes/nouvelle" element={<LossFormPage />} />
+        <Route path="/stock/pertes/:lossId" element={<LossDetailPage />} />
+        <Route path="/stock/inventaires" element={<CountsPage />} />
+        <Route path="/stock/inventaires/:countId" element={<CountPage />} />
         {nav.flatMap((group) =>
           group.items
             .filter((item) => item.to !== "/")

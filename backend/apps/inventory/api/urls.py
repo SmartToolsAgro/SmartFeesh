@@ -16,4 +16,16 @@ urlpatterns = [
     path("transfers/<int:transfer_id>", views.TransferDetailView.as_view(), name="transfer-detail"),
     path("transfers/<int:transfer_id>/validate", views.TransferValidateView.as_view(), name="transfer-validate"),
     path("transfers/<int:transfer_id>/cancel", views.TransferCancelView.as_view(), name="transfer-cancel"),
+    # P1-T10 · losses and stock counts
+    path("stock-settings", views.StockSettingsView.as_view(), name="stock-settings"),
+    path("losses", views.LossListView.as_view(), name="loss-list"),
+    path("losses/<int:loss_id>", views.LossDetailView.as_view(), name="loss-detail"),
+    path("losses/<int:loss_id>/approve", views.LossApproveView.as_view(), name="loss-approve"),
+    path("losses/<int:loss_id>/reject", views.LossRejectView.as_view(), name="loss-reject"),
+    path("losses/<int:loss_id>/photo", views.LossPhotoView.as_view(), name="loss-photo"),
+    path("counts", views.CountListView.as_view(), name="count-list"),
+    path("counts/<int:count_id>", views.CountDetailView.as_view(), name="count-detail"),
+    path("counts/<int:count_id>/lines", views.CountLinesView.as_view(), name="count-lines"),
+    path("counts/<int:count_id>/approve", views.CountApproveView.as_view(), name="count-approve"),
+    path("counts/<int:count_id>/cancel", views.CountCancelView.as_view(), name="count-cancel"),
 ]

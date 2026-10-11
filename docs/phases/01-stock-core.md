@@ -112,8 +112,11 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
       return shows loaded − returned = sold or lost, per product (`getTruckDay`).
 
 ### P1-T10 · Losses, adjustments and stock counts · M
-- [ ] Loss / spoilage with reason and optional photo; above a threshold needs owner approval.
-- [ ] `InventoryCount` per location: count sheet, differences, approval → count_correction movements.
+- [x] Loss / spoilage with reason and optional photo; above a threshold needs owner approval
+      (`StockLoss`, threshold in kg in `StockSettings`, D-045).
+- [x] `InventoryCount` per location: count sheet, differences, approval → count_correction movements
+      (`StockCount` + `StockCountLine`, D-045). A separate "adjustment" document was not needed: a count
+      corrects any difference, a loss records any shortage with its reason.
 
 ### P1-T11 · Stock screens · M
 - [ ] Admin stock page like the prototype: location cards, product cards with per-location kg, low-stock badge.

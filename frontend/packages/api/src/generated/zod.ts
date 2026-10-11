@@ -177,6 +177,313 @@ export const RenameCategoryResponse = zod.object({
 
 
 /**
+ * Stock counts, newest first, paginated, each with its sheet. Filter by status or location.
+ */
+
+
+
+export const ListCountsQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "location": zod.int().min(1).optional(),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "status": zod.enum(['counting', 'approved', 'cancelled']).optional().describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé')
+})
+
+export const listCountsResponseResultsItemStatusDefault = `counting`;
+export const listCountsResponseResultsItemLinesItemExpectedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCountsResponseResultsItemLinesItemCountedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCountsResponseResultsItemLinesItemDifferenceRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ListCountsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['counting', 'approved', 'cancelled']).describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé').default(listCountsResponseResultsItemStatusDefault),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "counted_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}),
+  "expected_quantity": zod.stringFormat('decimal', listCountsResponseResultsItemLinesItemExpectedQuantityRegExp),
+  "counted_quantity": zod.stringFormat('decimal', listCountsResponseResultsItemLinesItemCountedQuantityRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', listCountsResponseResultsItemLinesItemDifferenceRegExp).nullable()
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "approved_by": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable()
+}))
+})
+
+
+/**
+ * Open a count sheet for a location: one line per batch it holds, with the kg the ledger expects.
+ * One count at a time per location.
+ */
+
+export const startCountBodyNotesDefault = ``;
+
+export const StartCountBody = zod.object({
+  "location": zod.int().min(1),
+  "counted_on": zod.iso.date(),
+  "notes": zod.string().default(startCountBodyNotesDefault)
+})
+
+export const startCountResponseStatusDefault = `counting`;
+export const startCountResponseLinesItemExpectedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const startCountResponseLinesItemCountedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const startCountResponseLinesItemDifferenceRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const StartCountResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['counting', 'approved', 'cancelled']).describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé').default(startCountResponseStatusDefault),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "counted_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}),
+  "expected_quantity": zod.stringFormat('decimal', startCountResponseLinesItemExpectedQuantityRegExp),
+  "counted_quantity": zod.stringFormat('decimal', startCountResponseLinesItemCountedQuantityRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', startCountResponseLinesItemDifferenceRegExp).nullable()
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "approved_by": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+export const GetCountParams = zod.object({
+  "count_id": zod.int()
+})
+
+export const getCountResponseStatusDefault = `counting`;
+export const getCountResponseLinesItemExpectedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getCountResponseLinesItemCountedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getCountResponseLinesItemDifferenceRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const GetCountResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['counting', 'approved', 'cancelled']).describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé').default(getCountResponseStatusDefault),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "counted_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}),
+  "expected_quantity": zod.stringFormat('decimal', getCountResponseLinesItemExpectedQuantityRegExp),
+  "counted_quantity": zod.stringFormat('decimal', getCountResponseLinesItemCountedQuantityRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', getCountResponseLinesItemDifferenceRegExp).nullable()
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "approved_by": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Post a count correction for every difference and freeze the count. Every line must be counted.
+ */
+export const ApproveCountParams = zod.object({
+  "count_id": zod.int()
+})
+
+export const approveCountResponseStatusDefault = `counting`;
+export const approveCountResponseLinesItemExpectedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveCountResponseLinesItemCountedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveCountResponseLinesItemDifferenceRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveCountResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['counting', 'approved', 'cancelled']).describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé').default(approveCountResponseStatusDefault),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "counted_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}),
+  "expected_quantity": zod.stringFormat('decimal', approveCountResponseLinesItemExpectedQuantityRegExp),
+  "counted_quantity": zod.stringFormat('decimal', approveCountResponseLinesItemCountedQuantityRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', approveCountResponseLinesItemDifferenceRegExp).nullable()
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "approved_by": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Give up an open count: nothing moved.
+ */
+export const CancelCountParams = zod.object({
+  "count_id": zod.int()
+})
+
+export const cancelCountResponseStatusDefault = `counting`;
+export const cancelCountResponseLinesItemExpectedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelCountResponseLinesItemCountedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelCountResponseLinesItemDifferenceRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const CancelCountResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['counting', 'approved', 'cancelled']).describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé').default(cancelCountResponseStatusDefault),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "counted_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}),
+  "expected_quantity": zod.stringFormat('decimal', cancelCountResponseLinesItemExpectedQuantityRegExp),
+  "counted_quantity": zod.stringFormat('decimal', cancelCountResponseLinesItemCountedQuantityRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', cancelCountResponseLinesItemDifferenceRegExp).nullable()
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "approved_by": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Type the kg counted on lines of an open sheet (empty clears, 0 = nothing found). Errors come
+ * back on `lines.<index>.counted_quantity`.
+ */
+export const RecordCountedParams = zod.object({
+  "count_id": zod.int()
+})
+
+
+
+
+export const RecordCountedBody = zod.object({
+  "lines": zod.array(zod.object({
+  "line": zod.int().min(1),
+  "counted_quantity": zod.string().nullable()
+}))
+})
+
+export const recordCountedResponseStatusDefault = `counting`;
+export const recordCountedResponseLinesItemExpectedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const recordCountedResponseLinesItemCountedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const recordCountedResponseLinesItemDifferenceRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const RecordCountedResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['counting', 'approved', 'cancelled']).describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé').default(recordCountedResponseStatusDefault),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "counted_on": zod.iso.date(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}),
+  "expected_quantity": zod.stringFormat('decimal', recordCountedResponseLinesItemExpectedQuantityRegExp),
+  "counted_quantity": zod.stringFormat('decimal', recordCountedResponseLinesItemCountedQuantityRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', recordCountedResponseLinesItemDifferenceRegExp).nullable()
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "approved_by": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
  * Customers sorted by name, with their contacts. Archived ones only when asked (`status`); `kind`
  * keeps one type. Not paginated (D-047).
  */
@@ -740,6 +1047,302 @@ export const ListLocationStockResponseItem = zod.object({
   "quantity": zod.stringFormat('decimal', listLocationStockResponseQuantityRegExp)
 }).describe('How many kg of one product a location holds, all batches together.')
 export const ListLocationStockResponse = zod.array(ListLocationStockResponseItem)
+
+
+/**
+ * Losses, newest day first, paginated (`limit`, `offset`). Filter by status, location or `search`
+ * (number, product, location).
+ */
+
+export const listLossesQuerySearchDefault = ``;
+export const listLossesQuerySearchMax = 100;
+
+
+
+export const ListLossesQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "location": zod.int().min(1).optional(),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listLossesQuerySearchMax).default(listLossesQuerySearchDefault),
+  "status": zod.enum(['pending', 'approved', 'rejected']).optional().describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée')
+})
+
+export const listLossesResponseResultsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ListLossesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', listLossesResponseResultsItemQuantityRegExp),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "note": zod.string(),
+  "lost_on": zod.iso.date(),
+  "photo_url": zod.string().nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string()
+}))
+})
+
+
+/**
+ * Record kilos lost at a location. Up to the threshold, or recorded by the owner, they leave the
+ * stock at once (oldest batch first); above it the loss waits for the owner (`pending`).
+ */
+
+
+export const recordLossBodyNoteDefault = ``;
+
+export const RecordLossBody = zod.object({
+  "location": zod.int().min(1),
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "lost_on": zod.iso.date(),
+  "note": zod.string().default(recordLossBodyNoteDefault)
+})
+
+export const recordLossResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const recordLossResponseBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const recordLossResponseCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RecordLossResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', recordLossResponseQuantityRegExp),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "note": zod.string(),
+  "lost_on": zod.iso.date(),
+  "photo_url": zod.string().nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', recordLossResponseBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "cost_amount": zod.stringFormat('decimal', recordLossResponseCostAmountRegExp).nullable()
+})
+
+
+/**
+ * One loss; once it left the stock, the batches it came from and their cost.
+ */
+export const GetLossParams = zod.object({
+  "loss_id": zod.int()
+})
+
+export const getLossResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLossResponseBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLossResponseCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetLossResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', getLossResponseQuantityRegExp),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "note": zod.string(),
+  "lost_on": zod.iso.date(),
+  "photo_url": zod.string().nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', getLossResponseBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "cost_amount": zod.stringFormat('decimal', getLossResponseCostAmountRegExp).nullable()
+})
+
+
+/**
+ * The owner accepts a waiting loss: its kg leave the stock now, oldest batch first.
+ */
+export const ApproveLossParams = zod.object({
+  "loss_id": zod.int()
+})
+
+export const approveLossResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveLossResponseBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveLossResponseCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveLossResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', approveLossResponseQuantityRegExp),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "note": zod.string(),
+  "lost_on": zod.iso.date(),
+  "photo_url": zod.string().nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', approveLossResponseBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "cost_amount": zod.stringFormat('decimal', approveLossResponseCostAmountRegExp).nullable()
+})
+
+
+/**
+ * Join a photo as proof, once: it is turned upright, shrunk and stored as WebP without metadata.
+ */
+export const AddLossPhotoParams = zod.object({
+  "loss_id": zod.int()
+})
+
+export const AddLossPhotoBody = zod.object({
+  "photo": zod.instanceof(Blob)
+})
+
+export const addLossPhotoResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const addLossPhotoResponseBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const addLossPhotoResponseCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AddLossPhotoResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', addLossPhotoResponseQuantityRegExp),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "note": zod.string(),
+  "lost_on": zod.iso.date(),
+  "photo_url": zod.string().nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', addLossPhotoResponseBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "cost_amount": zod.stringFormat('decimal', addLossPhotoResponseCostAmountRegExp).nullable()
+})
+
+
+/**
+ * The owner refuses a waiting loss, saying why. Nothing moves.
+ */
+export const RejectLossParams = zod.object({
+  "loss_id": zod.int()
+})
+
+export const RejectLossBody = zod.object({
+  "reason": zod.string()
+})
+
+export const rejectLossResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const rejectLossResponseBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const rejectLossResponseCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RejectLossResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', rejectLossResponseQuantityRegExp),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "note": zod.string(),
+  "lost_on": zod.iso.date(),
+  "photo_url": zod.string().nullable(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "rejection_reason": zod.string(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', rejectLossResponseBatchesItemQuantityRegExp)
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "cost_amount": zod.stringFormat('decimal', rejectLossResponseCostAmountRegExp).nullable()
+})
 
 
 /**
@@ -1519,6 +2122,32 @@ export const ListLastPurchaseCostsResponseItem = zod.object({
   "batch_number": zod.string()
 }).describe('What was last paid a supplier for one product: the cost of their latest batch of it.')
 export const ListLastPurchaseCostsResponse = zod.array(ListLastPurchaseCostsResponseItem)
+
+
+/**
+ * The stock rules: above `loss_approval_threshold` kg a loss waits for the owner's approval.
+ */
+export const getStockSettingsResponseLossApprovalThresholdRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const GetStockSettingsResponse = zod.object({
+  "loss_approval_threshold": zod.stringFormat('decimal', getStockSettingsResponseLossApprovalThresholdRegExp)
+})
+
+
+/**
+ * Change the loss approval threshold (kg; 0: every loss waits). The owner only.
+ */
+export const UpdateStockSettingsBody = zod.object({
+  "loss_approval_threshold": zod.string()
+})
+
+export const updateStockSettingsResponseLossApprovalThresholdRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateStockSettingsResponse = zod.object({
+  "loss_approval_threshold": zod.stringFormat('decimal', updateStockSettingsResponseLossApprovalThresholdRegExp)
+})
 
 
 /**

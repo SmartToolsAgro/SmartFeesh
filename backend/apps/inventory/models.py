@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 from typing import Any
 
@@ -330,3 +331,168 @@ class TransferLine(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.transfer} · {self.product_id} · {self.quantity} kg"
+
+
+# ---- Losses and stock counts (P1-T10, D-045) ----
+
+
+class StockSettings(OrganizationScopedModel):
+    """Stock rules an owner sets for the organization. A missing row means the defaults."""
+
+    # A loss heavier than this waits for the owner's approval; the owner's own losses never wait.
+    loss_approval_threshold = QuantityField(default=Decimal("2.000"))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization"], name="one_stock_settings_per_organization"),
+            models.CheckConstraint(
+                condition=models.Q(loss_approval_threshold__gte=0), name="loss_threshold_not_negative"
+            ),
+        ]
+        verbose_name_plural = "stock settings"
+
+    def __str__(self) -> str:
+        return f"{self.organization} · {self.loss_approval_threshold} kg"
+
+
+class LossReason(models.TextChoices):
+    SPOILED = "spoiled", _("Avarié")
+    DAMAGED = "damaged", _("Abîmé ou écrasé")
+    EXPIRED = "expired", _("Date dépassée")
+    COLD_CHAIN = "cold_chain", _("Rupture du froid")
+    OTHER = "other", _("Autre")
+
+
+class LossStatus(models.TextChoices):
+    # Heavier than the threshold: waits for the owner. Nothing has left the stock yet.
+    PENDING = "pending", _("En attente")
+    # Posted: the kg left the stock, oldest batch first.
+    APPROVED = "approved", _("Validée")
+    # Refused by the owner: nothing moved.
+    REJECTED = "rejected", _("Refusée")
+
+
+def loss_photo_path(loss: "StockLoss", filename: str) -> str:
+    # A random name: the photo's address cannot be guessed from the loss number.
+    return f"losses/{loss.organization_id}/{uuid.uuid4().hex}.webp"
+
+
+class StockLoss(OrganizationScopedModel, TimeStampedModel):
+    """Kilos thrown away or spoiled at one location, with why, and a photo as proof when there is one.
+
+    Up to the organization's threshold it leaves the stock at once; above it, it waits for the owner
+    (`StockSettings`). Once decided it never changes; a photo may still be added once (evidence).
+    """
+
+    # "PE-0001", "PE-0002"... per organization.
+    number = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, choices=LossStatus.choices)
+    location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="losses")
+    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
+    quantity = QuantityField()
+    reason = models.CharField(max_length=20, choices=LossReason.choices)
+    note = models.TextField(blank=True)
+    lost_on = models.DateField()
+    photo = models.ImageField(upload_to=loss_photo_path, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    # The driver app reports losses from the road in Phase 3 and may retry (ARCHITECTURE §4.7).
+    client_uuid = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-lost_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="loss_number_unique_per_organization"),
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"],
+                condition=models.Q(client_uuid__isnull=False),
+                name="loss_client_uuid_unique_per_organization",
+            ),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="loss_quantity_positive"),
+        ]
+        verbose_name_plural = "stock losses"
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class CountStatus(models.TextChoices):
+    # The sheet is being filled in: nothing moved.
+    COUNTING = "counting", _("En cours")
+    # Approved: each difference was posted as a count correction.
+    APPROVED = "approved", _("Validé")
+    CANCELLED = "cancelled", _("Annulé")
+
+
+class StockCount(OrganizationScopedModel, TimeStampedModel):
+    """A stock count of one location: a sheet with what each batch should hold, what was counted, and,
+    once approved, a count correction for every difference. One count at a time per location."""
+
+    # "INV-0001", "INV-0002"... per organization.
+    number = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, choices=CountStatus.choices, default=CountStatus.COUNTING)
+    location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="counts")
+    counted_on = models.DateField()
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-counted_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="count_number_unique_per_organization"),
+            models.UniqueConstraint(
+                fields=["location"],
+                condition=models.Q(status="counting"),
+                name="one_open_count_per_location",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class StockCountLine(OrganizationScopedModel):
+    """One batch of the counted location: what the ledger said when the sheet was made, and what was counted."""
+
+    count = models.ForeignKey(StockCount, on_delete=models.CASCADE, related_name="lines")
+    batch = models.ForeignKey(Batch, on_delete=models.PROTECT, related_name="+")
+    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
+    # A snapshot: movements posted while counting do not change it (the difference is what gets posted).
+    expected_quantity = QuantityField()
+    # Empty until counted; zero when nothing of the batch was found.
+    counted_quantity = models.DecimalField[Decimal | None, Decimal | None](
+        max_digits=12, decimal_places=3, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["count", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["count", "batch"], name="one_count_line_per_batch"),
+            models.CheckConstraint(
+                condition=models.Q(counted_quantity__isnull=True) | models.Q(counted_quantity__gte=0),
+                name="count_line_counted_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.count} · {self.batch}"
+
+    @property
+    def difference(self) -> Decimal | None:
+        """Counted − expected: what the approval posts. Empty until counted."""
+        if self.counted_quantity is None:
+            return None
+        return self.counted_quantity - self.expected_quantity
