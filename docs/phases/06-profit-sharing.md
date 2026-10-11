@@ -1,72 +1,66 @@
-# Phase 6 · Partnerships, month-end closing & profit sharing → Milestone B
+# Phase 6 · Lot profit, partnerships & month-end closing → Milestone B
 
-**Goal:** the most important feature. Close a month, compute each partner supplier's share with a clear
-explanation, and pay it.
-**Done when:** the month used in P0-T02 gives exactly the same result in the app, and a real month is
-closed, approved and settled.
-**Depends on:** Phase 5 and P0-T02. **Questions:** Q1, Q2, Q3, Q9 and Q11 are answered. One detail is
-left to confirm: a loss share larger than the supplier's remaining capital (Q3, provisional rule in D-031).
+**Goal:** the most important feature. Know the net profit of every lot, share a partnership lot's profit
+or loss with the partner supplier with a clear explanation, and pay it.
+**Done when:** a real lot worked out by hand with the owner (P0-T02, now one lot instead of one month)
+gives exactly the same result in the app, and a real partnership lot is closed and settled.
+**Depends on:** Phase 5 (lot costs) and P0-T02.
 _Coarse plan: detail each task when the phase starts._
 
-**Rules from the answers (2026-10-09/10):**
-- Q1: each partner supplier gets a % of the net profit of **their own products**.
-- Q2: shared costs are split **by nature**: storage costs by kg held in stock; fuel, salaries and
-  administration by sales. These rules are verbal agreements, not written in the contracts.
-- Q3: capital is **repaid through the profit share** (payments repay capital first, then count as
-  profit). In a loss month the supplier **carries their % of the loss, deducted from their capital**.
-  Each partner has **two rates**: a profit % used in a profit month and a loss % used in a loss month;
-  they may differ (2026-10-10). Provisional (D-031): a loss share the capital cannot cover is carried
-  as an amount the partner owes and recovered from their next profit shares.
-- Q9: profit on **sales made** (accrual). The accountant checks the closing in the app with their own
-  login, then the owner approves.
-- Q11: a mix such as Symphonie Marine comes from a single supplier; it is shared like any other product.
+**Rules (client meeting 2026-10-11, `docs/spec/client-meeting-2026-10-11.md`, D-040, D-041):**
+- Profit is computed **per lot**: what the lot sold for − its purchase cost − its own costs (typed
+  costs, day labour, monthly employees at days × salary / 26, cold-room days, its share of the truck
+  costs of the days it was on board, share of rent and accountant). Spoilage is a cost of its lot.
+- A lot is closed when fully sold, its costs are in and its customers have paid (Q19); its result is
+  then frozen.
+- **Partnership lot:** the owner and one partner supplier each put money in. The partner gets their
+  profit % of the net profit; in a loss they carry their loss % of it, **deducted from their capital**
+  (Q3, D-031). At closing they get their capital back ± their share (Q22). A supplier can be a partner
+  in several lots at once.
+- Still provisional: D-031's carried-forward loss beyond the capital; Q21 and Q24 cost splits (D-041).
+- Q1 (own products only) fits: a partner shares only in the lots they are in.
 
 ---
 
-### P6-T01 · Agreements (versioned) · M
-- [ ] Agreement: supplier, type (ordinary purchase, consignment, commission, profit sharing, joint
-      investment), dates, products/batches covered, profit % (profit month), loss % (loss month), investment %, profit basis, eligible expense
-      categories, allocation method, settlement schedule.
-- [ ] New version on every change; batches link to the agreement version in force at receipt.
+### P6-T01 · Partnership lots · M
+- [ ] Partnership on a lot: partner supplier, amount put in by each side, profit %, loss % (D-031). Set
+      at receipt (P1-T07 form gets a "partnership" section) or on an open lot before its first sale.
+- [ ] The partner's capital is a ledger per partner and lot: contribution, deduction for a loss, return.
+      Separate from the trade payable and from the profit share.
+- [ ] One partner per lot; a supplier can be in several lots at once, each with its own capital and
+      rates (Q22).
 
-### P6-T02 · Investments and capital · M
-- [ ] Capital ledger per partner: contributions, recoveries, remaining capital. Separate from payables
-      and from profit shares.
-- [ ] A payment to a partner is allocated to capital recovery first, then to profit share (Q3). The
-      balances stay separate; only the allocation order links them.
-- [ ] Loss month: the partner's **loss %** of the loss is deducted from their capital (Q3). The part the
-      capital cannot cover (or the whole share, without capital) is a balance the partner owes, recovered
-      from their next profit shares (D-031, provisional).
+### P6-T02 · Lot result engine · L → split
+- [ ] Pure functions: lot data snapshot (sales lines, purchase cost, cost lines) → result with every step
+      shown.
+- [ ] Handles profit, zero, loss, lot sold in pieces at different prices, spoilage, a loss larger than
+      the partner's capital (D-031).
+- [ ] Live view on an open lot ("so far"), frozen result on a closed lot.
+- [ ] **Golden test:** reproduces the hand-made lot of P0-T02 to the millime.
 
-### P6-T03 · Month-end inventory valuation and COGS · M
+### P6-T03 · Lot closing and settlement · M
+- [ ] Close a lot: checks (stock 0 or written off, costs in, customer payments as agreed, see the
+      meeting's "still to confirm"), then lock + snapshot. Reopen only with reason and audit.
+- [ ] Settlement to the partner: capital back ± share; payments; three balances per partner (trade
+      payable, capital, profit share).
+- [ ] Electricity bill arriving after a lot closed: the difference goes to the partner's next
+      settlement (D-041), never by reopening the lot.
+
+### P6-T04 · Partner statement PDF · S
+- [ ] Per lot: purchase, sales (customer, kg, price), each cost line, net profit, %, share, payments,
+      balance. "Haka bayek": readable by the partner without explanation.
+
+### P6-T05 · Month-end inventory valuation and COGS · M
 - [ ] Stock value at month-end by batch; COGS of the month from sale-line snapshots.
 - [ ] Profit is never "purchases − sales": unsold stock stays an asset.
 
-### P6-T04 · Expense allocation engine · L → split
-- [ ] Strategy per agreement or per expense category: by revenue, by gross profit, by nature (fuel by truck
-      activity, electricity by storage use, spoilage to its batch…), manual by owner.
-- [ ] Storage costs: kg held per supplier per day over the month, computed from the stock ledger (Q2).
-- [ ] Every allocated dinar is traceable; total allocated equals total expense (no double counting).
+### P6-T06 · Monthly closing (accountant) · M
+- [ ] Monthly result for the accountant: sales, COGS, costs, net result; checks (unapproved expenses,
+      unexplained cash differences, open driver days).
+- [ ] Accountant review, then owner approval (Q9). Approve → lock + snapshot. It does not change
+      partner shares, which are settled per lot.
 
-### P6-T05 · Profit engine · L → split
-- [ ] Pure functions: inputs (snapshotted month data + agreement version) → result with every step shown.
-- [ ] Handles profit, zero, loss, unrecovered capital, expenses larger than gross profit.
-- [ ] Profit month uses the profit %, loss month the loss % (tests with two different rates); a loss
-      share larger than the remaining capital becomes an owed balance recovered from later profit shares.
-- [ ] **Golden test:** reproduces `docs/spec/profit-sharing-worked-example.md` to the millime.
-
-### P6-T06 · Monthly closing workflow · M
-- [ ] The 10 steps from the brief (§7) with checks: unapproved expenses, unexplained cash differences,
-      weight differences, open driver days.
-- [ ] Two steps: accountant review, then owner approval (Q9).
-- [ ] Approve → lock + snapshot. Reopen only with reason and audit; produces adjustment entries.
-
-### P6-T07 · Settlements and payments to partners · S
-- [ ] Payable shares; payments; three balances per partner (trade payable, capital, profit share).
-
-### P6-T08 · Supplier statement PDF · S
-- [ ] Monthly statement per partner: sales and costs included, allocations, %, share, payments, balance.
-
-### P6-T09 · Screens · M
-- [ ] Prototype's "Partage des bénéfices" and "Clôture mensuelle" pages with real data, plus drill-down
-      from any number to the records behind it.
+### P6-T07 · Screens · M
+- [ ] Lot page: sales, costs, result, partner share, with drill-down to every record behind a number.
+- [ ] Prototype's "Partage des bénéfices" page reworked as a list of partnership lots (open, closed,
+      settled); "Clôture mensuelle" for the accountant.

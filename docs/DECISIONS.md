@@ -401,3 +401,46 @@ dependencies and starts PostgreSQL with the `frutti` role.
 - Demo: receipt `BR-0001` from Mareyeur Port de Sfax today, dorade 62 kg ordered and invoiced, 60 kg
   accepted (the prototype's difference and the start of the Phase 1 acceptance test).
 
+**D-040 · Profit is computed and shared per lot, not per month (client meeting)** · accepted · 2026-10-11
+Source: `docs/spec/client-meeting-2026-10-11.md`. Partly supersedes the month-end parts of Q2, Q3 and Q9
+and the Phase 6 plan written from them.
+- The unit of profit is the **lot** (`Batch`). A lot collects its sales (FIFO already links each sale
+  line to its batches), its purchase cost, and its own costs: typed costs (fuel, transport, misc.), day
+  labour, monthly employees at days × salary / 26, cold-room days, and a share of rent and accountant.
+- A lot is **closed** when it is fully sold (or written off) and settled; its result is then frozen
+  (immutable, corrections are new records on a later settlement). Spoilage is a cost of its own lot.
+- **Partnership lot:** the owner and a partner supplier each put an amount into the lot. On closing,
+  the partner gets their % of the net profit, or carries their % of the loss, deducted from the capital
+  they put in (Q3). Confirmed: one partner per lot, two rates (D-031), settlement = capital put in ±
+  their share; a supplier can be a partner in several lots at once. Capital, trade payable and profit
+  share stay three balances.
+- A partnership lot never mixes with other lots: it is its own `Batch`, and FIFO already keeps batches
+  apart from the cold room to the truck to the sale.
+- The **average purchase price** per product (weighted by kg on hand) is shown for pricing only; it never
+  values a sale (Q7 stays FIFO per batch).
+- The month-end closing stays for the accountant's monthly result (P6), but no longer decides partner
+  shares.
+
+**D-041 · Lot cost rules: cold room, salaries, truck, general costs** · accepted · 2026-10-11
+- **Cold room:** monthly electricity bill → split over cold rooms by a weight per room (default equal,
+  set by the owner) → per day → per lot by kg held that day (from the ledger, as Q2 said). Until the
+  bill is typed, the previous month's daily rate is used; when it arrives, the difference on lots
+  already closed is booked on the next settlement, never by reopening them. Confirmed.
+- **Monthly employees:** days worked on the lot × monthly salary / 26 (client, 2026-10-11).
+- **Truck costs of the day** (transport, labour, misc. tagged to a truck and a date): split over the
+  lots on that truck's load that day, **by kg loaded** (provisional: the client said "split over the
+  lots", not how).
+- **Rent, accountant and other general costs:** "like a salary" (client): monthly amount / 26 per day;
+  each day's amount split over the lots in stock that day by kg held (provisional: our reading).
+- **Day labour:** one record (date, worker, amount paid, optional lot). Typed from the lot or from the
+  calendar, it is the same record; without a lot it is a general cost.
+
+**D-042 · A driver's truck is chosen per day, not fixed** · accepted · 2026-10-11
+Supersedes the "one active truck per driver" and "own truck" parts of D-033 (client meeting).
+- A driver may drive truck X today and truck Y tomorrow. The truck of the day is set by the office or by
+  the driver from the phone; one driver per truck per day (confirmed). It lives on the driver's day (`DriverDay`, P3-T01), not on the truck.
+- "Own truck" becomes "the truck of my open day": `may_use_location` / `may_use_truck` and `/me` read
+  the open day. Until Phase 3 exists, the `Truck.driver` field stays as the default proposal.
+- A truck load carries the price per kg of each product for that day; the evening return shows sold vs
+  returned (P1-T09, P3-T01, P3-T06).
+

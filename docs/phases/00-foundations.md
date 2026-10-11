@@ -18,15 +18,17 @@ each sees only their own area; CI is green; staging is reachable; P0-T01 and P0-
 
 **Acceptance:** Q1–Q4 answered or explicitly marked "client unsure"; materials stored in `docs/spec/client/`.
 
-### P0-T02 · Profit-sharing worked example on one real month · owner: human + agent · M
-- [ ] Take one real past month: sales, purchases, stock left, every expense, salaries. No numbers are
-      available yet (2026-10-10); invented numbers cannot replace them for this task.
-- [ ] For one partner supplier, compute their share by hand (spreadsheet) the way the client does today.
-- [ ] Compare with what was actually paid to them. Explain any difference.
+### P0-T02 · Profit-sharing worked example on one real lot · owner: human + agent · M
+Changed from "one real month" on 2026-10-11: profit is now computed per lot (D-040).
+- [ ] Take one real past partnership lot: purchase (owner's and partner's amounts), every sale (customer,
+      kg, price), spoilage, and every cost (day labour, employees' days, cold-room days, fuel, transport,
+      rent and accountant). No numbers are available yet; invented numbers cannot replace them.
+- [ ] Compute the lot's net profit and the partner's share by hand (spreadsheet) the way the client does.
+- [ ] Compare with what was actually paid to the partner. Explain any difference.
 - [ ] Write it up in `docs/spec/profit-sharing-worked-example.md` with every number and rule.
 
 **Acceptance:** the client agrees the write-up matches how they calculate. This file becomes the golden
-test for the profit engine (P6-T05).
+test for the lot result engine (P6-T02).
 
 ### P0-T03 · Monorepo scaffold · owner: agent · M
 Read: ARCHITECTURE §2–3.
