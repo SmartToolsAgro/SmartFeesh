@@ -31,7 +31,7 @@ test("the issued demo invoice shows VAT, the stamp and a print button", async ({
   await expect(page.getByRole("button", { name: "Enregistrer et recalculer" })).toHaveCount(0);
 });
 
-test("the owner changes the finance settings and the history keeps the old version", async ({ page }) => {
+test("the finance settings screen shows the rules in force", async ({ page }) => {
   await page.goto("/factures/parametres");
   await expect(page.getByRole("heading", { name: "Paramètres financiers", level: 1 })).toBeVisible();
   await expect(page.getByLabel("TVA par défaut (%)")).toHaveValue("19,00");
@@ -39,9 +39,7 @@ test("the owner changes the finance settings and the history keeps the old versi
   await expect(page.getByLabel("Retenue à la source (%)")).toHaveValue("0,00");
 });
 
-test("a sale is invoiced without VAT, then with an edited rate and amount, issued and credited", async ({
-  page,
-}) => {
+test("a sale is invoiced without VAT, then with an edited rate and amount, issued and credited", async ({ page }) => {
   test.slow();
   await page.goto("/ventes/nouvelle");
   await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
@@ -65,7 +63,8 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await page.getByRole("button", { name: "Enregistrer et recalculer" }).click();
   await expect(page.getByText("Facture enregistrée.")).toBeVisible();
   await expect(document).not.toContainText("TVA");
-  await expect(document).toContainText("Facture sans TVA.");
+  await expect(document).not.toContainText("HT");
+  await expect(page.getByText("Sans TVA", { exact: true })).toBeVisible();
 
   // With VAT again, a typed rate of 7 % and a typed amount, both flagged.
   await page.getByLabel("Facture avec TVA").check();

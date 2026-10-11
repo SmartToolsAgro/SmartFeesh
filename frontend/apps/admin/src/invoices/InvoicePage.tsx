@@ -622,9 +622,6 @@ export function InvoicePage() {
           </div>
           <LinesTable invoice={invoice} />
           <Totals invoice={invoice} />
-          {!invoice.apply_vat && (
-            <p className="mt-3 text-[0.85rem] text-ink-2">{t("admin.invoices.document.noVatMention")}</p>
-          )}
           {invoice.notes && (
             <p className="mt-4 border-t border-line pt-3 text-[0.9rem] whitespace-pre-line">{invoice.notes}</p>
           )}

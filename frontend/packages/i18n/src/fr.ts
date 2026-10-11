@@ -582,7 +582,6 @@ export const fr = {
         netToPay: "Net à payer",
         credited: "Avoirs",
         remaining: "Reste à payer",
-        noVatMention: "Facture sans TVA.",
       },
       detail: {
         print: "Imprimer",
