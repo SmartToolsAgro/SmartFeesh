@@ -326,20 +326,20 @@ def lot_result(snapshot: LotSnapshot) -> ComputedResult:
 # ---- To JSON, for the frozen copy and the API ----
 
 
-def _plain(value: Any) -> Any:
+def plain(value: Any) -> Any:
     if isinstance(value, Decimal):
         return str(value)
     if isinstance(value, dt.date):
         return value.isoformat()
     if isinstance(value, tuple | list):
-        return [_plain(item) for item in value]
+        return [plain(item) for item in value]
     if isinstance(value, dict):
-        return {key: _plain(item) for key, item in value.items()}
+        return {key: plain(item) for key, item in value.items()}
     return value
 
 
 def _fields(instance: Any, names: tuple[str, ...]) -> dict[str, Any]:
-    return {name: _plain(getattr(instance, name)) for name in names}
+    return {name: plain(getattr(instance, name)) for name in names}
 
 
 def to_json(result: ComputedResult) -> dict[str, Any]:
@@ -363,17 +363,17 @@ def to_json(result: ComputedResult) -> dict[str, Any]:
                 ),
             ),
         },
-        "quantity_sold": _plain(result.quantity_sold),
-        "quantity_written_off": _plain(result.quantity_written_off),
-        "revenue": _plain(result.revenue),
-        "cogs": _plain(result.cogs),
-        "spoilage": _plain(result.spoilage),
-        "costs_total": _plain(result.costs_total),
-        "net_result": _plain(result.net_result),
+        "quantity_sold": plain(result.quantity_sold),
+        "quantity_written_off": plain(result.quantity_written_off),
+        "revenue": plain(result.revenue),
+        "cogs": plain(result.cogs),
+        "spoilage": plain(result.spoilage),
+        "costs_total": plain(result.costs_total),
+        "net_result": plain(result.net_result),
         "outcome": result.outcome,
-        "owner_share": _plain(result.owner_share),
-        "purchase_cost": _plain(result.purchase_cost),
-        "stock_value": _plain(result.stock_value),
+        "owner_share": plain(result.owner_share),
+        "purchase_cost": plain(result.purchase_cost),
+        "stock_value": plain(result.stock_value),
         "sales": [
             _fields(
                 sale,
@@ -394,14 +394,14 @@ def to_json(result: ComputedResult) -> dict[str, Any]:
         "stock_rows": [
             {
                 **_fields(row, ("movement_id", "kind", "occurred_on", "quantity", "unit_cost", "reason")),
-                "value": _plain(row.value),
+                "value": plain(row.value),
             }
             for row in snapshot.stock_rows
         ],
         "cost_groups": [
             {
                 "kind": group.kind,
-                "total": _plain(group.total),
+                "total": plain(group.total),
                 "lines": [
                     _fields(
                         line,

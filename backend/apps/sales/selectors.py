@@ -455,3 +455,65 @@ def outstanding_by_sale(organization: Organization, sale_ids: list[int]) -> dict
 
     rows = receivables.sale_receivables(organization, sale_ids=sale_ids)
     return {row.sale_id: row.outstanding for row in rows if row.outstanding > 0}
+
+
+# ---- Month figures (P6-T05, D-073) ----
+
+
+@dataclass(frozen=True)
+class MonthSales:
+    """What a period sold, from the sale-line snapshots (never from purchases): revenue without VAT and the
+    cost of the goods sold (COGS), each net of what credit notes took back in the period."""
+
+    sales: int
+    quantity: Decimal
+    revenue: Decimal
+    cogs: Decimal
+    # What credit notes issued in the period took back (already taken off the figures above).
+    credited_revenue: Decimal
+    returned_cost: Decimal
+
+
+def month_sales(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> MonthSales:
+    """Confirmed sales made from `date_from` to `date_to` (local days, inclusive): revenue and COGS from their
+    batch rows, less the revenue and cost credit notes issued in the same days gave back. A sale cancelled
+    later no longer counts (its kilos came back)."""
+    start = timezone.make_aware(dt.datetime.combine(date_from, dt.time.min))
+    end = timezone.make_aware(dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min))
+    zero = Decimal("0.000")
+    sold = SaleLineBatch.objects.for_organization(organization).filter(
+        line__sale__status=SaleStatus.CONFIRMED, line__sale__sold_at__gte=start, line__sale__sold_at__lt=end
+    )
+    totals = sold.aggregate(quantity=Sum("quantity"), revenue=Sum("revenue_amount"), cost=Sum("cost_amount"))
+    count = (
+        Sale.objects.for_organization(organization)
+        .filter(status=SaleStatus.CONFIRMED, sold_at__gte=start, sold_at__lt=end)
+        .count()
+    )
+    credited = CreditNoteLineBatch.objects.for_organization(organization).filter(
+        line__credit_note__issued_on__gte=date_from,
+        line__credit_note__issued_on__lte=date_to,
+        sale_line_batch__line__sale__status=SaleStatus.CONFIRMED,
+    )
+    back = credited.aggregate(quantity=Sum("quantity"), revenue=Sum("revenue_amount"), cost=Sum("cost_amount"))
+    credited_revenue = back["revenue"] or zero
+    returned_cost = back["cost"] or zero
+    return MonthSales(
+        sales=count,
+        quantity=(totals["quantity"] or zero) - (back["quantity"] or zero),
+        revenue=(totals["revenue"] or zero) - credited_revenue,
+        cogs=(totals["cost"] or zero) - returned_cost,
+        credited_revenue=credited_revenue,
+        returned_cost=returned_cost,
+    )
+
+
+def draft_sales_count(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> int:
+    """Sales still drafts, dated in the period: they have not left the stock nor counted anywhere."""
+    start = timezone.make_aware(dt.datetime.combine(date_from, dt.time.min))
+    end = timezone.make_aware(dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min))
+    return (
+        Sale.objects.for_organization(organization)
+        .filter(status=SaleStatus.DRAFT, sold_at__gte=start, sold_at__lt=end)
+        .count()
+    )

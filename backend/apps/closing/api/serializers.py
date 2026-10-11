@@ -5,7 +5,14 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.closing.models import LotOutcome, LotResultStatus, LotState, SettlementState
+from apps.closing.models import (
+    LotOutcome,
+    LotResultStatus,
+    LotState,
+    MonthlyClosingStatus,
+    MonthState,
+    SettlementState,
+)
 from apps.partnerships.selectors import ProfitShareKind, SettlementPaymentMethod
 
 
@@ -275,3 +282,120 @@ class SettleLotSerializer(serializers.Serializer[Any]):
     # The ways the partner is paid; they must add up to the amount to settle (none when it is 0).
     payments = SettlementPaymentWriteSerializer(many=True, required=False)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+# ---- The monthly closing (P6-T05, P6-T06, D-073, D-074) ----
+
+
+class MonthSalesSerializer(serializers.Serializer[Any]):
+    count = serializers.IntegerField(read_only=True)
+    quantity = _quantity()
+    # Without VAT, net of the credit notes of the month.
+    revenue = _money()
+
+
+class MonthSpoilageSerializer(serializers.Serializer[Any]):
+    quantity = _quantity()
+    value = _money()
+
+
+class MonthCategorySerializer(serializers.Serializer[Any]):
+    category_id = serializers.IntegerField(read_only=True)
+    code = serializers.CharField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    count = serializers.IntegerField(read_only=True)
+    total = _money()
+
+
+class MonthExpensesSerializer(serializers.Serializer[Any]):
+    categories = MonthCategorySerializer(many=True, read_only=True)
+    total = _money()
+
+
+class MonthLedgerSerializer(serializers.Serializer[Any]):
+    # The ledger's movement kind: "receipt", "sale", "loss"...
+    kind = serializers.CharField(read_only=True)
+    # Signed: + more stock, - less.
+    quantity = _quantity()
+    value = _money()
+
+
+class MonthStockRowSerializer(serializers.Serializer[Any]):
+    batch_id = serializers.IntegerField(read_only=True)
+    batch_number = serializers.CharField(read_only=True)
+    product_name = serializers.CharField(read_only=True)
+    supplier_name = serializers.CharField(read_only=True)
+    received_on = serializers.DateField(read_only=True)
+    quantity = _quantity()
+    unit_cost = _money()
+    value = _money()
+
+
+class MonthStockSerializer(serializers.Serializer[Any]):
+    opening_value = _money()
+    purchases = _money()
+    closing_value = _money()
+    # Rounding only (millimes): the lot-by-lot valuation against the ledger's roll-forward.
+    rounding_difference = _money()
+    ledger = MonthLedgerSerializer(many=True, read_only=True)
+    rows = MonthStockRowSerializer(many=True, read_only=True)
+
+
+class MonthReportSerializer(serializers.Serializer[Any]):
+    month = serializers.DateField(read_only=True)
+    sales = MonthSalesSerializer(read_only=True)
+    # Cost of the goods sold, from the sale-line snapshots (never purchases).
+    cogs = _money()
+    gross_margin = _money()
+    spoilage = MonthSpoilageSerializer(read_only=True)
+    expenses = MonthExpensesSerializer(read_only=True)
+    personnel = _money()
+    operating_costs = _money()
+    net_result = _money()
+    stock = MonthStockSerializer(read_only=True)
+    checks = ClosingCheckSerializer(many=True, read_only=True)
+
+
+class MonthClosingSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    status = serializers.ChoiceField(choices=MonthlyClosingStatus.choices, read_only=True)
+    net_result = _money()
+    reviewed_at = serializers.DateTimeField(read_only=True)
+    reviewed_by_name = serializers.CharField(read_only=True)
+    review_notes = serializers.CharField(read_only=True)
+    approved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    approved_by_name = serializers.CharField(read_only=True)
+    reopened_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    reopened_by_name = serializers.CharField(read_only=True)
+    reopen_reason = serializers.CharField(read_only=True)
+
+
+class MonthViewSerializer(serializers.Serializer[Any]):
+    month = serializers.DateField(read_only=True)
+    state = serializers.ChoiceField(choices=MonthState.choices, read_only=True)
+    # False for the current month: it cannot be closed before its last day.
+    is_over = serializers.BooleanField(read_only=True)
+    # Live figures while open or reviewed; the frozen ones once approved.
+    report = MonthReportSerializer(read_only=True)
+    can_review = serializers.BooleanField(read_only=True)
+    can_approve = serializers.BooleanField(read_only=True)
+    closing = MonthClosingSerializer(read_only=True, allow_null=True)
+    # Approved month: the net result if computed now. A difference is an expense or a sale recorded after.
+    live_net_result = _money(allow_null=True)
+    history = MonthClosingSerializer(many=True, read_only=True)
+
+
+class MonthRowSerializer(serializers.Serializer[Any]):
+    month = serializers.DateField(read_only=True)
+    state = serializers.ChoiceField(choices=MonthState.choices, read_only=True)
+    is_over = serializers.BooleanField(read_only=True)
+    # The reviewed or approved net result; empty while the month is open.
+    net_result = _money(allow_null=True)
+
+
+class ReviewMonthSerializer(serializers.Serializer[Any]):
+    notes = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
+
+
+class ReopenMonthSerializer(serializers.Serializer[Any]):
+    reason = serializers.CharField(max_length=300, allow_blank=True)
