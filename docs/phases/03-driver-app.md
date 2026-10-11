@@ -11,10 +11,10 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 ---
 
 ### P3-T01 · Start of day · S
-- [ ] Driver picks the truck of the day if the office has not (D-042, P1-T12); any truck, not a fixed one.
+- [x] Driver picks the truck of the day if the office has not (D-042, P1-T12); any truck, not a fixed one.
 - [x] (shown read-only, D-090) Driver confirms the loaded stock with its price per kg (from the P1-T09 transfer) and the
       starting cash float.
-- [ ] Opens a `DriverDay` (truck, driver, date, status).
+- [x] Opens a `DriverDay` (truck, driver, date, status).
 
 ### P3-T02 · My stock · S
 - [ ] Truck stock list with product pictures, kg, today's price; read-only.

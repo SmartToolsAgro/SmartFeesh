@@ -2,6 +2,7 @@
 
 import re
 from datetime import date as date_type
+from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ValidationError
@@ -14,7 +15,7 @@ from apps.core.models import Membership, Organization, Role, User
 from apps.inventory import services as inventory
 from apps.inventory.services import LocationKind
 
-from .models import Truck, TruckAssignment
+from .models import DriverDay, Truck, TruckAssignment
 
 
 class _Unchanged:
@@ -234,3 +235,26 @@ def unassign_truck(*, assignment: TruckAssignment, actor: User | None) -> None:
         pk=assignment.pk
     )
     _delete_assignment(assignment=assignment, actor=actor)
+
+
+@transaction.atomic
+def open_driver_day(
+    *, organization: Organization, actor: User, truck: Truck, opening_cash: Decimal, date: date_type
+) -> DriverDay:
+    """Open the driver's day on their truck with the cash they start with. Asking again changes nothing."""
+    if opening_cash < 0:
+        raise ValidationError({"opening_cash": _("Le fonds de caisse ne peut pas être négatif.")})
+    existing = DriverDay.objects.for_organization(organization).filter(driver=actor, date=date).first()
+    if existing is not None:
+        return existing
+    day = DriverDay.objects.create(
+        organization=organization, truck=truck, driver=actor, date=date, opening_cash=opening_cash
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="driver_day.opened",
+        target=day,
+        after={"truck": truck.location.name, "date": str(date), "opening_cash": str(opening_cash)},
+    )
+    return day

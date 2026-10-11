@@ -5566,6 +5566,53 @@ export const ListMembersResponse = zod.array(ListMembersResponseItem)
 
 
 /**
+ * The day the driver opened today. 404 when they have not started yet.
+ */
+export const getMyDayResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMyDayResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', getMyDayResponseOpeningCashRegExp)
+})
+
+
+/**
+ * Start the day on the driver's truck of the day, with the cash they start with.
+ */
+export const openMyDayBodyOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const OpenMyDayBody = zod.object({
+  "opening_cash": zod.stringFormat('decimal', openMyDayBodyOpeningCashRegExp)
+})
+
+export const openMyDayResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const OpenMyDayResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', openMyDayResponseOpeningCashRegExp)
+})
+
+
+/**
+ * The active trucks a driver may take today, each marked if another driver already has it.
+ */
+export const ListMyTruckChoicesResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "taken": zod.boolean()
+})
+export const ListMyTruckChoicesResponse = zod.array(ListMyTruckChoicesResponseItem)
+
+
+/**
  * The signed-in driver's truck today: what was loaded, with the price per kg. 404 without a truck.
  */
 export const getMyTruckDayResponseLinesItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');

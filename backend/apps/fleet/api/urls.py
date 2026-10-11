@@ -9,6 +9,8 @@ urlpatterns = [
         views.TruckAssignmentDetailView.as_view(),
         name="truck-assignment-detail",
     ),
+    path("my-truck-choices", views.MyTruckChoicesView.as_view(), name="my-truck-choices"),
+    path("my-day", views.MyDayView.as_view(), name="my-day"),
     path("trucks", views.TruckListView.as_view(), name="truck-list"),
     path("trucks/<int:truck_id>", views.TruckDetailView.as_view(), name="truck-detail"),
     path("trucks/<int:truck_id>/archive", views.TruckArchiveView.as_view(), name="truck-archive"),

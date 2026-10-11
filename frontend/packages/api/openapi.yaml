@@ -2990,6 +2990,67 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/my-day:
+    get:
+      operationId: getMyDay
+      description: The day the driver opened today. 404 when they have not started
+        yet.
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
+    post:
+      operationId: openMyDay
+      description: Start the day on the driver's truck of the day, with the cash they
+        start with.
+      tags:
+      - my-day
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverDayOpen'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DriverDayOpen'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DriverDayOpen'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
+  /api/v1/my-truck-choices:
+    get:
+      operationId: listMyTruckChoices
+      description: The active trucks a driver may take today, each marked if another
+        driver already has it.
+      tags:
+      - my-truck-choices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TruckChoice'
+          description: ''
   /api/v1/my-truck-day:
     get:
       operationId: getMyTruckDay
@@ -7861,6 +7922,38 @@ components:
       - product
       - receipt
       - unit_cost
+    DriverDay:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - date
+      - id
+      - opening_cash
+      - truck_name
+    DriverDayOpen:
+      type: object
+      properties:
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+      required:
+      - opening_cash
     DriverRef:
       type: object
       properties:
@@ -15578,6 +15671,26 @@ components:
           format: date
       required:
       - truck
+    TruckChoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        plate:
+          type: string
+          readOnly: true
+        taken:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - name
+      - plate
+      - taken
     TruckDay:
       type: object
       properties:

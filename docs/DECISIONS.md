@@ -1162,5 +1162,7 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 **D-090 · Driver app kept deliberately simple; first screen "Ma journée" (P3-T01, part)** · accepted · 2026-10-11
 The drivers are not used to phones: big text, one job per screen, almost no typing, prices filled in for them.
 `GET /api/v1/my-truck-day` (drivers only) returns the day's load of the driver's own truck (D-046) with the
-price per kg; the first screen shows the truck and that load. The driver does not pick a truck yet (the office
-assigns it, "Camions du jour"); no `DriverDay` model or cash float yet. Both stay in P3-T01.
+price per kg; the first screen shows the truck and that load. A driver
+with no truck sees the active trucks as big buttons (`GET /my-truck-choices`, those taken by another driver are
+greyed) and picks one with the existing `POST /truck-assignments`. `fleet.DriverDay` (truck, driver, date, opening
+cash; one per driver and day) is opened by `POST /my-day` and read by `GET /my-day`; asking twice keeps the first.
