@@ -27,6 +27,8 @@ def test_the_seed_records_expenses_labourers_and_days_worked(settings):
         ("DP-0007", "day_labour", "approved", "35.000"),
         ("DP-0008", "day_labour", "draft", "45.000"),
         ("DP-0009", "day_labour", "draft", "40.000"),
+        # P6-T01: transport on the demo partnership lot (apps/demo/partnerships.py)
+        ("DP-0010", "transport", "approved", "18.000"),
     ]
     assert list(expenses.labourers_of(organization).values_list("name", flat=True)) == [
         "Ali Ben Salah",
