@@ -16,4 +16,12 @@ urlpatterns = [
     path("sales/<int:sale_id>/confirm", views.SaleConfirmView.as_view(), name="sale-confirm"),
     path("sales/<int:sale_id>/cancel", views.SaleCancelView.as_view(), name="sale-cancel"),
     path("batches/<int:batch_id>/sales", views.BatchSalesView.as_view(), name="batch-sales"),
+    # P2-T05 · finance settings, invoices, credit notes
+    path("finance-settings", views.FinanceSettingsView.as_view(), name="finance-settings"),
+    path("invoices", views.InvoiceListView.as_view(), name="invoice-list"),
+    path("invoices/<int:invoice_id>", views.InvoiceDetailView.as_view(), name="invoice-detail"),
+    path("invoices/<int:invoice_id>/issue", views.InvoiceIssueView.as_view(), name="invoice-issue"),
+    path("invoices/<int:invoice_id>/credit-notes", views.InvoiceCreditNoteView.as_view(), name="invoice-credit-notes"),
+    path("credit-notes", views.CreditNoteListView.as_view(), name="credit-note-list"),
+    path("credit-notes/<int:credit_note_id>", views.CreditNoteDetailView.as_view(), name="credit-note-detail"),
 ]

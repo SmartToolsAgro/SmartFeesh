@@ -5,12 +5,42 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 
-from django.db.models import Case, CharField, Count, F, Prefetch, Q, QuerySet, Sum, Value, When
+from django.db.models import (
+    Case,
+    CharField,
+    Count,
+    DecimalField,
+    F,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    Subquery,
+    Sum,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.core.models import Organization
 
-from .models import Quote, QuoteLine, QuoteStatus, Sale, SaleLine, SaleLineBatch, SaleStatus
+from .models import (
+    CreditNote,
+    CreditNoteLine,
+    FinanceSettings,
+    Invoice,
+    InvoiceLine,
+    InvoiceStatus,
+    InvoiceVatLine,
+    Quote,
+    QuoteLine,
+    QuoteStatus,
+    Sale,
+    SaleLine,
+    SaleLineBatch,
+    SaleStatus,
+)
 
 # ---- Quotes (P2-T03, D-050) ----
 
@@ -113,6 +143,13 @@ def sales_of(
         Sale.objects.for_organization(organization)
         .select_related("customer", "location", "quote", "created_by", "confirmed_by", "cancelled_by")
         .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(
+            Prefetch(
+                "invoices",
+                queryset=Invoice.objects.exclude(status=InvoiceStatus.CANCELLED).order_by("-id"),
+                to_attr="live_invoices",
+            )
+        )
         .annotate(line_count=Count("lines"))
         .order_by("-sold_at", "-id")
     )
@@ -182,3 +219,154 @@ def batch_sales_totals(
         )
         for row in totals.order_by("batch_id")
     }
+
+
+# ---- Finance settings (P2-T05, D-056) ----
+
+
+def finance_settings_history(organization: Organization) -> QuerySet[FinanceSettings]:
+    """Every version of the finance settings, the latest start first (planned ones included)."""
+    return (
+        FinanceSettings.objects.for_organization(organization)
+        .select_related("created_by")
+        .order_by("-valid_from", "-id")
+    )
+
+
+def finance_settings_on(organization: Organization, day: dt.date | None = None) -> FinanceSettings | None:
+    """The version in force on `day` (today by default): the latest one that started on or before it. None
+    only before the first version (every organization gets one when created, D-056)."""
+    day = day or timezone.localdate()
+    return finance_settings_history(organization).filter(valid_from__lte=day).first()
+
+
+# ---- Invoices and credit notes (P2-T05, D-057) ----
+
+
+def live_invoice_of(sale: Sale) -> Invoice | None:
+    """The sale's invoice, draft or issued, unless it was cancelled by a credit note."""
+    invoices: list[Invoice] | None = getattr(sale, "live_invoices", None)  # prefetched by `sales_of`
+    if invoices is None:
+        invoices = list(sale.invoices.exclude(status=InvoiceStatus.CANCELLED).order_by("-id"))
+    return invoices[0] if invoices else None
+
+
+def invoices_of(
+    organization: Organization,
+    *,
+    status: str | None = None,
+    customer_id: int | None = None,
+    sale_id: int | None = None,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    search: str = "",
+) -> QuerySet[Invoice]:
+    """Invoices, drafts first then the newest issued, each with its sale, customer, lines, VAT per rate and
+    credit notes, and `credited_total` (what its credit notes gave back, net). Days are the issue dates, both
+    included (a draft has none and is left out by a day filter); `search` matches the number, the sale's
+    number and the customer's name or reference."""
+    credit_lines = CreditNoteLine.objects.select_related("invoice_line").order_by("id")
+    credit_notes = (
+        CreditNote.objects.select_related("created_by")
+        .prefetch_related(Prefetch("lines", queryset=credit_lines))
+        .order_by("id")
+    )
+    invoices = (
+        Invoice.objects.for_organization(organization)
+        .select_related("organization", "sale", "customer", "settings_version", "created_by", "issued_by")
+        .prefetch_related(Prefetch("lines", queryset=InvoiceLine.objects.select_related("product").order_by("id")))
+        .prefetch_related(Prefetch("vat_lines", queryset=InvoiceVatLine.objects.order_by("-rate")))
+        .prefetch_related(Prefetch("credit_notes", queryset=credit_notes))
+        .annotate(
+            line_count=Count("lines", distinct=True),
+            credited_total=Coalesce(
+                Subquery(
+                    CreditNote.objects.filter(invoice=OuterRef("pk"))
+                    .values("invoice")
+                    .annotate(total=Sum("net_amount"))
+                    .values("total")
+                ),
+                Value(Decimal("0.000")),
+                output_field=DecimalField(max_digits=14, decimal_places=3),
+            ),
+        )
+        .order_by(F("issued_on").desc(nulls_first=True), "-id")
+    )
+    if status:
+        invoices = invoices.filter(status=status)
+    if customer_id is not None:
+        invoices = invoices.filter(customer_id=customer_id)
+    if sale_id is not None:
+        invoices = invoices.filter(sale_id=sale_id)
+    if date_from is not None:
+        invoices = invoices.filter(issued_on__gte=date_from)
+    if date_to is not None:
+        invoices = invoices.filter(issued_on__lte=date_to)
+    if search := search.strip():
+        invoices = invoices.filter(
+            Q(number__icontains=search)
+            | Q(sale__number__icontains=search)
+            | Q(customer__name__icontains=search)
+            | Q(customer__reference__icontains=search)
+        )
+    return invoices
+
+
+def invoice_of(organization: Organization, invoice_id: int) -> Invoice:
+    """One invoice with everything it prints. Raises Invoice.DoesNotExist outside the organization."""
+    return invoices_of(organization).get(pk=invoice_id)
+
+
+@dataclass(frozen=True)
+class CreditedLine:
+    """What the credit notes already gave back on one invoice line."""
+
+    quantity: Decimal
+    amount_excl_tax: Decimal
+    vat_amount: Decimal
+
+
+def credited_by_line(invoice: Invoice) -> dict[int, CreditedLine]:
+    """Kilos and amounts already given back per invoice line id, over the invoice's credit notes."""
+    rows = (
+        CreditNoteLine.objects.filter(credit_note__invoice=invoice)
+        .values("invoice_line_id")
+        .annotate(quantity=Sum("quantity"), excl=Sum("amount_excl_tax"), vat=Sum("vat_amount"))
+        .order_by("invoice_line_id")
+    )
+    return {
+        row["invoice_line_id"]: CreditedLine(
+            quantity=row["quantity"], amount_excl_tax=row["excl"], vat_amount=row["vat"]
+        )
+        for row in rows
+    }
+
+
+def credit_notes_of(
+    organization: Organization,
+    *,
+    customer_id: int | None = None,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    search: str = "",
+) -> QuerySet[CreditNote]:
+    """Credit notes, newest first, each with its invoice (and customer) and lines."""
+    notes = (
+        CreditNote.objects.for_organization(organization)
+        .select_related("invoice", "invoice__customer", "invoice__sale", "created_by")
+        .prefetch_related(Prefetch("lines", queryset=CreditNoteLine.objects.select_related("invoice_line")))
+        .order_by("-issued_on", "-id")
+    )
+    if customer_id is not None:
+        notes = notes.filter(invoice__customer_id=customer_id)
+    if date_from is not None:
+        notes = notes.filter(issued_on__gte=date_from)
+    if date_to is not None:
+        notes = notes.filter(issued_on__lte=date_to)
+    if search := search.strip():
+        notes = notes.filter(
+            Q(number__icontains=search)
+            | Q(invoice__number__icontains=search)
+            | Q(invoice__customer__name__icontains=search)
+        )
+    return notes

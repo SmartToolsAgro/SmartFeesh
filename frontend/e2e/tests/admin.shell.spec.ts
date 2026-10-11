@@ -22,6 +22,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Tableau de bord",
     "Devis",
     "Ventes & factures",
+    "Factures",
     "Clients",
     "Prix du jour",
     "Stock frigo & camions",

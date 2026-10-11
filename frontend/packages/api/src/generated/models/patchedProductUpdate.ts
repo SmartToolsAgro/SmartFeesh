@@ -27,4 +27,9 @@ export interface PatchedProductUpdate {
      */
   storage_temp_max?: string | null;
   illustration?: IllustrationEnum;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  vat_rate?: string | null;
 }

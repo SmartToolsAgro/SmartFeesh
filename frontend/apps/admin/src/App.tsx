@@ -22,6 +22,10 @@ import { DayLabourersPage } from "./expenses/DayLabourersPage";
 import { ExpenseDetailPage } from "./expenses/ExpenseDetailPage";
 import { ExpenseEditPage, ExpenseFormPage } from "./expenses/ExpenseFormPage";
 import { ExpensesPage } from "./expenses/ExpensesPage";
+import { FinanceSettingsPage } from "./invoices/FinanceSettingsPage";
+import { InvoicePage } from "./invoices/InvoicePage";
+import { InvoicesPage } from "./invoices/InvoicesPage";
+
 import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
@@ -70,6 +74,7 @@ function useNav(): AdminNavGroup[] {
       items: [
         { to: "/devis", label: t("admin.nav.quotes"), icon: "quote" },
         { to: "/ventes", label: t("admin.nav.sales"), icon: "receipt" },
+        { to: "/factures", label: t("admin.nav.invoices"), icon: "receipt" },
         { to: "/clients", label: t("admin.nav.customers"), icon: "users" },
         { to: "/prix", label: t("admin.nav.prices"), icon: "badge" },
       ],
@@ -105,6 +110,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/prix": <PriceBoardPage />,
   "/devis": <QuotesPage />,
   "/ventes": <SalesPage />,
+  "/factures": <InvoicesPage />,
   "/salaires": <PayrollPage />,
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,
@@ -187,6 +193,9 @@ function AppRoutes() {
         <Route path="/ventes/comptoir" element={<CounterSalePage />} />
         <Route path="/ventes/:saleId" element={<SaleDetailPage />} />
         <Route path="/ventes/:saleId/modifier" element={<SaleEditPage />} />
+        {/* Invoices and finance settings (P2-T05) */}
+        <Route path="/factures/parametres" element={<FinanceSettingsPage />} />
+        <Route path="/factures/:invoiceId" element={<InvoicePage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         <Route path="/achats/factures" element={<SupplierInvoicesPage />} />

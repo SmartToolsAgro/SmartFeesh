@@ -49,18 +49,21 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
       a lot's sales on the batch page, Playwright tests.
 
 ### P2-T05 · Invoices · M
-- [ ] Gap-free numbering per organization per year.
-- [ ] Finance settings per organization, with a valid-from date (Q5, D-018): one VAT rate for all
+- [x] Gap-free numbering per organization per year.
+- [x] Finance settings per organization, with a valid-from date (Q5, D-018): one VAT rate for all
       products (19 %), fiscal stamp (1.000 DT per invoice), whether sale prices include VAT, withholding
       rate. Editable by the owner from a finance settings screen; never hard-coded.
-- [ ] Optional VAT rate per product (including exempt) that overrides the company default: Tunisian
+- [x] Optional VAT rate per product (including exempt) that overrides the company default: Tunisian
       fishing products appear as VAT-exempt in the VAT code, to check with the accountant
       (`docs/spec/sample/README.md`).
-- [ ] Withholding tax (retenue à la source): optional per invoice, chosen before it is issued, at the
+- [x] Withholding tax (retenue à la source): optional per invoice, chosen before it is issued, at the
       rate from the finance settings. When the rate is 0 % nothing about it appears on the invoice.
       It reduces the amount to collect and is tracked in P2-T06.
-- [ ] Issued invoice is immutable; corrections via `CreditNote`.
-- [ ] Leave a clear hook for TTN e-invoicing (Phase 8 backlog, D-016). Nothing is sent to TTN for now.
+- [x] Issued invoice is immutable; corrections via `CreditNote`.
+- [x] Leave a clear hook for TTN e-invoicing (Phase 8 backlog, D-016). Nothing is sent to TTN for now.
+- [x] VAT is optional on each invoice ("sans TVA") and its rate and amount are editable on the draft, with the
+      stamp and withholding rate prefilled from the settings; typed values are flagged and audited; all frozen
+      at issue (D-056). Credit note dialog, print-friendly invoice page, finance settings screen (D-057).
 
 ### P2-T06 · Customer payments and balances · M
 - [ ] `CustomerPayment` (cash, cheque, transfer, card) allocated to invoices; unallocated credit kept.

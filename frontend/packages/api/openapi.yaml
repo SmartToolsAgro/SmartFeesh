@@ -470,6 +470,78 @@ paths:
               schema:
                 $ref: '#/components/schemas/Count'
           description: ''
+  /api/v1/credit-notes:
+    get:
+      operationId: listCreditNotes
+      description: |-
+        Credit notes, newest first, paginated, with their invoice and lines. Filter by customer, days or
+        `search` (number, invoice number, customer).
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      tags:
+      - credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCreditNoteList'
+          description: ''
+  /api/v1/credit-notes/{credit_note_id}:
+    get:
+      operationId: getCreditNote
+      description: One credit note with its invoice and lines.
+      parameters:
+      - in: path
+        name: credit_note_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditNote'
+          description: ''
   /api/v1/customers:
     get:
       operationId: listCustomers
@@ -1562,6 +1634,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExpenseTotals'
           description: ''
+  /api/v1/finance-settings:
+    get:
+      operationId: getFinanceSettings
+      description: |-
+        The finance settings in force today (VAT rate, fiscal stamp, prices with or without VAT, withholding
+        rate, the seller printed on invoices) and every version with its start day. Office roles read.
+      tags:
+      - finance-settings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceSettingsOverview'
+          description: ''
+    post:
+      operationId: saveFinanceSettings
+      description: |-
+        A new version of the finance settings from `valid_from` (today when empty; the past is refused). The
+        owner only: a manager gets 403. Saving again for the same day replaces that day's version.
+      tags:
+      - finance-settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinanceSettingsWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FinanceSettingsWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FinanceSettingsWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceSettingsOverview'
+          description: ''
   /api/v1/general-costs:
     get:
       operationId: listGeneralCosts
@@ -1648,6 +1765,238 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/invoices:
+    get:
+      operationId: listInvoices
+      description: |-
+        Invoices, drafts first then the newest issued, paginated (`limit`, `offset`). Filter by status,
+        customer, sale, issue days (inclusive) or `search` (number, sale number, customer). Office roles read.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: sale
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - issued
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `issued` - Émise
+          * `cancelled` - Annulée par avoir
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInvoiceList'
+          description: ''
+    post:
+      operationId: createInvoice
+      description: |-
+        Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
+        once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
+        `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`.
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InvoiceCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InvoiceCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
+  /api/v1/invoices/{invoice_id}:
+    get:
+      operationId: getInvoice
+      description: |-
+        One invoice as printed: seller, customer, lines, VAT per rate, stamp, totals, withholding and its
+        credit notes. A draft shows the values the settings propose beside the typed ones.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
+    put:
+      operationId: updateInvoice
+      description: |-
+        Change a draft (every value given again; empty takes the settings), and with `issue_now` issue it.
+        An issued invoice never changes: make a credit note.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceChoices'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InvoiceChoices'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InvoiceChoices'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
+    delete:
+      operationId: deleteInvoice
+      description: Throw a draft away (it has no number yet). An issued invoice is
+        never deleted.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/invoices/{invoice_id}/credit-notes:
+    post:
+      operationId: createCreditNote
+      description: |-
+        Correct an issued invoice with a credit note (AV-2026-0001...), the only correction. `full` gives back
+        everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
+        amount without VAT (`amount`), with the line's VAT. Errors: `lines.<index>.<field>`, `reason`.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditNoteWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreditNoteWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreditNoteWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditNote'
+          description: ''
+  /api/v1/invoices/{invoice_id}/issue:
+    post:
+      operationId: issueInvoice
+      description: |-
+        Issue a draft: the next number of the year (FA-2026-0001...), today's date, the settings in force now
+        for what was not typed, seller and customer copied. From then on it never changes. Nothing is sent to
+        TTN / El Fatoora (D-016).
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
           description: ''
   /api/v1/locations:
     get:
@@ -5916,6 +6265,205 @@ components:
       required:
       - counted_quantity
       - line
+    CreditNote:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteKindEnum'
+          readOnly: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteInvoice'
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditNoteLine'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        einvoice_status:
+          allOf:
+          - $ref: '#/components/schemas/EInvoiceStatusEnum'
+          readOnly: true
+        einvoice_reference:
+          type: string
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - einvoice_reference
+      - einvoice_status
+      - fiscal_stamp
+      - id
+      - invoice
+      - issued_on
+      - kind
+      - lines
+      - net_amount
+      - number
+      - reason
+      - total_excl_tax
+      - total_incl_tax
+      - vat_total
+      - withholding_amount
+    CreditNoteInvoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+      required:
+      - customer_name
+      - id
+      - issued_on
+      - number
+    CreditNoteKindEnum:
+      enum:
+      - full
+      - partial
+      type: string
+      description: |-
+        * `full` - Totale
+        * `partial` - Partielle
+    CreditNoteLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        invoice_line:
+          type: integer
+          readOnly: true
+        product_reference:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        amount_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount_excl_tax
+      - amount_incl_tax
+      - id
+      - invoice_line
+      - product_name
+      - product_reference
+      - quantity
+      - vat_amount
+      - vat_rate
+    CreditNoteLineWrite:
+      type: object
+      properties:
+        invoice_line:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+          nullable: true
+        amount:
+          type: string
+          nullable: true
+      required:
+      - invoice_line
+    CreditNoteWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/CreditNoteKindEnum'
+        reason:
+          type: string
+          maxLength: 255
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditNoteLineWrite'
+      required:
+      - kind
+      - reason
     Customer:
       type: object
       properties:
@@ -6336,6 +6884,11 @@ components:
       - id
       - name
       - username
+    EInvoiceStatusEnum:
+      enum:
+      - not_sent
+      type: string
+      description: '* `not_sent` - Non transmise'
     ElectricityBill:
       type: object
       properties:
@@ -6933,6 +7486,132 @@ components:
       - amount
       - category
       - spent_on
+    FinanceSettings:
+      type: object
+      description: One version of the finance settings.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        valid_from:
+          type: string
+          format: date
+          readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        prices_include_vat:
+          type: boolean
+          readOnly: true
+        withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        legal_name:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+        trade_register:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - address
+      - created_at
+      - created_by
+      - fiscal_stamp
+      - id
+      - legal_name
+      - phone
+      - prices_include_vat
+      - tax_id
+      - trade_register
+      - valid_from
+      - vat_rate
+      - withholding_rate
+    FinanceSettingsOverview:
+      type: object
+      description: The version in force today, every version (planned ones first),
+        and whether the user may change them.
+      properties:
+        in_force:
+          allOf:
+          - $ref: '#/components/schemas/FinanceSettings'
+          readOnly: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinanceSettings'
+          readOnly: true
+        may_edit:
+          type: boolean
+          readOnly: true
+      required:
+      - history
+      - in_force
+      - may_edit
+    FinanceSettingsWrite:
+      type: object
+      properties:
+        valid_from:
+          type: string
+          format: date
+          nullable: true
+        vat_rate:
+          type: string
+        fiscal_stamp:
+          type: string
+        prices_include_vat:
+          type: boolean
+        withholding_rate:
+          type: string
+        legal_name:
+          type: string
+          default: ''
+          maxLength: 200
+        address:
+          type: string
+          default: ''
+          maxLength: 255
+        phone:
+          type: string
+          default: ''
+          maxLength: 50
+        tax_id:
+          type: string
+          default: ''
+          maxLength: 30
+        trade_register:
+          type: string
+          default: ''
+          maxLength: 50
+      required:
+      - fiscal_stamp
+      - prices_include_vat
+      - vat_rate
+      - withholding_rate
     GeneralCost:
       type: object
       properties:
@@ -7094,6 +7773,569 @@ components:
         * `octopus` - Poulpe
         * `mussel` - Coquillage
         * `mix` - Mélange
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceStatusEnum'
+          readOnly: true
+        sale:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        line_count:
+          type: integer
+          readOnly: true
+        apply_vat:
+          type: boolean
+          readOnly: true
+        prices_include_vat:
+          type: boolean
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        withholding_applied:
+          type: boolean
+          readOnly: true
+        withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_to_pay:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credited_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        remaining_to_pay:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        issued_by:
+          type: string
+          readOnly: true
+        issued_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        einvoice_status:
+          allOf:
+          - $ref: '#/components/schemas/EInvoiceStatusEnum'
+          readOnly: true
+        einvoice_reference:
+          type: string
+          readOnly: true
+      required:
+      - apply_vat
+      - cancelled_at
+      - created_at
+      - created_by
+      - credited_total
+      - customer
+      - discount_total
+      - due_on
+      - einvoice_reference
+      - einvoice_status
+      - fiscal_stamp
+      - id
+      - issued_at
+      - issued_by
+      - issued_on
+      - line_count
+      - net_to_pay
+      - number
+      - prices_include_vat
+      - remaining_to_pay
+      - sale
+      - status
+      - subtotal
+      - total_excl_tax
+      - total_incl_tax
+      - vat_total
+      - withholding_amount
+      - withholding_applied
+      - withholding_rate
+    InvoiceChoices:
+      type: object
+      description: What may change on a draft invoice. Every empty value takes the
+        finance settings (D-056).
+      properties:
+        apply_vat:
+          type: boolean
+          default: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLineChoice'
+        vat_amounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceVatAmount'
+        fiscal_stamp:
+          type: string
+          nullable: true
+        withholding_applied:
+          type: boolean
+          default: false
+        withholding_rate:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        issue_now:
+          type: boolean
+          default: false
+    InvoiceCreate:
+      type: object
+      description: What may change on a draft invoice. Every empty value takes the
+        finance settings (D-056).
+      properties:
+        apply_vat:
+          type: boolean
+          default: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLineChoice'
+        vat_amounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceVatAmount'
+        fiscal_stamp:
+          type: string
+          nullable: true
+        withholding_applied:
+          type: boolean
+          default: false
+        withholding_rate:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        issue_now:
+          type: boolean
+          default: false
+        sale:
+          type: integer
+          minimum: 1
+      required:
+      - sale
+    InvoiceDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceStatusEnum'
+          readOnly: true
+        sale:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        line_count:
+          type: integer
+          readOnly: true
+        apply_vat:
+          type: boolean
+          readOnly: true
+        prices_include_vat:
+          type: boolean
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        withholding_applied:
+          type: boolean
+          readOnly: true
+        withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_to_pay:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credited_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        remaining_to_pay:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        issued_by:
+          type: string
+          readOnly: true
+        issued_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        einvoice_status:
+          allOf:
+          - $ref: '#/components/schemas/EInvoiceStatusEnum'
+          readOnly: true
+        einvoice_reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        fiscal_stamp_overridden:
+          type: boolean
+          readOnly: true
+        withholding_rate_overridden:
+          type: boolean
+          readOnly: true
+        seller:
+          allOf:
+          - $ref: '#/components/schemas/Party'
+          readOnly: true
+        bill_to:
+          allOf:
+          - $ref: '#/components/schemas/Party'
+          readOnly: true
+        settings_valid_from:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        settings_vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        settings_fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        settings_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+          readOnly: true
+        vat_lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceVatLine'
+          readOnly: true
+        credit_notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditNote'
+          readOnly: true
+      required:
+      - apply_vat
+      - bill_to
+      - cancelled_at
+      - created_at
+      - created_by
+      - credit_notes
+      - credited_total
+      - customer
+      - discount_total
+      - due_on
+      - einvoice_reference
+      - einvoice_status
+      - fiscal_stamp
+      - fiscal_stamp_overridden
+      - id
+      - issued_at
+      - issued_by
+      - issued_on
+      - line_count
+      - lines
+      - net_to_pay
+      - notes
+      - number
+      - prices_include_vat
+      - remaining_to_pay
+      - sale
+      - seller
+      - settings_fiscal_stamp
+      - settings_valid_from
+      - settings_vat_rate
+      - settings_withholding_rate
+      - status
+      - subtotal
+      - total_excl_tax
+      - total_incl_tax
+      - vat_lines
+      - vat_total
+      - withholding_amount
+      - withholding_applied
+      - withholding_rate
+      - withholding_rate_overridden
+    InvoiceLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/QuoteProduct'
+          readOnly: true
+        product_reference:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        lots:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        gross_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        vat_rate_overridden:
+          type: boolean
+          readOnly: true
+        default_vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        unit_price_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credited_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        credited_amount_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - amount_excl_tax
+      - amount_incl_tax
+      - credited_amount_excl_tax
+      - credited_quantity
+      - default_vat_rate
+      - discount_amount
+      - discount_rate
+      - gross_amount
+      - id
+      - lots
+      - product
+      - product_name
+      - product_reference
+      - quantity
+      - unit_price
+      - unit_price_excl_tax
+      - vat_amount
+      - vat_rate
+      - vat_rate_overridden
+    InvoiceLineChoice:
+      type: object
+      properties:
+        vat_rate:
+          type: string
+          nullable: true
     InvoicePayment:
       type: object
       description: The part of one payment that settled the invoice.
@@ -7170,6 +8412,58 @@ components:
       - id
       - number
       - status
+    InvoiceStatusEnum:
+      enum:
+      - draft
+      - issued
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `issued` - Émise
+        * `cancelled` - Annulée par avoir
+    InvoiceVatAmount:
+      type: object
+      properties:
+        rate:
+          type: string
+        amount:
+          type: string
+          nullable: true
+      required:
+      - rate
+    InvoiceVatLine:
+      type: object
+      properties:
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        base:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        computed_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_overridden:
+          type: boolean
+          readOnly: true
+      required:
+      - amount
+      - amount_overridden
+      - base
+      - computed_amount
+      - rate
     LanguageEnum:
       enum:
       - fr
@@ -8123,6 +9417,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Count'
+    PaginatedCreditNoteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditNote'
     PaginatedDifferenceLineList:
       type: object
       required:
@@ -8169,6 +9486,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Expense'
+    PaginatedInvoiceList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invoice'
     PaginatedLossList:
       type: object
       required:
@@ -8431,6 +9771,35 @@ components:
         * `closed` - Clôturé
         * `settled` - Réglé
         * `cancelled` - Annulé
+    Party:
+      type: object
+      description: A seller or a customer as an invoice prints them.
+      properties:
+        name:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+        trade_register:
+          type: string
+          readOnly: true
+      required:
+      - address
+      - city
+      - name
+      - phone
+      - tax_id
+      - trade_register
     PatchedCategory:
       type: object
       properties:
@@ -8601,6 +9970,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/IllustrationEnum'
           default: fish
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
     PatchedSalaryRecordUpdate:
       type: object
       properties:
@@ -9116,6 +10490,12 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
         updated_at:
           type: string
           format: date-time
@@ -9137,6 +10517,7 @@ components:
       - storage_temp_max
       - storage_temp_min
       - updated_at
+      - vat_rate
     ProductCreate:
       type: object
       properties:
@@ -9171,6 +10552,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/IllustrationEnum'
           default: fish
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
         sale_price:
           type: string
           format: decimal
@@ -10958,6 +12344,11 @@ components:
         cancel_reason:
           type: string
           readOnly: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/SaleInvoiceRef'
+          nullable: true
+          readOnly: true
       required:
       - amount_due
       - amount_paid
@@ -10972,6 +12363,7 @@ components:
       - customer
       - discount_total
       - id
+      - invoice
       - line_count
       - location
       - margin
@@ -11155,6 +12547,11 @@ components:
         cancel_reason:
           type: string
           readOnly: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/SaleInvoiceRef'
+          nullable: true
+          readOnly: true
         lines:
           type: array
           items:
@@ -11174,6 +12571,7 @@ components:
       - customer
       - discount_total
       - id
+      - invoice
       - line_count
       - lines
       - location
@@ -11189,6 +12587,25 @@ components:
       - tax_amount
       - total
       - total_excl_tax
+    SaleInvoiceRef:
+      type: object
+      description: An invoice named from another document (its sale). `number` is
+        empty while a draft.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceStatusEnum'
+          readOnly: true
+      required:
+      - id
+      - number
+      - status
     SaleLine:
       type: object
       properties:

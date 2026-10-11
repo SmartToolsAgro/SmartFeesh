@@ -218,7 +218,9 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     subtotal = MoneyField(default=Decimal("0.000"))
     discount_total = MoneyField(default=Decimal("0.000"))
     total_excl_tax = MoneyField(default=Decimal("0.000"))
-    # VAT hook (P2-T05): empty until the finance settings exist; `total` is the amount without VAT.
+    # The VAT of its issued invoice (D-057): empty while not invoiced, and again once that invoice is cancelled
+    # by a credit note; 0.000 for an invoice without VAT. The sale's own amounts never change: `total` is the
+    # sum of the lines as charged, and the invoice holds the tax detail (without VAT, VAT, stamp, with VAT).
     tax_amount = models.DecimalField[Decimal | None, Decimal | None](
         max_digits=14, decimal_places=3, null=True, blank=True
     )
@@ -360,3 +362,338 @@ class SaleLineBatch(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.line} · {self.batch_id} · {self.quantity} kg"
+
+
+# ---- Finance settings (P2-T05, D-018, D-056) ----
+
+
+class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
+    """The organization's invoicing rules from `valid_from` on: VAT, fiscal stamp, prices with or without VAT,
+    withholding tax, and the seller's identity printed on invoices.
+
+    One version per day; the version in force on a day is the latest one that started on or before it
+    (`selectors.finance_settings_on`). Never hard-coded: every organization starts with a first version
+    holding the client's answers to Q5 (19 %, 1.000 DT, prices without VAT, no withholding), which the owner
+    changes from the settings screen. These are defaults: a draft invoice may leave VAT out or change a rate,
+    the stamp or the withholding rate (D-056). An invoice copies the values it used when it is issued, so a
+    later version never changes it.
+    """
+
+    valid_from = models.DateField()
+    # Percent, 2 decimals: the default VAT rate of every product (a product may have its own, D-056).
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("19.00"))
+    # DT per invoice (droit de timbre). 0 = none.
+    fiscal_stamp = MoneyField(default=Decimal("1.000"))
+    # True: the sale prices already contain VAT, the invoice takes it out. False: VAT comes on top.
+    prices_include_vat = models.BooleanField(default=False)
+    # Percent, 2 decimals: the withholding tax (retenue à la source) some customers apply; 0 = never shown.
+    withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    # Who issues the invoices, as printed on them (article 18 of the VAT code).
+    legal_name = models.CharField(max_length=200, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    # Matricule fiscal.
+    tax_id = models.CharField(max_length=30, blank=True)
+    # Registre national des entreprises.
+    trade_register = models.CharField(max_length=50, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-valid_from", "-id"]
+        verbose_name_plural = "finance settings"
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "valid_from"], name="one_finance_settings_per_day"),
+            models.CheckConstraint(
+                condition=models.Q(vat_rate__gte=0, vat_rate__lte=100), name="finance_vat_rate_percent"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(withholding_rate__gte=0, withholding_rate__lte=100),
+                name="finance_withholding_rate_percent",
+            ),
+            models.CheckConstraint(condition=models.Q(fiscal_stamp__gte=0), name="finance_stamp_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization} · {self.valid_from}"
+
+
+# ---- Invoices and credit notes (P2-T05, D-057) ----
+
+
+class InvoiceStatus(models.TextChoices):
+    # Prepared from a confirmed sale: VAT, stamp and withholding may still change; no number yet.
+    DRAFT = "draft", _("Brouillon")
+    # Numbered and frozen: only a credit note corrects it.
+    ISSUED = "issued", _("Émise")
+    # Wholly cancelled by a credit note; the sale may be invoiced again.
+    CANCELLED = "cancelled", _("Annulée par avoir")
+
+
+class EInvoiceStatus(models.TextChoices):
+    """TTN / El Fatoora e-invoicing hook (D-016): nothing is sent for now, so every invoice is `not_sent`."""
+
+    NOT_SENT = "not_sent", _("Non transmise")
+
+
+class Invoice(OrganizationScopedModel, TimeStampedModel):
+    """The tax document of one confirmed sale: its lines, VAT per rate, fiscal stamp, total with VAT and the
+    optional withholding tax.
+
+    A draft takes the sale's lines (kg, prices and discounts as charged) and proposes VAT, stamp and
+    withholding from the finance settings and each product's own rate; the person may leave VAT out, change
+    a rate, an amount of VAT, the stamp or the withholding rate (each change is flagged and audited). Issuing
+    it takes the next number of its year (FA-2026-0001...) in the same transaction, recomputes what was not
+    changed by hand from the settings in force then, copies the seller and the customer, and freezes it. An
+    issued invoice is never edited or deleted: a `CreditNote` corrects it.
+    """
+
+    # "FA-2026-0001"..., per organization and year; empty while a draft (taken only when issued: no gaps).
+    number = models.CharField(max_length=20, blank=True)
+    status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT)
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="invoices")
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="invoices")
+    # The finance settings version the values came from (the one in force when issued).
+    settings_version = models.ForeignKey(
+        FinanceSettings, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # Copied from the settings: the sale prices contained VAT (taken out) or not (added on top).
+    prices_include_vat = models.BooleanField(default=False)
+    # False: an invoice without VAT ("sans TVA"): no rate, no VAT amount, nothing about VAT printed.
+    apply_vat = models.BooleanField(default=True)
+    issued_on = models.DateField(null=True, blank=True)
+    # issued_on + the customer's payment terms.
+    due_on = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    # Seller and customer as printed, copied when issued (the customer's address may change later).
+    seller_name = models.CharField(max_length=200, blank=True)
+    seller_address = models.CharField(max_length=255, blank=True)
+    seller_phone = models.CharField(max_length=50, blank=True)
+    seller_tax_id = models.CharField(max_length=30, blank=True)
+    seller_trade_register = models.CharField(max_length=50, blank=True)
+    customer_name = models.CharField(max_length=150, blank=True)
+    customer_address = models.CharField(max_length=255, blank=True)
+    customer_city = models.CharField(max_length=100, blank=True)
+    customer_tax_id = models.CharField(max_length=20, blank=True)
+    # Totals, computed by the services from the lines and the VAT per rate.
+    # kg × price before discounts, and the discounts, as charged on the sale.
+    subtotal = MoneyField(default=Decimal("0.000"))
+    discount_total = MoneyField(default=Decimal("0.000"))
+    total_excl_tax = MoneyField(default=Decimal("0.000"))
+    vat_total = MoneyField(default=Decimal("0.000"))
+    fiscal_stamp = MoneyField(default=Decimal("0.000"))
+    # The stamp was typed and differs from the settings.
+    fiscal_stamp_overridden = models.BooleanField(default=False)
+    # total_excl_tax + vat_total + fiscal_stamp.
+    total_incl_tax = MoneyField(default=Decimal("0.000"))
+    # Chosen before issuing; only shown when its rate is above 0 %.
+    withholding_applied = models.BooleanField(default=False)
+    withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    withholding_rate_overridden = models.BooleanField(default=False)
+    # (total_excl_tax + vat_total) × rate: the customer keeps it and pays the rest (P2-T06 records it).
+    withholding_amount = MoneyField(default=Decimal("0.000"))
+    # total_incl_tax − withholding_amount: what the customer pays.
+    net_to_pay = MoneyField(default=Decimal("0.000"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    issued_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    # TTN / El Fatoora hook (D-016, Phase 8): nothing is sent yet; the reference TTN gives will land here.
+    einvoice_status = models.CharField(max_length=20, choices=EInvoiceStatus.choices, default=EInvoiceStatus.NOT_SENT)
+    einvoice_reference = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ["-issued_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "number"],
+                condition=~models.Q(number=""),
+                name="sale_invoice_number_unique_per_organization",
+            ),
+            # One live invoice (draft or issued) per sale; once cancelled by a credit note it may be redone.
+            models.UniqueConstraint(
+                fields=["sale"], condition=~models.Q(status="cancelled"), name="one_live_invoice_per_sale"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status="draft") | ~models.Q(number=""), name="issued_invoice_has_number"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(withholding_rate__gte=0, withholding_rate__lte=100),
+                name="invoice_withholding_rate_percent",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    subtotal__gte=0,
+                    discount_total__gte=0,
+                    total_excl_tax__gte=0,
+                    vat_total__gte=0,
+                    fiscal_stamp__gte=0,
+                    total_incl_tax__gte=0,
+                    withholding_amount__gte=0,
+                    net_to_pay__gte=0,
+                ),
+                name="invoice_amounts_not_negative",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "status", "issued_on"], name="invoice_status_day_idx"),
+            models.Index(fields=["organization", "customer", "issued_on"], name="invoice_customer_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number or f"Brouillon {self.pk}"
+
+
+class InvoiceLine(OrganizationScopedModel):
+    """One sale line on the invoice: what was charged (kg, price, discount, amount) and its VAT.
+
+    `amount` is the line's amount as charged on the sale; with prices including VAT it already holds the VAT,
+    otherwise VAT comes on top. `amount_excl_tax` and `vat_amount` are the line's share of the VAT of its rate
+    (computed per rate, then shared by amount, so the lines always add up to the totals).
+    """
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="lines")
+    sale_line = models.ForeignKey(SaleLine, on_delete=models.PROTECT, related_name="+")
+    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
+    # As printed, copied when issued.
+    product_reference = models.CharField(max_length=30, blank=True)
+    product_name = models.CharField(max_length=150, blank=True)
+    # The lots the kilos came from ("L-0912, L-0918").
+    lots = models.CharField(max_length=255, blank=True)
+    quantity = QuantityField()
+    unit_price = MoneyField()
+    discount_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    gross_amount = MoneyField()
+    discount_amount = MoneyField(default=Decimal("0.000"))
+    amount = MoneyField()
+    # Percent: the product's own rate, else the settings' rate, unless typed (`vat_rate_overridden`).
+    # 0 = exempt; 0 too on an invoice without VAT.
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    vat_rate_overridden = models.BooleanField(default=False)
+    # The price per kg without VAT, for printing (rounded to the millime; the amounts are exact).
+    unit_price_excl_tax = MoneyField()
+    amount_excl_tax = MoneyField()
+    vat_amount = MoneyField(default=Decimal("0.000"))
+    amount_incl_tax = MoneyField()
+
+    class Meta:
+        ordering = ["invoice", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(vat_rate__gte=0, vat_rate__lte=100), name="invoice_line_vat_rate_percent"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount_excl_tax__gte=0, vat_amount__gte=0, amount_incl_tax__gte=0),
+                name="invoice_line_amounts_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.invoice} · {self.product_id}"
+
+
+class InvoiceVatLine(OrganizationScopedModel):
+    """The VAT of one rate on an invoice: base without VAT and amount. The amount may be typed on the draft
+    (`amount_overridden`, audited); `computed_amount` keeps what the rate gave."""
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="vat_lines")
+    rate = models.DecimalField(max_digits=5, decimal_places=2)
+    base = MoneyField()
+    computed_amount = MoneyField()
+    amount = MoneyField()
+    amount_overridden = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["invoice", "-rate"]
+        constraints = [
+            models.UniqueConstraint(fields=["invoice", "rate"], name="one_vat_line_per_invoice_and_rate"),
+            models.CheckConstraint(condition=models.Q(base__gte=0, amount__gte=0), name="vat_line_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.invoice} · {self.rate} %"
+
+
+class CreditNoteKind(models.TextChoices):
+    # Everything the invoice still holds, stamp included: the invoice is cancelled.
+    FULL = "full", _("Totale")
+    # Some kilos or some amount of some lines (a return, a price correction).
+    PARTIAL = "partial", _("Partielle")
+
+
+class CreditNote(OrganizationScopedModel, TimeStampedModel):
+    """The only correction of an issued invoice (avoir): numbered AV-2026-0001... when made, never changed.
+
+    A full credit note gives back everything the invoice still holds (lines, VAT, stamp, withholding) and
+    cancels the invoice; a partial one gives back kilos or amounts of some lines with their VAT. Nothing
+    moves in the stock here (customer returns are P2-T07).
+    """
+
+    number = models.CharField(max_length=20)
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name="credit_notes")
+    kind = models.CharField(max_length=20, choices=CreditNoteKind.choices)
+    issued_on = models.DateField()
+    reason = models.CharField(max_length=255)
+    total_excl_tax = MoneyField(default=Decimal("0.000"))
+    vat_total = MoneyField(default=Decimal("0.000"))
+    fiscal_stamp = MoneyField(default=Decimal("0.000"))
+    total_incl_tax = MoneyField(default=Decimal("0.000"))
+    withholding_amount = MoneyField(default=Decimal("0.000"))
+    # total_incl_tax − withholding_amount: what the customer no longer owes (or gets back).
+    net_amount = MoneyField(default=Decimal("0.000"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    einvoice_status = models.CharField(max_length=20, choices=EInvoiceStatus.choices, default=EInvoiceStatus.NOT_SENT)
+    einvoice_reference = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ["-issued_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "number"], name="credit_note_number_unique_per_organization"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    total_excl_tax__gte=0,
+                    vat_total__gte=0,
+                    fiscal_stamp__gte=0,
+                    total_incl_tax__gte=0,
+                    withholding_amount__gte=0,
+                    net_amount__gte=0,
+                ),
+                name="credit_note_amounts_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class CreditNoteLine(OrganizationScopedModel):
+    """What a credit note gives back on one invoice line: kilos (0 for a price correction) and amounts."""
+
+    credit_note = models.ForeignKey(CreditNote, on_delete=models.CASCADE, related_name="lines")
+    invoice_line = models.ForeignKey(InvoiceLine, on_delete=models.PROTECT, related_name="credit_lines")
+    quantity = QuantityField(default=Decimal("0.000"))
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    amount_excl_tax = MoneyField()
+    vat_amount = MoneyField(default=Decimal("0.000"))
+    amount_incl_tax = MoneyField()
+
+    class Meta:
+        ordering = ["credit_note", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=0, amount_excl_tax__gte=0, vat_amount__gte=0),
+                name="credit_note_line_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.credit_note} · {self.invoice_line_id}"

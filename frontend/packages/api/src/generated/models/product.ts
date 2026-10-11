@@ -45,5 +45,10 @@ export interface Product {
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
      */
   readonly min_price: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly vat_rate: string | null;
   readonly updated_at: string;
 }

@@ -3,11 +3,13 @@
 import datetime as dt
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, Unpack
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
@@ -19,9 +21,17 @@ from apps.core.money import Number, checked_amount, checked_quantity, line_total
 from apps.inventory import services as inventory
 from apps.partners import services as partners
 
-from . import selectors
+from . import invoicing, selectors
 from .models import (
+    CreditNote,
+    CreditNoteKind,
+    CreditNoteLine,
     DocumentCounter,
+    FinanceSettings,
+    Invoice,
+    InvoiceLine,
+    InvoiceStatus,
+    InvoiceVatLine,
     PriceSource,
     Quote,
     QuoteLine,
@@ -244,7 +254,7 @@ def _write_lines(quote: Quote, checked_lines: list[dict[str, Any]]) -> None:
     quote.subtotal = sum((values["gross_amount"] for values in checked_lines), Decimal("0.000"))
     quote.discount_total = sum((values["discount_amount"] for values in checked_lines), Decimal("0.000"))
     quote.total_excl_tax = quote.subtotal - quote.discount_total
-    # P2-T05 hook: VAT comes from the organization's finance settings (D-018) once they exist.
+    # A quote shows no VAT: only the invoice of its sale carries the tax detail (D-057).
     quote.tax_amount = None
     quote.total = quote.total_excl_tax
     quote.save(update_fields=["subtotal", "discount_total", "total_excl_tax", "tax_amount", "total", "updated_at"])
@@ -575,7 +585,8 @@ def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dic
     sale.subtotal = sum((values["gross_amount"] for values in checked_lines), Decimal("0.000"))
     sale.discount_total = sum((values["discount_amount"] for values in checked_lines), Decimal("0.000"))
     sale.total_excl_tax = sale.subtotal - sale.discount_total
-    # P2-T05 hook: VAT and the fiscal stamp come from the finance settings (D-018).
+    # VAT, the fiscal stamp and the withholding live on the sale's invoice (D-057); `tax_amount` is set when
+    # that invoice is issued.
     sale.tax_amount = None
     sale.total = sale.total_excl_tax
     sale.amount_paid = paid["amount_paid"]
@@ -837,12 +848,21 @@ def cancel_sale(*, sale: Sale, actor: User | None, reason: str = "") -> Sale:
     left with), and it stays, marked cancelled, with who, when and why. Its batch rows stay; its status says
     they no longer count.
 
-    P2-T05 hook: once invoices exist, an invoiced sale is corrected by a credit note instead. P2-T06 hook:
-    money already paid on a cancelled sale becomes the customer's credit (refunded or allocated).
+    An invoiced sale is refused: its issued invoice must first be cancelled by a full credit note (D-057); a
+    draft invoice is thrown away with the sale. P2-T06 hook: money already paid on a cancelled sale becomes
+    the customer's credit (refunded or allocated).
     """
     sale = _locked_sale(sale)
     if sale.status == SaleStatus.CANCELLED:
         raise ValidationError(_("Cette vente est déjà annulée."))
+    invoice = sale.invoices.exclude(status=InvoiceStatus.CANCELLED).first()
+    if invoice is not None and invoice.status == InvoiceStatus.ISSUED:
+        raise ValidationError(
+            _("Cette vente est facturée (%(number)s) : annulez d'abord la facture par un avoir.")
+            % {"number": invoice.number}
+        )
+    if invoice is not None:
+        delete_invoice(invoice=invoice, actor=actor)
     reason = reason.strip()[:255]
     if sale.status == SaleStatus.CONFIRMED:
         if not reason:
@@ -929,3 +949,774 @@ def create_sale_from_quote(
         after={"sale": sale.number},
     )
     return sale
+
+
+# ---- Finance settings (P2-T05, D-018, D-056) ----
+
+# The first version every organization gets: the client's answers to Q5. The owner changes them on screen.
+FIRST_SETTINGS: dict[str, Any] = {
+    "vat_rate": Decimal("19.00"),
+    "fiscal_stamp": Decimal("1.000"),
+    "prices_include_vat": False,
+    "withholding_rate": Decimal("0.00"),
+}
+SETTINGS_TEXT_FIELDS = ("legal_name", "address", "phone", "tax_id", "trade_register")
+_TEXT_LENGTHS = {"legal_name": 200, "address": 255, "phone": 50, "tax_id": 30, "trade_register": 50}
+
+
+class FinanceSettingsFields(TypedDict, total=False):
+    # Percent with at most 2 decimals, as typed ("19", "7.50").
+    vat_rate: Number
+    # DT per invoice.
+    fiscal_stamp: Number
+    prices_include_vat: bool
+    withholding_rate: Number
+    legal_name: str
+    address: str
+    phone: str
+    tax_id: str
+    trade_register: str
+
+
+def ensure_finance_settings(*, organization: Organization) -> FinanceSettings:
+    """The organization's first finance settings version, made when missing (from its creation day)."""
+    first = FinanceSettings.objects.for_organization(organization).order_by("valid_from").first()
+    if first is not None:
+        return first
+    created = organization.created_at or timezone.now()
+    return FinanceSettings.objects.create(
+        organization=organization,
+        valid_from=timezone.localdate(created),
+        legal_name=organization.name,
+        **FIRST_SETTINGS,
+    )
+
+
+def _percent(value: Any) -> Decimal | None:
+    """A rate in percent typed by a person: 0 to 100 with at most 2 decimals; None when it is not one."""
+    if value in (None, "") or isinstance(value, bool) or not isinstance(value, Decimal | int | str):
+        return None
+    try:
+        rate = Decimal(value)
+    except InvalidOperation:
+        return None
+    if not rate.is_finite() or rate != rate.quantize(_RATE_STEP) or not 0 <= rate <= MAX_DISCOUNT_RATE:
+        return None
+    return rate.quantize(_RATE_STEP)
+
+
+def _settings_snapshot(version: FinanceSettings) -> dict[str, Any]:
+    return {
+        "valid_from": version.valid_from.isoformat(),
+        "vat_rate": str(version.vat_rate),
+        "fiscal_stamp": str(version.fiscal_stamp),
+        "prices_include_vat": version.prices_include_vat,
+        "withholding_rate": str(version.withholding_rate),
+        **{name: getattr(version, name) for name in SETTINGS_TEXT_FIELDS},
+    }
+
+
+@transaction.atomic
+def save_finance_settings(
+    *,
+    organization: Organization,
+    actor: User | None,
+    valid_from: dt.date | None = None,
+    **fields: Unpack[FinanceSettingsFields],
+) -> FinanceSettings:
+    """A new version of the finance settings from `valid_from` (today by default; a later day plans it). The
+    past is refused: invoices already issued keep the values they copied anyway. Saving again for the same
+    day replaces that day's version. Audited with the values before and after."""
+    today = timezone.localdate()
+    valid_from = valid_from or today
+    errors: dict[str, str] = {}
+    if valid_from < today:
+        errors["valid_from"] = _("Une version ne peut pas commencer dans le passé.")
+    in_force = selectors.finance_settings_on(organization, valid_from) or ensure_finance_settings(
+        organization=organization
+    )
+    values: dict[str, Any] = {}
+    for name in ("vat_rate", "withholding_rate"):
+        raw: Any = fields.get(name, getattr(in_force, name))
+        rate = _percent(raw)
+        if rate is None:
+            errors[name] = _("Indiquez un taux en %, de 0 à 100, avec 2 décimales au plus.")
+        values[name] = rate
+    stamp: Any = fields.get("fiscal_stamp", in_force.fiscal_stamp)
+    try:
+        values["fiscal_stamp"] = checked_amount(stamp)
+    except (ValueError, TypeError):
+        errors["fiscal_stamp"] = _("Indiquez un montant en DT, au millime près.")
+    values["prices_include_vat"] = bool(fields.get("prices_include_vat", in_force.prices_include_vat))
+    for name in SETTINGS_TEXT_FIELDS:
+        text = str(fields.get(name, getattr(in_force, name)) or "").strip()
+        if len(text) > _TEXT_LENGTHS[name]:
+            errors[name] = _("Au plus %(count)d caractères.") % {"count": _TEXT_LENGTHS[name]}
+        values[name] = text
+    if errors:
+        raise ValidationError(errors)
+    existing = (
+        FinanceSettings.objects.for_organization(organization).select_for_update().filter(valid_from=valid_from).first()
+    )
+    before = _settings_snapshot(existing) if existing is not None else _settings_snapshot(in_force)
+    if existing is None:
+        version = FinanceSettings.objects.create(
+            organization=organization, valid_from=valid_from, created_by=actor, **values
+        )
+    else:
+        version = existing
+        for name, value in values.items():
+            setattr(version, name, value)
+        version.created_by = actor
+        version.save()
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="finance_settings.saved",
+        target=version,
+        before=before,
+        after=_settings_snapshot(version),
+    )
+    return version
+
+
+# ---- Invoices and credit notes (P2-T05, D-057) ----
+
+INVOICE_PREFIX = "FA"
+CREDIT_NOTE_PREFIX = "AV"
+
+
+def _next_yearly_number(organization: Organization, prefix: str, year: int) -> str:
+    """FA-2026-0001, FA-2026-0002... per organization and year, under the counter's row lock.
+
+    Called inside the transaction that issues the document, after every check: if anything fails later the
+    transaction rolls back with the counter, so the series never has a gap (ARCHITECTURE §4.11).
+    """
+    series = f"{prefix}-{year}"
+    DocumentCounter.objects.bulk_create(
+        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
+    )
+    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
+    counter.last_number += 1
+    counter.save(update_fields=["last_number"])
+    return f"{series}-{counter.last_number:04d}"
+
+
+class InvoiceChoices(TypedDict, total=False):
+    """What the person may change on a draft invoice; empty values take the settings (D-056)."""
+
+    # False: an invoice without VAT.
+    apply_vat: bool
+    # One per line, in the order of the lines: the VAT rate in percent; empty = the product's or the settings'.
+    vat_rates: Sequence[Number | None] | None
+    # Typed VAT amounts by rate (percent → DT); a rate left out keeps the computed amount.
+    vat_amounts: dict[Number, Number | None] | None
+    # Empty = the settings' stamp.
+    fiscal_stamp: Number | None
+    withholding_applied: bool
+    # Empty = the settings' rate.
+    withholding_rate: Number | None
+    notes: str
+
+
+@dataclass(frozen=True)
+class _Overrides:
+    """The values typed on a draft, checked; None everywhere means "take the settings"."""
+
+    apply_vat: bool
+    vat_rates: list[Decimal | None]
+    vat_amounts: dict[Decimal, Decimal]
+    fiscal_stamp: Decimal | None
+    withholding_applied: bool
+    withholding_rate: Decimal | None
+    notes: str
+
+
+def _settings_in_force(organization: Organization) -> FinanceSettings:
+    return selectors.finance_settings_on(organization) or ensure_finance_settings(organization=organization)
+
+
+def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
+    """The typed values of a draft, or a ValidationError naming each wrong field (`lines.<i>.vat_rate`,
+    `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`)."""
+    errors: dict[str, str] = {}
+    rate_message = _("Indiquez un taux en %, de 0 à 100, avec 2 décimales au plus.")
+    typed_rates = list(choices.get("vat_rates") or [])
+    if typed_rates and len(typed_rates) != line_count:
+        errors["lines"] = _("Indiquez un taux par ligne de la facture.")
+    rates: list[Decimal | None] = []
+    for index in range(line_count):
+        raw = typed_rates[index] if index < len(typed_rates) else None
+        if raw in (None, ""):
+            rates.append(None)
+            continue
+        rate = _percent(raw)
+        if rate is None:
+            errors[line_error_key(index, "vat_rate")] = rate_message
+        rates.append(rate)
+    amounts: dict[Decimal, Decimal] = {}
+    for raw_rate, raw_amount in (choices.get("vat_amounts") or {}).items():
+        rate = _percent(raw_rate)
+        if rate is None:
+            errors["vat_amounts"] = rate_message
+            continue
+        if raw_amount in (None, ""):
+            continue
+        try:
+            amounts[rate] = checked_amount(raw_amount)
+        except (ValueError, TypeError):
+            errors[f"vat_amounts.{rate}"] = _("Indiquez un montant en DT, au millime près.")
+    stamp: Decimal | None = None
+    raw_stamp: Any = choices.get("fiscal_stamp")
+    if raw_stamp not in (None, ""):
+        try:
+            stamp = checked_amount(raw_stamp)
+        except (ValueError, TypeError):
+            errors["fiscal_stamp"] = _("Indiquez un montant en DT, au millime près.")
+    withholding_rate: Decimal | None = None
+    raw_withholding = choices.get("withholding_rate")
+    if raw_withholding not in (None, ""):
+        withholding_rate = _percent(raw_withholding)
+        if withholding_rate is None:
+            errors["withholding_rate"] = rate_message
+    if errors:
+        raise ValidationError(errors)
+    return _Overrides(
+        apply_vat=choices.get("apply_vat", True),
+        vat_rates=rates,
+        vat_amounts=amounts,
+        fiscal_stamp=stamp,
+        withholding_applied=choices.get("withholding_applied", False),
+        withholding_rate=withholding_rate,
+        notes=(choices.get("notes") or "").strip(),
+    )
+
+
+def _stored_overrides(invoice: Invoice) -> _Overrides:
+    """The values typed on a draft, read back from it (what was not typed follows the settings)."""
+    lines = list(invoice.lines.order_by("id"))
+    return _Overrides(
+        apply_vat=invoice.apply_vat,
+        vat_rates=[line.vat_rate if line.vat_rate_overridden else None for line in lines],
+        vat_amounts={row.rate: row.amount for row in invoice.vat_lines.filter(amount_overridden=True)},
+        fiscal_stamp=invoice.fiscal_stamp if invoice.fiscal_stamp_overridden else None,
+        withholding_applied=invoice.withholding_applied,
+        withholding_rate=invoice.withholding_rate if invoice.withholding_rate_overridden else None,
+        notes=invoice.notes,
+    )
+
+
+def _default_rate(line: InvoiceLine, version: FinanceSettings) -> Decimal:
+    """The rate a line takes when none is typed: the product's own (0 = exempt), else the settings'."""
+    own: Decimal | None = line.product.vat_rate
+    return own if own is not None else version.vat_rate
+
+
+def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) -> None:
+    """Set every amount of a draft from its lines, the settings `version` and the typed values, and store
+    which values were typed (`*_overridden`). Raises a ValidationError for a typed VAT amount above what
+    its rate holds."""
+    lines = list(invoice.lines.select_related("product").order_by("id"))
+    rates: list[Decimal] = []
+    rate_typed: list[bool] = []
+    for line, typed in zip(lines, overrides.vat_rates, strict=True):
+        default = _default_rate(line, version)
+        rates.append(typed if typed is not None else default)
+        rate_typed.append(typed is not None and typed != default)
+    stamp = overrides.fiscal_stamp if overrides.fiscal_stamp is not None else version.fiscal_stamp
+    withholding_rate = (
+        overrides.withholding_rate if overrides.withholding_rate is not None else version.withholding_rate
+    )
+    amounts = invoicing.compute(
+        [
+            invoicing.LineInput(amount=line.amount, vat_rate=rate, unit_price=line.unit_price)
+            for line, rate in zip(lines, rates, strict=True)
+        ],
+        apply_vat=overrides.apply_vat,
+        prices_include_vat=version.prices_include_vat,
+        fiscal_stamp=stamp,
+        withholding_rate=withholding_rate if overrides.withholding_applied else None,
+        vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
+    )
+    if amounts.refused_overrides:
+        raise ValidationError(
+            {
+                f"vat_amounts.{rate}": _("La TVA à %(rate)s %% ne peut pas dépasser le montant de ses lignes.")
+                % {"rate": rate}
+                for rate in amounts.refused_overrides
+            }
+        )
+    for line, result, is_typed in zip(lines, amounts.lines, rate_typed, strict=True):
+        line.vat_rate = result.vat_rate
+        line.vat_rate_overridden = is_typed and overrides.apply_vat
+        line.unit_price_excl_tax = result.unit_price_excl_tax
+        line.amount_excl_tax = result.amount_excl_tax
+        line.vat_amount = result.vat_amount
+        line.amount_incl_tax = result.amount_incl_tax
+    InvoiceLine.objects.bulk_update(
+        lines,
+        [
+            "vat_rate",
+            "vat_rate_overridden",
+            "unit_price_excl_tax",
+            "amount_excl_tax",
+            "vat_amount",
+            "amount_incl_tax",
+        ],
+    )
+    invoice.vat_lines.all().delete()
+    InvoiceVatLine.objects.bulk_create(
+        [
+            InvoiceVatLine(
+                organization_id=invoice.organization_id,
+                invoice=invoice,
+                rate=group.rate,
+                base=group.base,
+                computed_amount=group.computed_amount,
+                amount=group.amount,
+                amount_overridden=group.overridden,
+            )
+            for group in amounts.vat_groups
+        ]
+    )
+    invoice.settings_version = version
+    invoice.prices_include_vat = version.prices_include_vat
+    invoice.apply_vat = overrides.apply_vat
+    invoice.subtotal = sum((line.gross_amount for line in lines), Decimal("0.000"))
+    invoice.discount_total = sum((line.discount_amount for line in lines), Decimal("0.000"))
+    invoice.total_excl_tax = amounts.total_excl_tax
+    invoice.vat_total = amounts.vat_total
+    invoice.fiscal_stamp = amounts.fiscal_stamp
+    invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
+    invoice.total_incl_tax = amounts.total_incl_tax
+    invoice.withholding_applied = overrides.withholding_applied
+    invoice.withholding_rate = withholding_rate
+    invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
+    invoice.withholding_amount = amounts.withholding_amount
+    invoice.net_to_pay = amounts.net_to_pay
+    invoice.notes = overrides.notes
+    invoice.save()
+
+
+def _invoice_snapshot(invoice: Invoice) -> dict[str, Any]:
+    """What an invoice says, for the audit: totals and every value typed by hand (`overrides`)."""
+    lines = list(invoice.lines.select_related("product").order_by("id"))
+    vat_lines = list(invoice.vat_lines.order_by("-rate"))
+    return {
+        "number": invoice.number,
+        "status": invoice.status,
+        "sale": invoice.sale.number,
+        "apply_vat": invoice.apply_vat,
+        "prices_include_vat": invoice.prices_include_vat,
+        "vat": [{"rate": str(row.rate), "base": str(row.base), "amount": str(row.amount)} for row in vat_lines],
+        "total_excl_tax": str(invoice.total_excl_tax),
+        "vat_total": str(invoice.vat_total),
+        "fiscal_stamp": str(invoice.fiscal_stamp),
+        "total_incl_tax": str(invoice.total_incl_tax),
+        "withholding_applied": invoice.withholding_applied,
+        "withholding_rate": str(invoice.withholding_rate),
+        "withholding_amount": str(invoice.withholding_amount),
+        "net_to_pay": str(invoice.net_to_pay),
+        "overrides": {
+            "vat_rates": {line.product.reference: str(line.vat_rate) for line in lines if line.vat_rate_overridden},
+            "vat_amounts": {
+                str(row.rate): {"computed": str(row.computed_amount), "typed": str(row.amount)}
+                for row in vat_lines
+                if row.amount_overridden
+            },
+            "fiscal_stamp": str(invoice.fiscal_stamp) if invoice.fiscal_stamp_overridden else None,
+            "withholding_rate": str(invoice.withholding_rate) if invoice.withholding_rate_overridden else None,
+        },
+    }
+
+
+def _lots_of(line: SaleLine) -> str:
+    numbers = [row.batch.number for row in line.batches.select_related("batch").order_by("id")]
+    return ", ".join(numbers)[:255]
+
+
+def _checked_sale_to_invoice(sale: Sale) -> None:
+    if sale.status != SaleStatus.CONFIRMED:
+        raise ValidationError(_("Seule une vente confirmée se facture."))
+    if sale.customer.is_walk_in:
+        raise ValidationError(
+            {"customer": _("Une vente au client de passage ne se facture pas : la facture nomme son client.")}
+        )
+    live = sale.invoices.exclude(status=InvoiceStatus.CANCELLED).first()
+    if live is not None:
+        raise ValidationError(
+            _("Cette vente a déjà sa facture %(number)s.") % {"number": live.number or _("(brouillon)")}
+        )
+
+
+@transaction.atomic
+def create_invoice(
+    *,
+    sale: Sale,
+    actor: User | None,
+    issue: bool = False,
+    **choices: Unpack[InvoiceChoices],
+) -> Invoice:
+    """Prepare the invoice of a confirmed sale (a draft, without number), or with `issue` issue it at once.
+
+    The lines are the sale's, as charged (kg, prices, discounts). VAT, stamp and withholding are proposed from
+    the finance settings in force and each product's own rate; `choices` may leave VAT out or type a rate, an
+    amount of VAT, the stamp or the withholding rate. One live invoice per sale; the walk-in customer is not
+    invoiced (provisional, D-057).
+    """
+    sale = _locked_sale(sale)
+    _checked_sale_to_invoice(sale)
+    sale_lines = list(sale.lines.select_related("product").order_by("id"))
+    overrides = _checked_choices(choices, len(sale_lines))
+    invoice = Invoice.objects.create(
+        organization=sale.organization,
+        sale=sale,
+        customer=sale.customer,
+        created_by=actor,
+    )
+    InvoiceLine.objects.bulk_create(
+        [
+            InvoiceLine(
+                organization_id=sale.organization_id,
+                invoice=invoice,
+                sale_line=line,
+                product=line.product,
+                product_reference=line.product.reference,
+                product_name=line.product.name,
+                lots=_lots_of(line),
+                quantity=line.quantity,
+                unit_price=line.unit_price,
+                discount_rate=line.discount_rate,
+                gross_amount=line.gross_amount,
+                discount_amount=line.discount_amount,
+                amount=line.amount,
+                unit_price_excl_tax=line.unit_price,
+                amount_excl_tax=line.amount,
+                amount_incl_tax=line.amount,
+            )
+            for line in sale_lines
+        ]
+    )
+    _compute(invoice, _settings_in_force(sale.organization), overrides)
+    audit.record(
+        organization=sale.organization,
+        actor=actor,
+        action="invoice.created",
+        target=invoice,
+        after=_invoice_snapshot(invoice),
+    )
+    if issue:
+        return issue_invoice(invoice=invoice, actor=actor)
+    return invoice
+
+
+def _locked_invoice(invoice: Invoice) -> Invoice:
+    """The invoice locked until commit, so it is never issued or credited twice at once."""
+    return (
+        Invoice.objects.select_for_update(of=("self",))
+        .select_related("organization", "sale", "customer")
+        .get(pk=invoice.pk)
+    )
+
+
+def _locked_draft_invoice(invoice: Invoice) -> Invoice:
+    locked = _locked_invoice(invoice)
+    if locked.status != InvoiceStatus.DRAFT:
+        raise ValidationError(
+            _("La facture %(number)s est émise : elle ne change plus. Corrigez-la par un avoir.")
+            % {"number": locked.number}
+        )
+    return locked
+
+
+@transaction.atomic
+def update_invoice(
+    *, invoice: Invoice, actor: User | None, issue: bool = False, **choices: Unpack[InvoiceChoices]
+) -> Invoice:
+    """Change a draft: with or without VAT, rates, amounts of VAT, stamp, withholding and notes (all given
+    again: an empty value takes the settings). Every typed value is flagged and the change is audited. With
+    `issue`, issue it too (one transaction)."""
+    invoice = _locked_draft_invoice(invoice)
+    before = _invoice_snapshot(invoice)
+    overrides = _checked_choices(choices, invoice.lines.count())
+    _compute(invoice, _settings_in_force(invoice.organization), overrides)
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="invoice.updated",
+        target=invoice,
+        before=before,
+        after=_invoice_snapshot(invoice),
+    )
+    if issue:
+        return issue_invoice(invoice=invoice, actor=actor)
+    return invoice
+
+
+@transaction.atomic
+def delete_invoice(*, invoice: Invoice, actor: User | None) -> None:
+    """Throw a draft away (it has no number, so nothing is lost). An issued invoice is never deleted."""
+    invoice = _locked_draft_invoice(invoice)
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="invoice.deleted",
+        target=invoice,
+        before=_invoice_snapshot(invoice),
+    )
+    invoice.delete()
+
+
+def record_invoice_receivable(invoice: Invoice) -> None:
+    """P2-T06 hook: an issued invoice's `net_to_pay` is what the customer owes for its sale (the withholding
+    kept by the customer is recorded against it with its certificate). Customer payments, their allocation
+    and the balance come with P2-T06; nothing to write yet."""
+
+
+@transaction.atomic
+def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
+    """Number and freeze a draft, all in one transaction.
+
+    What was not typed by hand is computed again from the finance settings in force now; the seller (from the
+    settings) and the customer are copied; the date is today and the due date today + the customer's payment
+    terms. The number (FA-<year>-0001...) is taken last, so a refusal never uses one. From then on the
+    invoice never changes: a credit note corrects it. The sale's `tax_amount` becomes the invoice's VAT.
+    """
+    invoice = _locked_draft_invoice(invoice)
+    sale = _locked_sale(invoice.sale)
+    if sale.status != SaleStatus.CONFIRMED:
+        raise ValidationError(_("Seule une vente confirmée se facture."))
+    version = _settings_in_force(invoice.organization)
+    _compute(invoice, version, _stored_overrides(invoice))
+    if invoice.lines.count() == 0:
+        raise ValidationError(_("Cette facture n'a aucune ligne."))
+    customer = invoice.customer
+    today = timezone.localdate()
+    invoice.seller_name = version.legal_name or invoice.organization.name
+    invoice.seller_address = version.address
+    invoice.seller_phone = version.phone
+    invoice.seller_tax_id = version.tax_id
+    invoice.seller_trade_register = version.trade_register
+    invoice.customer_name = customer.name
+    invoice.customer_address = customer.address
+    invoice.customer_city = customer.city
+    invoice.customer_tax_id = customer.tax_id
+    invoice.issued_on = today
+    invoice.due_on = today + dt.timedelta(days=customer.payment_terms_days)
+    invoice.issued_by = actor
+    invoice.issued_at = timezone.now()
+    invoice.status = InvoiceStatus.ISSUED
+    invoice.number = _next_yearly_number(invoice.organization, INVOICE_PREFIX, today.year)
+    invoice.save()
+    lines = list(invoice.lines.select_related("product"))
+    for line in lines:
+        line.product_reference = line.product.reference
+        line.product_name = line.product.name
+    InvoiceLine.objects.bulk_update(lines, ["product_reference", "product_name"])
+    sale.tax_amount = invoice.vat_total
+    sale.save(update_fields=["tax_amount", "updated_at"])
+    record_invoice_receivable(invoice)
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="invoice.issued",
+        target=invoice,
+        after=_invoice_snapshot(invoice),
+    )
+    return invoice
+
+
+class CreditLineFields(TypedDict, total=False):
+    # None: an id not on the invoice (reported on `lines.<index>.invoice_line`).
+    invoice_line: InvoiceLine | None
+    # Kilos given back (a return, a weight dispute); empty or 0 for a price correction.
+    quantity: Number | None
+    # Amount without VAT given back; empty = the kilos' share of the line.
+    amount: Number | None
+
+
+@dataclass(frozen=True)
+class _CreditPart:
+    invoice_line: InvoiceLine
+    quantity: Decimal
+    excl: Decimal
+    vat: Decimal
+
+
+def _full_credit_parts(invoice: Invoice, credited: dict[int, selectors.CreditedLine]) -> list[_CreditPart]:
+    parts = []
+    for line in invoice.lines.order_by("id"):
+        done = credited.get(line.pk)
+        quantity = line.quantity - (done.quantity if done else Decimal("0.000"))
+        excl = line.amount_excl_tax - (done.amount_excl_tax if done else Decimal("0.000"))
+        vat = line.vat_amount - (done.vat_amount if done else Decimal("0.000"))
+        if quantity > 0 or excl > 0 or vat > 0:
+            parts.append(_CreditPart(line, max(quantity, Decimal("0.000")), excl, vat))
+    return parts
+
+
+def _partial_credit_parts(
+    invoice: Invoice, lines: Sequence[CreditLineFields], credited: dict[int, selectors.CreditedLine]
+) -> list[_CreditPart]:
+    """The kilos and amounts given back per line, checked against what each line still holds; problems come
+    back on `lines.<index>.<field>`."""
+    errors: dict[str, str] = {}
+    parts: list[_CreditPart] = []
+    seen: set[int] = set()
+    if not lines:
+        errors["lines"] = _("Indiquez au moins une ligne à rendre.")
+    for index, fields in enumerate(lines):
+        line = fields.get("invoice_line")
+        if line is None or line.invoice_id != invoice.pk:
+            errors[line_error_key(index, "invoice_line")] = _("Cette ligne n'est pas sur la facture.")
+            continue
+        if line.pk in seen:
+            errors[line_error_key(index, "invoice_line")] = _("Cette ligne est déjà rendue plus haut.")
+            continue
+        seen.add(line.pk)
+        done = credited.get(line.pk)
+        quantity_left = line.quantity - (done.quantity if done else Decimal("0.000"))
+        excl_left = line.amount_excl_tax - (done.amount_excl_tax if done else Decimal("0.000"))
+        vat_left = line.vat_amount - (done.vat_amount if done else Decimal("0.000"))
+        raw_quantity: Any = fields.get("quantity")
+        quantity = Decimal("0.000")
+        if raw_quantity not in (None, ""):
+            try:
+                quantity = checked_quantity(raw_quantity, allow_zero=True)
+            except (ValueError, TypeError):
+                errors[line_error_key(index, "quantity")] = _("Indiquez un poids en kg, au gramme près.")
+                continue
+            if quantity > quantity_left:
+                errors[line_error_key(index, "quantity")] = _("Il reste %(kg)s kg à rendre sur cette ligne.") % {
+                    "kg": quantity_left
+                }
+                continue
+        raw_amount: Any = fields.get("amount")
+        if raw_amount not in (None, ""):
+            try:
+                excl = checked_amount(raw_amount)
+            except (ValueError, TypeError):
+                errors[line_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
+                continue
+        elif quantity == quantity_left:
+            excl = excl_left
+        else:
+            excl = min(money(line.amount_excl_tax * quantity / line.quantity), excl_left)
+        if excl > excl_left:
+            errors[line_error_key(index, "amount")] = _(
+                "Il reste %(amount)s DT hors taxe à rendre sur cette ligne."
+            ) % {"amount": excl_left}
+            continue
+        if excl <= 0:
+            errors[line_error_key(index, "amount")] = _("Indiquez les kilos ou le montant hors taxe à rendre.")
+            continue
+        if excl == excl_left:
+            vat = vat_left
+        elif line.amount_excl_tax > 0:
+            vat = min(money(line.vat_amount * excl / line.amount_excl_tax), vat_left)
+        else:
+            vat = Decimal("0.000")
+        parts.append(_CreditPart(line, quantity, excl, vat))
+    if errors:
+        raise ValidationError(errors)
+    return parts
+
+
+@transaction.atomic
+def create_credit_note(
+    *,
+    invoice: Invoice,
+    actor: User | None,
+    kind: str,
+    reason: str,
+    lines: Sequence[CreditLineFields] = (),
+) -> CreditNote:
+    """Correct an issued invoice: the only way (D-057). Numbered AV-<year>-0001... at once, never changed.
+
+    `full` gives back everything the invoice still holds (lines, VAT, stamp, the rest of the withholding) and
+    cancels the invoice, so its sale may be invoiced again. `partial` gives back, per line, kilos (their
+    share of the line) or an amount without VAT, with the line's VAT in proportion, and the withholding at
+    the invoice's rate. Nothing moves in the stock (returns: P2-T07).
+    """
+    invoice = _locked_invoice(invoice)
+    if invoice.status == InvoiceStatus.DRAFT:
+        raise ValidationError(_("Un brouillon se modifie ou se supprime : émettez d'abord la facture."))
+    if invoice.status == InvoiceStatus.CANCELLED:
+        raise ValidationError(_("La facture %(number)s est déjà annulée par avoir.") % {"number": invoice.number})
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de l'avoir.")})
+    if kind not in CreditNoteKind.values:
+        raise ValidationError({"kind": _("Type d'avoir inconnu.")})
+    credited = selectors.credited_by_line(invoice)
+    already = invoice.credit_notes.aggregate(stamp=Sum("fiscal_stamp"), withholding=Sum("withholding_amount"))
+    withholding_left = invoice.withholding_amount - (already["withholding"] or Decimal("0.000"))
+    if kind == CreditNoteKind.FULL:
+        parts = _full_credit_parts(invoice, credited)
+        stamp = invoice.fiscal_stamp - (already["stamp"] or Decimal("0.000"))
+        withholding = withholding_left
+    else:
+        parts = _partial_credit_parts(invoice, lines, credited)
+        stamp = Decimal("0.000")
+        goods = sum((part.excl + part.vat for part in parts), Decimal("0.000"))
+        withholding = Decimal("0.000")
+        if invoice.withholding_amount > 0:
+            withholding = min(money(goods * invoice.withholding_rate / 100), withholding_left)
+    total_excl = sum((part.excl for part in parts), Decimal("0.000"))
+    vat_total = sum((part.vat for part in parts), Decimal("0.000"))
+    today = timezone.localdate()
+    note = CreditNote.objects.create(
+        organization=invoice.organization,
+        number=_next_yearly_number(invoice.organization, CREDIT_NOTE_PREFIX, today.year),
+        invoice=invoice,
+        kind=kind,
+        issued_on=today,
+        reason=reason,
+        total_excl_tax=total_excl,
+        vat_total=vat_total,
+        fiscal_stamp=stamp,
+        total_incl_tax=total_excl + vat_total + stamp,
+        withholding_amount=withholding,
+        net_amount=total_excl + vat_total + stamp - withholding,
+        created_by=actor,
+    )
+    CreditNoteLine.objects.bulk_create(
+        [
+            CreditNoteLine(
+                organization_id=invoice.organization_id,
+                credit_note=note,
+                invoice_line=part.invoice_line,
+                quantity=part.quantity,
+                vat_rate=part.invoice_line.vat_rate,
+                amount_excl_tax=part.excl,
+                vat_amount=part.vat,
+                amount_incl_tax=part.excl + part.vat,
+            )
+            for part in parts
+        ]
+    )
+    if kind == CreditNoteKind.FULL:
+        invoice.status = InvoiceStatus.CANCELLED
+        invoice.cancelled_at = timezone.now()
+        invoice.save(update_fields=["status", "cancelled_at", "updated_at"])
+        sale = _locked_sale(invoice.sale)
+        sale.tax_amount = None
+        sale.save(update_fields=["tax_amount", "updated_at"])
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="credit_note.created",
+        target=note,
+        after={
+            "number": note.number,
+            "invoice": invoice.number,
+            "kind": kind,
+            "reason": reason,
+            "total_excl_tax": str(note.total_excl_tax),
+            "vat_total": str(note.vat_total),
+            "fiscal_stamp": str(note.fiscal_stamp),
+            "withholding_amount": str(note.withholding_amount),
+            "net_amount": str(note.net_amount),
+        },
+    )
+    return note

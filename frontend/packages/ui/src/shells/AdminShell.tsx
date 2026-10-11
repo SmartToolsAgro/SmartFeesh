@@ -35,7 +35,7 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
   const { t } = useTranslation();
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-20 flex flex-wrap items-center gap-4 border-b border-line bg-surface/90 px-5 py-3 backdrop-blur-md max-sm:gap-2.5 max-sm:px-4 max-sm:py-2.5">
+      <header className="sticky top-0 z-20 print:hidden flex flex-wrap items-center gap-4 border-b border-line bg-surface/90 px-5 py-3 backdrop-blur-md max-sm:gap-2.5 max-sm:px-4 max-sm:py-2.5">
         <Brand />
         <div className="flex-1" />
         <ThemeToggle />
@@ -61,10 +61,10 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100dvh-62px)] grid-cols-[232px_minmax(0,1fr)] max-[860px]:grid-cols-1">
+      <div className="grid min-h-[calc(100dvh-62px)] grid-cols-[232px_minmax(0,1fr)] max-[860px]:grid-cols-1 print:block">
         <nav
           aria-label={t("admin.modules")}
-          className="flex flex-col gap-0.5 border-e border-line bg-surface px-3 py-[18px] max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-e-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
+          className="flex flex-col gap-0.5 border-e border-line bg-surface px-3 py-[18px] print:hidden max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-e-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
         >
           {nav.map((group) => (
             <div key={group.label} className="contents">
@@ -89,7 +89,7 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
           ))}
         </nav>
 
-        <main className="flex min-w-0 flex-col gap-[22px] px-8 pt-7 pb-12 max-[860px]:px-4 max-[860px]:pt-5 max-[860px]:pb-10">
+        <main className="flex min-w-0 flex-col gap-[22px] px-8 pt-7 pb-12 print:p-0 max-[860px]:px-4 max-[860px]:pt-5 max-[860px]:pb-10">
           {children}
         </main>
       </div>

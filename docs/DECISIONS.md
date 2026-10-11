@@ -842,6 +842,48 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   draft, three days on a lot. `SalaryStatusEnum` and `SalaryPaymentMethodEnum` are pinned in
   `ENUM_NAME_OVERRIDES`.
 
+**D-056 · Finance settings and VAT: optional per invoice, editable on the draft (P2-T05)** · accepted · 2026-10-11
+
+- **`FinanceSettings`** is versioned per organization with a `valid_from` day (D-018, Q5): VAT rate (default
+  19 %), fiscal stamp (1.000 DT), prices with or without VAT, withholding rate (default 0), and the seller
+  printed on invoices (legal name, address, phone, tax ID, trade register). Owner edits (`saveFinanceSettings`),
+  office roles read; saving again for the same day replaces that day's version; the past is refused; the
+  change is audited. Issued invoices keep their values.
+- **Per-product VAT** (`Product.vat_rate`, null = the company rate, 0 = exempt). Fishing products may be
+  exempt in the VAT code: to confirm with the accountant (provisional, nothing hard-coded).
+- **VAT is optional on each invoice** (`apply_vat`): the person chooses "Facture avec TVA" on the draft; the
+  company setting only proposes. Without VAT nothing about VAT is computed or shown.
+- **The VAT value is editable on a draft:** rate per line (`vat_rate`, flagged `vat_rate_overridden` when it
+  differs from the product's/company's) and the amount per rate (`InvoiceVatLine.amount`, flagged
+  `amount_overridden` against `computed_amount`, refused above what the lines hold). The stamp and the
+  withholding rate are prefilled from the settings and editable too (`*_overridden`). Every typed value goes
+  to the audit log (`overrides`). All freezes at issue.
+- **Arithmetic** (`sales/invoicing.py`, pure, half up to the millime once per rate): prices without VAT add
+  VAT on top, prices with VAT extract it; a typed amount replaces the computed one of its rate; each line
+  takes its share, the last line the rest, so lines always add up. Withholding = (total HT + VAT) × rate,
+  stamp excluded, and it reduces the amount to collect (P2-T06 tracks it).
+
+**D-057 · Invoices, credit notes, numbering (P2-T05)** · accepted · 2026-10-11
+
+- **`Invoice` + `InvoiceLine` from a confirmed sale** (`createInvoice`): one live invoice per sale, a draft
+  has no number and can be changed (`updateInvoice`, PUT with every value again) or thrown away
+  (`deleteInvoice`); `issue_now` issues in the same call. Issuing (`issueInvoice`) takes the next number,
+  today's date, the settings in force, and copies seller and customer; from then on it never changes.
+- **Gap-free numbering** per organization per year: `FA-2026-0001` (invoices), `AV-2026-0001` (credit notes),
+  taken under a row lock on `DocumentCounter` only at issue, in the same transaction, so a rollback leaves no
+  gap (ARCHITECTURE §4.11).
+- **`CreditNote`** is the only correction: `full` returns everything left and cancels the invoice,
+  `partial` returns kilos or an amount without VAT per line, with the line's VAT; it cannot exceed what is
+  left; stock is not touched here (customer returns: P2-T07).
+- **TTN hook:** `einvoice_status` (`not_sent`) and `einvoice_reference` on invoices and credit notes; nothing
+  is sent (D-016, Phase 8).
+- **Receivable:** issuing posts `record_invoice_receivable` (hook for P2-T06). Roles: owner and manager write,
+  the accountant reads (the server refuses the others).
+- **Screens:** "Factures" (`/factures`, invoices and credit notes tabs), the invoice page (print-friendly
+  document, `print:` classes hide the shell; a draft shows the VAT toggle and typed values beside what the
+  settings propose), "Facturer" on a confirmed sale, the credit note dialog, "Paramètres financiers"
+  (`/factures/parametres`). The VAT preview is computed by the server on "Enregistrer et recalculer".
+
 **D-058 · Cold-room cost per day, estimate then correction (P5-T02)** · accepted · 2026-10-11
 - In `expenses`. `ElectricityBill` (month, one-to-one with an `Expense` of category cold storage: one record,
   so it also feeds the books; typed after the month ends, one per month, a refused one can be retyped).

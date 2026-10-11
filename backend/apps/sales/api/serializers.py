@@ -5,6 +5,15 @@ from rest_framework import serializers
 
 from apps.sales import selectors
 from apps.sales.models import (
+    CreditNote,
+    CreditNoteKind,
+    CreditNoteLine,
+    EInvoiceStatus,
+    FinanceSettings,
+    Invoice,
+    InvoiceLine,
+    InvoiceStatus,
+    InvoiceVatLine,
     PriceSource,
     Quote,
     QuoteLine,
@@ -240,6 +249,14 @@ class SaleLineSerializer(serializers.ModelSerializer[SaleLine]):
         return data if self.context.get("show_costs", True) else _without_costs(data)
 
 
+class SaleInvoiceRefSerializer(serializers.Serializer[Any]):
+    """An invoice named from another document (its sale). `number` is empty while a draft."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    status = serializers.ChoiceField(choices=InvoiceStatus.choices, read_only=True)
+
+
 class SaleSerializer(serializers.ModelSerializer[Sale]):
     status = serializers.ChoiceField(choices=SaleStatus.choices, read_only=True)
     payment_method = serializers.ChoiceField(choices=SalePaymentMethod.choices, read_only=True, allow_blank=True)
@@ -252,6 +269,8 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     created_by = serializers.SerializerMethodField()
     confirmed_by = serializers.SerializerMethodField()
     cancelled_by = serializers.SerializerMethodField()
+    # Its invoice, draft or issued, unless cancelled by a credit note (P2-T05).
+    invoice = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -283,8 +302,14 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "cancelled_by",
             "cancelled_at",
             "cancel_reason",
+            "invoice",
         )
         read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(SaleInvoiceRefSerializer(allow_null=True))
+    def get_invoice(self, sale: Sale) -> dict[str, Any] | None:
+        invoice = selectors.live_invoice_of(sale)
+        return SaleInvoiceRefSerializer(invoice).data if invoice is not None else None
 
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
     def get_margin(self, sale: Sale) -> str | None:
@@ -389,3 +414,398 @@ class BatchSalesSerializer(serializers.Serializer[Any]):
     cost = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     margin = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     rows = BatchSaleRowSerializer(many=True, read_only=True)
+
+
+# ---- Finance settings (P2-T05, D-056) ----
+
+
+class FinanceSettingsSerializer(serializers.ModelSerializer[FinanceSettings]):
+    """One version of the finance settings."""
+
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FinanceSettings
+        fields: tuple[str, ...] = (
+            "id",
+            "valid_from",
+            "vat_rate",
+            "fiscal_stamp",
+            "prices_include_vat",
+            "withholding_rate",
+            "legal_name",
+            "address",
+            "phone",
+            "tax_id",
+            "trade_register",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    def get_created_by(self, version: FinanceSettings) -> str:
+        return person_name(version.created_by)
+
+
+class FinanceSettingsOverviewSerializer(serializers.Serializer[Any]):
+    """The version in force today, every version (planned ones first), and whether the user may change them."""
+
+    in_force = FinanceSettingsSerializer(read_only=True)
+    history = FinanceSettingsSerializer(many=True, read_only=True)
+    may_edit = serializers.BooleanField(read_only=True)
+
+
+class FinanceSettingsWriteSerializer(serializers.Serializer[Any]):
+    # Empty: today. A later day plans the version; the past is refused.
+    valid_from = serializers.DateField(required=False, allow_null=True, default=None)
+    # Rates in percent and the stamp in DT travel as strings ("19", "1.000"), checked by the service.
+    vat_rate = serializers.CharField(allow_blank=True)
+    fiscal_stamp = serializers.CharField(allow_blank=True)
+    prices_include_vat = serializers.BooleanField()
+    withholding_rate = serializers.CharField(allow_blank=True)
+    legal_name = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
+    address = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+    phone = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
+    tax_id = serializers.CharField(required=False, allow_blank=True, default="", max_length=30)
+    trade_register = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
+
+
+# ---- Invoices and credit notes (P2-T05, D-057) ----
+
+
+class PartySerializer(serializers.Serializer[Any]):
+    """A seller or a customer as an invoice prints them."""
+
+    name = serializers.CharField(read_only=True)
+    address = serializers.CharField(read_only=True)
+    city = serializers.CharField(read_only=True)
+    phone = serializers.CharField(read_only=True)
+    tax_id = serializers.CharField(read_only=True)
+    trade_register = serializers.CharField(read_only=True)
+
+
+class InvoiceLineSerializer(serializers.ModelSerializer[InvoiceLine]):
+    product = QuoteProductSerializer(read_only=True)
+    # The rate the line takes when none is typed: the product's own, else the settings'.
+    default_vat_rate = serializers.SerializerMethodField()
+    # What credit notes already gave back on this line.
+    credited_quantity = serializers.SerializerMethodField()
+    credited_amount_excl_tax = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InvoiceLine
+        fields: tuple[str, ...] = (
+            "id",
+            "product",
+            "product_reference",
+            "product_name",
+            "lots",
+            "quantity",
+            "unit_price",
+            "discount_rate",
+            "gross_amount",
+            "discount_amount",
+            "amount",
+            "vat_rate",
+            "vat_rate_overridden",
+            "default_vat_rate",
+            "unit_price_excl_tax",
+            "amount_excl_tax",
+            "vat_amount",
+            "amount_incl_tax",
+            "credited_quantity",
+            "credited_amount_excl_tax",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.DecimalField(max_digits=5, decimal_places=2))
+    def get_default_vat_rate(self, line: InvoiceLine) -> str:
+        own = line.product.vat_rate
+        if own is not None:
+            return str(own)
+        version = line.invoice.settings_version
+        return str(version.vat_rate) if version is not None else str(line.vat_rate)
+
+    def _credited(self, line: InvoiceLine) -> selectors.CreditedLine | None:
+        credited: dict[int, selectors.CreditedLine] = self.context.get("credited", {})
+        return credited.get(line.pk)
+
+    @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=3))
+    def get_credited_quantity(self, line: InvoiceLine) -> str:
+        done = self._credited(line)
+        return str(done.quantity if done else "0.000")
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_credited_amount_excl_tax(self, line: InvoiceLine) -> str:
+        done = self._credited(line)
+        return str(done.amount_excl_tax if done else "0.000")
+
+
+class InvoiceVatLineSerializer(serializers.ModelSerializer[InvoiceVatLine]):
+    class Meta:
+        model = InvoiceVatLine
+        fields: tuple[str, ...] = ("rate", "base", "computed_amount", "amount", "amount_overridden")
+        read_only_fields: tuple[str, ...] = fields
+
+
+class CreditNoteLineSerializer(serializers.ModelSerializer[CreditNoteLine]):
+    product_reference = serializers.CharField(source="invoice_line.product_reference", read_only=True)
+    product_name = serializers.CharField(source="invoice_line.product_name", read_only=True)
+
+    class Meta:
+        model = CreditNoteLine
+        fields: tuple[str, ...] = (
+            "id",
+            "invoice_line",
+            "product_reference",
+            "product_name",
+            "quantity",
+            "vat_rate",
+            "amount_excl_tax",
+            "vat_amount",
+            "amount_incl_tax",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+
+class CreditNoteInvoiceSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    customer_name = serializers.CharField(read_only=True)
+    issued_on = serializers.DateField(read_only=True)
+
+
+class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
+    kind = serializers.ChoiceField(choices=CreditNoteKind.choices, read_only=True)
+    einvoice_status = serializers.ChoiceField(choices=EInvoiceStatus.choices, read_only=True)
+    invoice = CreditNoteInvoiceSerializer(read_only=True)
+    lines = CreditNoteLineSerializer(many=True, read_only=True)
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CreditNote
+        fields: tuple[str, ...] = (
+            "id",
+            "number",
+            "kind",
+            "invoice",
+            "issued_on",
+            "reason",
+            "total_excl_tax",
+            "vat_total",
+            "fiscal_stamp",
+            "total_incl_tax",
+            "withholding_amount",
+            "net_amount",
+            "lines",
+            "created_by",
+            "created_at",
+            "einvoice_status",
+            "einvoice_reference",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    def get_created_by(self, note: CreditNote) -> str:
+        return person_name(note.created_by)
+
+
+class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
+    status = serializers.ChoiceField(choices=InvoiceStatus.choices, read_only=True)
+    einvoice_status = serializers.ChoiceField(choices=EInvoiceStatus.choices, read_only=True)
+    sale = SaleRefSerializer(read_only=True)
+    customer = QuoteCustomerSerializer(read_only=True)
+    line_count = serializers.IntegerField(read_only=True)
+    # What its credit notes gave back (net), and what remains to collect.
+    credited_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    remaining_to_pay = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
+    issued_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Invoice
+        fields: tuple[str, ...] = (
+            "id",
+            "number",
+            "status",
+            "sale",
+            "customer",
+            "issued_on",
+            "due_on",
+            "line_count",
+            "apply_vat",
+            "prices_include_vat",
+            "subtotal",
+            "discount_total",
+            "total_excl_tax",
+            "vat_total",
+            "fiscal_stamp",
+            "total_incl_tax",
+            "withholding_applied",
+            "withholding_rate",
+            "withholding_amount",
+            "net_to_pay",
+            "credited_total",
+            "remaining_to_pay",
+            "created_by",
+            "created_at",
+            "issued_by",
+            "issued_at",
+            "cancelled_at",
+            "einvoice_status",
+            "einvoice_reference",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_remaining_to_pay(self, invoice: Invoice) -> str:
+        credited = getattr(invoice, "credited_total", None) or 0
+        return str(invoice.net_to_pay - credited)
+
+    def get_created_by(self, invoice: Invoice) -> str:
+        return person_name(invoice.created_by)
+
+    def get_issued_by(self, invoice: Invoice) -> str:
+        return person_name(invoice.issued_by)
+
+
+class InvoiceDetailSerializer(InvoiceSerializer):
+    lines = InvoiceLineSerializer(many=True, read_only=True)
+    vat_lines = InvoiceVatLineSerializer(many=True, read_only=True)
+    credit_notes = CreditNoteSerializer(many=True, read_only=True)
+    # As printed: copied when issued; a draft shows today's settings and customer.
+    seller = serializers.SerializerMethodField()
+    bill_to = serializers.SerializerMethodField()
+    # What the settings propose, to show beside the typed values of a draft.
+    settings_valid_from = serializers.DateField(source="settings_version.valid_from", read_only=True, allow_null=True)
+    settings_vat_rate = serializers.DecimalField(
+        source="settings_version.vat_rate", max_digits=5, decimal_places=2, read_only=True, allow_null=True
+    )
+    settings_fiscal_stamp = serializers.DecimalField(
+        source="settings_version.fiscal_stamp", max_digits=14, decimal_places=3, read_only=True, allow_null=True
+    )
+    settings_withholding_rate = serializers.DecimalField(
+        source="settings_version.withholding_rate", max_digits=5, decimal_places=2, read_only=True, allow_null=True
+    )
+
+    class Meta(InvoiceSerializer.Meta):
+        fields = (
+            *InvoiceSerializer.Meta.fields,
+            "notes",
+            "fiscal_stamp_overridden",
+            "withholding_rate_overridden",
+            "seller",
+            "bill_to",
+            "settings_valid_from",
+            "settings_vat_rate",
+            "settings_fiscal_stamp",
+            "settings_withholding_rate",
+            "lines",
+            "vat_lines",
+            "credit_notes",
+        )
+        read_only_fields = fields
+
+    @extend_schema_field(PartySerializer)
+    def get_seller(self, invoice: Invoice) -> dict[str, Any]:
+        if invoice.status != InvoiceStatus.DRAFT or invoice.settings_version is None:
+            values = {
+                "name": invoice.seller_name,
+                "address": invoice.seller_address,
+                "phone": invoice.seller_phone,
+                "tax_id": invoice.seller_tax_id,
+                "trade_register": invoice.seller_trade_register,
+            }
+        else:
+            version = invoice.settings_version
+            values = {
+                "name": version.legal_name or invoice.organization.name,
+                "address": version.address,
+                "phone": version.phone,
+                "tax_id": version.tax_id,
+                "trade_register": version.trade_register,
+            }
+        return {**values, "city": ""}
+
+    @extend_schema_field(PartySerializer)
+    def get_bill_to(self, invoice: Invoice) -> dict[str, Any]:
+        if invoice.status == InvoiceStatus.DRAFT:
+            customer = invoice.customer
+            values = {
+                "name": customer.name,
+                "address": customer.address,
+                "city": customer.city,
+                "tax_id": customer.tax_id,
+            }
+        else:
+            values = {
+                "name": invoice.customer_name,
+                "address": invoice.customer_address,
+                "city": invoice.customer_city,
+                "tax_id": invoice.customer_tax_id,
+            }
+        return {**values, "phone": "", "trade_register": ""}
+
+
+class InvoiceLineChoiceSerializer(serializers.Serializer[Any]):
+    # Percent ("7", "19.00", "0" = exempt). Empty: the product's or the settings' rate.
+    vat_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+
+class InvoiceVatAmountSerializer(serializers.Serializer[Any]):
+    # The rate whose VAT amount is typed ("19.00").
+    rate = serializers.CharField()
+    # DT. Empty: the computed amount.
+    amount = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+
+class InvoiceChoicesSerializer(serializers.Serializer[Any]):
+    """What may change on a draft invoice. Every empty value takes the finance settings (D-056)."""
+
+    # False: an invoice without VAT.
+    apply_vat = serializers.BooleanField(required=False, default=True)
+    # One per line, in the order of the lines; empty list: every line takes its proposed rate.
+    lines = InvoiceLineChoiceSerializer(many=True, required=False, default=list)
+    # Typed VAT amounts per rate; errors come back on `vat_amounts.<rate>`.
+    vat_amounts = InvoiceVatAmountSerializer(many=True, required=False, default=list)
+    fiscal_stamp = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    withholding_applied = serializers.BooleanField(required=False, default=False)
+    withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    # Issue it in the same request (numbered and frozen).
+    issue_now = serializers.BooleanField(required=False, default=False)
+
+
+class InvoiceCreateSerializer(InvoiceChoicesSerializer):
+    # The confirmed sale to invoice.
+    sale = serializers.IntegerField(min_value=1)
+
+
+class InvoiceFilterSerializer(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=InvoiceStatus.choices, required=False)
+    customer = serializers.IntegerField(required=False, min_value=1)
+    sale = serializers.IntegerField(required=False, min_value=1)
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+class CreditNoteLineWriteSerializer(serializers.Serializer[Any]):
+    invoice_line = serializers.IntegerField(min_value=1)
+    # Kilos given back; empty or 0 for a price correction.
+    quantity = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # DT without VAT; empty: the kilos' share of the line.
+    amount = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+
+class CreditNoteWriteSerializer(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=CreditNoteKind.choices)
+    reason = serializers.CharField(allow_blank=True, max_length=255)
+    # Partial notes only; a full note gives back everything left.
+    lines = CreditNoteLineWriteSerializer(many=True, required=False, default=list)
+
+
+class CreditNoteFilterSerializer(serializers.Serializer[Any]):
+    customer = serializers.IntegerField(required=False, min_value=1)
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
