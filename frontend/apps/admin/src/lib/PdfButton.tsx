@@ -10,11 +10,14 @@ export function PdfButton({
   id,
   variant,
   className,
+  label,
 }: {
   kind: PdfKind;
   id: number;
   variant?: "primary" | "ghost" | "danger";
   className?: string;
+  /** Text of the button when it is not just "PDF". */
+  label?: string;
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -38,7 +41,7 @@ export function PdfButton({
   return (
     <Button variant={variant} className={className} disabled={busy} onClick={() => void open()}>
       <Icon name="receipt" />
-      {busy ? t("admin.documents.making") : t("admin.documents.pdf")}
+      {busy ? t("admin.documents.making") : (label ?? t("admin.documents.pdf"))}
     </Button>
   );
 }
