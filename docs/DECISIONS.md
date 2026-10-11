@@ -712,6 +712,73 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   `SalePriceSourceEnum`. Demo: a walk-in counter sale paid cash, a Camion 1 sale by the driver to Le
   Corail partly paid, Sidi Mansour's accepted quote converted on credit, a draft for Hôtel Thyna.
 
+**D-053 · Expenses, lot costs and truck costs of the day (P5-T01)** · accepted · 2026-10-11
+- New `expenses` app (ARCHITECTURE §3) with its own `DocumentCounter` (`DP-0001`… per organization; a
+  deleted draft leaves a gap, not a fiscal number). **Categories** (`ExpenseCategory`): every organization
+  gets the brief's 11 default categories (personnel, day labour, transport, fuel, cold storage, handling,
+  rent, accountant, administration, financial, miscellaneous), each with a fixed `code` the app relies on;
+  a data migration gives them to existing organizations and a `post_save` signal on `Organization` to new
+  ones (`services.ensure_default_categories`, idempotent). The **owner only** adds, renames and archives
+  categories (403 for a manager); a default category is renamed but never archived.
+- **Expense:** date (not in the future), category, amount (> 0, millimes), payment method (the same list
+  as supplier payments, so one `PaymentMethodEnum`), description, payee, notes, receipt (a photo turned
+  upright and stored as WebP like loss photos, or a PDF kept as is, 8 MB at most; replaceable while open,
+  once decided only joined if there was none), who entered and who decided it, `client_uuid`.
+- **What it is charged to:** a **lot** (`batch`: the whole amount is a cost of that lot; the date cannot
+  precede the lot's arrival), or a **truck** (a truck cost of that day), never both (DB constraint), or
+  neither (a general cost). The truck day is the expense's date.
+- **Statuses:** draft (office; editable, deletable) → approved or rejected (reason required); `pending`
+  ("à approuver") is the hook for the driver's expenses from the phone (P3-T04: `create_expense(submit=True)`
+  with the driver as `entered_by`): editable by the office, not deletable. Owner **and** manager approve
+  (brief), the accountant reads, drivers 403 for now. Approved and refused expenses never change; a
+  correction is a new expense (no negative "reversal" expense yet). Only approved expenses count.
+- **Truck costs of the day** (D-041, **Q24 provisional**): each expense tagged to a truck and a day is
+  split on its own over the lots loaded into that truck that day by validated transfers (loads and
+  truck→truck), **by kg loaded** (what came back in the evening is not taken off). The pure function
+  `allocation.allocate_truck_day_costs` (over `split_by_weight`) works in integer millimes and grams:
+  each lot gets its exact share rounded down, the millimes left go to the largest remainders (ties: the
+  heavier lot, then the smaller id), so **the shares add up to the expense to the millime**. A truck day
+  with nothing loaded charges no lot: the cost stays general. The lots and kg come from new inventory
+  selectors (`batches_loaded`, `truck_days_of_batch`), read from the ledger movements of transfer lines.
+- **Lot costs:** `expenses.selectors.lot_cost_lines(organization, batch_id=)` returns the typed lines of a
+  lot (kind `lot` = typed on it, including day labour; `truck_day` = its share, with truck, kg and the
+  day's kg), approved only by default; `lot_cost_total` sums them. Phase 6's lot result reads this; the
+  cold room (P5-T02), salaries (P5-T04) and general costs (P5-T05) will add their own kinds.
+- API: `listExpenses` (paginated; status, category, lot, truck, days, search), `getExpenseTotals` (same
+  filters: count, approved, waiting), `createExpense` / `updateExpense` (`approve_now`), `getExpense`
+  (with the truck-day `shares`), `deleteExpense`, `approveExpense`, `rejectExpense`, `addExpenseReceipt`
+  (multipart; the file itself is read at `/expenses/<id>/receipt`), `listExpenseCategories`,
+  `createExpenseCategory`, `updateExpenseCategory`, `getLotCosts?batch=`. Pinned enum names:
+  `ExpenseStatusEnum`, `LotCostKindEnum`.
+- **Screens:** "Charges" in the menu becomes "Dépenses" (list with status, category, dates, search and
+  totals; the owner's categories dialog), a form (charge générale / un lot / un camion, receipt, "Enregistrer
+  et approuver"), an expense page (approve, refuse with reason, delete a draft, receipt, the split over the
+  truck's lots). The lot page (Stock › lot) gets a "Coûts du lot" card with links to add an expense or a
+  day of labour on it.
+- Demo: DP-0001 fuel of Camion 2's day (85 DT, approved, split over its morning load), DP-0002 transport
+  on a shrimp lot, DP-0003 rent (draft), DP-0004 accountant (waiting), DP-0005 ice (refused).
+
+**D-054 · Day labour: one record, two ways in (P5-T03)** · accepted · 2026-10-11
+- Day labourers live in `expenses`, not `hr`: they are not employees (no payroll, no CNSS). `DayLabourer`:
+  name (unique per organization, case-insensitive), phone, usual daily pay (optional, proposed when a day is
+  added), notes, archived flag. Owner and manager write, the accountant reads.
+- **A day worked is one record with its expense** (client meeting §6, D-041): `DayLabourEntry` is a
+  one-to-one extension of an `Expense` of category `day_labour`. The expense carries the date, amount,
+  payment method, lot, notes and the approval; the entry adds the labourer and the work type (loading,
+  stock, store, cleaning, other; pinned `WorkTypeEnum`). Typed from the calendar or from a lot
+  (`createDayLabour` with or without `batch`), it is the same row, listed in the calendar, in the
+  expenses list and on the lot (`lot_cost_lines`), and counted once. Without a lot it is a general cost.
+- The day-labour category cannot be used in the plain expense form, and a day-labour expense is changed
+  or deleted only through the calendar endpoints (`updateDayLabour`, `deleteDayLabour`, drafts only);
+  approval goes through `approveExpense` / `rejectExpense` like any expense. No amount typed: the
+  labourer's usual pay; neither: refused on `amount`.
+- **Screens:** "Calendrier journaliers" (month grid, Monday first, each day showing people, total and lot
+  numbers; clicking a day lists who worked, the lot link, status, approve/delete, and a form to add a
+  day, "Ajouter et approuver") and "Journaliers" (list, add, edit, archive). `?lot=` opens today's day
+  with the lot chosen (from the lot page); `?jour=` opens a day.
+- Demo: Ali Ben Salah (40 DT), Moncef Trabelsi (35 DT), Hichem Gharbi (variable); Ali unloading a shrimp
+  lot today (approved), Moncef cleaning yesterday (approved), two drafts two days ago.
+
 **D-055 · Employees, salaries and days on a lot, the `hr` app (P5-T04)** · accepted · 2026-10-11
 - **App `hr`:** `Employee`, `SalaryRecord`, `SalaryAdjustment`, `SalaryPayment` (+ allocations),
   `LotWorkDay`. It imports no other app's models; the lot of a work day is read through

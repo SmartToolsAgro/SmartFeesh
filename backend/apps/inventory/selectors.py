@@ -662,3 +662,71 @@ def batch_holdings(organization: Organization, *, product_id: int) -> list[Batch
         for rows in per_batch.values()
     ]
     return sorted(holdings, key=lambda holding: (holding.batch.received_on, holding.batch.pk))
+
+
+# ---- Lots on a truck's day, for the truck costs of the day (P5-T01, D-053) ----
+
+
+@dataclass(frozen=True)
+class BatchLoad:
+    """Kilos of one lot loaded into a place on one day by validated transfers."""
+
+    batch_id: int
+    batch_number: str
+    product_name: str
+    quantity: Decimal
+
+
+def _validated_transfer_lines(organization: Organization) -> QuerySet[TransferLine]:
+    return TransferLine.objects.for_organization(organization).filter(transfer__status=TransferStatus.VALIDATED)
+
+
+def batches_loaded(organization: Organization, *, location_id: int, day: dt.date) -> list[BatchLoad]:
+    """The lots loaded into a place (a truck) on a day, with their kg, by lot number.
+
+    Read from the movements that the validated transfers of that day posted into the place (FIFO picked
+    the lots, D-037): loads from a cold room and transfers from another truck. What came back the same
+    evening is not taken off (D-041: split by kg loaded).
+    """
+    lines = _validated_transfer_lines(organization).filter(
+        transfer__transferred_on=day, transfer__to_location_id=location_id
+    )
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(
+            source_type=ContentType.objects.get_for_model(TransferLine),
+            source_id__in=lines.values("id"),
+            to_location_id=location_id,
+        )
+        .values("batch_id", "batch__number", "product__name")
+        .annotate(quantity=Sum("quantity"))
+        .order_by("batch__number", "batch_id")
+    )
+    return [
+        BatchLoad(
+            batch_id=row["batch_id"],
+            batch_number=row["batch__number"],
+            product_name=row["product__name"],
+            quantity=row["quantity"],
+        )
+        for row in rows
+        if row["quantity"] > 0
+    ]
+
+
+def truck_days_of_batch(organization: Organization, *, batch_id: int) -> list[tuple[int, dt.date]]:
+    """The (truck location, day) pairs on which a lot was loaded into a truck by a validated transfer,
+    oldest first: the days whose truck costs it shares."""
+    movements = StockMovement.objects.for_organization(organization).filter(
+        batch_id=batch_id,
+        source_type=ContentType.objects.get_for_model(TransferLine),
+        to_location__kind=LocationKind.TRUCK,
+    )
+    pairs = (
+        _validated_transfer_lines(organization)
+        .filter(id__in=movements.values("source_id"), transfer__to_location__kind=LocationKind.TRUCK)
+        .values_list("transfer__to_location_id", "transfer__transferred_on")
+        .distinct()
+        .order_by("transfer__transferred_on", "transfer__to_location_id")
+    )
+    return [(location_id, day) for location_id, day in pairs]

@@ -1,0 +1,181 @@
+import io
+import shutil
+import tempfile
+
+import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from django.urls import reverse
+from django.utils import timezone
+from PIL import Image
+
+from apps.core.models import Role
+from apps.core.tests.factories import MembershipFactory
+from apps.expenses import services
+
+from .conftest import category, client_for, load, member, receive
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def media_root():
+    folder = tempfile.mkdtemp()
+    with override_settings(MEDIA_ROOT=folder):
+        yield folder
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def payload(cat, amount="45.500", **fields):
+    body = {"spent_on": timezone.localdate().isoformat(), "category": cat.pk, "amount": amount}
+    body.update(fields)
+    return body
+
+
+def create(api, cat, amount="45.500", **fields):
+    return api.post(reverse("expense-list"), payload(cat, amount, **fields), format="json")
+
+
+def test_an_expense_is_created_and_answered_with_amounts_as_strings(api, fuel, truck):
+    response = create(api, fuel, description="Gasoil", payee="Station Agil", truck=truck.pk, payment_method="cash")
+
+    assert response.status_code == 201
+    body = response.json()
+    assert (body["number"], body["status"], body["amount"]) == ("DP-0001", "draft", "45.500")
+    assert body["category"] == {"id": fuel.pk, "code": "fuel", "name": "Carburant"}
+    assert body["truck"] == {"id": truck.pk, "name": "Camion 2", "plate": "102 TU 2002"}
+    assert (body["batch"], body["receipt_url"], body["shares"]) == (None, None, [])
+
+
+def test_errors_come_back_on_their_fields(api, fuel, organization):
+    response = create(api, fuel, amount="abc", batch=999999)
+    assert response.status_code == 400
+    assert "batch" in response.json()
+
+    response = create(api, fuel, amount="-3")
+    assert response.status_code == 400
+    assert "amount" in response.json()
+
+
+def test_approve_now_and_the_decision_endpoints(api, fuel):
+    approved = create(api, fuel, approve_now=True).json()
+    assert approved["status"] == "approved"
+    assert approved["decided_by"]
+
+    draft = create(api, fuel).json()
+    refused = api.post(reverse("expense-reject", args=[draft["id"]]), {"reason": "Doublon"}, format="json")
+    assert (refused.status_code, refused.json()["status"]) == (200, "rejected")
+    again = api.post(reverse("expense-approve", args=[draft["id"]]))
+    assert again.status_code == 400
+
+
+def test_a_draft_is_edited_and_deleted(api, fuel, organization):
+    draft = create(api, fuel).json()
+    transport = category(organization, "transport")
+
+    edited = api.put(reverse("expense-detail", args=[draft["id"]]), payload(transport, "12"), format="json")
+    assert (edited.status_code, edited.json()["amount"], edited.json()["category"]["code"]) == (
+        200,
+        "12.000",
+        "transport",
+    )
+    assert api.delete(reverse("expense-detail", args=[draft["id"]])).status_code == 204
+    assert api.get(reverse("expense-detail", args=[draft["id"]])).status_code == 404
+
+
+def test_list_filters_and_totals(api, fuel, organization):
+    create(api, fuel, "10", approve_now=True, description="Gasoil")
+    create(api, category(organization, "rent"), "800")
+
+    listed = api.get(reverse("expense-list"), {"status": "approved"}).json()
+    assert (listed["count"], listed["results"][0]["description"]) == (1, "Gasoil")
+    assert api.get(reverse("expense-list"), {"search": "gasoil"}).json()["count"] == 1
+    totals = api.get(reverse("expense-totals")).json()
+    assert totals == {"count": 2, "approved": "10.000", "waiting": "800.000"}
+
+
+def test_a_photo_receipt_is_stored_as_webp_and_a_pdf_as_it_is(api, fuel):
+    draft = create(api, fuel).json()
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 30), "red").save(buffer, format="JPEG")
+    photo = SimpleUploadedFile("ticket.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+    answer = api.put(reverse("expense-receipt", args=[draft["id"]]), {"receipt": photo}, format="multipart")
+    assert answer.status_code == 200
+    assert answer.json()["receipt_type"] == "image/webp"
+    image = api.get(answer.json()["receipt_url"])
+    assert (image.status_code, image["Content-Type"]) == (200, "image/webp")
+
+    pdf = SimpleUploadedFile("facture.pdf", b"%PDF-1.4\n%%EOF\n", content_type="application/pdf")
+    answer = api.put(reverse("expense-receipt", args=[draft["id"]]), {"receipt": pdf}, format="multipart")
+    assert answer.json()["receipt_type"] == "application/pdf"
+    document = api.get(answer.json()["receipt_url"])
+    assert (document["Content-Type"], b"".join(document.streaming_content)) == (
+        "application/pdf",
+        b"%PDF-1.4\n%%EOF\n",
+    )
+    text = SimpleUploadedFile("notes.txt", b"hello", content_type="text/plain")
+    refused = api.put(reverse("expense-receipt", args=[draft["id"]]), {"receipt": text}, format="multipart")
+    assert (refused.status_code, list(refused.json())) == (400, ["receipt"])
+
+
+def test_a_truck_cost_of_the_day_answers_its_split(api, organization, actor, cold_room, truck):
+    lot = receive(organization, "Dorade", "100", cold_room, number="L-0001")
+    load(organization, actor, cold_room, truck, [(lot, "12.5")])
+
+    body = create(api, category(organization, "transport"), "30", truck=truck.pk, approve_now=True).json()
+    assert body["shares"] == [
+        {
+            "batch_id": lot.pk,
+            "batch_number": "L-0001",
+            "product_name": "Dorade",
+            "quantity": "12.500",
+            "day_quantity": "12.500",
+            "amount": "30.000",
+        }
+    ]
+    costs = api.get(reverse("lot-costs"), {"batch": lot.pk}).json()
+    assert costs["total"] == "30.000"
+    assert [(line["kind"], line["amount"], line["truck_name"]) for line in costs["lines"]] == [
+        ("truck_day", "30.000", "Camion 2")
+    ]
+
+
+def test_the_accountant_reads_but_changes_nothing_and_drivers_get_403(organization, fuel):
+    accountant = client_for(member(organization, Role.ACCOUNTANT))
+    driver = client_for(member(organization, Role.DRIVER))
+
+    assert accountant.get(reverse("expense-list")).status_code == 200
+    assert create(accountant, fuel).status_code == 403
+    assert driver.get(reverse("expense-list")).status_code == 403
+    assert driver.get(reverse("expense-category-list")).status_code == 403
+
+
+def test_only_the_owner_manages_categories(api, organization):
+    owner = client_for(member(organization, Role.OWNER))
+
+    assert api.post(reverse("expense-category-list"), {"name": "Glace"}, format="json").status_code == 403
+    created = owner.post(reverse("expense-category-list"), {"name": "Glace"}, format="json")
+    assert (created.status_code, created.json()["code"]) == (201, "")
+    renamed = owner.patch(
+        reverse("expense-category-detail", args=[created.json()["id"]]), {"is_active": False}, format="json"
+    )
+    assert renamed.json()["is_active"] is False
+    names = [row["name"] for row in api.get(reverse("expense-category-list"), {"status": "all"}).json()]
+    assert names[:2] == ["Personnel", "Main-d'œuvre journalière"]
+    assert names[-1] == "Glace"
+
+
+def test_another_organizations_expenses_are_invisible(api, organization):
+    other = MembershipFactory.create(role=Role.MANAGER)
+    expense = services.create_expense(
+        organization=other.organization,
+        actor=other.user,
+        spent_on=timezone.localdate(),
+        category=category(other.organization, "fuel"),
+        amount="5",
+    )
+
+    assert api.get(reverse("expense-detail", args=[expense.pk])).status_code == 404
+    assert api.get(reverse("expense-list")).json()["count"] == 0
+    assert api.get(reverse("lot-costs"), {"batch": 999999}).status_code == 404
