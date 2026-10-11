@@ -33,9 +33,22 @@ import type {
   Counted,
   Customer,
   CustomerWrite,
+  DayLabourEntry,
+  DayLabourWrite,
+  DayLabourer,
+  DayLabourerWrite,
   Employee,
   EmployeeWrite,
+  ExpenseCategory,
+  ExpenseCategoryWrite,
+  ExpenseDetail,
+  ExpenseReceipt,
+  ExpenseReject,
+  ExpenseTotals,
+  ExpenseWrite,
   GeneratedMonth,
+  GetExpenseTotalsParams,
+  GetLotCostsParams,
   GetPayrollSummaryParams,
   GetTruckDayParams,
   Health,
@@ -43,7 +56,11 @@ import type {
   ListBatchesParams,
   ListCountsParams,
   ListCustomersParams,
+  ListDayLabourParams,
+  ListDayLabourersParams,
   ListEmployeesParams,
+  ListExpenseCategoriesParams,
+  ListExpensesParams,
   ListLastPurchaseCostsParams,
   ListLocationsParams,
   ListLossesParams,
@@ -68,6 +85,7 @@ import type {
   LossPhoto,
   LossReject,
   LossWrite,
+  LotCosts,
   LotWorkDay,
   LotWorkDayWrite,
   Member,
@@ -75,6 +93,7 @@ import type {
   PaginatedBatchList,
   PaginatedCountList,
   PaginatedDifferenceLineList,
+  PaginatedExpenseList,
   PaginatedLossList,
   PaginatedQuoteList,
   PaginatedReceiptList,
@@ -85,6 +104,7 @@ import type {
   PatchedCategory,
   PatchedCustomerWrite,
   PatchedEmployeeWrite,
+  PatchedExpenseCategoryUpdate,
   PatchedLanguage,
   PatchedProductUpdate,
   PatchedSalaryRecordUpdate,
@@ -1919,6 +1939,632 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRestoreCustomerMutationOptions(options), queryClient);
     }
 
+export const getListDayLabourUrl = (params?: ListDayLabourParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/day-labour?${stringifiedParams}` : `/api/v1/day-labour`
+}
+
+/**
+ * Days worked by day labourers, by day then name: a month for the calendar (`date_from`,
+ * `date_to`, inclusive), or the days of one lot or one labourer. Each day is also an expense.
+ */
+export const listDayLabour = async (params?: ListDayLabourParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayLabourEntry[]> => {
+
+  return apiFetch<DayLabourEntry[]>(getListDayLabourUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDayLabourQueryKey = (params?: ListDayLabourParams,) => {
+    return [
+    `/api/v1/day-labour`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDayLabourQueryOptions = <TData = Awaited<ReturnType<typeof listDayLabour>>, TError = unknown>(params?: ListDayLabourParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabour>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDayLabourQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDayLabour>>> = ({ signal }) => listDayLabour(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDayLabour>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDayLabourQueryResult = NonNullable<Awaited<ReturnType<typeof listDayLabour>>>
+export type ListDayLabourQueryError = unknown
+
+
+export function useListDayLabour<TData = Awaited<ReturnType<typeof listDayLabour>>, TError = unknown>(
+ params: undefined |  ListDayLabourParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabour>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayLabour>>,
+          TError,
+          Awaited<ReturnType<typeof listDayLabour>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayLabour<TData = Awaited<ReturnType<typeof listDayLabour>>, TError = unknown>(
+ params?: ListDayLabourParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabour>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayLabour>>,
+          TError,
+          Awaited<ReturnType<typeof listDayLabour>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayLabour<TData = Awaited<ReturnType<typeof listDayLabour>>, TError = unknown>(
+ params?: ListDayLabourParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabour>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDayLabour<TData = Awaited<ReturnType<typeof listDayLabour>>, TError = unknown>(
+ params?: ListDayLabourParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabour>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDayLabourQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDayLabourUrl = () => {
+
+
+
+
+  return `/api/v1/day-labour`
+}
+
+/**
+ * Record a day worked, from the calendar or from a lot (the same single record, an expense of
+ * category day labour). Without `amount`, the labourer's usual daily pay; without `batch`, a general
+ * cost. A draft until approved (`approve_now` approves at once).
+ */
+export const createDayLabour = async (dayLabourWrite: DayLabourWrite, options?: Parameters<typeof apiFetch>[1]): Promise<DayLabourEntry> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayLabourEntry>(getCreateDayLabourUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayLabourWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateDayLabourMutationKey = () => ['createDayLabour'] as const;
+
+export const getCreateDayLabourMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDayLabour>>, TError,CreateDayLabourMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDayLabour>>, TError,CreateDayLabourMutationVariables, TContext> => {
+
+const mutationKey = getCreateDayLabourMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDayLabour>>, CreateDayLabourMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDayLabour(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDayLabourMutationResult = NonNullable<Awaited<ReturnType<typeof createDayLabour>>>
+    export type CreateDayLabourMutationBody = DayLabourWrite
+    export type CreateDayLabourMutationError = unknown
+    export type CreateDayLabourMutationVariables = {data: DayLabourWrite}
+
+    export const useCreateDayLabour = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDayLabour>>, TError,CreateDayLabourMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createDayLabour>>,
+        TError,
+        CreateDayLabourMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateDayLabourMutationOptions(options), queryClient);
+    }
+
+export const getUpdateDayLabourUrl = (entryId: number,) => {
+
+
+
+
+  return `/api/v1/day-labour/${entryId}`
+}
+
+/**
+ * Correct a day not approved yet; with `approve_now`, approve it too.
+ */
+export const updateDayLabour = async (entryId: number,
+    dayLabourWrite: DayLabourWrite, options?: Parameters<typeof apiFetch>[1]): Promise<DayLabourEntry> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayLabourEntry>(getUpdateDayLabourUrl(entryId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayLabourWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateDayLabourMutationKey = () => ['updateDayLabour'] as const;
+
+export const getUpdateDayLabourMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDayLabour>>, TError,UpdateDayLabourMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDayLabour>>, TError,UpdateDayLabourMutationVariables, TContext> => {
+
+const mutationKey = getUpdateDayLabourMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDayLabour>>, UpdateDayLabourMutationVariables> = (props) => {
+          const {entryId,data} = props ?? {};
+
+          return  updateDayLabour(entryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDayLabourMutationResult = NonNullable<Awaited<ReturnType<typeof updateDayLabour>>>
+    export type UpdateDayLabourMutationBody = DayLabourWrite
+    export type UpdateDayLabourMutationError = unknown
+    export type UpdateDayLabourMutationVariables = {entryId: number;data: DayLabourWrite}
+
+    export const useUpdateDayLabour = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDayLabour>>, TError,UpdateDayLabourMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateDayLabour>>,
+        TError,
+        UpdateDayLabourMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateDayLabourMutationOptions(options), queryClient);
+    }
+
+export const getDeleteDayLabourUrl = (entryId: number,) => {
+
+
+
+
+  return `/api/v1/day-labour/${entryId}`
+}
+
+/**
+ * Delete a day typed by mistake while it is a draft (its expense goes with it).
+ */
+export const deleteDayLabour = async (entryId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteDayLabourUrl(entryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteDayLabourMutationKey = () => ['deleteDayLabour'] as const;
+
+export const getDeleteDayLabourMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDayLabour>>, TError,DeleteDayLabourMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteDayLabour>>, TError,DeleteDayLabourMutationVariables, TContext> => {
+
+const mutationKey = getDeleteDayLabourMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteDayLabour>>, DeleteDayLabourMutationVariables> = (props) => {
+          const {entryId} = props ?? {};
+
+          return  deleteDayLabour(entryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteDayLabourMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDayLabour>>>
+
+    export type DeleteDayLabourMutationError = unknown
+    export type DeleteDayLabourMutationVariables = {entryId: number}
+
+    export const useDeleteDayLabour = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDayLabour>>, TError,DeleteDayLabourMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteDayLabour>>,
+        TError,
+        DeleteDayLabourMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteDayLabourMutationOptions(options), queryClient);
+    }
+
+export const getListDayLabourersUrl = (params?: ListDayLabourersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/day-labourers?${stringifiedParams}` : `/api/v1/day-labourers`
+}
+
+/**
+ * Day labourers by name.
+ */
+export const listDayLabourers = async (params?: ListDayLabourersParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayLabourer[]> => {
+
+  return apiFetch<DayLabourer[]>(getListDayLabourersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDayLabourersQueryKey = (params?: ListDayLabourersParams,) => {
+    return [
+    `/api/v1/day-labourers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDayLabourersQueryOptions = <TData = Awaited<ReturnType<typeof listDayLabourers>>, TError = unknown>(params?: ListDayLabourersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabourers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDayLabourersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDayLabourers>>> = ({ signal }) => listDayLabourers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDayLabourers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDayLabourersQueryResult = NonNullable<Awaited<ReturnType<typeof listDayLabourers>>>
+export type ListDayLabourersQueryError = unknown
+
+
+export function useListDayLabourers<TData = Awaited<ReturnType<typeof listDayLabourers>>, TError = unknown>(
+ params: undefined |  ListDayLabourersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabourers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayLabourers>>,
+          TError,
+          Awaited<ReturnType<typeof listDayLabourers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayLabourers<TData = Awaited<ReturnType<typeof listDayLabourers>>, TError = unknown>(
+ params?: ListDayLabourersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabourers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayLabourers>>,
+          TError,
+          Awaited<ReturnType<typeof listDayLabourers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayLabourers<TData = Awaited<ReturnType<typeof listDayLabourers>>, TError = unknown>(
+ params?: ListDayLabourersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabourers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDayLabourers<TData = Awaited<ReturnType<typeof listDayLabourers>>, TError = unknown>(
+ params?: ListDayLabourersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayLabourers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDayLabourersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDayLabourerUrl = () => {
+
+
+
+
+  return `/api/v1/day-labourers`
+}
+
+/**
+ * Add a day labourer (not an employee: no payroll).
+ */
+export const createDayLabourer = async (dayLabourerWrite: DayLabourerWrite, options?: Parameters<typeof apiFetch>[1]): Promise<DayLabourer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayLabourer>(getCreateDayLabourerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayLabourerWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateDayLabourerMutationKey = () => ['createDayLabourer'] as const;
+
+export const getCreateDayLabourerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDayLabourer>>, TError,CreateDayLabourerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDayLabourer>>, TError,CreateDayLabourerMutationVariables, TContext> => {
+
+const mutationKey = getCreateDayLabourerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDayLabourer>>, CreateDayLabourerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDayLabourer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDayLabourerMutationResult = NonNullable<Awaited<ReturnType<typeof createDayLabourer>>>
+    export type CreateDayLabourerMutationBody = DayLabourerWrite
+    export type CreateDayLabourerMutationError = unknown
+    export type CreateDayLabourerMutationVariables = {data: DayLabourerWrite}
+
+    export const useCreateDayLabourer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDayLabourer>>, TError,CreateDayLabourerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createDayLabourer>>,
+        TError,
+        CreateDayLabourerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateDayLabourerMutationOptions(options), queryClient);
+    }
+
+export const getUpdateDayLabourerUrl = (labourerId: number,) => {
+
+
+
+
+  return `/api/v1/day-labourers/${labourerId}`
+}
+
+/**
+ * Change a day labourer, or archive them (`is_active` false): their days stay.
+ */
+export const updateDayLabourer = async (labourerId: number,
+    dayLabourerWrite: DayLabourerWrite, options?: Parameters<typeof apiFetch>[1]): Promise<DayLabourer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayLabourer>(getUpdateDayLabourerUrl(labourerId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayLabourerWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateDayLabourerMutationKey = () => ['updateDayLabourer'] as const;
+
+export const getUpdateDayLabourerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDayLabourer>>, TError,UpdateDayLabourerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDayLabourer>>, TError,UpdateDayLabourerMutationVariables, TContext> => {
+
+const mutationKey = getUpdateDayLabourerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDayLabourer>>, UpdateDayLabourerMutationVariables> = (props) => {
+          const {labourerId,data} = props ?? {};
+
+          return  updateDayLabourer(labourerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDayLabourerMutationResult = NonNullable<Awaited<ReturnType<typeof updateDayLabourer>>>
+    export type UpdateDayLabourerMutationBody = DayLabourerWrite
+    export type UpdateDayLabourerMutationError = unknown
+    export type UpdateDayLabourerMutationVariables = {labourerId: number;data: DayLabourerWrite}
+
+    export const useUpdateDayLabourer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDayLabourer>>, TError,UpdateDayLabourerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateDayLabourer>>,
+        TError,
+        UpdateDayLabourerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateDayLabourerMutationOptions(options), queryClient);
+    }
+
 export const getListEmployeesUrl = (params?: ListEmployeesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -2429,6 +3075,1069 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRestoreEmployeeMutationOptions(options), queryClient);
     }
+
+export const getListExpenseCategoriesUrl = (params?: ListExpenseCategoriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/expense-categories?${stringifiedParams}` : `/api/v1/expense-categories`
+}
+
+/**
+ * Expense categories: the default ones first, in the brief's order, then the owner's.
+ */
+export const listExpenseCategories = async (params?: ListExpenseCategoriesParams, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseCategory[]> => {
+
+  return apiFetch<ExpenseCategory[]>(getListExpenseCategoriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExpenseCategoriesQueryKey = (params?: ListExpenseCategoriesParams,) => {
+    return [
+    `/api/v1/expense-categories`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListExpenseCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listExpenseCategories>>, TError = unknown>(params?: ListExpenseCategoriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenseCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExpenseCategoriesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExpenseCategories>>> = ({ signal }) => listExpenseCategories(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExpenseCategories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListExpenseCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listExpenseCategories>>>
+export type ListExpenseCategoriesQueryError = unknown
+
+
+export function useListExpenseCategories<TData = Awaited<ReturnType<typeof listExpenseCategories>>, TError = unknown>(
+ params: undefined |  ListExpenseCategoriesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenseCategories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listExpenseCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listExpenseCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListExpenseCategories<TData = Awaited<ReturnType<typeof listExpenseCategories>>, TError = unknown>(
+ params?: ListExpenseCategoriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenseCategories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listExpenseCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listExpenseCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListExpenseCategories<TData = Awaited<ReturnType<typeof listExpenseCategories>>, TError = unknown>(
+ params?: ListExpenseCategoriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenseCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListExpenseCategories<TData = Awaited<ReturnType<typeof listExpenseCategories>>, TError = unknown>(
+ params?: ListExpenseCategoriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenseCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListExpenseCategoriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateExpenseCategoryUrl = () => {
+
+
+
+
+  return `/api/v1/expense-categories`
+}
+
+/**
+ * Add a category (owner only).
+ */
+export const createExpenseCategory = async (expenseCategoryWrite: ExpenseCategoryWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseCategory> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ExpenseCategory>(getCreateExpenseCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expenseCategoryWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateExpenseCategoryMutationKey = () => ['createExpenseCategory'] as const;
+
+export const getCreateExpenseCategoryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExpenseCategory>>, TError,CreateExpenseCategoryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createExpenseCategory>>, TError,CreateExpenseCategoryMutationVariables, TContext> => {
+
+const mutationKey = getCreateExpenseCategoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExpenseCategory>>, CreateExpenseCategoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createExpenseCategory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateExpenseCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof createExpenseCategory>>>
+    export type CreateExpenseCategoryMutationBody = ExpenseCategoryWrite
+    export type CreateExpenseCategoryMutationError = unknown
+    export type CreateExpenseCategoryMutationVariables = {data: ExpenseCategoryWrite}
+
+    export const useCreateExpenseCategory = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExpenseCategory>>, TError,CreateExpenseCategoryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createExpenseCategory>>,
+        TError,
+        CreateExpenseCategoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateExpenseCategoryMutationOptions(options), queryClient);
+    }
+
+export const getUpdateExpenseCategoryUrl = (categoryId: number,) => {
+
+
+
+
+  return `/api/v1/expense-categories/${categoryId}`
+}
+
+/**
+ * Rename a category or archive it (owner only). A default category is never archived.
+ */
+export const updateExpenseCategory = async (categoryId: number,
+    patchedExpenseCategoryUpdate?: PatchedExpenseCategoryUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseCategory> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ExpenseCategory>(getUpdateExpenseCategoryUrl(categoryId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedExpenseCategoryUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateExpenseCategoryMutationKey = () => ['updateExpenseCategory'] as const;
+
+export const getUpdateExpenseCategoryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExpenseCategory>>, TError,UpdateExpenseCategoryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateExpenseCategory>>, TError,UpdateExpenseCategoryMutationVariables, TContext> => {
+
+const mutationKey = getUpdateExpenseCategoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateExpenseCategory>>, UpdateExpenseCategoryMutationVariables> = (props) => {
+          const {categoryId,data} = props ?? {};
+
+          return  updateExpenseCategory(categoryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateExpenseCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateExpenseCategory>>>
+    export type UpdateExpenseCategoryMutationBody = PatchedExpenseCategoryUpdate | undefined
+    export type UpdateExpenseCategoryMutationError = unknown
+    export type UpdateExpenseCategoryMutationVariables = {categoryId: number;data?: PatchedExpenseCategoryUpdate}
+
+    export const useUpdateExpenseCategory = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExpenseCategory>>, TError,UpdateExpenseCategoryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateExpenseCategory>>,
+        TError,
+        UpdateExpenseCategoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateExpenseCategoryMutationOptions(options), queryClient);
+    }
+
+export const getListExpensesUrl = (params?: ListExpensesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/expenses?${stringifiedParams}` : `/api/v1/expenses`
+}
+
+/**
+ * Expenses, newest day first, paginated (`limit`, `offset`). Filter by status, category, lot,
+ * truck, days (inclusive) or `search` (number, description, payee, lot number).
+ */
+export const listExpenses = async (params?: ListExpensesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedExpenseList> => {
+
+  return apiFetch<PaginatedExpenseList>(getListExpensesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExpensesQueryKey = (params?: ListExpensesParams,) => {
+    return [
+    `/api/v1/expenses`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListExpensesQueryOptions = <TData = Awaited<ReturnType<typeof listExpenses>>, TError = unknown>(params?: ListExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExpensesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExpenses>>> = ({ signal }) => listExpenses(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExpenses>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListExpensesQueryResult = NonNullable<Awaited<ReturnType<typeof listExpenses>>>
+export type ListExpensesQueryError = unknown
+
+
+export function useListExpenses<TData = Awaited<ReturnType<typeof listExpenses>>, TError = unknown>(
+ params: undefined |  ListExpensesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenses>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof listExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListExpenses<TData = Awaited<ReturnType<typeof listExpenses>>, TError = unknown>(
+ params?: ListExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenses>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof listExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListExpenses<TData = Awaited<ReturnType<typeof listExpenses>>, TError = unknown>(
+ params?: ListExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListExpenses<TData = Awaited<ReturnType<typeof listExpenses>>, TError = unknown>(
+ params?: ListExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListExpensesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateExpenseUrl = () => {
+
+
+
+
+  return `/api/v1/expenses`
+}
+
+/**
+ * Record an expense as a draft, or with `approve_now` approved at once. `batch` charges it to a
+ * lot; `truck` makes it a truck cost of that day, split over the lots loaded that day by kg. A day
+ * labourer's day is recorded in the day-labour calendar instead.
+ */
+export const createExpense = async (expenseWrite: ExpenseWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ExpenseDetail>(getCreateExpenseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expenseWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateExpenseMutationKey = () => ['createExpense'] as const;
+
+export const getCreateExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExpense>>, TError,CreateExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createExpense>>, TError,CreateExpenseMutationVariables, TContext> => {
+
+const mutationKey = getCreateExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExpense>>, CreateExpenseMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createExpense(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof createExpense>>>
+    export type CreateExpenseMutationBody = ExpenseWrite
+    export type CreateExpenseMutationError = unknown
+    export type CreateExpenseMutationVariables = {data: ExpenseWrite}
+
+    export const useCreateExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExpense>>, TError,CreateExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createExpense>>,
+        TError,
+        CreateExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateExpenseMutationOptions(options), queryClient);
+    }
+
+export const getGetExpenseUrl = (expenseId: number,) => {
+
+
+
+
+  return `/api/v1/expenses/${expenseId}`
+}
+
+/**
+ * One expense; a truck cost of the day comes with its split over the lots loaded that day.
+ */
+export const getExpense = async (expenseId: number, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseDetail> => {
+
+  return apiFetch<ExpenseDetail>(getGetExpenseUrl(expenseId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetExpenseQueryKey = (expenseId: number,) => {
+    return [
+    `/api/v1/expenses/${expenseId}`
+    ] as const;
+    }
+
+
+export const getGetExpenseQueryOptions = <TData = Awaited<ReturnType<typeof getExpense>>, TError = unknown>(expenseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpense>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetExpenseQueryKey(expenseId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getExpense>>> = ({ signal }) => getExpense(expenseId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: expenseId !== null && expenseId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getExpense>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetExpenseQueryResult = NonNullable<Awaited<ReturnType<typeof getExpense>>>
+export type GetExpenseQueryError = unknown
+
+
+export function useGetExpense<TData = Awaited<ReturnType<typeof getExpense>>, TError = unknown>(
+ expenseId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpense>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getExpense>>,
+          TError,
+          Awaited<ReturnType<typeof getExpense>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetExpense<TData = Awaited<ReturnType<typeof getExpense>>, TError = unknown>(
+ expenseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpense>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getExpense>>,
+          TError,
+          Awaited<ReturnType<typeof getExpense>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetExpense<TData = Awaited<ReturnType<typeof getExpense>>, TError = unknown>(
+ expenseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpense>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetExpense<TData = Awaited<ReturnType<typeof getExpense>>, TError = unknown>(
+ expenseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpense>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetExpenseQueryOptions(expenseId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateExpenseUrl = (expenseId: number,) => {
+
+
+
+
+  return `/api/v1/expenses/${expenseId}`
+}
+
+/**
+ * Correct a draft or an expense waiting for approval; with `approve_now`, approve it too. An approved
+ * or refused expense never changes: a correction is a new expense.
+ */
+export const updateExpense = async (expenseId: number,
+    expenseWrite: ExpenseWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ExpenseDetail>(getUpdateExpenseUrl(expenseId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expenseWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateExpenseMutationKey = () => ['updateExpense'] as const;
+
+export const getUpdateExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExpense>>, TError,UpdateExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateExpense>>, TError,UpdateExpenseMutationVariables, TContext> => {
+
+const mutationKey = getUpdateExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateExpense>>, UpdateExpenseMutationVariables> = (props) => {
+          const {expenseId,data} = props ?? {};
+
+          return  updateExpense(expenseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof updateExpense>>>
+    export type UpdateExpenseMutationBody = ExpenseWrite
+    export type UpdateExpenseMutationError = unknown
+    export type UpdateExpenseMutationVariables = {expenseId: number;data: ExpenseWrite}
+
+    export const useUpdateExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExpense>>, TError,UpdateExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateExpense>>,
+        TError,
+        UpdateExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateExpenseMutationOptions(options), queryClient);
+    }
+
+export const getDeleteExpenseUrl = (expenseId: number,) => {
+
+
+
+
+  return `/api/v1/expenses/${expenseId}`
+}
+
+/**
+ * Delete a draft typed by mistake. An expense sent for approval is refused instead.
+ */
+export const deleteExpense = async (expenseId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteExpenseUrl(expenseId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteExpenseMutationKey = () => ['deleteExpense'] as const;
+
+export const getDeleteExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteExpense>>, TError,DeleteExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteExpense>>, TError,DeleteExpenseMutationVariables, TContext> => {
+
+const mutationKey = getDeleteExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteExpense>>, DeleteExpenseMutationVariables> = (props) => {
+          const {expenseId} = props ?? {};
+
+          return  deleteExpense(expenseId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof deleteExpense>>>
+
+    export type DeleteExpenseMutationError = unknown
+    export type DeleteExpenseMutationVariables = {expenseId: number}
+
+    export const useDeleteExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteExpense>>, TError,DeleteExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteExpense>>,
+        TError,
+        DeleteExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteExpenseMutationOptions(options), queryClient);
+    }
+
+export const getApproveExpenseUrl = (expenseId: number,) => {
+
+
+
+
+  return `/api/v1/expenses/${expenseId}/approve`
+}
+
+/**
+ * Approve a draft or a waiting expense (owner or manager): it counts in the costs from now on.
+ */
+export const approveExpense = async (expenseId: number, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseDetail> => {
+
+  return apiFetch<ExpenseDetail>(getApproveExpenseUrl(expenseId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveExpenseMutationKey = () => ['approveExpense'] as const;
+
+export const getApproveExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveExpense>>, TError,ApproveExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveExpense>>, TError,ApproveExpenseMutationVariables, TContext> => {
+
+const mutationKey = getApproveExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveExpense>>, ApproveExpenseMutationVariables> = (props) => {
+          const {expenseId} = props ?? {};
+
+          return  approveExpense(expenseId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof approveExpense>>>
+
+    export type ApproveExpenseMutationError = unknown
+    export type ApproveExpenseMutationVariables = {expenseId: number}
+
+    export const useApproveExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveExpense>>, TError,ApproveExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveExpense>>,
+        TError,
+        ApproveExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveExpenseMutationOptions(options), queryClient);
+    }
+
+export const getAddExpenseReceiptUrl = (expenseId: number,) => {
+
+
+
+
+  return `/api/v1/expenses/${expenseId}/receipt`
+}
+
+/**
+ * Join the receipt: a photo (turned upright, shrunk, stored as WebP without metadata) or a PDF.
+ * It can be replaced while the expense is open; once decided, only joined if there was none.
+ */
+export const addExpenseReceipt = async (expenseId: number,
+    expenseReceipt: ExpenseReceipt, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseDetail> => {
+    const formData = new FormData();
+formData.append(`receipt`, expenseReceipt.receipt);
+
+  return apiFetch<ExpenseDetail>(getAddExpenseReceiptUrl(expenseId),
+  {
+    ...options,
+    method: 'PUT'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAddExpenseReceiptMutationKey = () => ['addExpenseReceipt'] as const;
+
+export const getAddExpenseReceiptMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addExpenseReceipt>>, TError,AddExpenseReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addExpenseReceipt>>, TError,AddExpenseReceiptMutationVariables, TContext> => {
+
+const mutationKey = getAddExpenseReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addExpenseReceipt>>, AddExpenseReceiptMutationVariables> = (props) => {
+          const {expenseId,data} = props ?? {};
+
+          return  addExpenseReceipt(expenseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddExpenseReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof addExpenseReceipt>>>
+    export type AddExpenseReceiptMutationBody = ExpenseReceipt
+    export type AddExpenseReceiptMutationError = void
+    export type AddExpenseReceiptMutationVariables = {expenseId: number;data: ExpenseReceipt}
+
+    export const useAddExpenseReceipt = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addExpenseReceipt>>, TError,AddExpenseReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addExpenseReceipt>>,
+        TError,
+        AddExpenseReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddExpenseReceiptMutationOptions(options), queryClient);
+    }
+
+export const getRejectExpenseUrl = (expenseId: number,) => {
+
+
+
+
+  return `/api/v1/expenses/${expenseId}/reject`
+}
+
+/**
+ * Refuse a draft or a waiting expense, saying why. It never counts.
+ */
+export const rejectExpense = async (expenseId: number,
+    expenseReject: ExpenseReject, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ExpenseDetail>(getRejectExpenseUrl(expenseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expenseReject)
+  }
+);}
+
+
+
+
+
+export const getRejectExpenseMutationKey = () => ['rejectExpense'] as const;
+
+export const getRejectExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectExpense>>, TError,RejectExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectExpense>>, TError,RejectExpenseMutationVariables, TContext> => {
+
+const mutationKey = getRejectExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectExpense>>, RejectExpenseMutationVariables> = (props) => {
+          const {expenseId,data} = props ?? {};
+
+          return  rejectExpense(expenseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof rejectExpense>>>
+    export type RejectExpenseMutationBody = ExpenseReject
+    export type RejectExpenseMutationError = unknown
+    export type RejectExpenseMutationVariables = {expenseId: number;data: ExpenseReject}
+
+    export const useRejectExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectExpense>>, TError,RejectExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectExpense>>,
+        TError,
+        RejectExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectExpenseMutationOptions(options), queryClient);
+    }
+
+export const getGetExpenseTotalsUrl = (params?: GetExpenseTotalsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/expenses/totals?${stringifiedParams}` : `/api/v1/expenses/totals`
+}
+
+/**
+ * How many expenses the same filters as `listExpenses` keep, and their totals: approved, and still
+ * waiting (drafts and sent for approval).
+ */
+export const getExpenseTotals = async (params?: GetExpenseTotalsParams, options?: Parameters<typeof apiFetch>[1]): Promise<ExpenseTotals> => {
+
+  return apiFetch<ExpenseTotals>(getGetExpenseTotalsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetExpenseTotalsQueryKey = (params?: GetExpenseTotalsParams,) => {
+    return [
+    `/api/v1/expenses/totals`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetExpenseTotalsQueryOptions = <TData = Awaited<ReturnType<typeof getExpenseTotals>>, TError = unknown>(params?: GetExpenseTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpenseTotals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetExpenseTotalsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getExpenseTotals>>> = ({ signal }) => getExpenseTotals(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getExpenseTotals>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetExpenseTotalsQueryResult = NonNullable<Awaited<ReturnType<typeof getExpenseTotals>>>
+export type GetExpenseTotalsQueryError = unknown
+
+
+export function useGetExpenseTotals<TData = Awaited<ReturnType<typeof getExpenseTotals>>, TError = unknown>(
+ params: undefined |  GetExpenseTotalsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpenseTotals>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getExpenseTotals>>,
+          TError,
+          Awaited<ReturnType<typeof getExpenseTotals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetExpenseTotals<TData = Awaited<ReturnType<typeof getExpenseTotals>>, TError = unknown>(
+ params?: GetExpenseTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpenseTotals>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getExpenseTotals>>,
+          TError,
+          Awaited<ReturnType<typeof getExpenseTotals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetExpenseTotals<TData = Awaited<ReturnType<typeof getExpenseTotals>>, TError = unknown>(
+ params?: GetExpenseTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpenseTotals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetExpenseTotals<TData = Awaited<ReturnType<typeof getExpenseTotals>>, TError = unknown>(
+ params?: GetExpenseTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExpenseTotals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetExpenseTotalsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetHealthUrl = () => {
 
@@ -3656,6 +5365,113 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRejectLossMutationOptions(options), queryClient);
     }
+
+export const getGetLotCostsUrl = (params: GetLotCostsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/lot-costs?${stringifiedParams}` : `/api/v1/lot-costs`
+}
+
+/**
+ * The costs charged to one lot so far: expenses typed on it and its share of the truck costs of
+ * each day it was on a truck (by kg loaded). `total` counts approved lines only; drafts and waiting
+ * expenses are listed for information.
+ */
+export const getLotCosts = async (params: GetLotCostsParams, options?: Parameters<typeof apiFetch>[1]): Promise<LotCosts> => {
+
+  return apiFetch<LotCosts>(getGetLotCostsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLotCostsQueryKey = (params?: GetLotCostsParams,) => {
+    return [
+    `/api/v1/lot-costs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLotCostsQueryOptions = <TData = Awaited<ReturnType<typeof getLotCosts>>, TError = unknown>(params: GetLotCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotCosts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLotCostsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLotCosts>>> = ({ signal }) => getLotCosts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLotCosts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLotCostsQueryResult = NonNullable<Awaited<ReturnType<typeof getLotCosts>>>
+export type GetLotCostsQueryError = unknown
+
+
+export function useGetLotCosts<TData = Awaited<ReturnType<typeof getLotCosts>>, TError = unknown>(
+ params: GetLotCostsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotCosts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotCosts>>,
+          TError,
+          Awaited<ReturnType<typeof getLotCosts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotCosts<TData = Awaited<ReturnType<typeof getLotCosts>>, TError = unknown>(
+ params: GetLotCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotCosts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotCosts>>,
+          TError,
+          Awaited<ReturnType<typeof getLotCosts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotCosts<TData = Awaited<ReturnType<typeof getLotCosts>>, TError = unknown>(
+ params: GetLotCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotCosts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLotCosts<TData = Awaited<ReturnType<typeof getLotCosts>>, TError = unknown>(
+ params: GetLotCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotCosts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLotCostsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListLotWorkDaysUrl = (params?: ListLotWorkDaysParams,) => {
   const normalizedParams = new URLSearchParams();

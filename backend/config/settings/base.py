@@ -41,6 +41,7 @@ LOCAL_APPS = [
     "apps.purchasing",
     "apps.sales",
     "apps.hr",
+    "apps.expenses",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -141,5 +142,8 @@ SPECTACULAR_SETTINGS = {
         "QuoteStatusEnum": "apps.sales.models.QuoteStatus",
         "SalaryStatusEnum": "apps.hr.models.SalaryStatus",
         "SalaryPaymentMethodEnum": "apps.hr.models.SalaryPaymentMethod",
+        "ExpenseStatusEnum": "apps.expenses.models.ExpenseStatus",
+        "LotCostKindEnum": "apps.expenses.models.LotCostKind",
+        "WorkTypeEnum": "apps.expenses.models.WorkType",
     },
 }
