@@ -31,20 +31,24 @@ CUSTOMER_PAYMENTS_BLOCK = True
 
 
 def _sale_rows(organization: Organization, batch_id: int) -> tuple[engine.SaleRow, ...]:
-    return tuple(
-        engine.SaleRow(
-            sale_id=row.line.sale_id,
-            sale_number=row.line.sale.number,
-            sold_on=timezone.localtime(row.line.sale.sold_at).date(),
-            customer=row.line.sale.customer.name,
-            quantity=row.quantity,
-            unit_price=row.line.unit_price,
-            revenue=row.revenue_amount,
-            cost=row.cost_amount,
-            amount_due=row.line.sale.amount_due,
+    """The lot's confirmed sale rows, net of what customer returns took back (D-070)."""
+    rows = []
+    for row in sales.batch_sales(organization, batch_id=batch_id):
+        net = sales.net_of(row)
+        rows.append(
+            engine.SaleRow(
+                sale_id=row.line.sale_id,
+                sale_number=row.line.sale.number,
+                sold_on=timezone.localtime(row.line.sale.sold_at).date(),
+                customer=row.line.sale.customer.name,
+                quantity=net.quantity,
+                unit_price=row.line.unit_price,
+                revenue=net.revenue,
+                cost=net.cost,
+                amount_due=row.line.sale.amount_due,
+            )
         )
-        for row in sales.batch_sales(organization, batch_id=batch_id)
-    )
+    return tuple(rows)
 
 
 @dataclass(frozen=True)

@@ -28,6 +28,8 @@ from .models import (
     CreditNote,
     CreditNoteKind,
     CreditNoteLine,
+    CreditNoteLineBatch,
+    CreditNoteStock,
     CreditPolicy,
     CreditStatus,
     CustomerPayment,
@@ -974,15 +976,22 @@ def cancel_sale(*, sale: Sale, actor: User | None, reason: str = "") -> Sale:
     if sale.status == SaleStatus.CONFIRMED:
         if not reason:
             raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})
-        rows = SaleLineBatch.objects.filter(line__sale=sale).select_related("batch", "line").order_by("batch_id", "id")
+        rows = list(
+            SaleLineBatch.objects.filter(line__sale=sale).select_related("batch", "line").order_by("batch_id", "id")
+        )
+        returned = selectors.returned_by_sale_batch([row.pk for row in rows])
         for row in rows:
+            # Kilos already given back by a credit note (D-070) are not returned twice.
+            left = row.quantity - returned.get(row.pk, Decimal("0.000"))
+            if left <= 0:
+                continue
             try:
                 inventory.post_movement(
                     organization=sale.organization,
                     actor=actor,
                     kind=inventory.MovementKind.CUSTOMER_RETURN,
                     batch=row.batch,
-                    quantity=row.quantity,
+                    quantity=left,
                     to_location=sale.location,
                     reason=_("Annulation de la vente %(number)s") % {"number": sale.number},
                     source=row.line,
@@ -1736,6 +1745,76 @@ def _partial_credit_parts(
     return parts
 
 
+def _take_back(
+    *, note: CreditNote, credit_line: CreditNoteLine, part: _CreditPart, index: int, sale: Sale, actor: User | None
+) -> None:
+    """Share what one credit note line gives back over the batches of the sale line, and move the stock.
+
+    Kilos that come back (`restock` or `loss`) are taken from the batches the sale line left, in order, up to
+    what each batch has not yet got back; they re-enter `sale.location` by `customer_return` movements at the
+    cost they left with, and a `loss` note writes them off at once (reason: the credit note), on the same
+    batch. The amount without VAT is shared by those kilos; with no kilos back (price correction, goods not
+    taken back) it is shared by the kilos sold. Each part is rounded once, the last one takes the rest.
+    """
+    batch_rows = list(
+        SaleLineBatch.objects.filter(line_id=part.invoice_line.sale_line_id).select_related("batch").order_by("id")
+    )
+    returned = selectors.returned_by_sale_batch([row.pk for row in batch_rows])
+    taken: list[tuple[SaleLineBatch, Decimal]] = []
+    if note.stock != CreditNoteStock.NONE and part.quantity > 0:
+        needed = part.quantity
+        for row in batch_rows:
+            left = row.quantity - returned.get(row.pk, Decimal("0.000"))
+            take = min(left, needed)
+            if take > 0:
+                taken.append((row, take))
+                needed -= take
+        if needed > 0:
+            raise ValidationError(
+                {
+                    line_error_key(index, "quantity"): _(
+                        "Il ne reste que %(kg)s kg de cette vente à remettre dans les lots d'origine."
+                    )
+                    % {"kg": part.quantity - needed}
+                }
+            )
+    weighted = taken or [(row, row.quantity) for row in batch_rows]
+    revenues = _revenue_parts(part.excl, [weight for _row, weight in weighted])
+    for (row, weight), revenue in zip(weighted, revenues, strict=True):
+        kilos = weight if taken else Decimal("0.000")
+        CreditNoteLineBatch.objects.create(
+            organization_id=note.organization_id,
+            line=credit_line,
+            sale_line_batch=row,
+            quantity=kilos,
+            revenue_amount=revenue,
+            cost_amount=line_total(kilos, row.unit_cost),
+        )
+        if kilos == 0:
+            continue
+        inventory.post_movement(
+            organization=note.organization,
+            actor=actor,
+            kind=inventory.MovementKind.CUSTOMER_RETURN,
+            batch=row.batch,
+            quantity=kilos,
+            to_location=sale.location,
+            reason=_("Retour client · avoir %(number)s") % {"number": note.number},
+            source=credit_line,
+        )
+        if note.stock == CreditNoteStock.LOSS:
+            inventory.post_movement(
+                organization=note.organization,
+                actor=actor,
+                kind=inventory.MovementKind.LOSS,
+                batch=row.batch,
+                quantity=kilos,
+                from_location=sale.location,
+                reason=_("Retour client avarié · avoir %(number)s") % {"number": note.number},
+                source=credit_line,
+            )
+
+
 @transaction.atomic
 def create_credit_note(
     *,
@@ -1744,13 +1823,18 @@ def create_credit_note(
     kind: str,
     reason: str,
     lines: Sequence[CreditLineFields] = (),
+    stock: str = CreditNoteStock.NONE,
 ) -> CreditNote:
     """Correct an issued invoice: the only way (D-057). Numbered AV-<year>-0001... at once, never changed.
 
     `full` gives back everything the invoice still holds (lines, VAT, stamp, the rest of the withholding) and
     cancels the invoice, so its sale may be invoiced again. `partial` gives back, per line, kilos (their
     share of the line) or an amount without VAT, with the line's VAT in proportion, and the withholding at
-    the invoice's rate. Nothing moves in the stock (returns: P2-T07).
+    the invoice's rate.
+
+    `stock` says what happens to the kilos given back (customer returns, D-070): `none` moves nothing,
+    `restock` puts them back in the sale's place on the batches they left, `loss` does the same and writes
+    them off. Either way the lot's revenue and cost of goods drop by what came back.
     """
     invoice = _locked_invoice(invoice)
     if invoice.status == InvoiceStatus.DRAFT:
@@ -1762,6 +1846,8 @@ def create_credit_note(
         raise ValidationError({"reason": _("Indiquez la raison de l'avoir.")})
     if kind not in CreditNoteKind.values:
         raise ValidationError({"kind": _("Type d'avoir inconnu.")})
+    if stock not in CreditNoteStock.values:
+        raise ValidationError({"stock": _("Indiquez ce que deviennent les kilos rendus.")})
     credited = selectors.credited_by_line(invoice)
     already = invoice.credit_notes.aggregate(stamp=Sum("fiscal_stamp"), withholding=Sum("withholding_amount"))
     withholding_left = invoice.withholding_amount - (already["withholding"] or Decimal("0.000"))
@@ -1786,6 +1872,7 @@ def create_credit_note(
         kind=kind,
         issued_on=today,
         reason=reason,
+        stock=stock,
         total_excl_tax=total_excl,
         vat_total=vat_total,
         fiscal_stamp=stamp,
@@ -1794,26 +1881,23 @@ def create_credit_note(
         net_amount=total_excl + vat_total + stamp - withholding,
         created_by=actor,
     )
-    CreditNoteLine.objects.bulk_create(
-        [
-            CreditNoteLine(
-                organization_id=invoice.organization_id,
-                credit_note=note,
-                invoice_line=part.invoice_line,
-                quantity=part.quantity,
-                vat_rate=part.invoice_line.vat_rate,
-                amount_excl_tax=part.excl,
-                vat_amount=part.vat,
-                amount_incl_tax=part.excl + part.vat,
-            )
-            for part in parts
-        ]
-    )
+    sale = _locked_sale(invoice.sale)
+    for index, part in enumerate(parts):
+        credit_line = CreditNoteLine.objects.create(
+            organization_id=invoice.organization_id,
+            credit_note=note,
+            invoice_line=part.invoice_line,
+            quantity=part.quantity,
+            vat_rate=part.invoice_line.vat_rate,
+            amount_excl_tax=part.excl,
+            vat_amount=part.vat,
+            amount_incl_tax=part.excl + part.vat,
+        )
+        _take_back(note=note, credit_line=credit_line, part=part, index=index, sale=sale, actor=actor)
     if kind == CreditNoteKind.FULL:
         invoice.status = InvoiceStatus.CANCELLED
         invoice.cancelled_at = timezone.now()
         invoice.save(update_fields=["status", "cancelled_at", "updated_at"])
-        sale = _locked_sale(invoice.sale)
         sale.tax_amount = None
         sale.save(update_fields=["tax_amount", "updated_at"])
     refresh_sale_due(invoice.sale)
@@ -1827,6 +1911,7 @@ def create_credit_note(
             "invoice": invoice.number,
             "kind": kind,
             "reason": reason,
+            "stock": stock,
             "total_excl_tax": str(note.total_excl_tax),
             "vat_total": str(note.vat_total),
             "fiscal_stamp": str(note.fiscal_stamp),

@@ -45,6 +45,7 @@ export * from './creditNoteInvoice';
 export * from './creditNoteKindEnum';
 export * from './creditNoteLine';
 export * from './creditNoteLineWrite';
+export * from './creditNoteStockEnum';
 export * from './creditNoteWrite';
 export * from './creditPolicyEnum';
 export * from './customer';

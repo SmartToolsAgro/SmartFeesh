@@ -27,4 +27,10 @@ export interface BatchSaleRow {
   readonly unit_cost: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly cost_amount: string;
+  /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
+  readonly returned_quantity: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly credited_revenue: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly returned_cost: string;
 }

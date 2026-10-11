@@ -1,4 +1,4 @@
-import { createCreditNote, type CreditNoteKindEnum, type InvoiceDetail } from "@frutti/api";
+import { createCreditNote, type CreditNoteKindEnum, type CreditNoteStockEnum, type InvoiceDetail } from "@frutti/api";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -27,6 +27,7 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
   const formId = useId();
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<CreditNoteKindEnum>("full");
+  const [stock, setStock] = useState<CreditNoteStockEnum>("none");
   const [reason, setReason] = useState("");
   const [entries, setEntries] = useState<Record<number, Entry>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -55,7 +56,7 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
         setErrors(found);
         return Promise.reject(new Error("invalid"));
       }
-      return createCreditNote(invoice.id, { kind, reason: reason.trim(), lines });
+      return createCreditNote(invoice.id, { kind, reason: reason.trim(), lines, stock });
     },
     onSuccess: async (note) => {
       toast.success(t("admin.invoices.creditDialog.done", { number: note.number }));
@@ -146,6 +147,32 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
             {message}
           </p>
         ))}
+
+        <div role="group" aria-label={t("admin.invoices.creditDialog.stock")} className="flex flex-col gap-2">
+          <span className="text-[0.88rem] font-semibold">{t("admin.invoices.creditDialog.stock")}</span>
+          {(["none", "restock", "loss"] as const).map((value) => (
+            <label key={value} className="flex items-start gap-2.5 text-[0.92rem]">
+              <input
+                type="radio"
+                name={`${formId}-stock`}
+                className="mt-1 size-4 accent-sea"
+                checked={stock === value}
+                onChange={() => setStock(value)}
+              />
+              <span>
+                <span className="font-semibold">{t(`admin.invoices.creditDialog.stocks.${value}`)}</span>
+                <span className="block text-[0.82rem] text-ink-2">
+                  {t(`admin.invoices.creditDialog.stockHints.${value}`)}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {errors.stock && (
+          <p role="alert" className="text-[0.82rem] font-semibold text-bad">
+            {errors.stock}
+          </p>
+        )}
 
         <Field label={t("admin.invoices.creditDialog.reason")} htmlFor={`${formId}-reason`} error={errors.reason}>
           <Input

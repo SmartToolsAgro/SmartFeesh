@@ -655,12 +655,21 @@ class CreditNoteKind(models.TextChoices):
     PARTIAL = "partial", _("Partielle")
 
 
+class CreditNoteStock(models.TextChoices):
+    # The kilos given back are not taken back (a weight dispute, a price correction): the stock is untouched.
+    NONE = "none", _("Aucun mouvement de stock")
+    # The goods come back to the stock, to the batches and place they left.
+    RESTOCK = "restock", _("Remis en stock")
+    # The goods come back but cannot be sold again: they are written off, on the lot they came from.
+    LOSS = "loss", _("Mis en perte")
+
+
 class CreditNote(OrganizationScopedModel, TimeStampedModel):
     """The only correction of an issued invoice (avoir): numbered AV-2026-0001... when made, never changed.
 
     A full credit note gives back everything the invoice still holds (lines, VAT, stamp, withholding) and
-    cancels the invoice; a partial one gives back kilos or amounts of some lines with their VAT. Nothing
-    moves in the stock here (customer returns are P2-T07).
+    cancels the invoice; a partial one gives back kilos or amounts of some lines with their VAT. `stock` says
+    whether the kilos go back to the stock, are written off, or move nothing (customer returns, D-070).
     """
 
     number = models.CharField(max_length=20)
@@ -668,6 +677,8 @@ class CreditNote(OrganizationScopedModel, TimeStampedModel):
     kind = models.CharField(max_length=20, choices=CreditNoteKind.choices)
     issued_on = models.DateField()
     reason = models.CharField(max_length=255)
+    # What happened to the kilos given back (P2-T07, D-070).
+    stock = models.CharField(max_length=20, choices=CreditNoteStock.choices, default=CreditNoteStock.NONE)
     total_excl_tax = MoneyField(default=Decimal("0.000"))
     vat_total = MoneyField(default=Decimal("0.000"))
     fiscal_stamp = MoneyField(default=Decimal("0.000"))
@@ -726,6 +737,34 @@ class CreditNoteLine(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.credit_note} · {self.invoice_line_id}"
+
+
+class CreditNoteLineBatch(OrganizationScopedModel):
+    """What a credit note line takes back from one batch (lot) of the sale line: the revenue it reverses and,
+    when the goods come back, their kilos and cost (the batch's cost per kg when sold).
+
+    The lot's result nets these rows from its sales (D-070), so a return lowers the lot's revenue and cost of
+    goods, and a loss movement then writes the spoiled goods off on the same lot.
+    """
+
+    line = models.ForeignKey(CreditNoteLine, on_delete=models.CASCADE, related_name="batches")
+    sale_line_batch = models.ForeignKey(SaleLineBatch, on_delete=models.PROTECT, related_name="credit_rows")
+    # Kilos that came back (0: a price correction, or goods not taken back).
+    quantity = QuantityField(default=Decimal("0.000"))
+    revenue_amount = MoneyField()
+    cost_amount = MoneyField(default=Decimal("0.000"))
+
+    class Meta:
+        ordering = ["line", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=0, revenue_amount__gte=0, cost_amount__gte=0),
+                name="credit_note_line_batch_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.line} · {self.sale_line_batch_id} · {self.quantity} kg"
 
 
 # ---- Customer payments (P2-T06, D-062) ----
