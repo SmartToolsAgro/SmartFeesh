@@ -8,6 +8,9 @@
 /**
  * * `lot` - Sur le lot
  * * `truck_day` - Frais du camion du jour
+ * * `cold_room` - Chambre froide
+ * * `cold_room_adjustment` - Correction chambre froide
+ * * `general` - Frais généraux
  */
 export type LotCostKindEnum = typeof LotCostKindEnum[keyof typeof LotCostKindEnum];
 
@@ -15,4 +18,7 @@ export type LotCostKindEnum = typeof LotCostKindEnum[keyof typeof LotCostKindEnu
 export const LotCostKindEnum = {
   lot: 'lot',
   truck_day: 'truck_day',
+  cold_room: 'cold_room',
+  cold_room_adjustment: 'cold_room_adjustment',
+  general: 'general',
 } as const;
