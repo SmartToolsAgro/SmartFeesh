@@ -1,4 +1,12 @@
-import { acceptQuote, ApiError, refuseQuote, sendQuote, useGetQuote } from "@frutti/api";
+import {
+  acceptQuote,
+  ApiError,
+  convertQuoteToSale,
+  refuseQuote,
+  sendQuote,
+  useGetQuote,
+  useListLocations,
+} from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import {
@@ -19,6 +27,11 @@ import {
   Input,
   PageHeader,
   Pill,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   Td,
   Th,
@@ -29,6 +42,7 @@ import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { refreshAfterSale } from "../sales/shared";
 import { canWriteQuotes, formatRate, refreshAfterQuote, STATUS_TONES } from "./shared";
 
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
@@ -69,6 +83,29 @@ export function QuoteDetailPage() {
   const quote = useGetQuote(id, { query: { enabled: validId, retry: false } });
   const [refusing, setRefusing] = useState(false);
   const [reason, setReason] = useState("");
+  // P2-T04: an accepted quote becomes a sale, from the quote's place unless another is chosen.
+  const convertId = useId();
+  const [converting, setConverting] = useState(false);
+  const [convertPlace, setConvertPlace] = useState("");
+  const [convertError, setConvertError] = useState("");
+  const locations = useListLocations({ status: "active" }, { query: { enabled: converting } });
+  const convert = useMutation({
+    mutationFn: (confirmNow: boolean) =>
+      convertQuoteToSale(id, {
+        location: convertPlace ? Number(convertPlace) : (quote.data?.location?.id ?? null),
+        confirm_now: confirmNow,
+      }),
+    onSuccess: async (sale) => {
+      toast.success(t("admin.sales.fromQuote.created", { number: sale.number }));
+      setConverting(false);
+      await refreshAfterSale(queryClient);
+      void navigate(`/ventes/${sale.id}`);
+    },
+    onError: (failure) => {
+      const fromServer = fieldErrors(failure);
+      setConvertError(Object.values(fromServer).join(" ") || t("admin.quotes.detail.actionError"));
+    },
+  });
 
   const onFailure = (failure: unknown) => {
     const fromServer = fieldErrors(failure);
@@ -141,6 +178,19 @@ export function QuoteDetailPage() {
               {t("admin.quotes.detail.accept")}
             </Button>
           </>
+        )}
+        {canWrite && data.status === "accepted" && !data.sale && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              setConvertPlace(data.location ? String(data.location.id) : "");
+              setConvertError("");
+              setConverting(true);
+            }}
+          >
+            <Icon name="receipt" />
+            {t("admin.sales.fromQuote.convert")}
+          </Button>
         )}
       </PageHeader>
 
@@ -277,6 +327,14 @@ export function QuoteDetailPage() {
               </Detail>
             )}
             {data.location && <Detail label={t("admin.quotes.detail.location")}>{data.location.name}</Detail>}
+            {data.sale && (
+              <Detail label={t("admin.sales.fromQuote.sale")}>
+                <Link to={`/ventes/${data.sale.id}`} className="font-semibold text-sea hover:underline">
+                  {data.sale.number}
+                </Link>{" "}
+                · {t(`admin.sales.statuses.${data.sale.status}`)}
+              </Detail>
+            )}
           </dl>
         </Card>
       </div>
@@ -292,6 +350,38 @@ export function QuoteDetailPage() {
             <Button onClick={() => setRefusing(false)}>{t("admin.quotes.detail.keep")}</Button>
             <Button variant="danger" disabled={refuse.isPending} onClick={() => refuse.mutate()}>
               {t("admin.quotes.detail.confirmRefuse")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={converting} onOpenChange={setConverting}>
+        <DialogContent>
+          <DialogTitle>{t("admin.sales.fromQuote.title", { number: data.number })}</DialogTitle>
+          <DialogDescription>{t("admin.sales.fromQuote.body")}</DialogDescription>
+          <Field label={t("admin.sales.fromQuote.location")} htmlFor={convertId} error={convertError}>
+            <Select value={convertPlace} onValueChange={setConvertPlace}>
+              <SelectTrigger id={convertId} aria-invalid={convertError ? true : undefined}>
+                <SelectValue placeholder={t("admin.sales.form.choose")} />
+              </SelectTrigger>
+              <SelectContent>
+                {(locations.data ?? [])
+                  .filter((option) => option.sells)
+                  .map((option) => (
+                    <SelectItem key={option.id} value={String(option.id)}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <DialogFooter>
+            <Button onClick={() => setConverting(false)}>{t("admin.quotes.detail.keep")}</Button>
+            <Button disabled={convert.isPending} onClick={() => convert.mutate(false)}>
+              {t("admin.sales.fromQuote.draft")}
+            </Button>
+            <Button variant="primary" disabled={convert.isPending} onClick={() => convert.mutate(true)}>
+              {t("admin.sales.fromQuote.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

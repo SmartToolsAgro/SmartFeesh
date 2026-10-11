@@ -5,6 +5,7 @@ import { type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
 import { StockTabs } from "../lib/StockTabs";
+import { BatchSalesSection } from "../sales/BatchSalesSection";
 import { MovementsTable } from "./MovementsTable";
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -81,6 +82,8 @@ export function BatchStockPage() {
           </Detail>
         </dl>
       </Card>
+
+      <BatchSalesSection batchId={batchId} />
 
       <section aria-labelledby="batch-history" className="flex flex-col gap-2">
         <h2 id="batch-history">{t("admin.stock.batch.history")}</h2>
