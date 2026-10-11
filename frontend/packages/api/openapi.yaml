@@ -1431,6 +1431,236 @@ paths:
               schema:
                 $ref: '#/components/schemas/Product'
           description: ''
+  /api/v1/quotes:
+    get:
+      operationId: listQuotes
+      description: |-
+        Quotes, newest first, paginated (`limit`, `offset`). Filter by status (a sent quote past its
+        validity date counts as expired), customer, days (inclusive) or `search` (number, customer).
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - sent
+          - accepted
+          - refused
+          - expired
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `sent` - Envoyé
+          * `accepted` - Accepté
+          * `refused` - Refusé
+          * `expired` - Expiré
+      tags:
+      - quotes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedQuoteList'
+          description: ''
+    post:
+      operationId: createQuote
+      description: |-
+        Prepare a quote (a draft), or with `send_now` mark it sent at once. A line without `unit_price`
+        takes the sale price in force on the quote's day; without `valid_until` it is valid 3 days.
+        Errors of a line come back on `lines.<index>.<field>`.
+      tags:
+      - quotes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuoteWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuoteWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteDetail'
+          description: ''
+  /api/v1/quotes/{quote_id}:
+    get:
+      operationId: getQuote
+      description: One quote with its lines and totals (without VAT until P2-T05).
+      parameters:
+      - in: path
+        name: quote_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - quotes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteDetail'
+          description: ''
+    put:
+      operationId: updateQuote
+      description: |-
+        Change a draft (every line is replaced), and with `send_now` send it too. A sent quote no longer
+        changes.
+      parameters:
+      - in: path
+        name: quote_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - quotes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuoteWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuoteWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteDetail'
+          description: ''
+  /api/v1/quotes/{quote_id}/accept:
+    post:
+      operationId: acceptQuote
+      description: |-
+        Record the customer's yes on a sent quote, up to its validity date included. No stock is
+        reserved; the sale comes from it in P2-T04.
+      parameters:
+      - in: path
+        name: quote_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - quotes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteDetail'
+          description: ''
+  /api/v1/quotes/{quote_id}/refuse:
+    post:
+      operationId: refuseQuote
+      description: Record the customer's no on a sent quote, with an optional reason.
+      parameters:
+      - in: path
+        name: quote_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - quotes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRefuse'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuoteRefuse'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuoteRefuse'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteDetail'
+          description: ''
+  /api/v1/quotes/{quote_id}/send:
+    post:
+      operationId: sendQuote
+      description: |-
+        Mark a draft as given to the customer: it no longer changes. Refused once its validity date has
+        passed.
+      parameters:
+      - in: path
+        name: quote_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - quotes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteDetail'
+          description: ''
   /api/v1/receipts:
     get:
       operationId: listReceipts
@@ -3888,6 +4118,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Loss'
+    PaginatedQuoteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
     PaginatedReceiptList:
       type: object
       required:
@@ -4790,6 +5043,418 @@ components:
       - photo_url
       - quantity
       - reference
+    Quote:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/QuoteStatusEnum'
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/QuoteLocation'
+          readOnly: true
+          nullable: true
+        quoted_on:
+          type: string
+          format: date
+          readOnly: true
+        valid_until:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        line_count:
+          type: integer
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        tax_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        sent_by:
+          type: string
+          readOnly: true
+        sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        answered_by:
+          type: string
+          readOnly: true
+        answered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        refusal_reason:
+          type: string
+          readOnly: true
+        expired_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - answered_at
+      - answered_by
+      - created_at
+      - created_by
+      - customer
+      - discount_total
+      - expired_at
+      - id
+      - line_count
+      - location
+      - notes
+      - number
+      - quoted_on
+      - refusal_reason
+      - sent_at
+      - sent_by
+      - status
+      - subtotal
+      - tax_amount
+      - total
+      - total_excl_tax
+      - valid_until
+    QuoteCustomer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+      required:
+      - address
+      - city
+      - id
+      - name
+      - reference
+      - tax_id
+    QuoteDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/QuoteStatusEnum'
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/QuoteLocation'
+          readOnly: true
+          nullable: true
+        quoted_on:
+          type: string
+          format: date
+          readOnly: true
+        valid_until:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        line_count:
+          type: integer
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        tax_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        sent_by:
+          type: string
+          readOnly: true
+        sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        answered_by:
+          type: string
+          readOnly: true
+        answered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        refusal_reason:
+          type: string
+          readOnly: true
+        expired_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuoteLine'
+          readOnly: true
+      required:
+      - answered_at
+      - answered_by
+      - created_at
+      - created_by
+      - customer
+      - discount_total
+      - expired_at
+      - id
+      - line_count
+      - lines
+      - location
+      - notes
+      - number
+      - quoted_on
+      - refusal_reason
+      - sent_at
+      - sent_by
+      - status
+      - subtotal
+      - tax_amount
+      - total
+      - total_excl_tax
+      - valid_until
+    QuoteLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/QuoteProduct'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        gross_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - discount_amount
+      - discount_rate
+      - gross_amount
+      - id
+      - product
+      - quantity
+      - unit_price
+    QuoteLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+        unit_price:
+          type: string
+          nullable: true
+        discount_rate:
+          type: string
+          nullable: true
+      required:
+      - product
+      - quantity
+    QuoteLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    QuoteProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
+    QuoteRefuse:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+    QuoteStatusEnum:
+      enum:
+      - draft
+      - sent
+      - accepted
+      - refused
+      - expired
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `sent` - Envoyé
+        * `accepted` - Accepté
+        * `refused` - Refusé
+        * `expired` - Expiré
+    QuoteWrite:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+        location:
+          type: integer
+          minimum: 1
+          nullable: true
+        quoted_on:
+          type: string
+          format: date
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuoteLineWrite'
+        send_now:
+          type: boolean
+          default: false
+      required:
+      - customer
+      - lines
+      - quoted_on
     Receipt:
       type: object
       properties:

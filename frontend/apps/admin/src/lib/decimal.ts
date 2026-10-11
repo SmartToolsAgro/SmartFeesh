@@ -65,3 +65,8 @@ export function marginPercent(price: string, cost: string): string | null {
   const absolute = negative ? -tenths : tenths;
   return `${negative ? "-" : ""}${absolute / 10n}.${absolute % 10n}`;
 }
+
+/** `percent` % of an amount, rounded once to the millime: a quote line's discount (D-050). */
+export function percentOf(amount: string, percent: string): string {
+  return fromThousandths(divideRounded(toThousandths(amount) * toThousandths(percent), SCALE * 100n));
+}

@@ -618,3 +618,51 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   charge": the customer's active list price if it holds the product, else the daily price. Provisional: a
   price list has no validity dates and no quantity tiers. The sale line snapshot and the use of this
   selector by sales are P2-T04; loads keep reading the daily price (D-044).
+
+**D-050 · Quotes, and the new `sales` app (P2-T03)** · accepted · 2026-10-11
+- New `sales` app (ARCHITECTURE §3), which sales, invoices and credit notes (P2-T04, P2-T05) will extend.
+  Its own `DocumentCounter` (organization, series, locked with `select_for_update`) gives `DV-0001`… per
+  organization. The number is taken when the draft is created and a quote is never deleted, so there are
+  no gaps. Not per year, unlike ARCHITECTURE §4.11: a quote has no legal numbering; invoices (P2-T05)
+  can use a per-year series in the same table ("FA-2026").
+- `Quote`: customer (`partners.Customer`), optional **location** (the cold room or truck whose stock the
+  form shows, information only: **nothing is reserved**), quote date (not in the future), validity date
+  (included; default quote date + **3 days**, the prototype's "valable 3 jours", provisional), notes,
+  status, who prepared, sent and answered it, refusal reason, `client_uuid` (the seed; later the driver
+  app). `QuoteLine`: product (one line per product), kg, price per kg, **discount in %** (0–100, two
+  decimals), and the amounts computed by the service: gross = kg × price, discount = gross × % / 100,
+  each rounded once half up, amount = gross − discount. Quote totals (gross, discounts, total excl. tax)
+  are stored by the service with the lines.
+- **Prices:** a line without a typed price takes what the customer is charged at the quote's moment (now
+  for today, noon of an earlier day: same rule as loads, D-044) through
+  `catalog.selectors.price_in_force(product, at, customer_id=)` (D-049): the customer's active price list
+  when it holds the product, else the daily price. The line keeps it: later price or list changes never
+  touch the quote (D-020). The form proposes the same price ("Prix du client (liste) : …" or "Prix en
+  vigueur : …"). No price and none typed is refused on `lines.<i>.unit_price`. Minimum prices (D-049) are
+  not checked on quotes yet.
+- **VAT hook:** `tax_amount` is empty and `total` = total excl. tax until P2-T05's finance settings (D-018)
+  decide the rate and whether prices include VAT. The quote page shows "TVA : avec la facturation". No
+  fiscal stamp on a quote.
+- **Statuses:** draft → sent → accepted or refused; a sent quote whose validity date has passed is
+  expired. Only a draft changes (lines replaced as a whole) and only a draft can be sent (not once its
+  validity date has passed). Accepting needs a sent quote still valid; refusing (with an optional reason)
+  is allowed even after the validity date. Every step is audited and locks the quote row.
+- **Expiry** is read and written: `selectors.current_quote_status` shows a sent quote past its date as
+  expired in lists, filters and pages at once; the nightly `expire_quotes` command (staging `nightly`
+  service, after the stock check) writes the status down with `expired_at` and an audit entry. A draft
+  never expires: its dates can still be changed.
+- **P2-T04 hook:** the accepted quote keeps customer, location, lines and prices. Converting it into a
+  sale is P2-T04's (no `converted_sale` key yet), which also decides whether an accepted quote can still
+  be converted after its validity date.
+- Office documents like transfers: owner and manager prepare, send and record answers, the accountant
+  reads, drivers get 403 (`ReadOfficeWriteOwnerOrManager`). API: `listQuotes` (paginated, status,
+  customer, days, search), `createQuote` / `updateQuote` (`send_now` saves and sends in one
+  transaction), `getQuote`, `sendQuote`, `acceptQuote`, `refuseQuote`. `QuoteStatusEnum` is pinned in
+  `ENUM_NAME_OVERRIDES`.
+- **Screens:** "Devis" (list with status filter and search), a quote page laid out like the prototype's
+  printed quote with a follow-up card and the actions of its status, and a form showing the price in
+  force and the kg held at the chosen location for each product, with exact previews of the amounts
+  (`percentOf` joins `lib/decimal.ts`).
+- Demo: DV-0001 to Restaurant Le Corail (5 kg Crevette Royale at 42.000, Calamar, Symphonie Marine:
+  379.500, the prototype's quote and the start of the Phase 2 acceptance test), one sent to Hôtel Thyna,
+  one accepted, one refused, one draft; dated the day of the first seed, so the sent ones expire later.

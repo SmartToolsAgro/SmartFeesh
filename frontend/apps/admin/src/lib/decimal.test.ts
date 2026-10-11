@@ -1,6 +1,22 @@
 import { expect, test } from "vitest";
 
-import { fromThousandths, lineTotal, marginPercent, percentChange, subtract, sum, toThousandths } from "./decimal";
+import {
+  fromThousandths,
+  lineTotal,
+  marginPercent,
+  percentChange,
+  percentOf,
+  subtract,
+  sum,
+  toThousandths,
+} from "./decimal";
+
+test("a discount in percent is rounded once to the millime, like the server", () => {
+  // 94.568 × 7.5 % = 7.0926 → 7.093
+  expect(percentOf("94.568", "7.5")).toBe("7.093");
+  expect(percentOf("210", "10")).toBe("21.000");
+  expect(percentOf("210", "0")).toBe("0.000");
+});
 
 test("decimal strings become thousandths and back, exactly", () => {
   expect(toThousandths("20.25")).toBe(20250n);
