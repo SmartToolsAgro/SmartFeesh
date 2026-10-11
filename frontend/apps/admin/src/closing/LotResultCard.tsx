@@ -434,14 +434,10 @@ export function LotResultCard({ batchId, session }: { batchId: number; session: 
               </span>
             </div>
             <dl className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(8rem,1fr))]">
-              <Fact label={t("admin.lotResult.facts.received")}>
-                {formatQuantity(result.batch.received_quantity)} kg
-              </Fact>
-              <Fact label={t("admin.lotResult.facts.sold")}>{formatQuantity(result.quantity_sold)} kg</Fact>
-              <Fact label={t("admin.lotResult.facts.writtenOff")}>
-                {formatQuantity(result.quantity_written_off)} kg
-              </Fact>
-              <Fact label={t("admin.lotResult.facts.onHand")}>{formatQuantity(result.batch.on_hand_quantity)} kg</Fact>
+              <Fact label={t("admin.lotResult.facts.received")}>{formatQuantity(result.batch.received_quantity)}</Fact>
+              <Fact label={t("admin.lotResult.facts.sold")}>{formatQuantity(result.quantity_sold)}</Fact>
+              <Fact label={t("admin.lotResult.facts.writtenOff")}>{formatQuantity(result.quantity_written_off)}</Fact>
+              <Fact label={t("admin.lotResult.facts.onHand")}>{formatQuantity(result.batch.on_hand_quantity)}</Fact>
             </dl>
             {result.batch.on_hand_quantity !== "0.000" && (
               <p className="text-[0.85rem] text-ink-2">
