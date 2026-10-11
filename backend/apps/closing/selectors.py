@@ -7,6 +7,7 @@ from typing import Any
 
 from django.db.models import QuerySet
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.core.models import Organization
 from apps.expenses import selectors as expenses
@@ -84,10 +85,17 @@ def _expense_cost_row(line: Any) -> engine.CostRow:
     """One line of `expenses.lot_cost_lines`, whatever its kind: the lot's own expenses, its truck-day
     shares, and the cold-room and general costs that P5-T02/T05 add, without a change here."""
     expense_id = getattr(line, "expense_id", None) or None
-    detail = ""
     quantity, day_quantity = getattr(line, "quantity", None), getattr(line, "day_quantity", None)
+    place = getattr(line, "truck_name", "") or getattr(line, "location_name", "")
+    month = getattr(line, "month", None)
+    parts = [place] if place else []
     if quantity is not None and day_quantity is not None:
-        detail = f"{getattr(line, 'truck_name', '')} {quantity} / {day_quantity} kg".strip()
+        parts.append(f"{quantity} / {day_quantity} kg")
+    if month is not None:
+        parts.append(month.strftime("%m/%Y"))
+    if getattr(line, "estimated", False):
+        parts.append(_("estimation"))
+    detail = " · ".join(parts)
     return engine.CostRow(
         kind=str(line.kind),
         on=line.spent_on,

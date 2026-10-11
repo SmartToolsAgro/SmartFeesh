@@ -11,6 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db.models import Prefetch, Q, QuerySet, Sum
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.catalog import selectors as catalog
@@ -730,3 +731,90 @@ def truck_days_of_batch(organization: Organization, *, batch_id: int) -> list[tu
         .order_by("transfer__transferred_on", "transfer__to_location_id")
     )
     return [(location_id, day) for location_id, day in pairs]
+
+
+# ---- Kilos held on each day, replayed from the ledger (P5-T02, P5-T05, D-058) ----
+
+# The key of the company-wide balances in `kg_by_batch_by_day` (every place together).
+EVERYWHERE = 0
+
+
+def _local_day(moment: dt.datetime) -> dt.date:
+    return timezone.localtime(moment).date()
+
+
+def first_movement_day(organization: Organization, *, batch_id: int) -> dt.date | None:
+    """The day of the first movement of a lot (its receipt), or None when it never moved."""
+    first = (
+        StockMovement.objects.for_organization(organization)
+        .filter(batch_id=batch_id)
+        .order_by("occurred_at", "id")
+        .values_list("occurred_at", flat=True)
+        .first()
+    )
+    return _local_day(first) if first is not None else None
+
+
+def kg_by_batch_by_day(
+    organization: Organization,
+    *,
+    date_from: dt.date,
+    date_to: dt.date,
+    location_ids: Sequence[int] | None = None,
+) -> dict[int, dict[dt.date, dict[int, Decimal]]]:
+    """Kilos of each lot held at the **end of each day** from `date_from` to `date_to` (inclusive), by
+    replaying the append-only ledger by date: `{location id: {day: {batch id: kg}}}`.
+
+    With `location_ids`, one entry per place (what is in that place). Without, one entry under
+    `EVERYWHERE` with what the company holds in all places together (transfers between places cancel
+    out; receipts add, sales and losses take off). Lots with nothing left are left out of a day. The day
+    of a movement is its local date. Read-only: stock is never written here (D-035).
+    """
+    end = timezone.make_aware(dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min))
+    movements = StockMovement.objects.for_organization(organization).filter(occurred_at__lt=end)
+    if location_ids is not None:
+        movements = movements.filter(Q(from_location_id__in=location_ids) | Q(to_location_id__in=location_ids))
+    keys = list(location_ids) if location_ids is not None else [EVERYWHERE]
+    zero = Decimal("0.000")
+    opening: dict[int, dict[int, Decimal]] = {key: {} for key in keys}
+    deltas: dict[int, dict[dt.date, dict[int, Decimal]]] = {key: defaultdict(dict) for key in keys}
+
+    def move(key: int, day: dt.date, batch_id: int, change: Decimal) -> None:
+        if day < date_from:
+            opening[key][batch_id] = opening[key].get(batch_id, zero) + change
+        else:
+            deltas[key][day][batch_id] = deltas[key][day].get(batch_id, zero) + change
+
+    rows = movements.order_by("occurred_at", "id").values_list(
+        "batch_id", "from_location_id", "to_location_id", "quantity", "occurred_at"
+    )
+    for batch_id, from_id, to_id, kg, occurred_at in rows:
+        day = _local_day(occurred_at)
+        if location_ids is None:
+            if to_id is not None:
+                move(EVERYWHERE, day, batch_id, kg)
+            if from_id is not None:
+                move(EVERYWHERE, day, batch_id, -kg)
+        else:
+            if to_id in opening:
+                move(to_id, day, batch_id, kg)
+            if from_id in opening:
+                move(from_id, day, batch_id, -kg)
+
+    result: dict[int, dict[dt.date, dict[int, Decimal]]] = {}
+    for key in keys:
+        balance = dict(opening[key])
+        days: dict[dt.date, dict[int, Decimal]] = {}
+        day = date_from
+        while day <= date_to:
+            for batch_id, change in deltas[key].get(day, {}).items():
+                balance[batch_id] = balance.get(batch_id, zero) + change
+            days[day] = {batch_id: kg for batch_id, kg in balance.items() if kg > 0}
+            day += dt.timedelta(days=1)
+        result[key] = days
+    return result
+
+
+def kg_by_batch_on_day(organization: Organization, *, location_id: int, day: dt.date) -> dict[int, Decimal]:
+    """Kilos of each lot in one place at the end of a day (empty lots left out), replayed from the ledger."""
+    return kg_by_batch_by_day(organization, date_from=day, date_to=day, location_ids=[location_id])[location_id][day]

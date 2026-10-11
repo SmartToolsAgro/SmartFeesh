@@ -219,6 +219,84 @@ paths:
               schema:
                 $ref: '#/components/schemas/Category'
           description: ''
+  /api/v1/cold-room-costs:
+    get:
+      operationId: getColdRoomMonth
+      description: |-
+        One month of cold-room costs: the bill if any, and per room its weight and cost for the month
+        and per day, estimated (the previous month's daily rate) until the bill is approved.
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+      tags:
+      - cold-room-costs
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ColdRoomMonth'
+          description: ''
+  /api/v1/cold-room-weights:
+    get:
+      operationId: listColdRoomWeights
+      description: |-
+        The active cold rooms with their weight in the split of the electricity bill (equal, 1, unless
+        the owner set another) and the share it gives.
+      tags:
+      - cold-room-weights
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ColdRoomWeight'
+          description: ''
+  /api/v1/cold-room-weights/{location_id}:
+    put:
+      operationId: updateColdRoomWeight
+      description: 'Set a cold room''s weight (owner only): used by the bills approved
+        from now on.'
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - cold-room-weights
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ColdRoomWeightWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ColdRoomWeightWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ColdRoomWeightWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ColdRoomWeight'
+          description: ''
   /api/v1/counts:
     get:
       operationId: listCounts
@@ -783,6 +861,125 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DayLabourer'
+          description: ''
+  /api/v1/electricity-bills:
+    get:
+      operationId: listElectricityBills
+      description: Electricity bills, newest month first.
+      tags:
+      - electricity-bills
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ElectricityBill'
+          description: ''
+    post:
+      operationId: createElectricityBill
+      description: |-
+        Type the electricity bill of a finished month (one expense of category cold storage). A draft
+        until approved; `approve_now` approves it at once, which fixes the rooms' shares and corrects the
+        lots' estimates.
+      tags:
+      - electricity-bills
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ElectricityBillWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ElectricityBillWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ElectricityBillWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElectricityBill'
+          description: ''
+  /api/v1/electricity-bills/{bill_id}:
+    put:
+      operationId: updateElectricityBill
+      description: Correct a bill not approved yet (the month cannot change); with
+        `approve_now`, approve it too.
+      parameters:
+      - in: path
+        name: bill_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - electricity-bills
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ElectricityBillWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ElectricityBillWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ElectricityBillWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElectricityBill'
+          description: ''
+    delete:
+      operationId: deleteElectricityBill
+      description: Delete a bill typed by mistake while it is a draft.
+      parameters:
+      - in: path
+        name: bill_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - electricity-bills
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/electricity-bills/{bill_id}/approve:
+    post:
+      operationId: approveElectricityBill
+      description: |-
+        Approve a draft bill: fixes the rooms' shares and books the difference with the estimate on
+        each lot, dated today.
+      parameters:
+      - in: path
+        name: bill_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - electricity-bills
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElectricityBill'
           description: ''
   /api/v1/employees:
     get:
@@ -1365,6 +1562,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExpenseTotals'
           description: ''
+  /api/v1/general-costs:
+    get:
+      operationId: listGeneralCosts
+      description: General costs spread over the lots, newest first; with `month`,
+        those covering that month.
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+      tags:
+      - general-costs
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GeneralCost'
+          description: ''
+    post:
+      operationId: createGeneralCost
+      description: |-
+        Type a bill covering one or several months (an insurance for a year): one expense spread
+        equally over the months, each month charged to the lots "like a salary" (monthly / 26 per day by
+        kg held). A draft until approved (`approve_now` approves it at once).
+      tags:
+      - general-costs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneralCostWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GeneralCostWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GeneralCostWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralCost'
+          description: ''
+  /api/v1/general-costs/{period_id}:
+    delete:
+      operationId: deleteGeneralCost
+      description: Delete a general cost typed by mistake while it is a draft (with
+        its expense).
+      parameters:
+      - in: path
+        name: period_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - general-costs
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/health:
     get:
       operationId: getHealth
@@ -3080,6 +3348,122 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LastCost'
+          description: ''
+  /api/v1/recurring-costs:
+    get:
+      operationId: listRecurringCosts
+      description: Monthly costs (rent, accountant, insurance), by name.
+      parameters:
+      - in: query
+        name: active_only
+        schema:
+          type: boolean
+          default: false
+      tags:
+      - recurring-costs
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurringCost'
+          description: ''
+    post:
+      operationId: createRecurringCost
+      description: 'Add a monthly cost (owner only): a template that generates the
+        month''s expense.'
+      tags:
+      - recurring-costs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringCostWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RecurringCostWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RecurringCostWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringCost'
+          description: ''
+  /api/v1/recurring-costs/{cost_id}:
+    put:
+      operationId: updateRecurringCost
+      description: |-
+        Change a monthly cost or stop it (`is_active` false), owner only. Months already generated keep
+        their amount.
+      parameters:
+      - in: path
+        name: cost_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - recurring-costs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringCostWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RecurringCostWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RecurringCostWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringCost'
+          description: ''
+  /api/v1/recurring-costs/generate:
+    post:
+      operationId: generateRecurringCosts
+      description: |-
+        Generate the month's expense of every active monthly cost that has none yet (safe to repeat):
+        drafts, or approved with `approve_now`. Returns the ones created.
+      tags:
+      - recurring-costs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRecurring'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GenerateRecurring'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GenerateRecurring'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GeneralCost'
           description: ''
   /api/v1/salary-payments:
     get:
@@ -5161,6 +5545,115 @@ components:
       - count
       - ok
       - quantity
+    ColdRoomMonth:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        days:
+          type: integer
+          readOnly: true
+        bill:
+          allOf:
+          - $ref: '#/components/schemas/ElectricityBill'
+          readOnly: true
+          nullable: true
+        estimated:
+          type: boolean
+          readOnly: true
+        estimate_source_month:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/ColdRoomMonthRow'
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - bill
+      - days
+      - estimate_source_month
+      - estimated
+      - month
+      - rooms
+      - total
+    ColdRoomMonthRow:
+      type: object
+      properties:
+        location_id:
+          type: integer
+          readOnly: true
+        location_name:
+          type: string
+          readOnly: true
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,3})?$
+          readOnly: true
+        month_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        day_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        estimated:
+          type: boolean
+          readOnly: true
+      required:
+      - day_amount
+      - estimated
+      - location_id
+      - location_name
+      - month_amount
+      - weight
+    ColdRoomWeight:
+      type: object
+      properties:
+        location_id:
+          type: integer
+          readOnly: true
+        location_name:
+          type: string
+          readOnly: true
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,3})?$
+          readOnly: true
+        share_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - location_id
+      - location_name
+      - share_percent
+      - weight
+    ColdRoomWeightWrite:
+      type: object
+      properties:
+        weight:
+          type: string
+      required:
+      - weight
     ComputedResult:
       type: object
       properties:
@@ -5843,6 +6336,90 @@ components:
       - id
       - name
       - username
+    ElectricityBill:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        month:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_id:
+          type: integer
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        payee:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        entered_by:
+          type: string
+          readOnly: true
+        finalized:
+          type: boolean
+          readOnly: true
+        estimate_source_month:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - entered_by
+      - estimate_source_month
+      - expense_id
+      - expense_number
+      - finalized
+      - id
+      - month
+      - notes
+      - payee
+      - payment_method
+      - status
+    ElectricityBillWrite:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+        amount:
+          type: string
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: transfer
+        payee:
+          type: string
+          default: ''
+          maxLength: 150
+        notes:
+          type: string
+          default: ''
+        approve_now:
+          type: boolean
+          default: false
+      required:
+      - amount
+      - month
     Employee:
       type: object
       properties:
@@ -6356,6 +6933,118 @@ components:
       - amount
       - category
       - spent_on
+    GeneralCost:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        expense_id:
+          type: integer
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        spent_on:
+          type: string
+          format: date
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseCategoryRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        payee:
+          type: string
+          readOnly: true
+        first_month:
+          type: string
+          format: date
+          readOnly: true
+        months:
+          type: integer
+          readOnly: true
+        recurring_id:
+          type: integer
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - category
+      - description
+      - expense_id
+      - expense_number
+      - first_month
+      - id
+      - months
+      - payee
+      - recurring_id
+      - spent_on
+      - status
+    GeneralCostWrite:
+      type: object
+      properties:
+        spent_on:
+          type: string
+          format: date
+        category:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        first_month:
+          type: string
+          format: date
+        months:
+          type: integer
+          maximum: 60
+          minimum: 1
+          default: 1
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: transfer
+        description:
+          type: string
+          default: ''
+          maxLength: 255
+        payee:
+          type: string
+          default: ''
+          maxLength: 150
+        notes:
+          type: string
+          default: ''
+        approve_now:
+          type: boolean
+          default: false
+      required:
+      - amount
+      - category
+      - first_month
+      - spent_on
+    GenerateRecurring:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+        approve_now:
+          type: boolean
+          default: false
+      required:
+      - month
     GeneratedMonth:
       type: object
       properties:
@@ -6869,10 +7558,16 @@ components:
       enum:
       - lot
       - truck_day
+      - cold_room
+      - cold_room_adjustment
+      - general
       type: string
       description: |-
         * `lot` - Sur le lot
         * `truck_day` - Frais du camion du jour
+        * `cold_room` - Chambre froide
+        * `cold_room_adjustment` - Correction chambre froide
+        * `general` - Frais généraux
     LotCostLine:
       type: object
       properties:
@@ -6883,6 +7578,7 @@ components:
         expense_id:
           type: integer
           readOnly: true
+          nullable: true
         expense_number:
           type: string
           readOnly: true
@@ -6928,16 +7624,30 @@ components:
           pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
+        location_name:
+          type: string
+          readOnly: true
+        month:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        estimated:
+          type: boolean
+          readOnly: true
       required:
       - amount
       - category_code
       - category_name
       - day_quantity
       - description
+      - estimated
       - expense_amount
       - expense_id
       - expense_number
       - kind
+      - location_name
+      - month
       - quantity
       - spent_on
       - status
@@ -9373,6 +10083,87 @@ components:
       - amount
       - id
       - payment
+    RecurringCost:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseCategoryRef'
+          readOnly: true
+        monthly_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        payee:
+          type: string
+          readOnly: true
+        start_month:
+          type: string
+          format: date
+          readOnly: true
+        end_month:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - category
+      - end_month
+      - id
+      - is_active
+      - monthly_amount
+      - name
+      - payee
+      - payment_method
+      - start_month
+    RecurringCostWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        category:
+          type: integer
+          minimum: 1
+        monthly_amount:
+          type: string
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: transfer
+        payee:
+          type: string
+          default: ''
+          maxLength: 150
+        start_month:
+          type: string
+          format: date
+        end_month:
+          type: string
+          format: date
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - category
+      - monthly_amount
+      - name
+      - start_month
     Ref:
       type: object
       description: A supplier or a product, as shown on a receipt.
