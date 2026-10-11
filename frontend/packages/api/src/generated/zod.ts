@@ -5566,6 +5566,38 @@ export const ListMembersResponse = zod.array(ListMembersResponseItem)
 
 
 /**
+ * The signed-in driver's truck today: what was loaded, with the price per kg. 404 without a truck.
+ */
+export const getMyTruckDayResponseLinesItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMyTruckDayResponseLinesItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMyTruckDayResponseLinesItemSoldOrLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMyTruckDayResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyTruckDayResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyTruckDayResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMyTruckDayResponse = zod.object({
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "date": zod.iso.date(),
+  "lines": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_reference": zod.string(),
+  "product_name": zod.string(),
+  "loaded": zod.stringFormat('decimal', getMyTruckDayResponseLinesItemLoadedRegExp),
+  "returned": zod.stringFormat('decimal', getMyTruckDayResponseLinesItemReturnedRegExp),
+  "sold_or_lost": zod.stringFormat('decimal', getMyTruckDayResponseLinesItemSoldOrLostRegExp),
+  "unit_price": zod.stringFormat('decimal', getMyTruckDayResponseLinesItemUnitPriceRegExp).nullable(),
+  "amount": zod.stringFormat('decimal', getMyTruckDayResponseLinesItemAmountRegExp).nullable()
+})),
+  "amount": zod.stringFormat('decimal', getMyTruckDayResponseAmountRegExp)
+})
+
+
+/**
  * A partner's three balances, kept apart: what is owed for goods (trade payable), their capital
  * still in lots, and their profit share (owed to them, or by them).
  */

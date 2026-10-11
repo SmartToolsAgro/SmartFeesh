@@ -4,6 +4,7 @@ from typing import Any
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
 from django.http import FileResponse, Http404
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
@@ -17,7 +18,8 @@ from rest_framework.views import APIView
 from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization, Role
-from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
 from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, Transfer
 
@@ -322,6 +324,25 @@ class TruckDayView(OfficeView):
         lines = selectors.truck_day(self.organization, location_id=location.pk, day=day)
         total = sum((line.amount for line in lines if line.amount is not None), Decimal("0.000"))
         return Response(TruckDaySerializer({"location": location, "date": day, "lines": lines, "amount": total}).data)
+
+
+class MyTruckDayView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="getMyTruckDay", responses=TruckDaySerializer)
+    def get(self, request: Request) -> Response:
+        """The signed-in driver's truck today: what was loaded, with the price per kg. 404 without a truck."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise Http404
+        day = timezone.localdate()
+        lines = selectors.truck_day(membership.organization, location_id=truck.location_id, day=day)
+        total = sum((line.amount for line in lines if line.amount is not None), Decimal("0.000"))
+        return Response(
+            TruckDaySerializer({"location": truck.location, "date": day, "lines": lines, "amount": total}).data
+        )
 
 
 # ---- Losses and stock counts (P1-T10) ----

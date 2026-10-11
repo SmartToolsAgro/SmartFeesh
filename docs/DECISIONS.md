@@ -1158,3 +1158,9 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   `django-storages` when a bucket exists.
 - **Not done:** receipts for the driver app (Phase 3: drivers get 403 here), PDFs by e-mail or WhatsApp, Arabic
   layout (right-to-left, with P0-T08), e-invoice (TTN) QR code (D-016).
+
+**D-090 · Driver app kept deliberately simple; first screen "Ma journée" (P3-T01, part)** · accepted · 2026-10-11
+The drivers are not used to phones: big text, one job per screen, almost no typing, prices filled in for them.
+`GET /api/v1/my-truck-day` (drivers only) returns the day's load of the driver's own truck (D-046) with the
+price per kg; the first screen shows the truck and that load. The driver does not pick a truck yet (the office
+assigns it, "Camions du jour"); no `DriverDay` model or cash float yet. Both stay in P3-T01.

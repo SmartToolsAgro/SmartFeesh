@@ -2990,6 +2990,22 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/my-truck-day:
+    get:
+      operationId: getMyTruckDay
+      description: 'The signed-in driver''s truck today: what was loaded, with the
+        price per kg. 404 without a truck.'
+      tags:
+      - my-truck-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TruckDay'
+          description: ''
   /api/v1/partners/{partner_id}/balances:
     get:
       operationId: getPartnerBalances

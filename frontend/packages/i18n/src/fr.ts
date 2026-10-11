@@ -2596,6 +2596,14 @@ export const fr = {
       sale: "Vente",
       closing: "Clôture",
     },
+    day: {
+      yourTruck: "Votre camion aujourd'hui",
+      noTruck: "Pas de camion aujourd'hui",
+      noTruckBody: "Appelez le bureau : il vous donnera un camion.",
+      loaded: "Chargé ce matin",
+      nothingLoaded: "Rien n'est encore chargé",
+      nothingLoadedBody: "Le chargement apparaîtra ici dès que le bureau l'aura validé.",
+    },
   },
 };
 

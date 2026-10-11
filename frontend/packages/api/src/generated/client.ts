@@ -9453,6 +9453,104 @@ export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, 
 
 
 
+export const getGetMyTruckDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-truck-day`
+}
+
+/**
+ * The signed-in driver's truck today: what was loaded, with the price per kg. 404 without a truck.
+ */
+export const getMyTruckDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<TruckDay> => {
+
+  return apiFetch<TruckDay>(getGetMyTruckDayUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyTruckDayQueryKey = () => {
+    return [
+    `/api/v1/my-truck-day`
+    ] as const;
+    }
+
+
+export const getGetMyTruckDayQueryOptions = <TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyTruckDayQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyTruckDay>>> = ({ signal }) => getMyTruckDay({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyTruckDayQueryResult = NonNullable<Awaited<ReturnType<typeof getMyTruckDay>>>
+export type GetMyTruckDayQueryError = unknown
+
+
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyTruckDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyTruckDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyTruckDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyTruckDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyTruckDayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetPartnerBalancesUrl = (partnerId: number,) => {
 
 

@@ -589,3 +589,30 @@ def test_another_organization_transfers_are_invisible():
         reverse("transfer-truck-day"), {"location": foreign.to_location_id, "date": timezone.localdate().isoformat()}
     )
     assert day.status_code == 404
+
+
+def test_a_driver_sees_the_load_of_their_own_truck_today(organization, actor, cold_room, dorade):
+    from apps.fleet import services as fleet
+
+    client, driver = client_for(Role.DRIVER, organization)
+    assert client.get(reverse("my-truck-day")).status_code == 404  # no truck yet
+    truck = fleet.create_truck(
+        organization=organization, actor=actor, name="Camion 7", plate="107 TU 2007", driver=driver.user
+    )
+    receive(organization, dorade, cold_room, "20")
+    services.create_transfer(
+        organization=organization,
+        actor=actor,
+        from_location=cold_room,
+        to_location=truck.location,
+        transferred_on=timezone.localdate(),
+        lines=[{"product": dorade, "quantity": Decimal("12")}],
+        validate=True,
+    )
+
+    day = client.get(reverse("my-truck-day")).json()
+
+    assert day["lines"][0]["loaded"] == "12.000"
+    assert day["lines"][0]["unit_price"] == "28.000"
+    manager, _ = client_for(Role.MANAGER, organization)
+    assert manager.get(reverse("my-truck-day")).status_code == 403
