@@ -91,6 +91,19 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert getattr(receipt, "has_differences") is True  # noqa: B009
     assert [line.accepted_quantity for line in receipt.lines.all()] == [Decimal("60.000"), Decimal("20.000")]
 
+    # Its invoice, posted and partly paid by cheque: the supplier balance shows what is still owed.
+    (invoice,) = purchasing.invoices_of(organization)
+    assert (invoice.number, invoice.status, invoice.total) == ("FF-0001", "partly_paid", Decimal("1471.500"))
+    assert [link.receipt for link in invoice.receipt_links.all()] == [receipt]
+    (payment,) = purchasing.payments_of(organization)
+    assert (payment.number, payment.method, payment.amount) == ("RF-0001", "cheque", Decimal("500.000"))
+    balance = purchasing.supplier_balance(organization, receipt.supplier_id)
+    assert (balance.invoiced, balance.paid, balance.balance) == (
+        Decimal("1471.500"),
+        Decimal("500.000"),
+        Decimal("971.500"),
+    )
+
 
 def test_outside_development_the_known_password_is_refused(settings):
     settings.DEBUG = False

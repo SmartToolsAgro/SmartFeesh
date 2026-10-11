@@ -15,6 +15,11 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from
 
 import { LocationsPage } from "./locations/LocationsPage";
 import { ProductsPage } from "./products/ProductsPage";
+import { SupplierInvoiceDetailPage } from "./purchasing/SupplierInvoiceDetailPage";
+import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
+import { SupplierInvoicesPage } from "./purchasing/SupplierInvoicesPage";
+import { SupplierPaymentFormPage } from "./purchasing/SupplierPaymentFormPage";
+import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
 import { ReceiptFormPage } from "./receipts/ReceiptFormPage";
 import { ReceiptsPage } from "./receipts/ReceiptsPage";
@@ -137,6 +142,12 @@ function AppRoutes() {
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
+        <Route path="/achats/factures" element={<SupplierInvoicesPage />} />
+        <Route path="/achats/factures/nouvelle" element={<SupplierInvoiceFormPage />} />
+        <Route path="/achats/factures/:invoiceId" element={<SupplierInvoiceDetailPage />} />
+        <Route path="/achats/factures/:invoiceId/modifier" element={<SupplierInvoiceFormPage />} />
+        <Route path="/achats/paiements" element={<SupplierPaymentsPage />} />
+        <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
         {nav.flatMap((group) =>
           group.items
             .filter((item) => item.to !== "/")

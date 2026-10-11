@@ -23,4 +23,5 @@ search?: string;
  * @minimum 1
  */
 supplier?: number;
+uninvoiced?: boolean;
 };

@@ -1197,14 +1197,15 @@ export const listReceiptsQuerySearchDefault = ``;
 export const listReceiptsQuerySearchMax = 100;
 
 
-
+export const listReceiptsQueryUninvoicedDefault = false;
 
 export const ListReceiptsQueryParams = zod.object({
   "differences": zod.boolean().default(listReceiptsQueryDifferencesDefault),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
   "search": zod.string().max(listReceiptsQuerySearchMax).default(listReceiptsQuerySearchDefault),
-  "supplier": zod.int().min(1).optional()
+  "supplier": zod.int().min(1).optional(),
+  "uninvoiced": zod.boolean().default(listReceiptsQueryUninvoicedDefault)
 })
 
 export const listReceiptsResponseResultsItemLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -1259,6 +1260,11 @@ export const ListReceiptsResponse = zod.object({
   "has_differences": zod.boolean(),
   "invoiced_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemInvoicedTotalRegExp),
   "accepted_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemAcceptedTotalRegExp),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
+}).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }))
@@ -1341,6 +1347,11 @@ export const CreateReceiptResponse = zod.object({
   "has_differences": zod.boolean(),
   "invoiced_total": zod.stringFormat('decimal', createReceiptResponseInvoicedTotalRegExp),
   "accepted_total": zod.stringFormat('decimal', createReceiptResponseAcceptedTotalRegExp),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
+}).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 })
@@ -1398,6 +1409,11 @@ export const GetReceiptResponse = zod.object({
   "has_differences": zod.boolean(),
   "invoiced_total": zod.stringFormat('decimal', getReceiptResponseInvoicedTotalRegExp),
   "accepted_total": zod.stringFormat('decimal', getReceiptResponseAcceptedTotalRegExp),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
+}).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 })
@@ -1484,6 +1500,606 @@ export const ListLastPurchaseCostsResponseItem = zod.object({
   "batch_number": zod.string()
 }).describe('What was last paid a supplier for one product: the cost of their latest batch of it.')
 export const ListLastPurchaseCostsResponse = zod.array(ListLastPurchaseCostsResponseItem)
+
+
+/**
+ * The trade balance with one supplier: posted invoices − payments, with what is overdue, advances not
+ * allocated, drafts and receipts not invoiced yet. A partner's capital and profit share are not in it.
+ */
+export const GetSupplierBalanceParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const getSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseDraftTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseUninvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSupplierBalanceResponse = zod.object({
+  "supplier_id": zod.int(),
+  "invoiced": zod.stringFormat('decimal', getSupplierBalanceResponseInvoicedRegExp),
+  "paid": zod.stringFormat('decimal', getSupplierBalanceResponsePaidRegExp),
+  "balance": zod.stringFormat('decimal', getSupplierBalanceResponseBalanceRegExp),
+  "outstanding": zod.stringFormat('decimal', getSupplierBalanceResponseOutstandingRegExp),
+  "unallocated": zod.stringFormat('decimal', getSupplierBalanceResponseUnallocatedRegExp),
+  "overdue": zod.stringFormat('decimal', getSupplierBalanceResponseOverdueRegExp),
+  "open_invoices": zod.int(),
+  "overdue_invoices": zod.int(),
+  "draft_invoices": zod.int(),
+  "draft_total": zod.stringFormat('decimal', getSupplierBalanceResponseDraftTotalRegExp),
+  "uninvoiced_receipts": zod.int(),
+  "uninvoiced_total": zod.stringFormat('decimal', getSupplierBalanceResponseUninvoicedTotalRegExp)
+}).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
+
+
+/**
+ * Supplier invoices, newest first, paginated, each with its receipts, payments, paid amount and what
+ * is still owed. Filter by supplier, status (`open` = posted and not fully paid), overdue, or `search`
+ * (our number, the supplier's invoice number, the supplier's name).
+ */
+export const listSupplierInvoicesQueryOverdueDefault = false;
+export const listSupplierInvoicesQuerySearchDefault = ``;
+export const listSupplierInvoicesQuerySearchMax = 100;
+
+
+
+
+export const ListSupplierInvoicesQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "overdue": zod.boolean().default(listSupplierInvoicesQueryOverdueDefault),
+  "search": zod.string().max(listSupplierInvoicesQuerySearchMax).default(listSupplierInvoicesQuerySearchDefault),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid', 'open']).optional().describe('* `draft` - draft\n* `posted` - posted\n* `partly_paid` - partly_paid\n* `paid` - paid\n* `open` - open'),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const listSupplierInvoicesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemPaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemPaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSupplierInvoicesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemTotalRegExp),
+  "paid_amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemOutstandingRegExp),
+  "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
+  "receipts": zod.array(zod.object({
+  "receipt": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemReceiptsItemAmountRegExp)
+}).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the invoice.')),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "posted_by": zod.string(),
+  "posted_at": zod.iso.datetime({"offset":true}).nullable()
+}))
+})
+
+
+/**
+ * Record a supplier invoice for some of their receipts, as a draft, or posted at once with `post`.
+ * Its amount is the receipts' invoiced amount (invoiced kg × cost); a receipt goes on one invoice only.
+ */
+
+export const createSupplierInvoiceBodySupplierReferenceDefault = ``;
+export const createSupplierInvoiceBodySupplierReferenceMax = 50;
+
+export const createSupplierInvoiceBodyNotesDefault = ``;
+export const createSupplierInvoiceBodyPostDefault = false;
+
+
+export const CreateSupplierInvoiceBody = zod.object({
+  "receipts": zod.array(zod.int().min(1)),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "supplier_reference": zod.string().max(createSupplierInvoiceBodySupplierReferenceMax).default(createSupplierInvoiceBodySupplierReferenceDefault),
+  "notes": zod.string().default(createSupplierInvoiceBodyNotesDefault),
+  "post": zod.boolean().default(createSupplierInvoiceBodyPostDefault),
+  "supplier": zod.int().min(1)
+})
+
+export const createSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateSupplierInvoiceResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total": zod.stringFormat('decimal', createSupplierInvoiceResponseTotalRegExp),
+  "paid_amount": zod.stringFormat('decimal', createSupplierInvoiceResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', createSupplierInvoiceResponseOutstandingRegExp),
+  "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
+  "receipts": zod.array(zod.object({
+  "receipt": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', createSupplierInvoiceResponseReceiptsItemAmountRegExp)
+}).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', createSupplierInvoiceResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the invoice.')),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "posted_by": zod.string(),
+  "posted_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+export const GetSupplierInvoiceParams = zod.object({
+  "invoice_id": zod.int()
+})
+
+export const getSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSupplierInvoiceResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total": zod.stringFormat('decimal', getSupplierInvoiceResponseTotalRegExp),
+  "paid_amount": zod.stringFormat('decimal', getSupplierInvoiceResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', getSupplierInvoiceResponseOutstandingRegExp),
+  "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
+  "receipts": zod.array(zod.object({
+  "receipt": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', getSupplierInvoiceResponseReceiptsItemAmountRegExp)
+}).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', getSupplierInvoiceResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the invoice.')),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "posted_by": zod.string(),
+  "posted_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Change a draft invoice: receipts, dates, reference, notes; `post` posts it afterwards. A posted
+ * invoice no longer changes (400). The supplier does not change.
+ */
+export const UpdateSupplierInvoiceParams = zod.object({
+  "invoice_id": zod.int()
+})
+
+
+export const updateSupplierInvoiceBodySupplierReferenceDefault = ``;
+export const updateSupplierInvoiceBodySupplierReferenceMax = 50;
+
+export const updateSupplierInvoiceBodyNotesDefault = ``;
+export const updateSupplierInvoiceBodyPostDefault = false;
+
+export const UpdateSupplierInvoiceBody = zod.object({
+  "receipts": zod.array(zod.int().min(1)),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "supplier_reference": zod.string().max(updateSupplierInvoiceBodySupplierReferenceMax).default(updateSupplierInvoiceBodySupplierReferenceDefault),
+  "notes": zod.string().default(updateSupplierInvoiceBodyNotesDefault),
+  "post": zod.boolean().default(updateSupplierInvoiceBodyPostDefault)
+})
+
+export const updateSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateSupplierInvoiceResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total": zod.stringFormat('decimal', updateSupplierInvoiceResponseTotalRegExp),
+  "paid_amount": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', updateSupplierInvoiceResponseOutstandingRegExp),
+  "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
+  "receipts": zod.array(zod.object({
+  "receipt": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', updateSupplierInvoiceResponseReceiptsItemAmountRegExp)
+}).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the invoice.')),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "posted_by": zod.string(),
+  "posted_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Delete a draft invoice; its receipts can go on another one. A posted invoice is never deleted (400).
+ */
+export const DeleteSupplierInvoiceParams = zod.object({
+  "invoice_id": zod.int()
+})
+
+export const DeleteSupplierInvoiceResponse = zod.void()
+
+
+/**
+ * Post a draft invoice: it is owed to the supplier, counts in their balance and can be paid. Final.
+ */
+export const PostSupplierInvoiceParams = zod.object({
+  "invoice_id": zod.int()
+})
+
+export const postSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const PostSupplierInvoiceResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total": zod.stringFormat('decimal', postSupplierInvoiceResponseTotalRegExp),
+  "paid_amount": zod.stringFormat('decimal', postSupplierInvoiceResponsePaidAmountRegExp),
+  "outstanding": zod.stringFormat('decimal', postSupplierInvoiceResponseOutstandingRegExp),
+  "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
+  "receipts": zod.array(zod.object({
+  "receipt": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', postSupplierInvoiceResponseReceiptsItemAmountRegExp)
+}).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "payment": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', postSupplierInvoiceResponsePaymentsItemAmountRegExp)
+}).describe('The part of one payment that settled the invoice.')),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "posted_by": zod.string(),
+  "posted_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Payments to suppliers, newest first, paginated, with the invoices each one settled and the part
+ * not allocated yet. Filter by supplier, to payments with an unallocated part, or `search` (number,
+ * cheque or transfer reference, supplier's name).
+ */
+export const listSupplierPaymentsQuerySearchDefault = ``;
+export const listSupplierPaymentsQuerySearchMax = 100;
+
+
+export const listSupplierPaymentsQueryUnallocatedDefault = false;
+
+export const ListSupplierPaymentsQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listSupplierPaymentsQuerySearchMax).default(listSupplierPaymentsQuerySearchDefault),
+  "supplier": zod.int().min(1).optional(),
+  "unallocated": zod.boolean().default(listSupplierPaymentsQueryUnallocatedDefault)
+})
+
+export const listSupplierPaymentsResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierPaymentsResponseResultsItemAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierPaymentsResponseResultsItemUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierPaymentsResponseResultsItemAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSupplierPaymentsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemAllocatedAmountRegExp),
+  "unallocated_amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemUnallocatedAmountRegExp),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date()
+}),
+  "amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemAllocationsItemAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Record money paid to a supplier and the posted invoices it settles. What is not allocated is an
+ * advance, to allocate later. Errors of an allocation come back on `allocations.<index>.<field>`.
+ */
+
+export const recordSupplierPaymentBodyReferenceDefault = ``;
+export const recordSupplierPaymentBodyReferenceMax = 50;
+
+export const recordSupplierPaymentBodyNotesDefault = ``;
+
+
+export const RecordSupplierPaymentBody = zod.object({
+  "supplier": zod.int().min(1),
+  "paid_on": zod.iso.date(),
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string().max(recordSupplierPaymentBodyReferenceMax).default(recordSupplierPaymentBodyReferenceDefault),
+  "notes": zod.string().default(recordSupplierPaymentBodyNotesDefault),
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int().min(1),
+  "amount": zod.string()
+})).optional()
+})
+
+export const recordSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const recordSupplierPaymentResponseAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const recordSupplierPaymentResponseUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const recordSupplierPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RecordSupplierPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', recordSupplierPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_amount": zod.stringFormat('decimal', recordSupplierPaymentResponseAllocatedAmountRegExp),
+  "unallocated_amount": zod.stringFormat('decimal', recordSupplierPaymentResponseUnallocatedAmountRegExp),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date()
+}),
+  "amount": zod.stringFormat('decimal', recordSupplierPaymentResponseAllocationsItemAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetSupplierPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+export const getSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierPaymentResponseAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierPaymentResponseUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSupplierPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getSupplierPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_amount": zod.stringFormat('decimal', getSupplierPaymentResponseAllocatedAmountRegExp),
+  "unallocated_amount": zod.stringFormat('decimal', getSupplierPaymentResponseUnallocatedAmountRegExp),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date()
+}),
+  "amount": zod.stringFormat('decimal', getSupplierPaymentResponseAllocationsItemAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Allocate the part of a payment not allocated yet (an advance) to posted invoices of its supplier.
+ */
+export const AllocateSupplierPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+
+
+
+export const AllocateSupplierPaymentBody = zod.object({
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int().min(1),
+  "amount": zod.string()
+}))
+})
+
+export const allocateSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateSupplierPaymentResponseAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateSupplierPaymentResponseUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateSupplierPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AllocateSupplierPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseAllocatedAmountRegExp),
+  "unallocated_amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseUnallocatedAmountRegExp),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date()
+}),
+  "amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseAllocationsItemAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
 
 
 /**

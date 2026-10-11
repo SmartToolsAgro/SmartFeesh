@@ -1,9 +1,30 @@
 from typing import Any
 
 from django.contrib import admin
+from django.db.models import Model
 from django.http import HttpRequest
 
-from .models import GoodsReceipt, GoodsReceiptLine
+from .models import (
+    GoodsReceipt,
+    GoodsReceiptLine,
+    SupplierInvoice,
+    SupplierInvoiceReceipt,
+    SupplierPayment,
+    SupplierPaymentAllocation,
+)
+
+
+class ReadOnlyAdmin[T: Model](admin.ModelAdmin[T]):
+    """For looking only: invoices and payments are recorded through the services, which check and audit them."""
+
+    def has_add_permission(self, request: HttpRequest, *args: Any) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
 
 
 class LineInline(admin.TabularInline[GoodsReceiptLine, GoodsReceipt]):
@@ -35,3 +56,43 @@ class GoodsReceiptAdmin(admin.ModelAdmin[GoodsReceipt]):
 
     def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
+
+
+class InvoiceReceiptInline(admin.TabularInline[SupplierInvoiceReceipt, SupplierInvoice]):
+    model = SupplierInvoiceReceipt
+    fields = ("receipt", "amount")
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+
+@admin.register(SupplierInvoice)
+class SupplierInvoiceAdmin(ReadOnlyAdmin[SupplierInvoice]):
+    list_display = ("number", "invoice_date", "due_date", "supplier", "status", "total", "organization")
+    list_filter = ("organization", "status", "invoice_date")
+    search_fields = ("number", "supplier_reference")
+    list_select_related = ("supplier", "organization")
+    inlines = (InvoiceReceiptInline,)
+
+
+class AllocationInline(admin.TabularInline[SupplierPaymentAllocation, SupplierPayment]):
+    model = SupplierPaymentAllocation
+    fields = ("invoice", "amount", "created_at")
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+
+@admin.register(SupplierPayment)
+class SupplierPaymentAdmin(ReadOnlyAdmin[SupplierPayment]):
+    list_display = ("number", "paid_on", "supplier", "method", "amount", "reference", "organization")
+    list_filter = ("organization", "method", "paid_on")
+    search_fields = ("number", "reference")
+    list_select_related = ("supplier", "organization")
+    inlines = (AllocationInline,)

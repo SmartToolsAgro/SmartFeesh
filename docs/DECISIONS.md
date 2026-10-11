@@ -444,6 +444,42 @@ Supersedes the "one active truck per driver" and "own truck" parts of D-033 (cli
 - A truck load carries the price per kg of each product for that day; the evening return shows sold vs
   returned (P1-T09, P3-T01, P3-T06).
 
+**D-043 · Supplier invoices, payments and the supplier balance (P1-T08)** · accepted · 2026-10-11
+- In `purchasing` (not a separate `payments` app, which ARCHITECTURE §3 now keeps for customer
+  receipts): `SupplierInvoice` (number `FF-0001`… per organization, supplier, the supplier's own invoice
+  number, date, due date, status, total, notes, who typed and who posted it), `SupplierInvoiceReceipt`
+  (receipt one-to-one: a receipt is on one invoice at most, draft or posted; with its amount),
+  `SupplierPayment` (number `RF-0001`…, date, amount, method, cheque/transfer reference, notes) and
+  `SupplierPaymentAllocation` (payment → invoice, amount). Numbers come from a locked `DocumentCounter`
+  per organization and kind; a deleted draft leaves a gap (these are not fiscal numbers).
+- **The amount is never typed:** an invoice's total is the sum of its receipts' invoiced amounts
+  (invoiced kg × cost per line, rounded per line, D-039). A supplier whose paper invoice differs is
+  corrected on the receipt side (later: supplier credit note), not on the invoice. No VAT on supplier
+  invoices for now: costs are without VAT (D-020); provisional until the accountant answers Q5.
+- **Status:** `draft` (receipts, dates, reference and notes can change; can be deleted) → `posted`
+  (immutable, counts in the balance; `post` can be given on create/update to post at once; a zero total
+  is refused) → `partly_paid` → `paid`, moved only by allocations. A posted invoice is never edited or
+  deleted; a correction will be a supplier credit note (not built yet).
+- **Payments** are immutable. Allocations go to posted, not fully paid invoices of the same supplier,
+  never above what is left on an invoice, and together never above the payment. The part not allocated
+  is an **advance**: already deducted from the balance, allocated later (`allocateSupplierPayment`).
+  Errors come back on `allocations.<index>.<field>`, like receipt lines. Methods: cash, cheque,
+  transfer, bill of exchange (traite), other (provisional list).
+- **Supplier balance = posted invoices − payments** (negative = advance). The balance endpoint also
+  gives what is still owed on invoices, what is overdue (due date passed), unallocated advances, drafts
+  and receipts not invoiced yet; the supplier page shows it. It is the **trade payable only**: a
+  partner's capital and profit share (D-040, Phase 6) are separate balances and never pass through
+  these tables.
+- **Due date:** typed; the form proposes invoice date + 30 days (provisional, no client answer on
+  payment terms). An archived supplier can still be invoiced and paid (debts outlive the archive).
+- Permissions as receipts: owner/manager write, accountant reads, drivers 403. Enum schema names are
+  pinned (`SupplierInvoiceStatusEnum`, `PaymentMethodEnum`) so later sales documents do not collide.
+- Admin "Achats" gets tabs Réceptions · Factures · Paiements: invoice list (status, overdue, supplier
+  filters), invoice page (post, edit, delete draft, pay), invoice form (pick the supplier's receipts not
+  invoiced yet), payment form (spread over the oldest due dates, or pay the invoice it came from),
+  payments list with "Affecter" for advances. Demo: `FF-0001` for `BR-0001` (1 471,500 DT), posted,
+  `RF-0001` 500 DT by cheque: Mareyeur Port de Sfax owes 971,500 DT.
+
 **D-047 · Customers (P2-T01)** · accepted · 2026-10-11
 - `Customer` and `CustomerContact` live in the `partners` app beside suppliers and copy D-032: reference
   `C-NNN` generated when left empty, optional tax ID in the same `1234567A/A/M/000` shape (unique per
