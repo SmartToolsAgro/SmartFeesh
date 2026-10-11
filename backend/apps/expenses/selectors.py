@@ -17,6 +17,14 @@ from . import cost_selectors
 from .allocation import LoadedLot, TruckDayExpense, allocate_truck_day_costs
 from .models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory, ExpenseStatus
 
+# What other apps read of the cold-room cost and the general costs (ARCHITECTURE §3: through `selectors`).
+cold_rooms = cost_selectors.cold_rooms
+room_weights = cost_selectors.room_weights
+cold_room_month = cost_selectors.cold_room_month
+electricity_bills_of = cost_selectors.bills_of
+recurring_costs_of = cost_selectors.recurring_costs_of
+general_periods_of = cost_selectors.general_periods_of
+
 type CategoryStatus = Literal["active", "archived", "all"]
 
 ZERO = Decimal("0.000")

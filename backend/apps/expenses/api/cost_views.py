@@ -15,7 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.core.models import Membership, Organization, Role
-from apps.expenses import cost_selectors, selectors, services_costing
+from apps.expenses import cost_selectors, selectors, services
 from apps.expenses.costing import first_of_month
 from apps.expenses.models import ElectricityBill, GeneralCostPeriod, RecurringCost
 from apps.inventory import selectors as inventory
@@ -92,7 +92,7 @@ class ColdRoomWeightDetailView(OfficeView):
             raise Http404 from None
         serializer = ColdRoomWeightWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        services_costing.set_cold_room_weight(
+        services.set_cold_room_weight(
             organization=self.organization,
             actor=self.membership.user,
             location=location,
@@ -117,9 +117,7 @@ class ColdRoomMonthView(OfficeView):
         filters.is_valid(raise_exception=True)
         month = filters.validated_data.get("month") or timezone.localdate()
         return Response(
-            ColdRoomMonthSerializer(
-                cost_selectors.cold_room_month(self.organization, month=first_of_month(month))
-            ).data
+            ColdRoomMonthSerializer(cost_selectors.cold_room_month(self.organization, month=first_of_month(month))).data
         )
 
 
@@ -150,14 +148,18 @@ class ElectricityBillListView(ElectricityBillView):
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         approve = data.pop("approve_now")
-        bill = services_costing.create_electricity_bill(
+        bill = services.create_electricity_bill(
             organization=self.organization, actor=self.membership.user, approve=approve, **data
         )
         return Response(ElectricityBillSerializer(bill).data, status=status.HTTP_201_CREATED)
 
 
 class ElectricityBillDetailView(ElectricityBillView):
-    @extend_schema(operation_id="updateElectricityBill", request=ElectricityBillWriteSerializer, responses=ElectricityBillSerializer)
+    @extend_schema(
+        operation_id="updateElectricityBill",
+        request=ElectricityBillWriteSerializer,
+        responses=ElectricityBillSerializer,
+    )
     def put(self, request: Request, bill_id: int) -> Response:
         """Correct a bill not approved yet (the month cannot change); with `approve_now`, approve it too."""
         bill = self.bill(bill_id)
@@ -165,15 +167,13 @@ class ElectricityBillDetailView(ElectricityBillView):
         serializer.is_valid(raise_exception=True)
         data = {key: value for key, value in serializer.validated_data.items() if key != "month"}
         approve = data.pop("approve_now")
-        updated = services_costing.update_electricity_bill(
-            bill=bill, actor=self.membership.user, approve=approve, **data
-        )
+        updated = services.update_electricity_bill(bill=bill, actor=self.membership.user, approve=approve, **data)
         return Response(ElectricityBillSerializer(updated).data)
 
     @extend_schema(operation_id="deleteElectricityBill", responses={204: None})
     def delete(self, request: Request, bill_id: int) -> Response:
         """Delete a bill typed by mistake while it is a draft."""
-        services_costing.delete_electricity_bill(bill=self.bill(bill_id), actor=self.membership.user)
+        services.delete_electricity_bill(bill=self.bill(bill_id), actor=self.membership.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -182,7 +182,6 @@ class ElectricityBillApproveView(ElectricityBillView):
     def post(self, request: Request, bill_id: int) -> Response:
         """Approve a draft bill: fixes the rooms' shares and books the difference with the estimate on
         each lot, dated today."""
-        from apps.expenses import services
 
         bill = self.bill(bill_id)
         services.approve_expense(expense=bill.expense, actor=self.membership.user)
@@ -206,7 +205,9 @@ class RecurringCostListView(OfficeView):
         return Response(RecurringCostSerializer(costs, many=True).data)
 
     @extend_schema(
-        operation_id="createRecurringCost", request=RecurringCostWriteSerializer, responses={201: RecurringCostSerializer}
+        operation_id="createRecurringCost",
+        request=RecurringCostWriteSerializer,
+        responses={201: RecurringCostSerializer},
     )
     def post(self, request: Request) -> Response:
         """Add a monthly cost (owner only): a template that generates the month's expense."""
@@ -215,9 +216,7 @@ class RecurringCostListView(OfficeView):
         serializer.is_valid(raise_exception=True)
         data = {key: value for key, value in serializer.validated_data.items() if key != "is_active"}
         data["category"] = _category(self.organization, data["category"])
-        cost = services_costing.create_recurring_cost(
-            organization=self.organization, actor=self.membership.user, **data
-        )
+        cost = services.create_recurring_cost(organization=self.organization, actor=self.membership.user, **data)
         return Response(RecurringCostSerializer(cost).data, status=status.HTTP_201_CREATED)
 
 
@@ -237,7 +236,7 @@ class RecurringCostDetailView(OfficeView):
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         data["category"] = _category(self.organization, data["category"])
-        updated = services_costing.update_recurring_cost(cost=cost, actor=self.membership.user, **data)
+        updated = services.update_recurring_cost(cost=cost, actor=self.membership.user, **data)
         return Response(RecurringCostSerializer(updated).data)
 
 
@@ -252,7 +251,7 @@ class RecurringCostGenerateView(OfficeView):
         drafts, or approved with `approve_now`. Returns the ones created."""
         serializer = GenerateRecurringSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        created = services_costing.generate_recurring_costs(
+        created = services.generate_recurring_costs(
             organization=self.organization,
             actor=self.membership.user,
             month=serializer.validated_data["month"],
@@ -267,7 +266,9 @@ class RecurringCostGenerateView(OfficeView):
 
 class GeneralCostListView(OfficeView):
     @extend_schema(
-        operation_id="listGeneralCosts", parameters=[GeneralCostFilterSerializer], responses=GeneralCostSerializer(many=True)
+        operation_id="listGeneralCosts",
+        parameters=[GeneralCostFilterSerializer],
+        responses=GeneralCostSerializer(many=True),
     )
     def get(self, request: Request) -> Response:
         """General costs spread over the lots, newest first; with `month`, those covering that month."""
@@ -288,7 +289,7 @@ class GeneralCostListView(OfficeView):
         data = dict(serializer.validated_data)
         approve = data.pop("approve_now")
         data["category"] = _category(self.organization, data["category"])
-        period = services_costing.create_general_cost(
+        period = services.create_general_cost(
             organization=self.organization, actor=self.membership.user, approve=approve, **data
         )
         return Response(GeneralCostSerializer(period).data, status=status.HTTP_201_CREATED)
@@ -302,5 +303,5 @@ class GeneralCostDetailView(OfficeView):
             period = cost_selectors.general_period_of(self.organization, period_id)
         except GeneralCostPeriod.DoesNotExist:
             raise Http404 from None
-        services_costing.delete_general_cost(period=period, actor=self.membership.user)
+        services.delete_general_cost(period=period, actor=self.membership.user)
         return Response(status=status.HTTP_204_NO_CONTENT)

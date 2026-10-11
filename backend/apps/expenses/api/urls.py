@@ -32,7 +32,9 @@ urlpatterns = [
     path("cold-room-costs", cost_views.ColdRoomMonthView.as_view(), name="cold-room-month"),
     path("electricity-bills", cost_views.ElectricityBillListView.as_view(), name="electricity-bill-list"),
     path(
-        "electricity-bills/<int:bill_id>", cost_views.ElectricityBillDetailView.as_view(), name="electricity-bill-detail"
+        "electricity-bills/<int:bill_id>",
+        cost_views.ElectricityBillDetailView.as_view(),
+        name="electricity-bill-detail",
     ),
     path(
         "electricity-bills/<int:bill_id>/approve",

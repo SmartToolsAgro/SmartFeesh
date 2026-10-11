@@ -7,14 +7,14 @@ the pure functions of `costing`. `selectors.lot_cost_lines` puts these lines nex
 import datetime as dt
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from django.db.models import QuerySet
 
 from apps.core.models import Organization
 from apps.inventory import selectors as inventory
-from apps.inventory.selectors import LocationKind
+from apps.inventory.services import LocationKind
 
 if TYPE_CHECKING:
     from apps.inventory.models import StockLocation
@@ -74,9 +74,11 @@ def bill_of(organization: Organization, bill_id: int) -> ElectricityBill:
 def _frozen_rates(organization: Organization) -> dict[dt.date, dict[int, ColdRoomMonthRate]]:
     """The frozen rates of every approved bill: `{month: {room id: rate}}`."""
     rates: dict[dt.date, dict[int, ColdRoomMonthRate]] = defaultdict(dict)
-    for rate in ColdRoomMonthRate.objects.for_organization(organization).filter(
-        bill__finalized_at__isnull=False
-    ).select_related("bill", "location"):
+    for rate in (
+        ColdRoomMonthRate.objects.for_organization(organization)
+        .filter(bill__finalized_at__isnull=False)
+        .select_related("bill", "location")
+    ):
         rates[rate.bill.month][rate.location_id] = rate
     return dict(rates)
 
@@ -90,9 +92,7 @@ def _estimate_rates(
     if not earlier:
         return None, {}
     source = max(earlier)
-    return source, {
-        room_id: estimate_day_amount(rate.month_amount, source) for room_id, rate in frozen[source].items()
-    }
+    return source, {room_id: estimate_day_amount(rate.month_amount, source) for room_id, rate in frozen[source].items()}
 
 
 @dataclass(frozen=True)
@@ -132,7 +132,9 @@ def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date
     first = inventory.first_movement_day(organization, batch_id=batch_id)
     if first is None or first > today:
         return []
-    rooms = {room.pk: room for room in inventory.locations_of(organization, kinds=[LocationKind.COLD_ROOM], status="all")}
+    rooms = {
+        room.pk: room for room in inventory.locations_of(organization, kinds=[LocationKind.COLD_ROOM], status="all")
+    }
     if not rooms:
         return []
     kg = inventory.kg_by_batch_by_day(organization, date_from=first, date_to=today, location_ids=list(rooms))
@@ -150,7 +152,7 @@ def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date
             if estimate is None or estimate <= 0:
                 continue
             kg_by_day = {day: kg[room_id][day] for day in days}
-            charge = allocate_room_days({day: estimate for day in days}, kg_by_day).get(batch_id)
+            charge = allocate_room_days(dict.fromkeys(days, estimate), kg_by_day).get(batch_id)
             if charge is None or charge.amount == 0:
                 continue
             bill = bills.get(month)
@@ -207,15 +209,11 @@ def bill_adjustments(
     lot and cold room. `rates` is `{room id: (the room's part of the month, the estimate's daily rate or
     None)}`. A lot with no difference is left out."""
     days = month_days(month)
-    kg = inventory.kg_by_batch_by_day(
-        organization, date_from=days[0], date_to=days[-1], location_ids=list(rates)
-    )
+    kg = inventory.kg_by_batch_by_day(organization, date_from=days[0], date_to=days[-1], location_ids=list(rates))
     adjustments: list[RoomAdjustment] = []
     for room_id, (month_amount, estimate) in rates.items():
         real = allocate_room_days(room_day_amounts(month_amount, month), kg[room_id])
-        guessed = (
-            allocate_room_days({day: estimate for day in days}, kg[room_id]) if estimate is not None else {}
-        )
+        guessed = allocate_room_days(dict.fromkeys(days, estimate), kg[room_id]) if estimate is not None else {}
         for batch_id in sorted(set(real) | set(guessed)):
             difference = (real[batch_id].amount if batch_id in real else ZERO) - (
                 guessed[batch_id].amount if batch_id in guessed else ZERO
@@ -326,9 +324,7 @@ def recurring_cost_of(organization: Organization, cost_id: int) -> RecurringCost
     return recurring_costs_of(organization).get(pk=cost_id)
 
 
-def general_periods_of(
-    organization: Organization, *, month: dt.date | None = None
-) -> QuerySet[GeneralCostPeriod]:
+def general_periods_of(organization: Organization, *, month: dt.date | None = None) -> QuerySet[GeneralCostPeriod]:
     """General costs (templates' months and multi-month bills), newest first, with their expense. With
     `month`, those covering that month."""
     periods = (
