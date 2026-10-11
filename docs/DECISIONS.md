@@ -711,3 +711,31 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   `convertQuoteToSale`, `getBatchSales`. Pinned enum names: `SaleStatusEnum`, `SalePaymentMethodEnum`,
   `SalePriceSourceEnum`. Demo: a walk-in counter sale paid cash, a Camion 1 sale by the driver to Le
   Corail partly paid, Sidi Mansour's accepted quote converted on credit, a draft for Hôtel Thyna.
+
+**D-052 · Sales screens and the counter sale (P2-T04b)** · accepted · 2026-10-11
+- **"Ventes"** (`/ventes`, the menu's "Ventes & factures" until invoices exist): list with status filter
+  and search, the amount still owed per confirmed sale. Sale page (`/ventes/:id`): lines with their price
+  source, the lots each line came from (links to the batch page) with cost, totals (VAT "avec la
+  facturation"), paid on the spot, still owed, cost of goods and margin (office only, the server sends
+  them null to drivers), a follow-up card, and the actions of its status: edit and confirm a draft,
+  cancel (a confirmed sale asks for a reason in the dialog; the server's message shows under the field).
+- **Sale form** (`/ventes/nouvelle`, `/ventes/:id/modifier`): customer ("Client de passage" first, which
+  sends no customer), the places that sell, an optional date and time (empty = now), lines like the quote
+  form (the customer's list price or the daily price proposed, stock of the place shown, exact previews),
+  payment on the spot (paid in full, amount, method, reference), "Enregistrer le brouillon" or
+  "Enregistrer et confirmer". Server errors land under their field or line (`lines.<i>.<field>`).
+- **Counter sale** (`/ventes/comptoir`), the client's regular flow (Q8): the first cold room open to
+  counter sales and the walk-in customer are preselected; product, big kg and price inputs (the price in
+  force proposed), "Ajouter" builds a basket (the same product weighed again adds its kilos: one line per
+  product, as the server wants), the total in large type, the method as toggle buttons (cash by default),
+  "Encaisser" creates and confirms the sale paid in full in one request, then the screen empties for the
+  next customer and links to the sale just made. No receipt printing yet (P2-T08).
+- **Quote → sale:** an accepted quote without a live sale shows "Convertir en vente": a dialog picks the
+  place (the quote's by default) and creates a draft or a confirmed sale, then opens it; the quote's
+  follow-up card links to its sale. The accepted note says it can be converted until its validity date.
+- **Lot drill-down:** the batch page (`/stock/lots/:id`) gains "Ventes de ce lot": kg sold, revenue, cost,
+  margin and each sale (`getBatchSales`), the sales side of the lot result of Phase 6.
+- `sales/shared.ts` holds the statuses, tones, methods and `refreshAfterSale` (sales, quotes, batches,
+  locations, stock, price board). Playwright: `admin.sales.spec.ts` (demo sales, counter sale, draft →
+  confirm → lot → cancel, a line short of stock, quote conversion); its products (rouget, sardine,
+  poulpe) are ones the other tests leave alone.

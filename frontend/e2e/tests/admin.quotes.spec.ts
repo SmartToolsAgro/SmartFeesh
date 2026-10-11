@@ -64,7 +64,7 @@ test("the owner quotes a hotel with a discount, sends it, and records the yes", 
   await page.getByRole("button", { name: "Accepté par le client" }).click();
 
   await expect(page.getByText(/Devis DV-\d+ accepté/)).toBeVisible();
-  await expect(page.getByRole("note")).toContainText("il deviendra une vente");
+  await expect(page.getByRole("note")).toContainText("Convertir en vente");
   await expect(page.getByRole("button", { name: "Accepté par le client" })).toHaveCount(0);
 });
 
