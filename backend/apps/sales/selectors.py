@@ -141,7 +141,9 @@ def sales_of(
     )
     sales = (
         Sale.objects.for_organization(organization)
-        .select_related("customer", "location", "quote", "created_by", "confirmed_by", "cancelled_by")
+        .select_related(
+            "customer", "location", "quote", "created_by", "confirmed_by", "cancelled_by", "credit_decided_by"
+        )
         .prefetch_related(Prefetch("lines", queryset=lines))
         .prefetch_related(
             Prefetch(
@@ -277,6 +279,7 @@ def invoices_of(
         .prefetch_related(Prefetch("lines", queryset=InvoiceLine.objects.select_related("product").order_by("id")))
         .prefetch_related(Prefetch("vat_lines", queryset=InvoiceVatLine.objects.order_by("-rate")))
         .prefetch_related(Prefetch("credit_notes", queryset=credit_notes))
+        .prefetch_related("certificates")
         .annotate(
             line_count=Count("lines", distinct=True),
             credited_total=Coalesce(

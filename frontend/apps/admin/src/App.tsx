@@ -49,6 +49,7 @@ import { CounterSalePage } from "./sales/CounterSalePage";
 import { SaleDetailPage } from "./sales/SaleDetailPage";
 import { SaleEditPage, SaleFormPage } from "./sales/SaleFormPage";
 import { SalesPage } from "./sales/SalesPage";
+import { PaymentsPage } from "./payments/PaymentsPage";
 import { CustomerDetailPage } from "./customers/CustomerDetailPage";
 import { CustomersPage } from "./customers/CustomersPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
@@ -75,6 +76,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/devis", label: t("admin.nav.quotes"), icon: "quote" },
         { to: "/ventes", label: t("admin.nav.sales"), icon: "receipt" },
         { to: "/factures", label: t("admin.nav.invoices"), icon: "receipt" },
+        { to: "/reglements", label: t("admin.nav.payments"), icon: "cash" },
         { to: "/clients", label: t("admin.nav.customers"), icon: "users" },
         { to: "/prix", label: t("admin.nav.prices"), icon: "badge" },
       ],
@@ -111,6 +113,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/devis": <QuotesPage />,
   "/ventes": <SalesPage />,
   "/factures": <InvoicesPage />,
+  "/reglements": <PaymentsPage />,
   "/salaires": <PayrollPage />,
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,

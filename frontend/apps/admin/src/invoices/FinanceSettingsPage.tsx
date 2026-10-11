@@ -1,6 +1,27 @@
-import { type FinanceSettingsOverview, saveFinanceSettings, useGetFinanceSettings } from "@frutti/api";
+import {
+  type CreditPolicyEnum,
+  type FinanceSettingsOverview,
+  saveFinanceSettings,
+  useGetFinanceSettings,
+} from "@frutti/api";
 import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, Field, Input, PageHeader, Table, Td, Th, toast } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  Field,
+  Input,
+  PageHeader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  Td,
+  Th,
+  toast,
+} from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { Link } from "react-router";
@@ -17,6 +38,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
   const [stamp, setStamp] = useState(toInput(current.fiscal_stamp));
   const [withholding, setWithholding] = useState(toInput(current.withholding_rate));
   const [includeVat, setIncludeVat] = useState(current.prices_include_vat);
+  const [creditPolicy, setCreditPolicy] = useState<CreditPolicyEnum>(current.credit_policy);
   const [validFrom, setValidFrom] = useState("");
   const [legalName, setLegalName] = useState(current.legal_name);
   const [address, setAddress] = useState(current.address);
@@ -44,6 +66,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
         fiscal_stamp: stampValue,
         prices_include_vat: includeVat,
         withholding_rate: rateWithholding,
+        credit_policy: creditPolicy,
         legal_name: legalName.trim(),
         address: address.trim(),
         phone: phone.trim(),
@@ -124,6 +147,29 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
             setWithholding,
             t("admin.financeSettings.withholdingHint"),
           )}
+          <Field
+            label={t("admin.payments.policy.label")}
+            htmlFor={`${formId}-credit-policy`}
+            error={errors.credit_policy}
+          >
+            <Select
+              value={creditPolicy}
+              onValueChange={(value) => setCreditPolicy(value as CreditPolicyEnum)}
+              disabled={!mayEdit}
+            >
+              <SelectTrigger id={`${formId}-credit-policy`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["block", "approval", "warn"] as const).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {t(`admin.payments.policy.${value}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[0.78rem] text-ink-2">{t("admin.payments.policy.hint")}</p>
+          </Field>
           <hr className="border-line" />
           <p className="text-[0.85rem] font-semibold">{t("admin.financeSettings.seller")}</p>
           {field("legal_name", t("admin.financeSettings.legalName"), legalName, setLegalName)}

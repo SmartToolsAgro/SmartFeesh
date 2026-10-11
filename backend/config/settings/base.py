@@ -150,6 +150,9 @@ SPECTACULAR_SETTINGS = {
         "InvoiceStatusEnum": "apps.sales.models.InvoiceStatus",
         "EInvoiceStatusEnum": "apps.sales.models.EInvoiceStatus",
         "CreditNoteKindEnum": "apps.sales.models.CreditNoteKind",
+        # P2-T06 · customer credit
+        "SaleCreditStatusEnum": "apps.sales.models.CreditStatus",
+        "CreditPolicyEnum": "apps.sales.models.CreditPolicy",
         "SalaryStatusEnum": "apps.hr.models.SalaryStatus",
         "SalaryPaymentMethodEnum": "apps.hr.models.SalaryPaymentMethod",
         "ExpenseStatusEnum": "apps.expenses.models.ExpenseStatus",

@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, TypedDict, Unpack
 
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -16,22 +17,27 @@ from django.utils.translation import gettext as _
 
 from apps.catalog import selectors as catalog
 from apps.core import audit
+from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity, line_total, money
 from apps.inventory import services as inventory
 from apps.partners import services as partners
 
-from . import invoicing, selectors
+from . import invoicing, receivables, selectors
 from .models import (
     CreditNote,
     CreditNoteKind,
     CreditNoteLine,
+    CreditPolicy,
+    CreditStatus,
+    CustomerPayment,
     DocumentCounter,
     FinanceSettings,
     Invoice,
     InvoiceLine,
     InvoiceStatus,
     InvoiceVatLine,
+    PaymentAllocation,
     PriceSource,
     Quote,
     QuoteLine,
@@ -41,9 +47,12 @@ from .models import (
     SaleLineBatch,
     SalePaymentMethod,
     SaleStatus,
+    WithholdingCertificate,
 )
 
 if TYPE_CHECKING:
+    from django.core.files.uploadedfile import UploadedFile
+
     from apps.catalog.models import Product
     from apps.inventory.models import StockLocation
     from apps.partners.models import Customer
@@ -635,6 +644,7 @@ def create_sale(
     payment: PaymentFields | None = None,
     client_uuid: uuid.UUID | None = None,
     confirm: bool = False,
+    approve_credit: bool = False,
     quote: Quote | None = None,
     typed_source: str = PriceSource.TYPED,
 ) -> Sale:
@@ -666,7 +676,7 @@ def create_sale(
     _write_sale_lines(sale, checked_lines, paid)
     audit.record(organization=organization, actor=actor, action="sale.created", target=sale, after=_sale_snapshot(sale))
     if confirm:
-        return confirm_sale(sale=sale, actor=actor)
+        return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
     return sale
 
 
@@ -704,6 +714,7 @@ def update_sale(
     notes: str = "",
     payment: PaymentFields | None = None,
     confirm: bool = False,
+    approve_credit: bool = False,
 ) -> Sale:
     """Change a draft: customer, place, moment, notes, payment and lines (all replaced). With `confirm`,
     confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment."""
@@ -720,6 +731,11 @@ def update_sale(
     sale.location = location
     sale.sold_at = sold_at
     sale.notes = notes.strip()
+    # A changed draft is checked again against the credit limit: an earlier request for approval is void.
+    sale.credit_status = ""
+    sale.credit_over_by = Decimal("0.000")
+    sale.credit_decided_by = None
+    sale.credit_decided_at = None
     sale.lines.all().delete()
     _write_sale_lines(sale, checked_lines, paid)
     audit.record(
@@ -731,26 +747,73 @@ def update_sale(
         after=_sale_snapshot(sale),
     )
     if confirm:
-        return confirm_sale(sale=sale, actor=actor)
+        return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
     return sale
 
 
-def check_credit(sale: Sale) -> None:
-    """P2-T06 hook: the customer's credit limit, checked at confirmation for every seller (Q16).
+class CreditApprovalRequired(ValidationError):
+    """The sale takes the customer above their limit and the company asks for approval (D-062). Raised by
+    `check_credit`; `confirm_sale` turns it into a pending draft."""
 
-    What happens above the limit (block, ask the owner, warn and log) is a company setting (D-018) that does
-    not exist yet, so only the walk-in customer is checked for now: they always pay at once (D-047).
+    def __init__(self, message: str, over_by: Decimal) -> None:
+        super().__init__({"credit_limit": message})
+        self.over_by = over_by
+
+
+def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool = False) -> None:
+    """The customer's credit limit, checked at confirmation for every seller, drivers included (Q16, D-062).
+
+    The customer's balance now plus what this sale leaves unpaid must not exceed their limit (0 = no credit).
+    Above it, the company setting decides (D-018): `block` refuses; `approval` keeps the sale as a pending
+    draft until the owner or a manager confirms it (`approve_credit`, granted by the view only to them);
+    `warn` lets it through and logs it. The customer row is locked so two sellers cannot both pass. The
+    walk-in customer always pays everything on the spot (D-047).
     """
-    if sale.customer.is_walk_in and sale.amount_due > 0:
-        raise ValidationError({"amount_paid": _("Un client de passage paie toute la vente sur place.")})
+    due = sale.total - sale.amount_paid
+    if sale.customer.is_walk_in:
+        if due > 0:
+            raise ValidationError({"amount_paid": _("Un client de passage paie toute la vente sur place.")})
+        return
+    sale.credit_status = ""
+    sale.credit_over_by = Decimal("0.000")
+    if due <= 0:
+        return
+    customer = type(sale.customer).objects.select_for_update().get(pk=sale.customer_id)
+    balance = receivables.customer_balance(sale.organization, customer.pk).balance
+    over_by = balance + due - customer.credit_limit
+    if over_by <= 0:
+        return
+    version = selectors.finance_settings_on(sale.organization) or ensure_finance_settings(
+        organization=sale.organization
+    )
+    policy = version.credit_policy
+    sale.credit_over_by = over_by
+    message = _(
+        "Limite de crédit dépassée : %(name)s doit déjà %(balance)s DT, cette vente ajoute %(due)s DT, "
+        "pour une limite de %(limit)s DT."
+    ) % {
+        "name": customer.name,
+        "balance": max(balance, Decimal("0.000")),
+        "due": due,
+        "limit": customer.credit_limit,
+    }
+    if policy == CreditPolicy.WARN:
+        sale.credit_status = CreditStatus.WARNED
+        return
+    if policy == CreditPolicy.APPROVAL:
+        if not approve_credit:
+            raise CreditApprovalRequired(message, over_by)
+        sale.credit_status = CreditStatus.APPROVED
+        sale.credit_decided_by = actor
+        sale.credit_decided_at = timezone.now()
+        return
+    raise ValidationError({"credit_limit": message})
 
 
 def record_receivable(sale: Sale) -> None:
-    """P2-T06 hook: a confirmed sale's `amount_due` is what the customer owes for it.
-
-    Customer payments, their allocation and the customer balance come with P2-T06, the invoice with its VAT
-    and fiscal stamp with P2-T05. Until then the receivable is read from confirmed sales; nothing to write.
-    """
+    """A confirmed sale is a receivable: its outstanding amount is refreshed (the customer's balance itself is
+    always computed from the documents, `receivables.customer_balance`)."""
+    refresh_sale_due(sale)
 
 
 def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decimal]:
@@ -793,7 +856,30 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
 
 
 @transaction.atomic
-def confirm_sale(*, sale: Sale, actor: User | None) -> Sale:
+def confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool = False) -> Sale:
+    """Confirm a draft, or leave it pending when the customer's credit limit asks for approval (D-062).
+
+    Above the limit under the "approval" policy the sale stays a draft marked `pending`, and the owner or a
+    manager confirms it with `approve_credit`. Everything else is `_confirm_sale`."""
+    try:
+        with transaction.atomic():
+            return _confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
+    except CreditApprovalRequired as required:
+        pending = _locked_draft_sale(sale)
+        pending.credit_status = CreditStatus.PENDING
+        pending.credit_over_by = required.over_by
+        pending.save(update_fields=["credit_status", "credit_over_by", "updated_at"])
+        audit.record(
+            organization=pending.organization,
+            actor=actor,
+            action="sale.credit_approval_requested",
+            target=pending,
+            after={"over_by": str(required.over_by), "customer": pending.customer.reference},
+        )
+        return pending
+
+
+def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool) -> Sale:
     """The goods leave the stock and the customer owes what was not paid, all in one transaction.
 
     Each line's kilos leave the sale's place oldest batch first (D-037); the line keeps which batches went,
@@ -807,7 +893,7 @@ def confirm_sale(*, sale: Sale, actor: User | None) -> Sale:
     errors = _sale_header_errors(organization, sale.customer, sale.location, sale.sold_at)
     if errors:
         raise ValidationError(errors)
-    check_credit(sale)
+    check_credit(sale, actor=actor, approve_credit=approve_credit)
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
@@ -824,8 +910,29 @@ def confirm_sale(*, sale: Sale, actor: User | None) -> Sale:
     sale.status = SaleStatus.CONFIRMED
     sale.confirmed_by = actor
     sale.confirmed_at = timezone.now()
-    sale.save(update_fields=["cost_total", "amount_due", "status", "confirmed_by", "confirmed_at", "updated_at"])
+    sale.save(
+        update_fields=[
+            "cost_total",
+            "amount_due",
+            "status",
+            "confirmed_by",
+            "confirmed_at",
+            "credit_status",
+            "credit_over_by",
+            "credit_decided_by",
+            "credit_decided_at",
+            "updated_at",
+        ]
+    )
     record_receivable(sale)
+    if sale.credit_status in (CreditStatus.WARNED, CreditStatus.APPROVED):
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="sale.credit_limit_exceeded",
+            target=sale,
+            after={"policy": sale.credit_status, "over_by": str(sale.credit_over_by)},
+        )
     audit.record(
         organization=organization, actor=actor, action="sale.confirmed", target=sale, after=_sale_snapshot(sale)
     )
@@ -971,6 +1078,8 @@ class FinanceSettingsFields(TypedDict, total=False):
     fiscal_stamp: Number
     prices_include_vat: bool
     withholding_rate: Number
+    # `block`, `approval` or `warn` (D-018, D-062).
+    credit_policy: str
     legal_name: str
     address: str
     phone: str
@@ -1012,6 +1121,7 @@ def _settings_snapshot(version: FinanceSettings) -> dict[str, Any]:
         "fiscal_stamp": str(version.fiscal_stamp),
         "prices_include_vat": version.prices_include_vat,
         "withholding_rate": str(version.withholding_rate),
+        "credit_policy": version.credit_policy,
         **{name: getattr(version, name) for name in SETTINGS_TEXT_FIELDS},
     }
 
@@ -1048,6 +1158,10 @@ def save_finance_settings(
     except (ValueError, TypeError):
         errors["fiscal_stamp"] = _("Indiquez un montant en DT, au millime près.")
     values["prices_include_vat"] = bool(fields.get("prices_include_vat", in_force.prices_include_vat))
+    policy = str(fields.get("credit_policy", in_force.credit_policy))
+    if policy not in CreditPolicy.values:
+        errors["credit_policy"] = _("Choisissez bloquer, demander l'approbation ou avertir.")
+    values["credit_policy"] = policy
     for name in SETTINGS_TEXT_FIELDS:
         text = str(fields.get(name, getattr(in_force, name)) or "").strip()
         if len(text) > _TEXT_LENGTHS[name]:
@@ -1468,9 +1582,9 @@ def delete_invoice(*, invoice: Invoice, actor: User | None) -> None:
 
 
 def record_invoice_receivable(invoice: Invoice) -> None:
-    """P2-T06 hook: an issued invoice's `net_to_pay` is what the customer owes for its sale (the withholding
-    kept by the customer is recorded against it with its certificate). Customer payments, their allocation
-    and the balance come with P2-T06; nothing to write yet."""
+    """An issued invoice's `net_to_pay` (VAT and stamp in, withholding out) is what the customer owes for its
+    sale from now on (D-062): the sale's outstanding amount is refreshed."""
+    refresh_sale_due(invoice.sale)
 
 
 @transaction.atomic
@@ -1702,6 +1816,7 @@ def create_credit_note(
         sale = _locked_sale(invoice.sale)
         sale.tax_amount = None
         sale.save(update_fields=["tax_amount", "updated_at"])
+    refresh_sale_due(invoice.sale)
     audit.record(
         organization=invoice.organization,
         actor=actor,
@@ -1720,3 +1835,392 @@ def create_credit_note(
         },
     )
     return note
+
+
+# ---- Customer payments, balance, credit, withholding certificates (P2-T06, D-062, D-063) ----
+
+PAYMENT_SERIES = "RG"
+MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
+
+
+class AllocationFields(TypedDict):
+    sale: Sale
+    amount: Number
+
+
+def refresh_sale_due(sale: Sale) -> None:
+    """Write the sale's outstanding amount (`amount_due`) from its documents: what it owes (invoice, credit
+    notes, withholding) less what was paid on the spot and allocated. Only a confirmed sale is a receivable."""
+    if sale.status != SaleStatus.CONFIRMED:
+        return
+    rows = receivables.sale_receivables(sale.organization, sale_ids=[sale.pk])
+    if rows and rows[0].outstanding != sale.amount_due:
+        sale.amount_due = rows[0].outstanding
+        sale.save(update_fields=["amount_due", "updated_at"])
+
+
+def _payment_snapshot(payment: CustomerPayment) -> dict[str, Any]:
+    return {
+        "number": payment.number,
+        "customer": payment.customer.reference,
+        "amount": str(payment.amount),
+        "method": payment.method,
+        "received_on": payment.received_on.isoformat(),
+        "reference": payment.reference,
+        "allocations": [
+            {"sale": row.sale.number, "amount": str(row.amount)}
+            for row in payment.allocations.select_related("sale").order_by("id")
+        ],
+    }
+
+
+def _allocated_total(payment: CustomerPayment) -> Decimal:
+    return payment.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+
+
+def _allocate(
+    payment: CustomerPayment,
+    available: Decimal,
+    requested: Sequence[AllocationFields] | None,
+) -> list[PaymentAllocation]:
+    """Write the allocations of `payment`, at most `available` in all: the sales named in `requested` (each
+    no more than what it still owes), or, with None, the customer's oldest open sales first. The customer's
+    sales are locked, so two payments cannot settle the same amount twice."""
+    organization = payment.organization
+    list(
+        Sale.objects.select_for_update(of=("self",))
+        .filter(organization=organization, customer_id=payment.customer_id, status=SaleStatus.CONFIRMED)
+        .order_by("id")
+        .values_list("pk", flat=True)
+    )
+    open_rows = {
+        row.sale_id: row
+        for row in receivables.sale_receivables(organization, customer_id=payment.customer_id)
+        if row.outstanding > 0
+    }
+    plan: list[tuple[int, Decimal]] = []
+    errors: dict[str, str] = {}
+    if requested is None:
+        left = available
+        for row in sorted(open_rows.values(), key=lambda row: (row.document_date, row.sale_id)):
+            if left <= 0:
+                break
+            part = min(left, row.outstanding)
+            plan.append((row.sale_id, part))
+            left -= part
+    else:
+        taken: dict[int, Decimal] = {}
+        for index, item in enumerate(requested):
+            key = f"allocations.{index}.amount"
+            sale = item["sale"]
+            open_row = open_rows.get(sale.pk)
+            try:
+                amount = checked_amount(item["amount"])
+            except (ValueError, TypeError):
+                errors[key] = _("Indiquez un montant en DT, au millime près.")
+                continue
+            if open_row is None or sale.organization_id != organization.pk or sale.customer_id != payment.customer_id:
+                errors[key] = _("Cette vente ne doit plus rien à ce client.")
+            elif amount <= 0:
+                errors[key] = _("Le montant doit être supérieur à zéro.")
+            elif taken.get(sale.pk, Decimal("0.000")) + amount > open_row.outstanding:
+                errors[key] = _("%(number)s ne doit plus que %(due)s DT.") % {
+                    "number": open_row.number,
+                    "due": open_row.outstanding,
+                }
+            else:
+                taken[sale.pk] = taken.get(sale.pk, Decimal("0.000")) + amount
+                plan.append((sale.pk, amount))
+        if not errors and sum((amount for _id, amount in plan), Decimal("0.000")) > available:
+            errors["allocations"] = _("Les montants affectés dépassent le paiement (%(available)s DT disponibles).") % {
+                "available": available
+            }
+    if errors:
+        raise ValidationError(errors)
+    rows = PaymentAllocation.objects.bulk_create(
+        [
+            PaymentAllocation(organization=organization, payment=payment, sale_id=sale_id, amount=amount)
+            for sale_id, amount in plan
+        ]
+    )
+    for sale in Sale.objects.filter(pk__in=[sale_id for sale_id, _amount in plan]).select_related("organization"):
+        refresh_sale_due(sale)
+    return rows
+
+
+@transaction.atomic
+def record_customer_payment(
+    *,
+    organization: Organization,
+    actor: User | None,
+    customer: "Customer",
+    amount: Number,
+    method: str,
+    received_on: dt.date | None = None,
+    reference: str = "",
+    notes: str = "",
+    allocations: Sequence[AllocationFields] | None = None,
+) -> CustomerPayment:
+    """Register money received from a customer and allocate it (D-062).
+
+    `allocations` None takes the customer's oldest open sales first; a list names the sales and amounts
+    (empty keeps everything as credit). What is not allocated stays the customer's credit: their balance
+    already counts the whole payment, and `allocate_customer_payment` can settle sales with it later.
+    Refused for the walk-in customer (they pay on the spot). Numbered RG-0001... in the same transaction.
+    """
+    errors: dict[str, str] = {}
+    if customer.organization_id != organization.pk:
+        errors["customer"] = _("Client inconnu.")
+    elif customer.is_walk_in:
+        errors["customer"] = _("Le client de passage paie sur place : pas de règlement ultérieur.")
+    received_on = received_on or timezone.localdate()
+    if received_on > timezone.localdate():
+        errors["received_on"] = _("Un règlement ne peut pas être daté dans le futur.")
+    try:
+        paid = checked_amount(amount)
+        if paid <= 0:
+            errors["amount"] = _("Le montant doit être supérieur à zéro.")
+    except (ValueError, TypeError):
+        paid = Decimal("0.000")
+        errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    if method not in SalePaymentMethod.values:
+        errors["method"] = _("Mode de paiement inconnu.")
+    if errors:
+        raise ValidationError(errors)
+    payment = CustomerPayment.objects.create(
+        organization=organization,
+        number=_next_number(organization, PAYMENT_SERIES),
+        customer=customer,
+        amount=paid,
+        method=method,
+        received_on=received_on,
+        reference=reference.strip()[:50],
+        notes=notes.strip(),
+        created_by=actor,
+    )
+    _allocate(payment, paid, allocations)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer_payment.recorded",
+        target=payment,
+        after=_payment_snapshot(payment),
+    )
+    return payment
+
+
+def _locked_payment(payment: CustomerPayment) -> CustomerPayment:
+    return (
+        CustomerPayment.objects.select_for_update(of=("self",))
+        .select_related("organization", "customer")
+        .get(pk=payment.pk)
+    )
+
+
+@transaction.atomic
+def allocate_customer_payment(
+    *, payment: CustomerPayment, actor: User | None, allocations: Sequence[AllocationFields] | None = None
+) -> CustomerPayment:
+    """Settle sales with what is left of a payment (its credit): the named sales, or the oldest open ones
+    with None. Rows already written never change."""
+    payment = _locked_payment(payment)
+    if payment.voided_at is not None:
+        raise ValidationError(_("Ce règlement est annulé."))
+    left = payment.amount - _allocated_total(payment)
+    if left <= 0:
+        raise ValidationError(_("Ce règlement est déjà entièrement affecté."))
+    rows = _allocate(payment, left, allocations)
+    audit.record(
+        organization=payment.organization,
+        actor=actor,
+        action="customer_payment.allocated",
+        target=payment,
+        after={"rows": [{"sale": row.sale_id, "amount": str(row.amount)} for row in rows]},
+    )
+    return payment
+
+
+@transaction.atomic
+def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reason: str) -> CustomerPayment:
+    """Cancel a payment typed by mistake: it stays, marked voided with who, when and why; its allocations
+    stop counting and the sales owe again. Never deleted."""
+    payment = _locked_payment(payment)
+    if payment.voided_at is not None:
+        raise ValidationError(_("Ce règlement est déjà annulé."))
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})
+    sale_ids = list(payment.allocations.values_list("sale_id", flat=True))
+    payment.voided_at = timezone.now()
+    payment.voided_by = actor
+    payment.void_reason = reason
+    payment.save(update_fields=["voided_at", "voided_by", "void_reason", "updated_at"])
+    for sale in Sale.objects.filter(pk__in=sale_ids).select_related("organization"):
+        refresh_sale_due(sale)
+    audit.record(
+        organization=payment.organization,
+        actor=actor,
+        action="customer_payment.voided",
+        target=payment,
+        after={"reason": reason, "amount": str(payment.amount)},
+    )
+    return payment
+
+
+def _certificate_content(upload: "UploadedFile[bytes]") -> tuple[ContentFile[bytes], str]:
+    """A PDF kept as it is, or a photo turned upright and stored as WebP; with the file name."""
+    head = upload.read(5)
+    upload.seek(0)
+    if head == b"%PDF-":
+        if upload.size is not None and upload.size > MAX_CERTIFICATE_BYTES:
+            raise ValidationError({"file": _("Le fichier dépasse 8 Mo.")})
+        return ContentFile(upload.read()), "certificate.pdf"
+    return reencoded_photo(upload, field="file"), "certificate.webp"
+
+
+def _certificate_snapshot(certificate: WithholdingCertificate) -> dict[str, Any]:
+    return {
+        "invoice": certificate.invoice.number,
+        "number": certificate.number,
+        "issued_on": certificate.issued_on.isoformat(),
+        "amount": str(certificate.amount),
+        "has_file": bool(certificate.file.name),
+    }
+
+
+@transaction.atomic
+def record_withholding_certificate(
+    *,
+    invoice: Invoice,
+    actor: User | None,
+    number: str,
+    issued_on: dt.date,
+    amount: Number,
+    upload: "UploadedFile[bytes] | None" = None,
+) -> WithholdingCertificate:
+    """Record what a customer withheld on an issued invoice, with the certificate they gave (D-063).
+
+    The amount replaces the withholding the invoice planned: the sale's receivable becomes the invoice's
+    total with VAT and stamp, less credit notes, less this amount. One live certificate per invoice (void
+    it to type another). The file (photo or PDF) may come later (`add_certificate_file`).
+    """
+    invoice = _locked_invoice(invoice)
+    errors: dict[str, str] = {}
+    if invoice.status != InvoiceStatus.ISSUED:
+        raise ValidationError(_("Seule une facture émise reçoit une retenue à la source."))
+    number = number.strip()
+    if not number:
+        errors["number"] = _("Indiquez le numéro du certificat.")
+    elif len(number) > 50:
+        errors["number"] = _("Au plus 50 caractères.")
+    if issued_on > timezone.localdate():
+        errors["issued_on"] = _("Le certificat ne peut pas être daté dans le futur.")
+    try:
+        withheld = checked_amount(amount)
+        if withheld <= 0:
+            errors["amount"] = _("Le montant doit être supérieur à zéro.")
+        elif withheld > invoice.total_incl_tax:
+            errors["amount"] = _("La retenue dépasse le total de la facture (%(total)s DT).") % {
+                "total": invoice.total_incl_tax
+            }
+    except (ValueError, TypeError):
+        withheld = Decimal("0.000")
+        errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    if invoice.certificates.filter(voided_at__isnull=True).exists():
+        errors["number"] = _("Cette facture a déjà un certificat : annulez-le avant d'en saisir un autre.")
+    content: tuple[ContentFile[bytes], str] | None = None
+    if upload is not None:
+        try:
+            content = _certificate_content(upload)
+        except ValidationError as error:
+            errors.update({field: messages[0] for field, messages in error.message_dict.items()})
+    if errors:
+        raise ValidationError(errors)
+    certificate = WithholdingCertificate(
+        organization=invoice.organization,
+        invoice=invoice,
+        number=number,
+        issued_on=issued_on,
+        amount=withheld,
+        created_by=actor,
+    )
+    if content is not None:
+        certificate.file.save(content[1], content[0], save=False)
+    try:
+        certificate.save()
+    except BaseException:
+        if certificate.file.name:
+            certificate.file.storage.delete(certificate.file.name)
+        raise
+    refresh_sale_due(_locked_sale(invoice.sale))
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="withholding_certificate.recorded",
+        target=certificate,
+        after=_certificate_snapshot(certificate),
+    )
+    return certificate
+
+
+@transaction.atomic
+def add_certificate_file(
+    *, certificate: WithholdingCertificate, actor: User | None, upload: "UploadedFile[bytes]"
+) -> WithholdingCertificate:
+    """Join (or replace) the file of a live certificate: a photo or a PDF."""
+    content, name = _certificate_content(upload)
+    certificate = (
+        WithholdingCertificate.objects.select_for_update(of=("self",))
+        .select_related("organization", "invoice")
+        .get(pk=certificate.pk)
+    )
+    if certificate.voided_at is not None:
+        raise ValidationError(_("Ce certificat est annulé."))
+    previous = certificate.file.name
+    storage = certificate.file.storage
+    certificate.file.save(name, content, save=False)
+    try:
+        certificate.save(update_fields=["file", "updated_at"])
+    except BaseException:
+        storage.delete(certificate.file.name or "")
+        raise
+    if previous:
+        transaction.on_commit(lambda: storage.delete(previous))
+    audit.record(
+        organization=certificate.organization,
+        actor=actor,
+        action="withholding_certificate.file_added",
+        target=certificate,
+    )
+    return certificate
+
+
+@transaction.atomic
+def void_withholding_certificate(
+    *, certificate: WithholdingCertificate, actor: User | None, reason: str
+) -> WithholdingCertificate:
+    """Cancel a certificate typed by mistake: it stays, marked voided; the invoice's own planned withholding
+    counts again."""
+    certificate = (
+        WithholdingCertificate.objects.select_for_update(of=("self",))
+        .select_related("organization", "invoice")
+        .get(pk=certificate.pk)
+    )
+    if certificate.voided_at is not None:
+        raise ValidationError(_("Ce certificat est déjà annulé."))
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})
+    certificate.voided_at = timezone.now()
+    certificate.voided_by = actor
+    certificate.void_reason = reason
+    certificate.save(update_fields=["voided_at", "voided_by", "void_reason", "updated_at"])
+    refresh_sale_due(_locked_sale(certificate.invoice.sale))
+    audit.record(
+        organization=certificate.organization,
+        actor=actor,
+        action="withholding_certificate.voided",
+        target=certificate,
+        after={"reason": reason, **_certificate_snapshot(certificate)},
+    )
+    return certificate

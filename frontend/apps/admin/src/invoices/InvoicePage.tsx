@@ -43,6 +43,7 @@ import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
+import { CertificateCard } from "./CertificateCard";
 import { CreditNoteDialog } from "./CreditNoteDialog";
 import { canInvoice, isZero, plainRate, refreshAfterInvoice, STATUS_TONES, toInput } from "./shared";
 
@@ -679,6 +680,7 @@ export function InvoicePage() {
               </Detail>
             </dl>
           </Card>
+          <CertificateCard invoice={invoice} canWrite={writer} />
           <CreditNotesCard notes={invoice.credit_notes} />
         </div>
       </div>

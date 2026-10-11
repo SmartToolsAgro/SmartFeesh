@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import payment_views, views
 
 urlpatterns = [
     # P2-T03 · quotes
@@ -24,4 +24,39 @@ urlpatterns = [
     path("invoices/<int:invoice_id>/credit-notes", views.InvoiceCreditNoteView.as_view(), name="invoice-credit-notes"),
     path("credit-notes", views.CreditNoteListView.as_view(), name="credit-note-list"),
     path("credit-notes/<int:credit_note_id>", views.CreditNoteDetailView.as_view(), name="credit-note-detail"),
+    # P2-T06 · customer payments, balances, withholding certificates
+    path("customer-payments", payment_views.CustomerPaymentListView.as_view(), name="customer-payment-list"),
+    path(
+        "customer-payments/<int:payment_id>",
+        payment_views.CustomerPaymentDetailView.as_view(),
+        name="customer-payment-detail",
+    ),
+    path(
+        "customer-payments/<int:payment_id>/allocate",
+        payment_views.CustomerPaymentAllocateView.as_view(),
+        name="customer-payment-allocate",
+    ),
+    path(
+        "customer-payments/<int:payment_id>/void",
+        payment_views.CustomerPaymentVoidView.as_view(),
+        name="customer-payment-void",
+    ),
+    path("customers/<int:customer_id>/balance", payment_views.CustomerBalanceView.as_view(), name="customer-balance"),
+    path("receivables/ageing", payment_views.ReceivablesAgeingView.as_view(), name="receivables-ageing"),
+    path(
+        "invoices/<int:invoice_id>/withholding-certificate",
+        payment_views.InvoiceCertificateView.as_view(),
+        name="invoice-withholding-certificate",
+    ),
+    path("withholding-summary", payment_views.WithholdingSummaryView.as_view(), name="withholding-summary"),
+    path(
+        "withholding-certificates/<int:certificate_id>/file",
+        payment_views.WithholdingCertificateView.as_view(),
+        name="withholding-certificate-file",
+    ),
+    path(
+        "withholding-certificates/<int:certificate_id>/void",
+        payment_views.WithholdingCertificateVoidView.as_view(),
+        name="withholding-certificate-void",
+    ),
 ]

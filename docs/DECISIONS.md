@@ -991,3 +991,61 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   after its lot closed puts stock back on a closed lot (shown as drift); hr days on a closed lot can still be
   deleted (D-055's hook). The P0-T02 golden lot is still missing: the golden tests use a lot worked out by hand
   (`closing/tests/test_engine.py`), to be joined by the client's real lot.
+
+**D-062 · Customer receivable, payments and balance (P2-T06)** · accepted, provisional points marked · 2026-10-11
+- **Nothing is stored twice.** `sales/receivables.py` computes what each confirmed sale owes from the documents:
+  the sale's total until it has an issued invoice, then the invoice's `net_to_pay` (VAT and stamp in,
+  planned withholding out) less its credit notes, with a withholding certificate's amount replacing the planned
+  withholding (D-063). Less what was paid on the spot and what payments were allocated to it = **outstanding**.
+  `Sale.amount_due` is only that outstanding amount kept up to date for lists (`refresh_sale_due`, called by
+  `record_receivable`, `record_invoice_receivable`, credit notes, payments, certificates).
+- **Balance of a customer** = what their sales owe − all paid on the spot (cancelled sales included) − all
+  payments (voided ones left out). Negative = **customer credit** held by the company: an unallocated payment,
+  money paid on a sale cancelled afterwards, a credit note beyond what was owed. Supplier payables, invested
+  capital and profit shares are untouched (separate balances, ARCHITECTURE rule).
+- **`CustomerPayment`** (`RG-0001`… per organization, cash/cheque/transfer/card like sales, received day not in
+  the future, reference, notes) with `PaymentAllocation` rows to sales. By default a payment settles the
+  customer's **oldest open sales first** (by invoice date, else sale date); a list may name sales and amounts
+  (never more than a sale still owes); what is left stays credit and `allocate_customer_payment` can settle
+  sales with it later. Never edited or deleted: `void_customer_payment` (reason, who, when) makes its
+  allocations stop counting. The walk-in customer cannot have payments (they pay on the spot, D-047).
+- **Ageing** 0-30, 31-60, 61+ days since the **invoice date (else sale date)** — *provisional*: the client has
+  not said whether they age from the invoice or the due date; `overdue` (past the due date = invoice date +
+  payment terms) is given separately so both views exist.
+- Customer account history (sales at what they owe now, paid on the spot, payments) with a running balance
+  ending on the balance. API: `listCustomerPayments`, `createCustomerPayment`, `getCustomerPayment`,
+  `allocateCustomerPayment`, `voidCustomerPayment`, `getCustomerBalance`, `getReceivablesAgeing`.
+
+**D-063 · Withholding certificates (P2-T06)** · accepted, provisional points marked · 2026-10-11
+- `WithholdingCertificate` per issued invoice: number, date, **amount really withheld**, file (photo stored as
+  WebP or PDF, 8 MB, random file name, served by `withholding-certificates/<id>/file`, joined at creation or
+  later). One live certificate per invoice; a mistake is voided (reason) and typed again; never deleted.
+- The invoice keeps the withholding it planned at issue (D-057, frozen); the certificate's amount **replaces**
+  it in the receivable, so a customer who withheld more or less changes what they still owe. Provisional: no
+  rule limits the amount to the planned one (the customer decides), only to the invoice's total with tax.
+- For the accountant: `getWithholdingSummary` (certificate dates, both ends included): total, per month, per
+  customer, each certificate, and issued invoices that planned a withholding but have no certificate yet. Office
+  roles read (the accountant included), owner and manager write. Audited.
+
+**D-064 · Credit limit and its company policy (P2-T06)** · accepted, provisional points marked · 2026-10-11
+- `FinanceSettings.credit_policy` (versioned like the other settings, D-018/D-056): `block` (default, the safe
+  choice while the client has not decided: *provisional*), `approval`, `warn`. Owner edits it on the finance
+  settings screen.
+- `check_credit` runs inside `confirm_sale` for **every seller, drivers included** (Q16): balance now + what
+  this sale leaves unpaid must not exceed the customer's `credit_limit` (0 = pays at once). The customer row is
+  locked so two sellers cannot both pass. `block` refuses on `credit_limit`; `warn` lets it through,
+  `credit_status = warned` and an audit entry `sale.credit_limit_exceeded`; `approval` leaves the sale a
+  **draft marked `pending`** (`sale.credit_approval_requested` audited) until the owner or a manager confirms
+  it with `approve_credit` (a driver sending it gets 403); the sale then shows `approved`, who and when.
+  Editing a pending draft asks again. A sale paid in full on the spot is never limited.
+- Test factories now give customers a 100 000 DT limit so tests selling on credit stay about their own subject.
+
+**D-065 · Payments screens and permissions (P2-T06)** · accepted · 2026-10-11
+- Office only: owner and manager write, the accountant reads, drivers get 403 on payments, balances and
+  certificates (collecting money on the phone, D-047's narrow customer endpoint and the driver balance view
+  belong to Phase 3). Not in this task: refunding credit, returns (P2-T07), PDFs/receipts (P2-T08).
+- Screens: "Règlements" (`/reglements`: ageing of all customers with "Encaisser", withholding totals per
+  month, every payment with void), the customer page now shows balance, ageing, open sales, history and
+  "Enregistrer un règlement"; the sale page shows the credit status and "Approuver et confirmer"; the invoice
+  page a "Certificat de retenue" card; the finance settings screen the credit policy. Playwright:
+  `admin.payments.spec.ts`. Pinned enums: `SaleCreditStatusEnum`, `CreditPolicyEnum`.

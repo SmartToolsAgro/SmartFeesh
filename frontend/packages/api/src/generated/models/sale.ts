@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { QuoteRef } from './quoteRef';
+import type { SaleCreditStatus } from './saleCreditStatus';
 import type { SaleCustomer } from './saleCustomer';
 import type { SaleInvoiceRef } from './saleInvoiceRef';
 import type { SaleLocation } from './saleLocation';
@@ -60,4 +61,10 @@ export interface Sale {
   readonly cancelled_at: string | null;
   readonly cancel_reason: string;
   readonly invoice: SaleInvoiceRef | null;
+  readonly credit_status: typeof SaleCreditStatus[keyof typeof SaleCreditStatus];
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly credit_over_by: string;
+  readonly credit_decided_by: string;
+  /** @nullable */
+  readonly credit_decided_at: string | null;
 }

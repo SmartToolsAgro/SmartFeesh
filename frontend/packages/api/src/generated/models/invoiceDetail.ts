@@ -6,6 +6,7 @@
  */
 import type { CreditNote } from './creditNote';
 import type { EInvoiceStatusEnum } from './eInvoiceStatusEnum';
+import type { InvoiceCertificate } from './invoiceCertificate';
 import type { InvoiceLine } from './invoiceLine';
 import type { InvoiceStatusEnum } from './invoiceStatusEnum';
 import type { InvoiceVatLine } from './invoiceVatLine';
@@ -58,6 +59,7 @@ export interface InvoiceDetail {
   readonly cancelled_at: string | null;
   readonly einvoice_status: EInvoiceStatusEnum;
   readonly einvoice_reference: string;
+  readonly certificate: InvoiceCertificate | null;
   readonly notes: string;
   readonly fiscal_stamp_overridden: boolean;
   readonly withholding_rate_overridden: boolean;

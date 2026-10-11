@@ -26,6 +26,7 @@ export interface SaleWrite {
   notes?: string;
   lines: QuoteLineWrite[];
   confirm_now?: boolean;
+  approve_credit?: boolean;
   /** @nullable */
   client_uuid?: string | null;
 }

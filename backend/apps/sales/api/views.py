@@ -43,6 +43,7 @@ from .serializers import (
     QuoteSerializer,
     QuoteWriteSerializer,
     SaleCancelSerializer,
+    SaleConfirmSerializer,
     SaleDetailSerializer,
     SaleFilterSerializer,
     SaleSerializer,
@@ -274,7 +275,18 @@ class SaleView(OfficeView):
             lines.append({**line, "product": product})
         if errors:
             raise ValidationError(errors)
-        return {**fields, "lines": lines, "confirm": data["confirm_now"]}
+        return {
+            **fields,
+            "lines": lines,
+            "confirm": data["confirm_now"],
+            "approve_credit": self.may_approve_credit(data["approve_credit"]),
+        }
+
+    def may_approve_credit(self, asked: bool) -> bool:
+        """Only the owner and the manager may accept a sale above a customer's credit limit (D-062)."""
+        if asked and self.is_driver:
+            raise PermissionDenied(_("Seul le propriétaire ou le gérant approuve un dépassement de crédit."))
+        return asked
 
     def check_own_place(self, sale: Sale) -> None:
         if self.is_driver:
@@ -348,13 +360,22 @@ class SaleDetailView(SaleView):
 
 
 class SaleConfirmView(SaleView):
-    @extend_schema(operation_id="confirmSale", request=None, responses=SaleDetailSerializer)
+    @extend_schema(operation_id="confirmSale", request=SaleConfirmSerializer, responses=SaleDetailSerializer)
     def post(self, request: Request, sale_id: int) -> Response:
         """Confirm a draft: the stock leaves oldest batch first and the customer owes what is not paid. Refused
-        as a whole when the place holds too little (`lines.<index>.quantity`)."""
+        as a whole when the place holds too little (`lines.<index>.quantity`) or, under the company's "block"
+        policy, when the customer would go above their credit limit (`credit_limit`). Under the "approval"
+        policy the sale stays a draft with `credit_status` pending until the owner or a manager confirms it
+        with `approve_credit`."""
+        serializer = SaleConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         sale = self.sale(sale_id)
         self.check_own_place(sale)
-        services.confirm_sale(sale=sale, actor=self.membership.user)
+        services.confirm_sale(
+            sale=sale,
+            actor=self.membership.user,
+            approve_credit=self.may_approve_credit(serializer.validated_data["approve_credit"]),
+        )
         return self.answer(sale_id)
 
 

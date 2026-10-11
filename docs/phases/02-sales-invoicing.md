@@ -66,13 +66,14 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
       at issue (D-056). Credit note dialog, print-friendly invoice page, finance settings screen (D-057).
 
 ### P2-T06 · Customer payments and balances · M
-- [ ] `CustomerPayment` (cash, cheque, transfer, card) allocated to invoices; unallocated credit kept.
-- [ ] Customer balance, ageing (0–30, 31–60, 60+ days).
-- [ ] Credit limit per customer, enforced on the server at sale time for every seller, drivers included
+- [x] `CustomerPayment` (cash, cheque, transfer, card) allocated to invoices; unallocated credit kept.
+- [x] Customer balance, ageing (0–30, 31–60, 60+ days).
+- [x] Credit limit per customer, enforced on the server at sale time for every seller, drivers included
       (Q16). Above the limit the behaviour is a company setting (D-018): block the sale, ask the owner or
       manager for approval, or warn and log.
-- [ ] Withholding tax: the amount withheld is recorded against the invoice with its certificate (number,
+- [x] Withholding tax: the amount withheld is recorded against the invoice with its certificate (number,
       date, file); the receivable is reduced; totals per period are available to the accountant.
+      (D-062 to D-065. Screens: "Règlements", balance and history on the customer page, certificate card on the invoice.)
 
 ### P2-T07 · Customer returns · S
 - [ ] Return → stock movement back (or to loss) + credit note.
@@ -82,8 +83,8 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 - [ ] Introduce Celery + Redis for generation; files stored in object storage.
 
 ### P2-T09 · Admin screens · M
-- [ ] Quotes, sales, invoices, customers, payments screens. Customer page shows balance + history.
-      (Quotes P2-T03, sales P2-T04b and customers P2-T01 done; invoices, payments and the balance remain.)
+- [x] Quotes, sales, invoices, customers, payments screens. Customer page shows balance + history.
+      (Quotes P2-T03, sales P2-T04b, customers P2-T01, invoices P2-T05, payments and balance P2-T06.)
 - [x] Quick counter-sale screen for the cold room (`/ventes/comptoir`, P2-T04b, D-052).
 
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice

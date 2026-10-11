@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { canCollect } from "../payments/shared";
+import { BalanceCard } from "./BalanceCard";
 import { CustomerDialog } from "./CustomerDialog";
 import { canEditCustomers, refreshCustomers } from "./shared";
 
@@ -153,10 +155,9 @@ export function CustomerDetailPage() {
           </Card>
         </div>
 
-        <Card className="col-span-full">
-          <CardTitle>{t("admin.customers.detail.later")}</CardTitle>
-          <p className="text-ink-2">{t("admin.customers.detail.laterBody")}</p>
-        </Card>
+        {!data.is_walk_in && (
+          <BalanceCard customer={{ id: data.id, name: data.name }} canCollect={canCollect(session)} />
+        )}
       </div>
 
       <Dialog open={editing} onOpenChange={setEditing}>
