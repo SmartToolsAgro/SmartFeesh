@@ -1,29 +1,22 @@
 """Every write on the catalogue goes through these functions (ARCHITECTURE §3)."""
 
 import datetime as dt
-import io
 from decimal import Decimal
 from typing import Any, TypedDict, Unpack
 
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.core import audit
+from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_quantity, money
 
 from . import selectors
 from .models import Category, Illustration, Product, ProductPrice
-
-MAX_PHOTO_BYTES = 8 * 1024 * 1024
-MAX_PHOTO_PIXELS = 50_000_000  # a 48-megapixel phone photo passes; anything larger is refused
-PHOTO_SIDE = 1200  # stored photos fit in 1200 × 1200 px
-PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
 
 class ProductFields(TypedDict, total=False):
@@ -219,30 +212,6 @@ def set_sale_price(
     return product_price
 
 
-def _reencoded_photo(upload: UploadedFile[bytes]) -> ContentFile[bytes]:
-    """The photo turned upright, shrunk and saved again as WebP.
-
-    Saving again keeps only the pixels: the GPS position and other metadata of the phone, and anything
-    hidden in the file, are dropped. It also keeps the server's disk small.
-    """
-    if upload.size is not None and upload.size > MAX_PHOTO_BYTES:
-        raise ValidationError({"photo": _("La photo dépasse 8 Mo.")})
-    try:
-        with Image.open(upload) as image:
-            if image.format not in PHOTO_FORMATS:
-                raise ValidationError({"photo": _("Format accepté : JPEG, PNG ou WebP.")})
-            if image.width * image.height > MAX_PHOTO_PIXELS:
-                raise ValidationError({"photo": _("La photo est trop grande.")})
-            upright = ImageOps.exif_transpose(image)
-            upright = upright.convert("RGBA" if "A" in upright.getbands() else "RGB")
-            upright.thumbnail((PHOTO_SIDE, PHOTO_SIDE))
-            buffer = io.BytesIO()
-            upright.save(buffer, format="WEBP", quality=82, method=4)
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
-        raise ValidationError({"photo": _("Ce fichier n'est pas une image lisible.")}) from None
-    return ContentFile(buffer.getvalue())
-
-
 def _delete_file_after_commit(product: Product, name: str) -> None:
     storage = product.photo.storage
     transaction.on_commit(lambda: storage.delete(name))
@@ -250,7 +219,7 @@ def _delete_file_after_commit(product: Product, name: str) -> None:
 
 @transaction.atomic
 def set_product_photo(*, product: Product, actor: User | None, upload: UploadedFile[bytes]) -> Product:
-    content = _reencoded_photo(upload)
+    content = reencoded_photo(upload)
     product = Product.objects.select_for_update().get(pk=product.pk)
     old_name = product.photo.name or ""
     product.photo.save("photo.webp", content, save=False)

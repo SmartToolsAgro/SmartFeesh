@@ -6,6 +6,8 @@ import { NavLink } from "react-router";
 const TABS = [
   { to: "/stock", label: "admin.stockTabs.places", end: true },
   { to: "/stock/transferts", label: "admin.stockTabs.transfers", end: false },
+  { to: "/stock/pertes", label: "admin.stockTabs.losses", end: false },
+  { to: "/stock/inventaires", label: "admin.stockTabs.counts", end: false },
 ] as const;
 
 /** Links between the sections of the stock module, the current one marked. */

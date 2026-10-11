@@ -133,5 +133,8 @@ SPECTACULAR_SETTINGS = {
         "StockLocationKindEnum": "apps.inventory.models.LocationKind",
         "TransferKindEnum": "apps.inventory.models.TransferKind",
         "TransferStatusEnum": "apps.inventory.models.TransferStatus",
+        "LossStatusEnum": "apps.inventory.models.LossStatus",
+        "LossReasonEnum": "apps.inventory.models.LossReason",
+        "CountStatusEnum": "apps.inventory.models.CountStatus",
     },
 }

@@ -26,15 +26,20 @@ import type {
 import type {
   Batch,
   Category,
+  Count,
+  CountWrite,
+  Counted,
   Customer,
   CustomerWrite,
   GetTruckDayParams,
   Health,
   LastCost,
   ListBatchesParams,
+  ListCountsParams,
   ListCustomersParams,
   ListLastPurchaseCostsParams,
   ListLocationsParams,
+  ListLossesParams,
   ListProductsParams,
   ListReceiptDifferencesParams,
   ListReceiptsParams,
@@ -46,9 +51,15 @@ import type {
   ListTrucksParams,
   LocationStock,
   Login,
+  LossDetail,
+  LossPhoto,
+  LossReject,
+  LossWrite,
   Member,
   PaginatedBatchList,
+  PaginatedCountList,
   PaginatedDifferenceLineList,
+  PaginatedLossList,
   PaginatedReceiptList,
   PaginatedSupplierInvoiceList,
   PaginatedSupplierPaymentList,
@@ -71,6 +82,8 @@ import type {
   SetPrice,
   StockLocation,
   StockLocationCreate,
+  StockSettings,
+  StockSettingsWrite,
   Supplier,
   SupplierBalance,
   SupplierInvoice,
@@ -843,6 +856,521 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRenameCategoryMutationOptions(options), queryClient);
+    }
+
+export const getListCountsUrl = (params?: ListCountsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/counts?${stringifiedParams}` : `/api/v1/counts`
+}
+
+/**
+ * Stock counts, newest first, paginated, each with its sheet. Filter by status or location.
+ */
+export const listCounts = async (params?: ListCountsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedCountList> => {
+
+  return apiFetch<PaginatedCountList>(getListCountsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCountsQueryKey = (params?: ListCountsParams,) => {
+    return [
+    `/api/v1/counts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCountsQueryOptions = <TData = Awaited<ReturnType<typeof listCounts>>, TError = unknown>(params?: ListCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCountsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCounts>>> = ({ signal }) => listCounts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCountsQueryResult = NonNullable<Awaited<ReturnType<typeof listCounts>>>
+export type ListCountsQueryError = unknown
+
+
+export function useListCounts<TData = Awaited<ReturnType<typeof listCounts>>, TError = unknown>(
+ params: undefined |  ListCountsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCounts>>,
+          TError,
+          Awaited<ReturnType<typeof listCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCounts<TData = Awaited<ReturnType<typeof listCounts>>, TError = unknown>(
+ params?: ListCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCounts>>,
+          TError,
+          Awaited<ReturnType<typeof listCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCounts<TData = Awaited<ReturnType<typeof listCounts>>, TError = unknown>(
+ params?: ListCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCounts<TData = Awaited<ReturnType<typeof listCounts>>, TError = unknown>(
+ params?: ListCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCountsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartCountUrl = () => {
+
+
+
+
+  return `/api/v1/counts`
+}
+
+/**
+ * Open a count sheet for a location: one line per batch it holds, with the kg the ledger expects.
+ * One count at a time per location.
+ */
+export const startCount = async (countWrite: CountWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Count> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Count>(getStartCountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(countWrite)
+  }
+);}
+
+
+
+
+
+export const getStartCountMutationKey = () => ['startCount'] as const;
+
+export const getStartCountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCount>>, TError,StartCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startCount>>, TError,StartCountMutationVariables, TContext> => {
+
+const mutationKey = getStartCountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startCount>>, StartCountMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startCount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartCountMutationResult = NonNullable<Awaited<ReturnType<typeof startCount>>>
+    export type StartCountMutationBody = CountWrite
+    export type StartCountMutationError = unknown
+    export type StartCountMutationVariables = {data: CountWrite}
+
+    export const useStartCount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCount>>, TError,StartCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startCount>>,
+        TError,
+        StartCountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartCountMutationOptions(options), queryClient);
+    }
+
+export const getGetCountUrl = (countId: number,) => {
+
+
+
+
+  return `/api/v1/counts/${countId}`
+}
+
+export const getCount = async (countId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Count> => {
+
+  return apiFetch<Count>(getGetCountUrl(countId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCountQueryKey = (countId: number,) => {
+    return [
+    `/api/v1/counts/${countId}`
+    ] as const;
+    }
+
+
+export const getGetCountQueryOptions = <TData = Awaited<ReturnType<typeof getCount>>, TError = unknown>(countId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCount>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCountQueryKey(countId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCount>>> = ({ signal }) => getCount(countId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: countId !== null && countId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCount>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCountQueryResult = NonNullable<Awaited<ReturnType<typeof getCount>>>
+export type GetCountQueryError = unknown
+
+
+export function useGetCount<TData = Awaited<ReturnType<typeof getCount>>, TError = unknown>(
+ countId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCount>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCount>>,
+          TError,
+          Awaited<ReturnType<typeof getCount>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCount<TData = Awaited<ReturnType<typeof getCount>>, TError = unknown>(
+ countId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCount>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCount>>,
+          TError,
+          Awaited<ReturnType<typeof getCount>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCount<TData = Awaited<ReturnType<typeof getCount>>, TError = unknown>(
+ countId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCount>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetCount<TData = Awaited<ReturnType<typeof getCount>>, TError = unknown>(
+ countId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCount>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCountQueryOptions(countId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveCountUrl = (countId: number,) => {
+
+
+
+
+  return `/api/v1/counts/${countId}/approve`
+}
+
+/**
+ * Post a count correction for every difference and freeze the count. Every line must be counted.
+ */
+export const approveCount = async (countId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Count> => {
+
+  return apiFetch<Count>(getApproveCountUrl(countId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveCountMutationKey = () => ['approveCount'] as const;
+
+export const getApproveCountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCount>>, TError,ApproveCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveCount>>, TError,ApproveCountMutationVariables, TContext> => {
+
+const mutationKey = getApproveCountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveCount>>, ApproveCountMutationVariables> = (props) => {
+          const {countId} = props ?? {};
+
+          return  approveCount(countId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveCountMutationResult = NonNullable<Awaited<ReturnType<typeof approveCount>>>
+
+    export type ApproveCountMutationError = unknown
+    export type ApproveCountMutationVariables = {countId: number}
+
+    export const useApproveCount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCount>>, TError,ApproveCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveCount>>,
+        TError,
+        ApproveCountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveCountMutationOptions(options), queryClient);
+    }
+
+export const getCancelCountUrl = (countId: number,) => {
+
+
+
+
+  return `/api/v1/counts/${countId}/cancel`
+}
+
+/**
+ * Give up an open count: nothing moved.
+ */
+export const cancelCount = async (countId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Count> => {
+
+  return apiFetch<Count>(getCancelCountUrl(countId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelCountMutationKey = () => ['cancelCount'] as const;
+
+export const getCancelCountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelCount>>, TError,CancelCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelCount>>, TError,CancelCountMutationVariables, TContext> => {
+
+const mutationKey = getCancelCountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelCount>>, CancelCountMutationVariables> = (props) => {
+          const {countId} = props ?? {};
+
+          return  cancelCount(countId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelCountMutationResult = NonNullable<Awaited<ReturnType<typeof cancelCount>>>
+
+    export type CancelCountMutationError = unknown
+    export type CancelCountMutationVariables = {countId: number}
+
+    export const useCancelCount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelCount>>, TError,CancelCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelCount>>,
+        TError,
+        CancelCountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelCountMutationOptions(options), queryClient);
+    }
+
+export const getRecordCountedUrl = (countId: number,) => {
+
+
+
+
+  return `/api/v1/counts/${countId}/lines`
+}
+
+/**
+ * Type the kg counted on lines of an open sheet (empty clears, 0 = nothing found). Errors come
+ * back on `lines.<index>.counted_quantity`.
+ */
+export const recordCounted = async (countId: number,
+    counted: Counted, options?: Parameters<typeof apiFetch>[1]): Promise<Count> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Count>(getRecordCountedUrl(countId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(counted)
+  }
+);}
+
+
+
+
+
+export const getRecordCountedMutationKey = () => ['recordCounted'] as const;
+
+export const getRecordCountedMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCounted>>, TError,RecordCountedMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordCounted>>, TError,RecordCountedMutationVariables, TContext> => {
+
+const mutationKey = getRecordCountedMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordCounted>>, RecordCountedMutationVariables> = (props) => {
+          const {countId,data} = props ?? {};
+
+          return  recordCounted(countId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordCountedMutationResult = NonNullable<Awaited<ReturnType<typeof recordCounted>>>
+    export type RecordCountedMutationBody = Counted
+    export type RecordCountedMutationError = unknown
+    export type RecordCountedMutationVariables = {countId: number;data: Counted}
+
+    export const useRecordCounted = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCounted>>, TError,RecordCountedMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordCounted>>,
+        TError,
+        RecordCountedMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordCountedMutationOptions(options), queryClient);
     }
 
 export const getListCustomersUrl = (params?: ListCustomersParams,) => {
@@ -2061,6 +2589,527 @@ export function useListLocationStock<TData = Awaited<ReturnType<typeof listLocat
 
 
 
+
+export const getListLossesUrl = (params?: ListLossesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/losses?${stringifiedParams}` : `/api/v1/losses`
+}
+
+/**
+ * Losses, newest day first, paginated (`limit`, `offset`). Filter by status, location or `search`
+ * (number, product, location).
+ */
+export const listLosses = async (params?: ListLossesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedLossList> => {
+
+  return apiFetch<PaginatedLossList>(getListLossesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLossesQueryKey = (params?: ListLossesParams,) => {
+    return [
+    `/api/v1/losses`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListLossesQueryOptions = <TData = Awaited<ReturnType<typeof listLosses>>, TError = unknown>(params?: ListLossesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLosses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLossesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLosses>>> = ({ signal }) => listLosses(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLosses>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListLossesQueryResult = NonNullable<Awaited<ReturnType<typeof listLosses>>>
+export type ListLossesQueryError = unknown
+
+
+export function useListLosses<TData = Awaited<ReturnType<typeof listLosses>>, TError = unknown>(
+ params: undefined |  ListLossesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLosses>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLosses>>,
+          TError,
+          Awaited<ReturnType<typeof listLosses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLosses<TData = Awaited<ReturnType<typeof listLosses>>, TError = unknown>(
+ params?: ListLossesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLosses>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLosses>>,
+          TError,
+          Awaited<ReturnType<typeof listLosses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLosses<TData = Awaited<ReturnType<typeof listLosses>>, TError = unknown>(
+ params?: ListLossesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLosses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListLosses<TData = Awaited<ReturnType<typeof listLosses>>, TError = unknown>(
+ params?: ListLossesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLosses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListLossesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordLossUrl = () => {
+
+
+
+
+  return `/api/v1/losses`
+}
+
+/**
+ * Record kilos lost at a location. Up to the threshold, or recorded by the owner, they leave the
+ * stock at once (oldest batch first); above it the loss waits for the owner (`pending`).
+ */
+export const recordLoss = async (lossWrite: LossWrite, options?: Parameters<typeof apiFetch>[1]): Promise<LossDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LossDetail>(getRecordLossUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lossWrite)
+  }
+);}
+
+
+
+
+
+export const getRecordLossMutationKey = () => ['recordLoss'] as const;
+
+export const getRecordLossMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordLoss>>, TError,RecordLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordLoss>>, TError,RecordLossMutationVariables, TContext> => {
+
+const mutationKey = getRecordLossMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordLoss>>, RecordLossMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordLoss(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordLossMutationResult = NonNullable<Awaited<ReturnType<typeof recordLoss>>>
+    export type RecordLossMutationBody = LossWrite
+    export type RecordLossMutationError = unknown
+    export type RecordLossMutationVariables = {data: LossWrite}
+
+    export const useRecordLoss = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordLoss>>, TError,RecordLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordLoss>>,
+        TError,
+        RecordLossMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordLossMutationOptions(options), queryClient);
+    }
+
+export const getGetLossUrl = (lossId: number,) => {
+
+
+
+
+  return `/api/v1/losses/${lossId}`
+}
+
+/**
+ * One loss; once it left the stock, the batches it came from and their cost.
+ */
+export const getLoss = async (lossId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LossDetail> => {
+
+  return apiFetch<LossDetail>(getGetLossUrl(lossId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLossQueryKey = (lossId: number,) => {
+    return [
+    `/api/v1/losses/${lossId}`
+    ] as const;
+    }
+
+
+export const getGetLossQueryOptions = <TData = Awaited<ReturnType<typeof getLoss>>, TError = unknown>(lossId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoss>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLossQueryKey(lossId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoss>>> = ({ signal }) => getLoss(lossId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: lossId !== null && lossId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLoss>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLossQueryResult = NonNullable<Awaited<ReturnType<typeof getLoss>>>
+export type GetLossQueryError = unknown
+
+
+export function useGetLoss<TData = Awaited<ReturnType<typeof getLoss>>, TError = unknown>(
+ lossId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoss>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoss>>,
+          TError,
+          Awaited<ReturnType<typeof getLoss>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoss<TData = Awaited<ReturnType<typeof getLoss>>, TError = unknown>(
+ lossId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoss>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoss>>,
+          TError,
+          Awaited<ReturnType<typeof getLoss>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoss<TData = Awaited<ReturnType<typeof getLoss>>, TError = unknown>(
+ lossId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoss>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLoss<TData = Awaited<ReturnType<typeof getLoss>>, TError = unknown>(
+ lossId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoss>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLossQueryOptions(lossId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveLossUrl = (lossId: number,) => {
+
+
+
+
+  return `/api/v1/losses/${lossId}/approve`
+}
+
+/**
+ * The owner accepts a waiting loss: its kg leave the stock now, oldest batch first.
+ */
+export const approveLoss = async (lossId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LossDetail> => {
+
+  return apiFetch<LossDetail>(getApproveLossUrl(lossId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveLossMutationKey = () => ['approveLoss'] as const;
+
+export const getApproveLossMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveLoss>>, TError,ApproveLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveLoss>>, TError,ApproveLossMutationVariables, TContext> => {
+
+const mutationKey = getApproveLossMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveLoss>>, ApproveLossMutationVariables> = (props) => {
+          const {lossId} = props ?? {};
+
+          return  approveLoss(lossId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveLossMutationResult = NonNullable<Awaited<ReturnType<typeof approveLoss>>>
+
+    export type ApproveLossMutationError = unknown
+    export type ApproveLossMutationVariables = {lossId: number}
+
+    export const useApproveLoss = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveLoss>>, TError,ApproveLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveLoss>>,
+        TError,
+        ApproveLossMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveLossMutationOptions(options), queryClient);
+    }
+
+export const getAddLossPhotoUrl = (lossId: number,) => {
+
+
+
+
+  return `/api/v1/losses/${lossId}/photo`
+}
+
+/**
+ * Join a photo as proof, once: it is turned upright, shrunk and stored as WebP without metadata.
+ */
+export const addLossPhoto = async (lossId: number,
+    lossPhoto: LossPhoto, options?: Parameters<typeof apiFetch>[1]): Promise<LossDetail> => {
+    const formData = new FormData();
+formData.append(`photo`, lossPhoto.photo);
+
+  return apiFetch<LossDetail>(getAddLossPhotoUrl(lossId),
+  {
+    ...options,
+    method: 'PUT'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAddLossPhotoMutationKey = () => ['addLossPhoto'] as const;
+
+export const getAddLossPhotoMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addLossPhoto>>, TError,AddLossPhotoMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addLossPhoto>>, TError,AddLossPhotoMutationVariables, TContext> => {
+
+const mutationKey = getAddLossPhotoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addLossPhoto>>, AddLossPhotoMutationVariables> = (props) => {
+          const {lossId,data} = props ?? {};
+
+          return  addLossPhoto(lossId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddLossPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof addLossPhoto>>>
+    export type AddLossPhotoMutationBody = LossPhoto
+    export type AddLossPhotoMutationError = void
+    export type AddLossPhotoMutationVariables = {lossId: number;data: LossPhoto}
+
+    export const useAddLossPhoto = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addLossPhoto>>, TError,AddLossPhotoMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addLossPhoto>>,
+        TError,
+        AddLossPhotoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddLossPhotoMutationOptions(options), queryClient);
+    }
+
+export const getRejectLossUrl = (lossId: number,) => {
+
+
+
+
+  return `/api/v1/losses/${lossId}/reject`
+}
+
+/**
+ * The owner refuses a waiting loss, saying why. Nothing moves.
+ */
+export const rejectLoss = async (lossId: number,
+    lossReject: LossReject, options?: Parameters<typeof apiFetch>[1]): Promise<LossDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LossDetail>(getRejectLossUrl(lossId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lossReject)
+  }
+);}
+
+
+
+
+
+export const getRejectLossMutationKey = () => ['rejectLoss'] as const;
+
+export const getRejectLossMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectLoss>>, TError,RejectLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectLoss>>, TError,RejectLossMutationVariables, TContext> => {
+
+const mutationKey = getRejectLossMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectLoss>>, RejectLossMutationVariables> = (props) => {
+          const {lossId,data} = props ?? {};
+
+          return  rejectLoss(lossId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectLossMutationResult = NonNullable<Awaited<ReturnType<typeof rejectLoss>>>
+    export type RejectLossMutationBody = LossReject
+    export type RejectLossMutationError = unknown
+    export type RejectLossMutationVariables = {lossId: number;data: LossReject}
+
+    export const useRejectLoss = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectLoss>>, TError,RejectLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectLoss>>,
+        TError,
+        RejectLossMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectLossMutationOptions(options), queryClient);
+    }
 
 export const getGetSessionUrl = () => {
 
@@ -3676,6 +4725,189 @@ export function useListLastPurchaseCosts<TData = Awaited<ReturnType<typeof listL
 
 
 
+
+export const getGetStockSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/stock-settings`
+}
+
+/**
+ * The stock rules: above `loss_approval_threshold` kg a loss waits for the owner's approval.
+ */
+export const getStockSettings = async ( options?: Parameters<typeof apiFetch>[1]): Promise<StockSettings> => {
+
+  return apiFetch<StockSettings>(getGetStockSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStockSettingsQueryKey = () => {
+    return [
+    `/api/v1/stock-settings`
+    ] as const;
+    }
+
+
+export const getGetStockSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getStockSettings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStockSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockSettings>>> = ({ signal }) => getStockSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStockSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStockSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getStockSettings>>>
+export type GetStockSettingsQueryError = unknown
+
+
+export function useGetStockSettings<TData = Awaited<ReturnType<typeof getStockSettings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getStockSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockSettings<TData = Awaited<ReturnType<typeof getStockSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getStockSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockSettings<TData = Awaited<ReturnType<typeof getStockSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetStockSettings<TData = Awaited<ReturnType<typeof getStockSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStockSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateStockSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/stock-settings`
+}
+
+/**
+ * Change the loss approval threshold (kg; 0: every loss waits). The owner only.
+ */
+export const updateStockSettings = async (stockSettingsWrite: StockSettingsWrite, options?: Parameters<typeof apiFetch>[1]): Promise<StockSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<StockSettings>(getUpdateStockSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockSettingsWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateStockSettingsMutationKey = () => ['updateStockSettings'] as const;
+
+export const getUpdateStockSettingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStockSettings>>, TError,UpdateStockSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStockSettings>>, TError,UpdateStockSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateStockSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStockSettings>>, UpdateStockSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateStockSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStockSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateStockSettings>>>
+    export type UpdateStockSettingsMutationBody = StockSettingsWrite
+    export type UpdateStockSettingsMutationError = unknown
+    export type UpdateStockSettingsMutationVariables = {data: StockSettingsWrite}
+
+    export const useUpdateStockSettings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStockSettings>>, TError,UpdateStockSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateStockSettings>>,
+        TError,
+        UpdateStockSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateStockSettingsMutationOptions(options), queryClient);
+    }
 
 export const getGetSupplierBalanceUrl = (supplierId: number,) => {
 

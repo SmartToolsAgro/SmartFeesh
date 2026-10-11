@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 
 from apps.catalog import selectors as catalog
 from apps.core import audit
+from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity
 
@@ -23,19 +24,28 @@ from .models import (
     FIFO_ORDER,
     Batch,
     BatchCounter,
+    CountStatus,
     DocumentCounter,
+    LossStatus,
+    StockCount,
+    StockCountLine,
     StockLocation,
+    StockLoss,
     StockMovement,
     StockOnHand,
+    StockSettings,
     Transfer,
     TransferKind,
     TransferLine,
     TransferStatus,
 )
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
+from .models import LossReason as LossReason  # re-exported for apps that record losses
 from .models import MovementKind as MovementKind  # re-exported for apps that post movements
 
 if TYPE_CHECKING:
+    from django.core.files.uploadedfile import UploadedFile
+
     from apps.catalog.models import Product
     from apps.partners.models import Supplier
 
@@ -809,3 +819,383 @@ def cancel_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
     transfer.save(update_fields=["status", "updated_at"])
     audit.record(organization=transfer.organization, actor=actor, action="transfer.cancelled", target=transfer)
     return transfer
+
+
+# ---- Losses (P1-T10, D-045) ----
+
+LOSS_SERIES = "PE"
+
+
+@transaction.atomic
+def update_stock_settings(
+    *, organization: Organization, actor: User | None, loss_approval_threshold: Number
+) -> StockSettings:
+    """Change the weight above which a loss waits for the owner's approval (zero: every loss waits)."""
+    try:
+        threshold = checked_quantity(loss_approval_threshold, allow_zero=True)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"loss_approval_threshold": str(error)}) from None
+    StockSettings.objects.bulk_create([StockSettings(organization=organization)], ignore_conflicts=True)
+    row = StockSettings.objects.select_for_update().get(organization=organization)
+    before = row.loss_approval_threshold
+    if before != threshold:
+        row.loss_approval_threshold = threshold
+        row.save(update_fields=["loss_approval_threshold", "updated_at"])
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="stock.settings_updated",
+            target=row,
+            before={"loss_approval_threshold": before},
+            after={"loss_approval_threshold": threshold},
+        )
+    return row
+
+
+def _loss_reason_text(loss: StockLoss) -> str:
+    """The reason kept on the ledger: the kind of loss, then the note when there is one."""
+    label = str(LossReason(loss.reason).label)
+    return f"{label} · {loss.note}" if loss.note else label
+
+
+def _post_loss(loss: StockLoss, actor: User | None) -> None:
+    """The lost kg leave the location, oldest batch first, the loss being the movements' source."""
+    try:
+        post_fifo_movements(
+            organization=loss.organization,
+            actor=actor,
+            kind=MovementKind.LOSS,
+            product_id=loss.product_id,
+            quantity=loss.quantity,
+            from_location=loss.location,
+            reason=_loss_reason_text(loss),
+            source=loss,
+            occurred_at=moment_of(loss.lost_on),
+        )
+    except ValidationError as error:
+        fields = getattr(error, "message_dict", {"quantity": error.messages})
+        raise ValidationError(
+            {("location" if field == "from_location" else field): messages for field, messages in fields.items()}
+        ) from None
+
+
+def _loss_snapshot(loss: StockLoss) -> dict[str, Any]:
+    return {
+        "number": loss.number,
+        "status": loss.status,
+        "location": loss.location.name,
+        "product": loss.product.reference,
+        "quantity": str(loss.quantity),
+        "reason": loss.reason,
+        "lost_on": loss.lost_on.isoformat(),
+    }
+
+
+@transaction.atomic
+def record_loss(
+    *,
+    organization: Organization,
+    actor: User | None,
+    location: StockLocation,
+    product: "Product",
+    quantity: Number,
+    reason: str,
+    lost_on: dt.date,
+    note: str = "",
+    may_approve: bool = False,
+    client_uuid: uuid.UUID | None = None,
+) -> StockLoss:
+    """Record kilos lost at a location. Up to the threshold (or when `may_approve`: the owner), they leave
+    the stock at once, oldest batch first; above it, the loss waits for the owner and nothing moves yet.
+
+    Refused on its field: an unknown or archived location, a product of another organization, a weight
+    that is not valid or more than the location holds, an unknown reason, a day still to come. A
+    `client_uuid` already used returns that loss.
+    """
+    if client_uuid is not None:
+        existing = StockLoss.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            return existing
+    errors: dict[str, str] = {}
+    if location.organization_id != organization.pk:
+        errors["location"] = _("Emplacement inconnu.")
+    elif not location.is_active:
+        errors["location"] = _("« %(name)s » est archivé.") % {"name": location.name}
+    if product.organization_id != organization.pk:
+        errors["product"] = _("Produit inconnu.")
+    if reason not in LossReason.values:
+        errors["reason"] = _("Choisissez la raison de la perte.")
+    if lost_on > timezone.localdate():
+        errors["lost_on"] = _("La date ne peut pas être dans le futur.")
+    amount = None
+    try:
+        amount = checked_quantity(quantity)
+    except (ValueError, TypeError):
+        errors["quantity"] = _("Indiquez un poids en kg, supérieur à zéro.")
+    if not errors and amount is not None:
+        try:
+            # Checked now so a loss waiting for approval is possible at least today.
+            selectors.allocate_fifo(organization, product_id=product.pk, location=location, quantity=amount)
+        except ValidationError as error:
+            errors.update({field: messages[0] for field, messages in error.message_dict.items()})
+    if errors or amount is None:
+        raise ValidationError(errors)
+
+    immediate = may_approve or amount <= selectors.stock_settings(organization).loss_approval_threshold
+    loss = StockLoss.objects.create(
+        organization=organization,
+        number=_next_document_number(organization, LOSS_SERIES),
+        status=LossStatus.APPROVED if immediate else LossStatus.PENDING,
+        location=location,
+        product=product,
+        quantity=amount,
+        reason=reason,
+        note=note.strip(),
+        lost_on=lost_on,
+        created_by=actor,
+        decided_by=actor if immediate else None,
+        decided_at=timezone.now() if immediate else None,
+        client_uuid=client_uuid,
+    )
+    if immediate:
+        _post_loss(loss, actor)
+    audit.record(
+        organization=organization, actor=actor, action="loss.recorded", target=loss, after=_loss_snapshot(loss)
+    )
+    return loss
+
+
+def _locked_pending_loss(loss: StockLoss) -> StockLoss:
+    locked = (
+        StockLoss.objects.select_for_update(of=("self",))
+        .select_related("organization", "location", "product")
+        .get(pk=loss.pk)
+    )
+    if locked.status != LossStatus.PENDING:
+        raise ValidationError(_("Cette perte est déjà décidée : elle ne change plus."))
+    return locked
+
+
+@transaction.atomic
+def approve_loss(*, loss: StockLoss, actor: User | None) -> StockLoss:
+    """The owner accepts a loss that was waiting: its kg leave the stock now, oldest batch first."""
+    loss = _locked_pending_loss(loss)
+    _post_loss(loss, actor)
+    loss.status = LossStatus.APPROVED
+    loss.decided_by = actor
+    loss.decided_at = timezone.now()
+    loss.save(update_fields=["status", "decided_by", "decided_at", "updated_at"])
+    audit.record(organization=loss.organization, actor=actor, action="loss.approved", target=loss)
+    return loss
+
+
+@transaction.atomic
+def reject_loss(*, loss: StockLoss, actor: User | None, reason: str) -> StockLoss:
+    """The owner refuses a loss that was waiting, saying why. Nothing moves."""
+    reason = reason.strip()
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez pourquoi la perte est refusée.")})
+    loss = _locked_pending_loss(loss)
+    loss.status = LossStatus.REJECTED
+    loss.decided_by = actor
+    loss.decided_at = timezone.now()
+    loss.rejection_reason = reason
+    loss.save(update_fields=["status", "decided_by", "decided_at", "rejection_reason", "updated_at"])
+    audit.record(
+        organization=loss.organization, actor=actor, action="loss.rejected", target=loss, after={"reason": reason}
+    )
+    return loss
+
+
+@transaction.atomic
+def add_loss_photo(*, loss: StockLoss, actor: User | None, upload: "UploadedFile[bytes]") -> StockLoss:
+    """Join a photo to a loss, as proof. Once joined it is never replaced or removed."""
+    content = reencoded_photo(upload)
+    loss = StockLoss.objects.select_for_update().get(pk=loss.pk)
+    if loss.photo:
+        raise ValidationError({"photo": _("Une photo est déjà jointe à cette perte.")})
+    loss.photo.save("photo.webp", content, save=False)
+    try:
+        loss.save(update_fields=["photo", "updated_at"])
+        audit.record(organization=loss.organization, actor=actor, action="loss.photo_added", target=loss)
+    except BaseException:
+        # The file is written before the row: never leave it behind when the change is rolled back.
+        if loss.photo.name:
+            loss.photo.storage.delete(loss.photo.name)
+        raise
+    return loss
+
+
+# ---- Stock counts (P1-T10, D-045) ----
+
+COUNT_SERIES = "INV"
+
+
+class CountedFields(TypedDict):
+    line: int
+    # Empty clears what was typed; zero means nothing of the batch was found.
+    counted_quantity: Number | None
+
+
+@transaction.atomic
+def start_count(
+    *, organization: Organization, actor: User | None, location: StockLocation, counted_on: dt.date, notes: str = ""
+) -> StockCount:
+    """Open a count sheet for a location: one line per batch it holds, with the kg the ledger expects.
+
+    One count at a time per location. Movements may go on while counting: approval posts each line's
+    difference against this snapshot, not against the stock at approval time.
+    """
+    errors: dict[str, str] = {}
+    if location.organization_id != organization.pk:
+        raise ValidationError({"location": _("Emplacement inconnu.")})
+    # Two counts started at once for the same place: the second waits here, then sees the first.
+    location = StockLocation.objects.select_for_update().get(pk=location.pk)
+    if not location.is_active:
+        errors["location"] = _("« %(name)s » est archivé.") % {"name": location.name}
+    open_count = StockCount.objects.filter(location=location, status=CountStatus.COUNTING).first()
+    if open_count is not None:
+        errors["location"] = _("Un inventaire est déjà en cours ici : %(number)s.") % {"number": open_count.number}
+    if counted_on > timezone.localdate():
+        errors["counted_on"] = _("La date ne peut pas être dans le futur.")
+    holdings = list(selectors.on_hand_of(organization, location_id=location.pk))
+    if not holdings and "location" not in errors:
+        errors["location"] = _("Cet emplacement ne contient aucun stock à compter.")
+    if errors:
+        raise ValidationError(errors)
+    count = StockCount.objects.create(
+        organization=organization,
+        number=_next_document_number(organization, COUNT_SERIES),
+        location=location,
+        counted_on=counted_on,
+        notes=notes.strip(),
+        created_by=actor,
+    )
+    StockCountLine.objects.bulk_create(
+        [
+            StockCountLine(
+                organization=organization,
+                count=count,
+                batch=row.batch,
+                product_id=row.product_id,
+                expected_quantity=row.quantity,
+            )
+            for row in holdings
+        ]
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="count.started",
+        target=count,
+        after={"location": location.name, "counted_on": counted_on.isoformat(), "lines": len(holdings)},
+    )
+    return count
+
+
+def _locked_open_count(count: StockCount) -> StockCount:
+    locked = (
+        StockCount.objects.select_for_update(of=("self",)).select_related("organization", "location").get(pk=count.pk)
+    )
+    if locked.status == CountStatus.APPROVED:
+        raise ValidationError(_("Cet inventaire est déjà validé : il ne change plus."))
+    if locked.status == CountStatus.CANCELLED:
+        raise ValidationError(_("Cet inventaire est annulé."))
+    return locked
+
+
+@transaction.atomic
+def record_counted(*, count: StockCount, actor: User | None, lines: Sequence[CountedFields]) -> StockCount:
+    """Type the kg counted on some lines of an open sheet. Errors come back on `lines.<index>.counted_quantity`
+    (the index in `lines`, as sent)."""
+    count = _locked_open_count(count)
+    own_lines = {line.pk: line for line in count.lines.all()}
+    errors: dict[str, str] = {}
+    changed: list[StockCountLine] = []
+    for index, item in enumerate(lines):
+        line = own_lines.get(item["line"])
+        if line is None:
+            errors[line_error_key(index, "line")] = _("Cette ligne n'est pas sur cette feuille.")
+            continue
+        value: Any = item.get("counted_quantity")
+        if value in (None, ""):
+            line.counted_quantity = None
+        else:
+            try:
+                line.counted_quantity = checked_quantity(value, allow_zero=True)
+            except (ValueError, TypeError):
+                errors[line_error_key(index, "counted_quantity")] = _("Indiquez un poids en kg (0 si rien trouvé).")
+                continue
+        changed.append(line)
+    if errors:
+        raise ValidationError(errors)
+    StockCountLine.objects.bulk_update(changed, ["counted_quantity"])
+    return count
+
+
+@transaction.atomic
+def approve_count(*, count: StockCount, actor: User | None) -> StockCount:
+    """Post a count correction for every line whose counted kg differ from the sheet's, then freeze it.
+
+    Every line must be counted. A shortage larger than what the batch still holds (it moved away since
+    the sheet was made) is refused on that line, and nothing is posted.
+    """
+    count = _locked_open_count(count)
+    # Errors name lines by their place on the sheet, as the API lists them.
+    lines = list(count.lines.select_related("batch").order_by(*selectors.COUNT_SHEET_ORDER))
+    missing = sum(1 for line in lines if line.counted_quantity is None)
+    if missing:
+        raise ValidationError({"lines": _("Il reste %(count)s ligne(s) à compter.") % {"count": missing}})
+    errors: dict[str, str] = {}
+    occurred_at = moment_of(count.counted_on)
+    reason = _("Inventaire %(number)s") % {"number": count.number}
+    # Batch order: the same lock order as every other posting at this location.
+    for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].batch_id):
+        difference = line.difference
+        if not difference:
+            continue
+        try:
+            post_movement(
+                organization=count.organization,
+                actor=actor,
+                kind=MovementKind.COUNT_CORRECTION,
+                batch=line.batch,
+                quantity=abs(difference),
+                from_location=count.location if difference < 0 else None,
+                to_location=count.location if difference > 0 else None,
+                reason=reason,
+                source=line,
+                occurred_at=occurred_at,
+            )
+        except ValidationError as error:
+            for field, messages in getattr(error, "message_dict", {"lines": error.messages}).items():
+                key = line_error_key(index, "counted_quantity") if field == "quantity" else field
+                errors.setdefault(key, messages[0])
+    if errors:
+        raise ValidationError(errors)
+    count.status = CountStatus.APPROVED
+    count.approved_by = actor
+    count.approved_at = timezone.now()
+    count.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+    audit.record(
+        organization=count.organization,
+        actor=actor,
+        action="count.approved",
+        target=count,
+        after={
+            "differences": [
+                {"batch": line.batch.number, "difference": str(line.difference)} for line in lines if line.difference
+            ]
+        },
+    )
+    return count
+
+
+@transaction.atomic
+def cancel_count(*, count: StockCount, actor: User | None) -> StockCount:
+    """Give up an open count. Nothing moved; the location may be counted again."""
+    count = _locked_open_count(count)
+    count.status = CountStatus.CANCELLED
+    count.save(update_fields=["status", "updated_at"])
+    audit.record(organization=count.organization, actor=actor, action="count.cancelled", target=count)
+    return count

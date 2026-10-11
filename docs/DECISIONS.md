@@ -518,6 +518,37 @@ Supersedes the "one active truck per driver" and "own truck" parts of D-033 (cli
   pinned (`StockLocationKindEnum`, `TransferKindEnum`, `TransferStatusEnum`) so a second "kind" or
   "status" choice set elsewhere does not rename them.
 
+**D-045 · Losses and stock counts (P1-T10)** · accepted · 2026-10-11
+- **Loss** (`StockLoss`, `PE-0001`… from the `DocumentCounter` of D-044): location, product, kg, reason
+  (avarié, abîmé ou écrasé, date dépassée, rupture du froid, autre) with a note, day, optional photo,
+  `client_uuid` for the driver app (Phase 3). Kilos leave **oldest batch first** (`post_fifo_movements`,
+  kind `loss`, the loss as source, the ledger reason "Avarié · note"); nobody picks the batch. A loss is
+  checked against the stock when typed (FIFO preview) and again when posted.
+- **Threshold in kg, provisional:** `StockSettings.loss_approval_threshold` per organization, default
+  **2 kg**, changed by the owner only (`updateStockSettings`). Up to it a loss leaves the stock at once;
+  above it it stays `pending` (nothing moves) until the **owner** approves (posted then) or refuses with a
+  reason. The owner's own losses never wait. Kg rather than dinars: the driver who reports a loss in
+  Phase 3 does not see costs; a value threshold can be added later. Owner-only actions are checked in
+  the view (403 for a manager). A decided loss never changes; a photo can be joined **once** (proof),
+  turned upright, shrunk and stored as WebP like product photos (the helper moved to `core.images`).
+- **Count** (`StockCount` + `StockCountLine`, `INV-0001`…): starting one for a location makes the sheet,
+  one line per batch held, with the kg the ledger expects at that moment (a snapshot); one open count per
+  location (constraint + row lock). People type the kg found (0 when nothing); approval needs every line
+  counted and posts one `count_correction` per line whose counted kg differ from the **sheet**, applied to
+  the current stock. So movements made while counting (a truck loaded meanwhile) are not undone; a
+  shortage larger than what the batch still holds is refused on that line and nothing is posted. Lines
+  are posted in batch order (same lock order as other postings). Errors name lines by their place on the
+  sheet as the API lists them (`COUNT_SHEET_ORDER`). Provisional: a batch found that is not on the sheet
+  cannot be added yet.
+- Owner and manager start, fill, approve and cancel counts and record losses; the accountant reads;
+  drivers get 403 (Phase 3 adds their loss report from the phone).
+- **Screens:** "Pertes" (list by status, the threshold and its owner dialog, a form with an optional
+  photo, a loss page with batches, cost, photo and the owner's approve / refuse) and "Inventaires" (list,
+  a dialog to start a sheet, the sheet with "Reporter l'enregistré", live differences, save, approve,
+  cancel) join the stock section tabs.
+- Demo: PE-0001 (1.5 kg of mussels on Camion 1, the prototype's loss, already out), PE-0002 (4 kg of rouget
+  waiting for the owner) and an open count INV-0001 of the frozen cold room.
+
 **D-046 · Truck of the day: assignment per date (P1-T12)** · accepted · 2026-10-11
 Builds D-042 before Phase 3's `DriverDay` exists.
 - `fleet.TruckAssignment` (organization, truck, driver, date): unique per truck and date and per driver and

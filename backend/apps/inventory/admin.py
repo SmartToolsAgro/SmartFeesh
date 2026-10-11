@@ -4,7 +4,17 @@ from django.contrib import admin
 from django.db.models import Model
 from django.http import HttpRequest
 
-from .models import Batch, StockLocation, StockMovement, StockOnHand, Transfer, TransferLine
+from .models import (
+    Batch,
+    StockCount,
+    StockCountLine,
+    StockLocation,
+    StockLoss,
+    StockMovement,
+    StockOnHand,
+    Transfer,
+    TransferLine,
+)
 
 
 class ReadOnlyAdmin[M: Model](admin.ModelAdmin[M]):
@@ -66,3 +76,31 @@ class TransferAdmin(ReadOnlyAdmin[Transfer]):
     search_fields = ("number",)
     list_select_related = ("from_location", "to_location", "organization")
     inlines = (TransferLineInline,)
+
+
+@admin.register(StockLoss)
+class StockLossAdmin(ReadOnlyAdmin[StockLoss]):
+    list_display = ("number", "status", "lost_on", "location", "product", "quantity", "reason", "organization")
+    list_filter = ("organization", "status", "reason")
+    search_fields = ("number",)
+    list_select_related = ("location", "product", "organization")
+
+
+class StockCountLineInline(admin.TabularInline[StockCountLine, StockCount]):
+    model = StockCountLine
+    fields = ("batch", "product", "expected_quantity", "counted_quantity")
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+
+@admin.register(StockCount)
+class StockCountAdmin(ReadOnlyAdmin[StockCount]):
+    list_display = ("number", "status", "counted_on", "location", "organization")
+    list_filter = ("organization", "status")
+    search_fields = ("number",)
+    list_select_related = ("location", "organization")
+    inlines = (StockCountLineInline,)

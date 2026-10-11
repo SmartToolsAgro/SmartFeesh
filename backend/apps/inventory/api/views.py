@@ -3,30 +3,44 @@ from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.utils.translation import gettext as _
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
+from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
-from apps.core.models import Membership, Organization
+from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.inventory import selectors, services
-from apps.inventory.models import Batch, StockLocation, Transfer
+from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, Transfer
 
 from .serializers import (
     BatchFilterSerializer,
     BatchSerializer,
+    CountedSerializer,
+    CountFilterSerializer,
+    CountSerializer,
+    CountWriteSerializer,
     LocationStockSerializer,
+    LossDetailSerializer,
+    LossFilterSerializer,
+    LossPhotoSerializer,
+    LossRejectSerializer,
+    LossSerializer,
+    LossWriteSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
     StockLocationSerializer,
     StockLocationUpdateSerializer,
+    StockSettingsSerializer,
+    StockSettingsWriteSerializer,
     TransferDetailSerializer,
     TransferFilterSerializer,
     TransferSerializer,
@@ -304,3 +318,229 @@ class TruckDayView(OfficeView):
         lines = selectors.truck_day(self.organization, location_id=location.pk, day=day)
         total = sum((line.amount for line in lines if line.amount is not None), Decimal("0.000"))
         return Response(TruckDaySerializer({"location": location, "date": day, "lines": lines, "amount": total}).data)
+
+
+# ---- Losses and stock counts (P1-T10) ----
+
+
+def _require_owner(membership: Membership, message: str) -> None:
+    """Approving a loss and changing the stock rules are the owner's alone (checked here, D-045)."""
+    if membership.role != Role.OWNER:
+        raise PermissionDenied(message)
+
+
+class StockSettingsView(OfficeView):
+    @extend_schema(operation_id="getStockSettings", responses=StockSettingsSerializer)
+    def get(self, request: Request) -> Response:
+        """The stock rules: above `loss_approval_threshold` kg a loss waits for the owner's approval."""
+        return Response(StockSettingsSerializer(selectors.stock_settings(self.organization)).data)
+
+    @extend_schema(
+        operation_id="updateStockSettings", request=StockSettingsWriteSerializer, responses=StockSettingsSerializer
+    )
+    def put(self, request: Request) -> Response:
+        """Change the loss approval threshold (kg; 0: every loss waits). The owner only."""
+        _require_owner(self.membership, _("Seul le propriétaire change ce seuil."))
+        serializer = StockSettingsWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = services.update_stock_settings(
+            organization=self.organization, actor=self.membership.user, **serializer.validated_data
+        )
+        return Response(StockSettingsSerializer(row).data)
+
+
+def _loss_answer(organization: Organization, loss_id: int, *, status_code: int = status.HTTP_200_OK) -> Response:
+    loss = selectors.loss_of(organization, loss_id)
+    movements = selectors.movements_from_sources([loss])
+    return Response(LossDetailSerializer(loss, context={"movements": movements}).data, status=status_code)
+
+
+class LossView(OfficeView):
+    def loss(self, loss_id: int) -> StockLoss:
+        try:
+            return selectors.loss_of(self.organization, loss_id)
+        except StockLoss.DoesNotExist:
+            raise Http404 from None
+
+
+class LossListView(LossView, ListAPIView[StockLoss]):
+    serializer_class = LossSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[StockLoss]:
+        filters = LossFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.losses_of(
+            self.organization,
+            status=filters.validated_data.get("status"),
+            location_id=filters.validated_data.get("location"),
+            search=filters.validated_data["search"],
+        )
+
+    @extend_schema(operation_id="listLosses", parameters=[LossFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Losses, newest day first, paginated (`limit`, `offset`). Filter by status, location or `search`
+        (number, product, location)."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(operation_id="recordLoss", request=LossWriteSerializer, responses={201: LossDetailSerializer})
+    def post(self, request: Request) -> Response:
+        """Record kilos lost at a location. Up to the threshold, or recorded by the owner, they leave the
+        stock at once (oldest batch first); above it the loss waits for the owner (`pending`)."""
+        serializer = LossWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        errors: dict[str, str] = {}
+        try:
+            data["location"] = selectors.location_of(self.organization, data["location"])
+        except StockLocation.DoesNotExist:
+            errors["location"] = _("Emplacement inconnu.")
+        try:
+            data["product"] = catalog.product_of(self.organization, data["product"])
+        except ObjectDoesNotExist:
+            errors["product"] = _("Produit inconnu.")
+        if errors:
+            raise ValidationError(errors)
+        loss = services.record_loss(
+            organization=self.organization,
+            actor=self.membership.user,
+            may_approve=self.membership.role == Role.OWNER,
+            **data,
+        )
+        return _loss_answer(self.organization, loss.pk, status_code=status.HTTP_201_CREATED)
+
+
+class LossDetailView(LossView):
+    @extend_schema(operation_id="getLoss", responses=LossDetailSerializer)
+    def get(self, request: Request, loss_id: int) -> Response:
+        """One loss; once it left the stock, the batches it came from and their cost."""
+        return _loss_answer(self.organization, self.loss(loss_id).pk)
+
+
+class LossApproveView(LossView):
+    @extend_schema(operation_id="approveLoss", request=None, responses=LossDetailSerializer)
+    def post(self, request: Request, loss_id: int) -> Response:
+        """The owner accepts a waiting loss: its kg leave the stock now, oldest batch first."""
+        loss = self.loss(loss_id)
+        _require_owner(self.membership, _("Seul le propriétaire valide une perte en attente."))
+        services.approve_loss(loss=loss, actor=self.membership.user)
+        return _loss_answer(self.organization, loss_id)
+
+
+class LossRejectView(LossView):
+    @extend_schema(operation_id="rejectLoss", request=LossRejectSerializer, responses=LossDetailSerializer)
+    def post(self, request: Request, loss_id: int) -> Response:
+        """The owner refuses a waiting loss, saying why. Nothing moves."""
+        loss = self.loss(loss_id)
+        _require_owner(self.membership, _("Seul le propriétaire refuse une perte en attente."))
+        serializer = LossRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.reject_loss(loss=loss, actor=self.membership.user, reason=serializer.validated_data["reason"])
+        return _loss_answer(self.organization, loss_id)
+
+
+class LossPhotoView(LossView):
+    parser_classes = (MultiPartParser,)
+
+    # Read by an <img> tag, not by the generated client: kept out of the API contract.
+    @extend_schema(exclude=True)
+    def get(self, request: Request, loss_id: int) -> FileResponse:
+        loss = self.loss(loss_id)
+        if not loss.photo:
+            raise Http404
+        response = FileResponse(loss.photo.open("rb"), content_type="image/webp")
+        # A loss's photo never changes once joined.
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
+
+    @extend_schema(
+        operation_id="addLossPhoto",
+        request={"multipart/form-data": LossPhotoSerializer},
+        responses={200: LossDetailSerializer, 400: OpenApiResponse(description="Not a readable JPEG, PNG or WebP")},
+    )
+    def put(self, request: Request, loss_id: int) -> Response:
+        """Join a photo as proof, once: it is turned upright, shrunk and stored as WebP without metadata."""
+        serializer = LossPhotoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.add_loss_photo(
+            loss=self.loss(loss_id), actor=self.membership.user, upload=serializer.validated_data["photo"]
+        )
+        return _loss_answer(self.organization, loss_id)
+
+
+class CountView(OfficeView):
+    def count(self, count_id: int) -> StockCount:
+        try:
+            return selectors.count_of(self.organization, count_id)
+        except StockCount.DoesNotExist:
+            raise Http404 from None
+
+    def answer(self, count_id: int, *, status_code: int = status.HTTP_200_OK) -> Response:
+        return Response(CountSerializer(selectors.count_of(self.organization, count_id)).data, status=status_code)
+
+
+class CountListView(CountView, ListAPIView[StockCount]):
+    serializer_class = CountSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[StockCount]:
+        filters = CountFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.counts_of(
+            self.organization,
+            status=filters.validated_data.get("status"),
+            location_id=filters.validated_data.get("location"),
+        )
+
+    @extend_schema(operation_id="listCounts", parameters=[CountFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Stock counts, newest first, paginated, each with its sheet. Filter by status or location."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(operation_id="startCount", request=CountWriteSerializer, responses={201: CountSerializer})
+    def post(self, request: Request) -> Response:
+        """Open a count sheet for a location: one line per batch it holds, with the kg the ledger expects.
+        One count at a time per location."""
+        serializer = CountWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        try:
+            data["location"] = selectors.location_of(self.organization, data["location"])
+        except StockLocation.DoesNotExist:
+            raise ValidationError({"location": _("Emplacement inconnu.")}) from None
+        count = services.start_count(organization=self.organization, actor=self.membership.user, **data)
+        return self.answer(count.pk, status_code=status.HTTP_201_CREATED)
+
+
+class CountDetailView(CountView):
+    @extend_schema(operation_id="getCount", responses=CountSerializer)
+    def get(self, request: Request, count_id: int) -> Response:
+        return self.answer(self.count(count_id).pk)
+
+
+class CountLinesView(CountView):
+    @extend_schema(operation_id="recordCounted", request=CountedSerializer, responses=CountSerializer)
+    def put(self, request: Request, count_id: int) -> Response:
+        """Type the kg counted on lines of an open sheet (empty clears, 0 = nothing found). Errors come
+        back on `lines.<index>.counted_quantity`."""
+        count = self.count(count_id)
+        serializer = CountedSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.record_counted(count=count, actor=self.membership.user, lines=serializer.validated_data["lines"])
+        return self.answer(count_id)
+
+
+class CountApproveView(CountView):
+    @extend_schema(operation_id="approveCount", request=None, responses=CountSerializer)
+    def post(self, request: Request, count_id: int) -> Response:
+        """Post a count correction for every difference and freeze the count. Every line must be counted."""
+        services.approve_count(count=self.count(count_id), actor=self.membership.user)
+        return self.answer(count_id)
+
+
+class CountCancelView(CountView):
+    @extend_schema(operation_id="cancelCount", request=None, responses=CountSerializer)
+    def post(self, request: Request, count_id: int) -> Response:
+        """Give up an open count: nothing moved."""
+        services.cancel_count(count=self.count(count_id), actor=self.membership.user)
+        return self.answer(count_id)

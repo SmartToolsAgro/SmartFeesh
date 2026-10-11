@@ -1,14 +1,23 @@
 from decimal import Decimal
 from typing import Any
 
+from django.urls import reverse
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.money import line_total
 from apps.inventory.models import (
     Batch,
+    CountStatus,
     LocationKind,
+    LossReason,
+    LossStatus,
+    StockCount,
+    StockCountLine,
     StockLocation,
+    StockLoss,
+    StockSettings,
     Transfer,
     TransferKind,
     TransferLine,
@@ -261,3 +270,182 @@ class TruckDaySerializer(serializers.Serializer[Any]):
     date = serializers.DateField(read_only=True)
     lines = TruckDayLineSerializer(many=True, read_only=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+# ---- Losses and stock counts (P1-T10) ----
+
+
+class StockSettingsSerializer(serializers.ModelSerializer[StockSettings]):
+    class Meta:
+        model = StockSettings
+        fields = ("loss_approval_threshold",)
+        read_only_fields = fields
+
+
+class StockSettingsWriteSerializer(serializers.Serializer[Any]):
+    # A weight in kg as a string ("2.500"), checked by the service.
+    loss_approval_threshold = serializers.CharField()
+
+
+@extend_schema_field(OpenApiTypes.BINARY)
+class UploadedPhotoField(serializers.FileField):
+    """A file sent in a multipart form: a Blob in the generated client, not a URL."""
+
+
+class LossPhotoSerializer(serializers.Serializer[Any]):
+    photo = UploadedPhotoField()
+
+
+class LossSerializer(serializers.ModelSerializer[StockLoss]):
+    location = PlaceSerializer(read_only=True)
+    product = BatchProductSerializer(read_only=True)
+    photo_url = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
+    decided_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StockLoss
+        fields: tuple[str, ...] = (
+            "id",
+            "number",
+            "status",
+            "location",
+            "product",
+            "quantity",
+            "reason",
+            "note",
+            "lost_on",
+            "photo_url",
+            "created_by",
+            "created_at",
+            "decided_by",
+            "decided_at",
+            "rejection_reason",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    def get_photo_url(self, loss: StockLoss) -> str | None:
+        if not loss.photo.name:
+            return None
+        return reverse("loss-photo", args=[loss.pk])
+
+    def get_created_by(self, loss: StockLoss) -> str:
+        return person_name(loss.created_by)
+
+    def get_decided_by(self, loss: StockLoss) -> str:
+        return person_name(loss.decided_by)
+
+
+class LossDetailSerializer(LossSerializer):
+    # Once the loss left the stock: the batches it was taken from (oldest first) and their cost.
+    batches = serializers.SerializerMethodField()
+    cost_amount = serializers.SerializerMethodField()
+
+    class Meta(LossSerializer.Meta):
+        fields = (*LossSerializer.Meta.fields, "batches", "cost_amount")
+        read_only_fields = fields
+
+    def _movements(self, loss: StockLoss) -> list[Any]:
+        movements: list[Any] = self.context.get("movements", {}).get(loss.pk, [])
+        return movements
+
+    @extend_schema_field(MovedBatchSerializer(many=True))
+    def get_batches(self, loss: StockLoss) -> list[dict[str, Any]]:
+        return list(MovedBatchSerializer(self._movements(loss), many=True).data)
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
+    def get_cost_amount(self, loss: StockLoss) -> str | None:
+        movements = self._movements(loss)
+        if not movements:
+            return None
+        total = sum((line_total(movement.quantity, movement.unit_cost) for movement in movements), Decimal("0.000"))
+        return str(total)
+
+
+class LossWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    product = serializers.IntegerField(min_value=1)
+    # A weight as a string ("1.500"), checked by the service.
+    quantity = serializers.CharField(allow_blank=True)
+    reason = serializers.ChoiceField(choices=LossReason.choices)
+    lost_on = serializers.DateField()
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class LossRejectSerializer(serializers.Serializer[Any]):
+    reason = serializers.CharField(allow_blank=True)
+
+
+class LossFilterSerializer(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=LossStatus.choices, required=False)
+    location = serializers.IntegerField(required=False, min_value=1)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+class CountBatchSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    received_on = serializers.DateField(read_only=True)
+
+
+class CountLineSerializer(serializers.ModelSerializer[StockCountLine]):
+    product = BatchProductSerializer(read_only=True)
+    batch = CountBatchSerializer(read_only=True)
+    # Counted − expected; empty until counted.
+    difference = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True, allow_null=True)
+
+    class Meta:
+        model = StockCountLine
+        fields = ("id", "product", "batch", "expected_quantity", "counted_quantity", "difference")
+        read_only_fields = fields
+
+
+class CountSerializer(serializers.ModelSerializer[StockCount]):
+    location = PlaceSerializer(read_only=True)
+    lines = CountLineSerializer(many=True, read_only=True)
+    created_by = serializers.SerializerMethodField()
+    approved_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StockCount
+        fields = (
+            "id",
+            "number",
+            "status",
+            "location",
+            "counted_on",
+            "notes",
+            "lines",
+            "created_by",
+            "created_at",
+            "approved_by",
+            "approved_at",
+        )
+        read_only_fields = fields
+
+    def get_created_by(self, count: StockCount) -> str:
+        return person_name(count.created_by)
+
+    def get_approved_by(self, count: StockCount) -> str:
+        return person_name(count.approved_by)
+
+
+class CountWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    counted_on = serializers.DateField()
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class CountedLineSerializer(serializers.Serializer[Any]):
+    line = serializers.IntegerField(min_value=1)
+    # Kg counted as a string ("12.400"); empty clears it, "0" means nothing found.
+    counted_quantity = serializers.CharField(allow_blank=True, allow_null=True)
+
+
+class CountedSerializer(serializers.Serializer[Any]):
+    lines = CountedLineSerializer(many=True)
+
+
+class CountFilterSerializer(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=CountStatus.choices, required=False)
+    location = serializers.IntegerField(required=False, min_value=1)

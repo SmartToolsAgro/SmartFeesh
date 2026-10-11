@@ -20,9 +20,13 @@ from .models import (
     FIFO_ORDER,
     Batch,
     LocationKind,
+    StockCount,
+    StockCountLine,
     StockLocation,
+    StockLoss,
     StockMovement,
     StockOnHand,
+    StockSettings,
     Transfer,
     TransferLine,
     TransferStatus,
@@ -427,3 +431,72 @@ def truck_day(organization: Organization, *, location_id: int, day: dt.date) -> 
         ),
         key=lambda line: (line.product_name, line.product_id),
     )
+
+
+# ---- Losses and stock counts (P1-T10, D-045) ----
+
+
+def stock_settings(organization: Organization) -> StockSettings:
+    """The organization's stock rules; the defaults (not saved) when the owner never changed them."""
+    found = StockSettings.objects.for_organization(organization).first()
+    return found if found is not None else StockSettings(organization=organization)
+
+
+def losses_of(
+    organization: Organization,
+    *,
+    status: str | None = None,
+    location_id: int | None = None,
+    search: str = "",
+) -> QuerySet[StockLoss]:
+    """Losses newest day first, with location and product. `search` matches the number, the product
+    and the location."""
+    losses = (
+        StockLoss.objects.for_organization(organization)
+        .select_related("location", "product", "created_by", "decided_by")
+        .order_by("-lost_on", "-id")
+    )
+    if status:
+        losses = losses.filter(status=status)
+    if location_id is not None:
+        losses = losses.filter(location_id=location_id)
+    if search := search.strip():
+        losses = losses.filter(
+            Q(number__icontains=search)
+            | Q(product__name__icontains=search)
+            | Q(product__reference__icontains=search)
+            | Q(location__name__icontains=search)
+        )
+    return losses
+
+
+def loss_of(organization: Organization, loss_id: int) -> StockLoss:
+    """One loss. Raises StockLoss.DoesNotExist outside the organization."""
+    return losses_of(organization).get(pk=loss_id)
+
+
+# The order of a count sheet's lines, on the screen and in the `lines.<index>` of its errors.
+COUNT_SHEET_ORDER = ("product__name", "batch__received_on", "id")
+
+
+def counts_of(
+    organization: Organization, *, status: str | None = None, location_id: int | None = None
+) -> QuerySet[StockCount]:
+    """Stock counts newest first, with their location and lines (batch and product)."""
+    lines = StockCountLine.objects.select_related("batch", "product").order_by(*COUNT_SHEET_ORDER)
+    counts = (
+        StockCount.objects.for_organization(organization)
+        .select_related("location", "created_by", "approved_by")
+        .prefetch_related(Prefetch("lines", queryset=lines))
+        .order_by("-counted_on", "-id")
+    )
+    if status:
+        counts = counts.filter(status=status)
+    if location_id is not None:
+        counts = counts.filter(location_id=location_id)
+    return counts
+
+
+def count_of(organization: Organization, count_id: int) -> StockCount:
+    """One count with its sheet. Raises StockCount.DoesNotExist outside the organization."""
+    return counts_of(organization).get(pk=count_id)
