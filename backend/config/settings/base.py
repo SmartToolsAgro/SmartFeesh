@@ -130,5 +130,8 @@ SPECTACULAR_SETTINGS = {
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
         "SupplierInvoiceStatusEnum": "apps.purchasing.models.SupplierInvoiceStatus",
         "PaymentMethodEnum": "apps.purchasing.models.PaymentMethod",
+        "StockLocationKindEnum": "apps.inventory.models.LocationKind",
+        "TransferKindEnum": "apps.inventory.models.TransferKind",
+        "TransferStatusEnum": "apps.inventory.models.TransferStatus",
     },
 }

@@ -27,6 +27,9 @@ import { CustomerDetailPage } from "./customers/CustomerDetailPage";
 import { CustomersPage } from "./customers/CustomersPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
 import { SuppliersPage } from "./suppliers/SuppliersPage";
+import { TransferDetailPage } from "./transfers/TransferDetailPage";
+import { TransferEditPage, TransferFormPage } from "./transfers/TransferFormPage";
+import { TransfersPage } from "./transfers/TransfersPage";
 
 const queryClient = createQueryClient();
 
@@ -148,6 +151,11 @@ function AppRoutes() {
         <Route path="/achats/factures/:invoiceId/modifier" element={<SupplierInvoiceFormPage />} />
         <Route path="/achats/paiements" element={<SupplierPaymentsPage />} />
         <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
+        {/* Stock sections (P1-T09) */}
+        <Route path="/stock/transferts" element={<TransfersPage />} />
+        <Route path="/stock/transferts/nouveau" element={<TransferFormPage />} />
+        <Route path="/stock/transferts/:transferId" element={<TransferDetailPage />} />
+        <Route path="/stock/transferts/:transferId/modifier" element={<TransferEditPage />} />
         {nav.flatMap((group) =>
           group.items
             .filter((item) => item.to !== "/")

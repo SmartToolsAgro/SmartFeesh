@@ -77,13 +77,13 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert list(shrimp_batches.values_list("receipt_reference", flat=True)) == ["KRK-1187", "KRK-1192"]
 
     # Every batch was received into a cold room, and Camion 1 was loaded once.
-    assert inventory.movements_of(organization).count() == 15 + 4 + 2
+    assert inventory.movements_of(organization).count() == 15 + 4 + 2 + 4  # + Camion 2's demo load and return
     rooms = {location.name: location for location in inventory.locations_of(organization)}
     assert inventory.quantity_on_hand(organization, location_id=truck.location_id) == Decimal("40.000")
     assert inventory.quantity_on_hand(organization, product_id=shrimp.pk) == Decimal("65.000")
     assert inventory.quantity_on_hand(
         organization, location_id=rooms["Chambre froide 1 (frais)"].pk, product_id=shrimp.pk
-    ) == Decimal("53.000")
+    ) == Decimal("46.000")  # 53 kg, then 8 kg loaded on Camion 2 and 1 kg back
     assert inventory.quantity_on_hand(organization, location_id=rooms["Chambre froide 2 (congelé)"].pk) == Decimal(
         "107.000"
     )

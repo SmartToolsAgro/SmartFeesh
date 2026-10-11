@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 import { useOutletContext } from "react-router";
 
 import { type Status, StatusFilter } from "../lib/StatusFilter";
+import { StockTabs } from "../lib/StockTabs";
 import { LocationDialog } from "./LocationDialog";
 import { canEditLocations } from "./shared";
 import { TruckDayPanel } from "./TruckDayPanel";
@@ -96,6 +97,7 @@ export function LocationsPage() {
           </>
         )}
       </PageHeader>
+      <StockTabs />
 
       <p className="text-ink-2">{t(canEdit ? "admin.locations.intro" : "admin.locations.readOnly")}</p>
 

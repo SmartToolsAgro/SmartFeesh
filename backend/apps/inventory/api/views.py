@@ -1,4 +1,7 @@
-from django.core.exceptions import ValidationError
+from decimal import Decimal
+from typing import Any
+
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
 from django.http import Http404
 from django.utils.translation import gettext as _
@@ -9,19 +12,27 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.inventory import selectors, services
-from apps.inventory.models import Batch, StockLocation
+from apps.inventory.models import Batch, StockLocation, Transfer
 
 from .serializers import (
     BatchFilterSerializer,
     BatchSerializer,
+    LocationStockSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
     StockLocationSerializer,
     StockLocationUpdateSerializer,
+    TransferDetailSerializer,
+    TransferFilterSerializer,
+    TransferSerializer,
+    TransferWriteSerializer,
+    TruckDayFilterSerializer,
+    TruckDaySerializer,
 )
 
 
@@ -153,3 +164,143 @@ class BatchDetailView(OfficeView):
         except Batch.DoesNotExist:
             raise Http404 from None
         return Response(BatchSerializer(batch).data)
+
+
+class LocationStockView(LocationView):
+    @extend_schema(operation_id="listLocationStock", responses=LocationStockSerializer(many=True))
+    def get(self, request: Request, location_id: int) -> Response:
+        """What a location holds now per product, all batches together, by product name."""
+        location = self.location(location_id)
+        rows = selectors.location_stock(self.organization, location_id=location.pk)
+        return Response(LocationStockSerializer(rows, many=True).data)
+
+
+# ---- Transfers (P1-T09) ----
+
+
+def _transfer_fields(organization: Organization, data: dict[str, Any]) -> dict[str, Any]:
+    """The ids of a transfer replaced by the rows they name in the organization; unknown ids are field errors."""
+    errors: dict[str, str] = {}
+    places: dict[str, StockLocation] = {}
+    for field in ("from_location", "to_location"):
+        try:
+            places[field] = selectors.location_of(organization, data[field])
+        except StockLocation.DoesNotExist:
+            errors[field] = _("Emplacement inconnu.")
+    lines = []
+    for index, line in enumerate(data["lines"]):
+        try:
+            product = catalog.product_of(organization, line["product"])
+        except ObjectDoesNotExist:
+            errors[services.line_error_key(index, "product")] = _("Produit inconnu.")
+            continue
+        lines.append({**line, "product": product})
+    if errors:
+        raise ValidationError(errors)
+    fields = {key: value for key, value in data.items() if key != "validate_now"}
+    return {**fields, **places, "lines": lines, "validate": data["validate_now"]}
+
+
+def _transfer_answer(
+    organization: Organization, transfer_id: int, *, status_code: int = status.HTTP_200_OK
+) -> Response:
+    transfer = selectors.transfer_of(organization, transfer_id)
+    movements = selectors.movements_from_sources(list(transfer.lines.all()))
+    return Response(TransferDetailSerializer(transfer, context={"movements": movements}).data, status=status_code)
+
+
+class TransferView(OfficeView):
+    def transfer(self, transfer_id: int) -> Transfer:
+        try:
+            return selectors.transfer_of(self.organization, transfer_id)
+        except Transfer.DoesNotExist:
+            raise Http404 from None
+
+
+class TransferListView(TransferView, ListAPIView[Transfer]):
+    serializer_class = TransferSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[Transfer]:
+        filters = TransferFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.transfers_of(
+            self.organization,
+            kind=filters.validated_data.get("kind"),
+            status=filters.validated_data.get("status"),
+            location_id=filters.validated_data.get("location"),
+            date_from=filters.validated_data.get("date_from"),
+            date_to=filters.validated_data.get("date_to"),
+            search=filters.validated_data["search"],
+        )
+
+    @extend_schema(operation_id="listTransfers", parameters=[TransferFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Transfers (truck loads, evening returns, moves between cold rooms), newest day first, paginated
+        (`limit`, `offset`). Filter by kind, status, location (in or out), days (inclusive) or `search`
+        (number, place names)."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="createTransfer", request=TransferWriteSerializer, responses={201: TransferDetailSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """Prepare a transfer (a draft), or with `validate` also move the stock at once. Its kind comes
+        from the places: into a truck is a load, out of one a return. A load line without `unit_price`
+        takes the sale price in force. Errors of a line come back on `lines.<index>.<field>`."""
+        serializer = TransferWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = _transfer_fields(self.organization, serializer.validated_data)
+        transfer = services.create_transfer(organization=self.organization, actor=self.membership.user, **data)
+        return _transfer_answer(self.organization, transfer.pk, status_code=status.HTTP_201_CREATED)
+
+
+class TransferDetailView(TransferView):
+    @extend_schema(operation_id="getTransfer", responses=TransferDetailSerializer)
+    def get(self, request: Request, transfer_id: int) -> Response:
+        """One transfer; once validated, each line lists the batches its kg came from."""
+        return _transfer_answer(self.organization, self.transfer(transfer_id).pk)
+
+    @extend_schema(operation_id="updateTransfer", request=TransferWriteSerializer, responses=TransferDetailSerializer)
+    def put(self, request: Request, transfer_id: int) -> Response:
+        """Change a draft (every line is replaced), and with `validate` move the stock too."""
+        transfer = self.transfer(transfer_id)
+        serializer = TransferWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = _transfer_fields(self.organization, serializer.validated_data)
+        services.update_transfer(transfer=transfer, actor=self.membership.user, **data)
+        return _transfer_answer(self.organization, transfer.pk)
+
+
+class TransferValidateView(TransferView):
+    @extend_schema(operation_id="validateTransfer", request=None, responses=TransferDetailSerializer)
+    def post(self, request: Request, transfer_id: int) -> Response:
+        """Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
+        too little (on `lines.<index>.quantity`) or for a day still to come."""
+        services.validate_transfer(transfer=self.transfer(transfer_id), actor=self.membership.user)
+        return _transfer_answer(self.organization, transfer_id)
+
+
+class TransferCancelView(TransferView):
+    @extend_schema(operation_id="cancelTransfer", request=None, responses=TransferDetailSerializer)
+    def post(self, request: Request, transfer_id: int) -> Response:
+        """Give up a draft. A validated transfer is corrected by a transfer the other way."""
+        services.cancel_transfer(transfer=self.transfer(transfer_id), actor=self.membership.user)
+        return _transfer_answer(self.organization, transfer_id)
+
+
+class TruckDayView(OfficeView):
+    @extend_schema(operation_id="getTruckDay", parameters=[TruckDayFilterSerializer], responses=TruckDaySerializer)
+    def get(self, request: Request) -> Response:
+        """A truck's day per product from its validated transfers: kg loaded, kg returned, and loaded −
+        returned, sold or lost, with the day's price per kg and what that is worth."""
+        filters = TruckDayFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        try:
+            location = selectors.location_of(self.organization, filters.validated_data["location"])
+        except StockLocation.DoesNotExist:
+            raise Http404 from None
+        day = filters.validated_data["date"]
+        lines = selectors.truck_day(self.organization, location_id=location.pk, day=day)
+        total = sum((line.amount for line in lines if line.amount is not None), Decimal("0.000"))
+        return Response(TruckDaySerializer({"location": location, "date": day, "lines": lines, "amount": total}).data)

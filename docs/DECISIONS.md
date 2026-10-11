@@ -480,6 +480,59 @@ Supersedes the "one active truck per driver" and "own truck" parts of D-033 (cli
   payments list with "Affecter" for advances. Demo: `FF-0001` for `BR-0001` (1 471,500 DT), posted,
   `RF-0001` 500 DT by cheque: Mareyeur Port de Sfax owes 971,500 DT.
 
+**D-044 · Transfers between locations (P1-T09)** · accepted · 2026-10-11
+- `Transfer` + `TransferLine` live in `inventory` (number `TR-0001`… from a locked `DocumentCounter` row
+  per organization and series, reused by the next stock documents). A line is a **product and kg**, one
+  line per product; batches are never picked by hand: validation calls `post_fifo_movements` per line
+  with the line as source document, and `movements_from_sources` reads back which batches went.
+- **Kind comes from the places, never typed:** into a truck = `load`, out of a truck = `return`,
+  anything else (cold room ↔ cold room, truck ↔ truck) = `internal`.
+- **Draft → validated (or cancelled).** Owner and manager prepare and validate (the accountant reads,
+  drivers get 403: transfers are office documents until Phase 3). A draft moves nothing and can be
+  changed (lines replaced) or cancelled; validation moves the stock and freezes the document, and a
+  mistake is corrected by a transfer the other way. "Save and validate" is one transaction: a refusal
+  leaves no draft behind. A day still to come can be prepared but is validated that day. A transfer
+  typed for an earlier day posts its movements at noon of that day (as receipts do).
+- **Refusals:** every line is tried inside its own savepoint, so all the lines short of stock come back
+  together on `lines.<index>.quantity`, then the whole validation is refused. Lines are posted in
+  product order, so two transfers validated at once lock rows in the same order (no deadlock; tested
+  with opposite line orders). The transfer row itself is locked, so one draft is never validated twice.
+- **Price of the day** (client meeting): only load lines carry `unit_price`. Left empty, the service takes
+  the `ProductPrice` in force at the transfer's moment; a typed price must be > 0. It is stored on the
+  line, so later price changes never rewrite a load. No price in force and none typed is refused on
+  `lines.<i>.unit_price`. The form shows the price in force and the kg available at the source.
+- **Truck day** (`getTruckDay?location=&date=`): per product, kg loaded and returned by the **validated**
+  transfers of that date, loaded − returned = "sold or lost" (the client's formula), the day's price
+  (last validated load's) and its value. Provisional: it reads documents, not the ledger, so stock
+  already on the truck in the morning is not counted; until sales are recorded (Phase 2/3), kilos sold
+  stay on the truck in the ledger. Phase 3's day closing replaces this with sales and losses.
+- **Phase 3 hook:** `confirmed_by` / `confirmed_at` (the driver confirms the load on the phone) and a
+  `client_uuid` (a retried request returns the transfer already made) exist but nothing sets the
+  confirmation yet. No reliance on `Truck.driver` (D-042).
+- **Screens:** the "Stock" entry gets section tabs (Emplacements, Transferts); "Transferts" lists them
+  (search, type), a form creates or edits a draft ("Tout reprendre" fills a return with everything at
+  the source), and a transfer page shows lines, batches, price and value, the actions of a draft, and
+  the truck's day. `GET /locations/{id}/stock` gives the kg per product of a place.
+- Demo: Camion 2's day (morning load with dorade at 25.000 DT instead of 24.500, evening return) and a
+  draft load of Camion 3; fixed `client_uuid`s keep the seed idempotent. Three spectacular enum names are
+  pinned (`StockLocationKindEnum`, `TransferKindEnum`, `TransferStatusEnum`) so a second "kind" or
+  "status" choice set elsewhere does not rename them.
+
+**D-046 · Truck of the day: assignment per date (P1-T12)** · accepted · 2026-10-11
+Builds D-042 before Phase 3's `DriverDay` exists.
+- `fleet.TruckAssignment` (organization, truck, driver, date): unique per truck and date and per driver and
+  date (database constraints, plus clear service errors naming who has the truck or where the driver is).
+  `Truck.driver` stays as the **usual driver**; the "one active truck per driver" constraint is gone, a
+  driver may be the usual driver of several trucks.
+- Truck of the driver today = today's assignment; without one, the truck they usually drive unless
+  another driver was assigned to it that day (then none). Several usual trucks: first by name.
+  `may_use_truck`, `may_use_location`, the truck list for drivers and `/me` all use it.
+- Set by owner/manager for any driver and any day, or by a driver for themselves (today or later).
+  The office must remove an assignment before giving the driver another truck; a driver's own new choice
+  replaces their previous one. Accountant reads only. Archiving a truck drops its assignments from today.
+- API: `GET/POST /api/v1/truck-assignments`, `DELETE /api/v1/truck-assignments/<id>`. Admin: "Camions du
+  jour" section on the stock screen. A driver-side screen to pick the truck comes with Phase 3.
+
 **D-047 · Customers (P2-T01)** · accepted · 2026-10-11
 - `Customer` and `CustomerContact` live in the `partners` app beside suppliers and copy D-032: reference
   `C-NNN` generated when left empty, optional tax ID in the same `1234567A/A/M/000` shape (unique per
@@ -497,19 +550,3 @@ Supersedes the "one active truck per driver" and "own truck" parts of D-033 (cli
   they come from sales, invoices and payments (P2-T04 to P2-T06). The seed loads limits and terms only.
 - `ENUM_NAME_OVERRIDES` in the schema settings names the customer kind enum `CustomerKindEnum`: several
   models have a `kind` field and the generated names collided.
-
-**D-046 · Truck of the day: assignment per date (P1-T12)** · accepted · 2026-10-11
-Builds D-042 before Phase 3's `DriverDay` exists.
-- `fleet.TruckAssignment` (organization, truck, driver, date): unique per truck and date and per driver and
-  date (database constraints, plus clear service errors naming who has the truck or where the driver is).
-  `Truck.driver` stays as the **usual driver**; the "one active truck per driver" constraint is gone, a
-  driver may be the usual driver of several trucks.
-- Truck of the driver today = today's assignment; without one, the truck they usually drive unless
-  another driver was assigned to it that day (then none). Several usual trucks: first by name.
-  `may_use_truck`, `may_use_location`, the truck list for drivers and `/me` all use it.
-- Set by owner/manager for any driver and any day, or by a driver for themselves (today or later).
-  The office must remove an assignment before giving the driver another truck; a driver's own new choice
-  replaces their previous one. Accountant reads only. Archiving a truck drops its assignments from today.
-- API: `GET/POST /api/v1/truck-assignments`, `DELETE /api/v1/truck-assignments/<id>`. Admin: "Camions du
-  jour" section on the stock screen. A driver-side screen to pick the truck comes with Phase 3.
-

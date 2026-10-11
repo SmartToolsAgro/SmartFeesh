@@ -1,19 +1,32 @@
 """Reusable read queries of stock locations, batches, movements and stock on hand."""
 
+import datetime as dt
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import connection
-from django.db.models import Q, QuerySet, Sum
+from django.db.models import Prefetch, Q, QuerySet, Sum
 from django.utils.translation import gettext as _
 
 from apps.core.models import Organization
-from apps.core.money import Number, checked_quantity
+from apps.core.money import Number, checked_quantity, line_total
 
-from .models import FIFO_ORDER, Batch, LocationKind, StockLocation, StockMovement, StockOnHand
+from .models import (
+    FIFO_ORDER,
+    Batch,
+    LocationKind,
+    StockLocation,
+    StockMovement,
+    StockOnHand,
+    Transfer,
+    TransferLine,
+    TransferStatus,
+)
 
 type LocationStatus = Literal["active", "archived", "all"]
 
@@ -272,3 +285,145 @@ def on_hand_differences(organization: Organization) -> list[OnHandDifference]:
     with connection.cursor() as cursor:
         cursor.execute(_DIFFERENCES_SQL, {"organization": organization.pk})
         return [OnHandDifference(*row) for row in cursor.fetchall()]
+
+
+def location_stock(organization: Organization, *, location_id: int) -> list[dict[str, Any]]:
+    """What one location holds per product (all batches together), by product name: `product_id`,
+    `product__reference`, `product__name`, `quantity`. Products it does not hold are left out."""
+    rows = (
+        StockOnHand.objects.for_organization(organization)
+        .filter(location_id=location_id, quantity__gt=0)
+        .values("product_id", "product__reference", "product__name")
+        .annotate(quantity=Sum("quantity"))
+        .order_by("product__name", "product_id")
+    )
+    return [dict(row) for row in rows]
+
+
+def movements_from_sources(sources: Sequence[Any]) -> dict[int, list[StockMovement]]:
+    """The movements posted for each of these documents or lines (all of one model), by their id, in
+    the order they were posted: which batches a transfer line, a loss or a count took (D-037)."""
+    if not sources:
+        return {}
+    source_type = ContentType.objects.get_for_model(type(sources[0]))
+    found: dict[int, list[StockMovement]] = defaultdict(list)
+    for movement in (
+        StockMovement.objects.filter(source_type=source_type, source_id__in=[source.pk for source in sources])
+        .select_related("batch")
+        .order_by("id")
+    ):
+        assert movement.source_id is not None  # filtered on it
+        found[movement.source_id].append(movement)
+    return found
+
+
+# ---- Transfers between locations (P1-T09, D-044) ----
+
+
+def transfers_of(
+    organization: Organization,
+    *,
+    kind: str | None = None,
+    status: str | None = None,
+    location_id: int | None = None,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    search: str = "",
+) -> QuerySet[Transfer]:
+    """Transfers newest day first, with their places and lines (product). A location filter keeps the
+    transfers going out of it or coming into it; `search` matches the number and the places' names."""
+    lines = TransferLine.objects.select_related("product").order_by("id")
+    transfers = (
+        Transfer.objects.for_organization(organization)
+        .select_related("from_location", "to_location", "created_by", "validated_by", "confirmed_by")
+        .prefetch_related(Prefetch("lines", queryset=lines))
+        .order_by("-transferred_on", "-id")
+    )
+    if kind:
+        transfers = transfers.filter(kind=kind)
+    if status:
+        transfers = transfers.filter(status=status)
+    if location_id is not None:
+        transfers = transfers.filter(Q(from_location_id=location_id) | Q(to_location_id=location_id))
+    if date_from is not None:
+        transfers = transfers.filter(transferred_on__gte=date_from)
+    if date_to is not None:
+        transfers = transfers.filter(transferred_on__lte=date_to)
+    if search := search.strip():
+        transfers = transfers.filter(
+            Q(number__icontains=search)
+            | Q(from_location__name__icontains=search)
+            | Q(to_location__name__icontains=search)
+        )
+    return transfers
+
+
+def transfer_of(organization: Organization, transfer_id: int) -> Transfer:
+    """One transfer with its lines. Raises Transfer.DoesNotExist outside the organization."""
+    return transfers_of(organization).get(pk=transfer_id)
+
+
+@dataclass(frozen=True)
+class TruckDayLine:
+    """One product of a truck's day: kg loaded, kg brought back, and the difference, sold or lost."""
+
+    product_id: int
+    product_reference: str
+    product_name: str
+    loaded: Decimal
+    returned: Decimal
+    # The day's sale price per kg, from its last load (empty when nothing was loaded).
+    unit_price: Decimal | None
+
+    @property
+    def sold_or_lost(self) -> Decimal:
+        """Loaded − returned (client meeting 2026-10-11). Negative when more came back than was loaded
+        that day: the truck already held some in the morning."""
+        return self.loaded - self.returned
+
+    @property
+    def amount(self) -> Decimal | None:
+        """What the kg sold or lost are worth at the day's price; empty without a price or a positive difference."""
+        if self.unit_price is None or self.sold_or_lost <= 0:
+            return None
+        return line_total(self.sold_or_lost, self.unit_price)
+
+
+def truck_day(organization: Organization, *, location_id: int, day: dt.date) -> list[TruckDayLine]:
+    """A truck's day per product from the validated transfers of that day: loaded (into the truck),
+    returned (out of it), and loaded − returned, sold or lost. Works for any location; it means
+    something for a truck. Products sorted by name."""
+    lines = (
+        TransferLine.objects.for_organization(organization)
+        .filter(transfer__status=TransferStatus.VALIDATED, transfer__transferred_on=day)
+        .filter(Q(transfer__to_location_id=location_id) | Q(transfer__from_location_id=location_id))
+        .select_related("product", "transfer")
+        .order_by("transfer__validated_at", "transfer_id", "id")
+    )
+    totals: dict[int, dict[str, Any]] = {}
+    for line in lines:
+        entry = totals.setdefault(
+            line.product_id,
+            {"product": line.product, "loaded": Decimal("0.000"), "returned": Decimal("0.000"), "price": None},
+        )
+        if line.transfer.to_location_id == location_id:
+            entry["loaded"] += line.quantity
+            if line.unit_price is not None:
+                # Lines come in validation order: the last load's price is the day's price.
+                entry["price"] = line.unit_price
+        else:
+            entry["returned"] += line.quantity
+    return sorted(
+        (
+            TruckDayLine(
+                product_id=product_id,
+                product_reference=entry["product"].reference,
+                product_name=entry["product"].name,
+                loaded=entry["loaded"],
+                returned=entry["returned"],
+                unit_price=entry["price"],
+            )
+            for product_id, entry in totals.items()
+        ),
+        key=lambda line: (line.product_name, line.product_id),
+    )

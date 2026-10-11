@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.db.models import Model
 from django.http import HttpRequest
 
-from .models import Batch, StockLocation, StockMovement, StockOnHand
+from .models import Batch, StockLocation, StockMovement, StockOnHand, Transfer, TransferLine
 
 
 class ReadOnlyAdmin[M: Model](admin.ModelAdmin[M]):
@@ -46,3 +46,23 @@ class StockOnHandAdmin(ReadOnlyAdmin[StockOnHand]):
     list_display = ("location", "batch", "quantity", "updated_at")
     list_filter = ("organization", "location")
     list_select_related = ("location", "batch")
+
+
+class TransferLineInline(admin.TabularInline[TransferLine, Transfer]):
+    model = TransferLine
+    fields = ("product", "quantity", "unit_price")
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+
+@admin.register(Transfer)
+class TransferAdmin(ReadOnlyAdmin[Transfer]):
+    list_display = ("number", "kind", "status", "transferred_on", "from_location", "to_location", "organization")
+    list_filter = ("organization", "kind", "status", "transferred_on")
+    search_fields = ("number",)
+    list_select_related = ("from_location", "to_location", "organization")
+    inlines = (TransferLineInline,)

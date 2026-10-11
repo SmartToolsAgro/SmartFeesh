@@ -103,12 +103,13 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
 - [x] Nothing here touches investments or profit shares (separate balances, Phase 6).
 
 ### P1-T09 · Transfers between locations · S
-- [ ] Transfer document (morning load, evening return, cold room → cold room) with lines → transfer
-      movements, FIFO batches.
-- [ ] Validation by owner/manager; driver confirms receipt in Phase 3.
-- [ ] Client meeting 2026-10-11: a morning load carries the **price per kg of each product** for the
+- [x] Transfer document (morning load, evening return, cold room → cold room) with lines → transfer
+      movements, FIFO batches (D-044).
+- [x] Validation by owner/manager; driver confirms receipt in Phase 3 (`confirmed_by` / `confirmed_at`
+      left empty until then).
+- [x] Client meeting 2026-10-11: a morning load carries the **price per kg of each product** for the
       day (from `ProductPrice`, editable on the load) so the driver knows what to sell at. The evening
-      return shows loaded − returned = sold or lost, per product.
+      return shows loaded − returned = sold or lost, per product (`getTruckDay`).
 
 ### P1-T10 · Losses, adjustments and stock counts · M
 - [ ] Loss / spoilage with reason and optional photo; above a threshold needs owner approval.

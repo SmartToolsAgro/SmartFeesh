@@ -14,6 +14,7 @@ from apps.demo.receipts import seed_receipts
 from apps.demo.stock import seed_stock
 from apps.demo.supplier_invoices import seed_supplier_invoices
 from apps.demo.suppliers import seed_suppliers
+from apps.demo.transfers import seed_transfers
 
 ORGANIZATION_NAME = "Frutti Del Mare"
 # Known password for local development only. Anywhere else a password must be given (--password).
@@ -71,6 +72,7 @@ class Command(BaseCommand):
         receipts = seed_receipts(organization=organization, actor=owner)
         invoices = seed_supplier_invoices(organization=organization, actor=owner)
         customers = seed_customers(organization=organization, actor=owner)
+        transfers = seed_transfers(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
@@ -82,3 +84,4 @@ class Command(BaseCommand):
                 f"{invoices} new supplier invoices, {customers} new customers"
             )
         )
+        self.stdout.write(self.style.SUCCESS(f"{transfers} new transfers"))
