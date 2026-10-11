@@ -1,13 +1,15 @@
 """Reusable read queries of trucks, and the "own truck" rule for drivers (ARCHITECTURE §4.8)."""
 
+from datetime import date as date_type
 from typing import Literal
 
 from django.db.models import QuerySet
+from django.utils import timezone
 
 from apps.core.models import Membership, Organization, Role
 from apps.core.session import TruckRef
 
-from .models import Truck
+from .models import Truck, TruckAssignment
 
 type TruckStatus = Literal["active", "archived", "all"]
 
@@ -33,18 +35,43 @@ def truck_of(organization: Organization, truck_id: int) -> Truck:
     return trucks_of(organization, status="all").get(pk=truck_id)
 
 
-def truck_of_driver(membership: Membership) -> Truck | None:
-    """The active truck assigned to this member, if they are a driver and have one."""
+def assignments_of(organization: Organization) -> QuerySet[TruckAssignment]:
+    """Every truck assignment of one organization, with truck, location and driver."""
+    return TruckAssignment.objects.for_organization(organization).select_related("truck__location", "driver")
+
+
+def assignments_on(organization: Organization, day: date_type) -> QuerySet[TruckAssignment]:
+    """The truck assignments of one day, by truck name."""
+    return assignments_of(organization).filter(date=day).order_by("truck__location__name", "id")
+
+
+def assignment_of(organization: Organization, assignment_id: int) -> TruckAssignment:
+    """One assignment. Raises TruckAssignment.DoesNotExist outside the organization."""
+    return assignments_of(organization).get(pk=assignment_id)
+
+
+def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truck | None:
+    """The active truck this member drives on a day (today by default), if they are a driver and have one.
+
+    The day's assignment first (D-046). Without one, the truck they usually drive, unless another driver was
+    assigned to it that day. A driver who usually drives several trucks gets the first by name.
+    """
     if membership.role != Role.DRIVER:
         return None
-    return trucks_of(membership.organization).filter(driver_id=membership.user_id).first()
+    day = on or timezone.localdate()
+    assigned = assignments_on(membership.organization, day).filter(driver_id=membership.user_id).first()
+    if assigned is not None:
+        return assigned.truck if assigned.truck.is_active else None
+    return (
+        trucks_of(membership.organization).filter(driver_id=membership.user_id).exclude(assignments__date=day).first()
+    )
 
 
 def may_use_location(membership: Membership, location_id: int) -> bool:
     """Whether this member may see or change the stock of a location.
 
     Owners, managers and the accountant: any location of their organization. A driver: only the location
-    of their own active truck. Any other role: none. Views must still scope rows by organization (D-022).
+    of their truck of the day. Any other role: none. Views must still scope rows by organization (D-022).
     """
     if membership.role in OFFICE_ROLES:
         return True
@@ -53,12 +80,15 @@ def may_use_location(membership: Membership, location_id: int) -> bool:
 
 
 def may_use_truck(membership: Membership, truck: Truck) -> bool:
-    """Whether this member may see or work with a truck: the office, or the truck's own driver."""
+    """Whether this member may see or work with a truck: the office, or its driver of the day."""
     if truck.organization_id != membership.organization_id:
         return False
     if membership.role in OFFICE_ROLES:
         return True
-    return membership.role == Role.DRIVER and truck.is_active and truck.driver_id == membership.user_id
+    if membership.role != Role.DRIVER or not truck.is_active:
+        return False
+    own = truck_of_driver(membership)
+    return own is not None and own.pk == truck.pk
 
 
 def truck_ref_of_driver(membership: Membership) -> TruckRef | None:

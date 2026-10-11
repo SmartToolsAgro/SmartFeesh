@@ -1552,6 +1552,76 @@ paths:
               schema:
                 $ref: '#/components/schemas/Supplier'
           description: ''
+  /api/v1/truck-assignments:
+    get:
+      operationId: listTruckAssignments
+      description: Who drives which truck on a day (today by default). A driver sees
+        only their own assignment.
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      tags:
+      - truck-assignments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TruckAssignment'
+          description: ''
+    post:
+      operationId: assignTruck
+      description: |-
+        Give a truck to a driver for a day. A driver can only take a truck for themselves; they may
+        change their own mind, the office must remove the first assignment before giving another truck.
+      tags:
+      - truck-assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TruckAssignmentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TruckAssignmentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TruckAssignmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TruckAssignment'
+          description: ''
+  /api/v1/truck-assignments/{assignment_id}:
+    delete:
+      operationId: unassignTruck
+      description: 'Take an assignment back: the truck falls back to its usual driver
+        for that day.'
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - truck-assignments
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/trucks:
     get:
       operationId: listTrucks
@@ -3666,6 +3736,48 @@ components:
       - name
       - plate
       - updated_at
+    TruckAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_id:
+          type: integer
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        plate:
+          type: string
+          readOnly: true
+        driver:
+          allOf:
+          - $ref: '#/components/schemas/DriverRef'
+          readOnly: true
+      required:
+      - date
+      - driver
+      - id
+      - plate
+      - truck_id
+      - truck_name
+    TruckAssignmentWrite:
+      type: object
+      properties:
+        truck:
+          type: integer
+        driver:
+          type: integer
+        date:
+          type: string
+          format: date
+      required:
+      - truck
     TruckRef:
       type: object
       properties:

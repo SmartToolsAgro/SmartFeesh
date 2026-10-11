@@ -2469,6 +2469,62 @@ export const RestoreSupplierResponse = zod.object({
 
 
 /**
+ * Who drives which truck on a day (today by default). A driver sees only their own assignment.
+ */
+export const ListTruckAssignmentsQueryParams = zod.object({
+  "date": zod.iso.date().optional()
+})
+
+export const ListTruckAssignmentsResponseItem = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_id": zod.int(),
+  "truck_name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+})
+})
+export const ListTruckAssignmentsResponse = zod.array(ListTruckAssignmentsResponseItem)
+
+
+/**
+ * Give a truck to a driver for a day. A driver can only take a truck for themselves; they may
+ * change their own mind, the office must remove the first assignment before giving another truck.
+ */
+export const AssignTruckBody = zod.object({
+  "truck": zod.int(),
+  "driver": zod.int().optional(),
+  "date": zod.iso.date().optional()
+})
+
+export const AssignTruckResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_id": zod.int(),
+  "truck_name": zod.string(),
+  "plate": zod.string(),
+  "driver": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+})
+})
+
+
+/**
+ * Take an assignment back: the truck falls back to its usual driver for that day.
+ */
+export const UnassignTruckParams = zod.object({
+  "assignment_id": zod.int()
+})
+
+export const UnassignTruckResponse = zod.void()
+
+
+/**
  * Trucks sorted by name, with their driver. A driver sees only their own truck.
  */
 export const listTrucksQueryStatusDefault = `active`;

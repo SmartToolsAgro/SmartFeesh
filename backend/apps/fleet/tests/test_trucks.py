@@ -58,19 +58,22 @@ def test_plates_and_names_are_unique_per_organization(organization, actor):
     assert new_truck(OrganizationFactory.create(), actor).pk is not None
 
 
-def test_only_a_driver_of_the_company_can_get_a_truck_and_only_one(organization, actor):
-    driver = driver_of(organization)
+def test_only_a_driver_of_the_company_can_be_the_usual_driver_of_a_truck(organization, actor):
     manager = MembershipFactory.create(organization=organization, role=Role.MANAGER)
     stranger = driver_of(OrganizationFactory.create())
-    new_truck(organization, actor, driver=driver.user)
 
-    for user, message in [
-        (manager.user, "pas un chauffeur"),
-        (stranger.user, "pas un chauffeur"),
-        (driver.user, "déjà"),
-    ]:
-        with pytest.raises(ValidationError, match=message):
+    for user in (manager.user, stranger.user):
+        with pytest.raises(ValidationError, match="pas un chauffeur"):
             new_truck(organization, actor, name="Camion 2", plate="102 TU 2002", driver=user)
+
+
+def test_a_driver_may_be_the_usual_driver_of_several_trucks(organization, actor):
+    driver = driver_of(organization)
+
+    first = new_truck(organization, actor, driver=driver.user)
+    second = new_truck(organization, actor, name="Camion 2", plate="102 TU 2002", driver=driver.user)
+
+    assert {first.driver, second.driver} == {driver.user}
 
 
 def test_a_truck_changes_driver_and_name_with_one_audit_entry(organization, actor):
@@ -110,7 +113,6 @@ def test_archiving_a_truck_frees_its_driver_and_archives_its_location(organizati
     assert selectors.truck_of_driver(driver) is None
     with pytest.raises(ValidationError, match="archivé"):
         services.update_truck(truck=truck, actor=actor, driver=driver.user)
-    # The driver can now be given another truck.
     assert new_truck(organization, actor, name="Camion 2", plate="102 TU 2002", driver=driver.user).pk
 
     services.set_truck_active(truck=truck, actor=actor, is_active=True)

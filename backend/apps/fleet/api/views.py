@@ -1,17 +1,28 @@
+from datetime import date
+
 from django.http import Http404
+from django.utils import timezone
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import exceptions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.models import Membership, Organization
+from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import membership_of
 from apps.fleet import selectors, services
-from apps.fleet.models import Truck
+from apps.fleet.models import Truck, TruckAssignment
 
-from .permissions import OwnTruckOrOffice
-from .serializers import TruckFilterSerializer, TruckSerializer, TruckWriteSerializer
+from .permissions import AssignmentsOfficeOrOwnDriver, OwnTruckOrOffice
+from .serializers import (
+    TruckAssignmentFilterSerializer,
+    TruckAssignmentSerializer,
+    TruckAssignmentWriteSerializer,
+    TruckFilterSerializer,
+    TruckSerializer,
+    TruckWriteSerializer,
+)
 
 
 # Base of the truck views: rows of the user's organization only (D-022), a driver's own truck only.
@@ -92,3 +103,89 @@ class TruckRestoreView(TruckView):
     def post(self, request: Request, truck_id: int) -> Response:
         services.set_truck_active(truck=self.truck(truck_id), actor=self.membership.user, is_active=True)
         return self.truck_answer(truck_id)
+
+
+# Base of the assignment views (a comment, not a docstring: see TruckView).
+class TruckAssignmentView(APIView):
+    permission_classes = (AssignmentsOfficeOrOwnDriver,)
+
+    @property
+    def membership(self) -> Membership:
+        membership = membership_of(self.request)
+        assert membership is not None  # guaranteed by the permission class
+        return membership
+
+    @property
+    def is_driver(self) -> bool:
+        return self.membership.role == Role.DRIVER
+
+    def refuse_past_day(self, day: date) -> None:
+        # The office corrects any day; a driver only sets today or a day to come.
+        if self.is_driver and day < timezone.localdate():
+            raise exceptions.ValidationError({"date": _("Un chauffeur ne peut pas modifier un jour passé.")})
+
+
+class TruckAssignmentListView(TruckAssignmentView):
+    @extend_schema(
+        operation_id="listTruckAssignments",
+        parameters=[TruckAssignmentFilterSerializer],
+        responses=TruckAssignmentSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Who drives which truck on a day (today by default). A driver sees only their own assignment."""
+        filters = TruckAssignmentFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        day = filters.validated_data.get("date") or timezone.localdate()
+        rows = selectors.assignments_on(self.membership.organization, day)
+        if self.is_driver:
+            rows = rows.filter(driver=self.membership.user)
+        return Response(TruckAssignmentSerializer(rows, many=True).data)
+
+    @extend_schema(
+        operation_id="assignTruck", request=TruckAssignmentWriteSerializer, responses={201: TruckAssignmentSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """Give a truck to a driver for a day. A driver can only take a truck for themselves; they may
+        change their own mind, the office must remove the first assignment before giving another truck."""
+        organization = self.membership.organization
+        serializer = TruckAssignmentWriteSerializer(data=request.data, context={"organization": organization})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        day = data.get("date") or timezone.localdate()
+        self.refuse_past_day(day)
+        driver = data.get("driver")
+        if self.is_driver:
+            if driver is not None and driver.pk != self.membership.user_id:
+                raise exceptions.PermissionDenied(_("Un chauffeur ne choisit le camion que pour lui-même."))
+            driver = self.membership.user
+        elif driver is None:
+            raise exceptions.ValidationError({"driver": _("Choisissez un chauffeur.")})
+        try:
+            truck = selectors.truck_of(organization, data["truck"])
+        except Truck.DoesNotExist:
+            raise exceptions.ValidationError({"truck": _("Camion introuvable.")}) from None
+        assignment = services.assign_truck(
+            organization=organization,
+            actor=self.membership.user,
+            truck=truck,
+            driver=driver,
+            date=day,
+            replace=self.is_driver,
+        )
+        saved = selectors.assignment_of(organization, assignment.pk)
+        return Response(TruckAssignmentSerializer(saved).data, status=status.HTTP_201_CREATED)
+
+
+class TruckAssignmentDetailView(TruckAssignmentView):
+    @extend_schema(operation_id="unassignTruck", request=None, responses={204: None})
+    def delete(self, request: Request, assignment_id: int) -> Response:
+        """Take an assignment back: the truck falls back to its usual driver for that day."""
+        try:
+            assignment = selectors.assignment_of(self.membership.organization, assignment_id)
+        except TruckAssignment.DoesNotExist:
+            raise Http404 from None
+        if self.is_driver and assignment.driver_id != self.membership.user_id:
+            raise Http404  # another driver's day does not exist for them
+        self.refuse_past_day(assignment.date)
+        services.unassign_truck(assignment=assignment, actor=self.membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

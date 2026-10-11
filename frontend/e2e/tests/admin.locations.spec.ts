@@ -46,14 +46,8 @@ test("the owner adds a cold room and a truck, then archives the truck", async ({
   await expect(page.getByText("Camion créé.")).toBeVisible();
   await expect(place(page, truck)).toContainText(plate.toUpperCase());
 
-  // Sami already drives Camion 1: the server refuses a second truck for him.
   await place(page, truck).getByRole("button").click();
   const edit = page.getByRole("dialog", { name: "Modifier le camion" });
-  await edit.getByRole("combobox", { name: "Chauffeur" }).click();
-  await page.getByRole("option", { name: /Sami B\. \(conduit Camion 1\)/ }).click();
-  await edit.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(edit.getByText("Ce chauffeur a déjà un autre camion.")).toBeVisible();
-
   await edit.getByRole("button", { name: "Archiver" }).click();
   await expect(place(page, truck)).toHaveCount(0);
   await page.getByRole("button", { name: "Archivés" }).click();

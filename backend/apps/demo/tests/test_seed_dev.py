@@ -58,6 +58,9 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     truck = fleet.truck_of_driver(driver)
     assert truck is not None
     assert (truck.location.name, truck.plate) == ("Camion 1", "101 TU 2001")
+    # Today's truck of the day (D-046), written once although the seed ran twice.
+    (assignment,) = fleet.assignments_of(organization)
+    assert (assignment.truck, assignment.driver.username) == (truck, "driver")
 
     batches = inventory.batches_of(organization)
     assert batches.count() == 15 + 2  # the demo batches, then the demo receipt's two lines
