@@ -120,6 +120,7 @@ import type {
   LotPartnershipDetail,
   LotPartnershipWrite,
   LotResultView,
+  LotSettlementView,
   LotWorkDay,
   LotWorkDayWrite,
   Member,
@@ -140,6 +141,7 @@ import type {
   PaginatedSupplierInvoiceList,
   PaginatedSupplierPaymentList,
   PaginatedTransferList,
+  PartnerBalances,
   PatchedCategory,
   PatchedCustomerWrite,
   PatchedEmployeeWrite,
@@ -183,6 +185,7 @@ import type {
   Session,
   SetPrice,
   SetPrices,
+  SettleLot,
   StockLocation,
   StockLocationCreate,
   StockOverview,
@@ -8596,6 +8599,78 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCloseLotMutationOptions(options), queryClient);
     }
 
+export const getBookLateAdjustmentsUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${batchId}/late-adjustments`
+}
+
+/**
+ * Carry the costs recorded after the lot closed to the partner's balance now (owner only), without
+ * reopening the lot. Settling does it too; this makes the amount visible on the partner's balance.
+ */
+export const bookLateAdjustments = async (batchId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LotSettlementView> => {
+
+  return apiFetch<LotSettlementView>(getBookLateAdjustmentsUrl(batchId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getBookLateAdjustmentsMutationKey = () => ['bookLateAdjustments'] as const;
+
+export const getBookLateAdjustmentsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookLateAdjustments>>, TError,BookLateAdjustmentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bookLateAdjustments>>, TError,BookLateAdjustmentsMutationVariables, TContext> => {
+
+const mutationKey = getBookLateAdjustmentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bookLateAdjustments>>, BookLateAdjustmentsMutationVariables> = (props) => {
+          const {batchId} = props ?? {};
+
+          return  bookLateAdjustments(batchId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BookLateAdjustmentsMutationResult = NonNullable<Awaited<ReturnType<typeof bookLateAdjustments>>>
+
+    export type BookLateAdjustmentsMutationError = unknown
+    export type BookLateAdjustmentsMutationVariables = {batchId: number}
+
+    export const useBookLateAdjustments = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookLateAdjustments>>, TError,BookLateAdjustmentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bookLateAdjustments>>,
+        TError,
+        BookLateAdjustmentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBookLateAdjustmentsMutationOptions(options), queryClient);
+    }
+
 export const getReopenLotUrl = (batchId: number,) => {
 
 
@@ -8771,6 +8846,193 @@ export function useGetLotResult<TData = Awaited<ReturnType<typeof getLotResult>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetLotResultQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSettleLotUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${batchId}/settle`
+}
+
+/**
+ * Settle a closed partnership lot with its partner (owner only): pay their capital back and their
+ * profit share. The payments must add up to the amount shown by `getLotSettlement`.
+ */
+export const settleLot = async (batchId: number,
+    settleLotBody?: SettleLot, options?: Parameters<typeof apiFetch>[1]): Promise<LotSettlementView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotSettlementView>(getSettleLotUrl(batchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(settleLotBody)
+  }
+);}
+
+
+
+
+
+export const getSettleLotMutationKey = () => ['settleLot'] as const;
+
+export const getSettleLotMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleLot>>, TError,SettleLotMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof settleLot>>, TError,SettleLotMutationVariables, TContext> => {
+
+const mutationKey = getSettleLotMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settleLot>>, SettleLotMutationVariables> = (props) => {
+          const {batchId,data} = props ?? {};
+
+          return  settleLot(batchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettleLotMutationResult = NonNullable<Awaited<ReturnType<typeof settleLot>>>
+    export type SettleLotMutationBody = SettleLot | undefined
+    export type SettleLotMutationError = unknown
+    export type SettleLotMutationVariables = {batchId: number;data?: SettleLot}
+
+    export const useSettleLot = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleLot>>, TError,SettleLotMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settleLot>>,
+        TError,
+        SettleLotMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettleLotMutationOptions(options), queryClient);
+    }
+
+export const getGetLotSettlementUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${batchId}/settlement`
+}
+
+/**
+ * The lot's settlement with its partner: what settling would pay (capital back ± share, minus what
+ * the partner owes from earlier lots), or what was paid; the late costs waiting for the next
+ * settlement; and the partner's three balances (trade payable, capital, profit share).
+ */
+export const getLotSettlement = async (batchId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LotSettlementView> => {
+
+  return apiFetch<LotSettlementView>(getGetLotSettlementUrl(batchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLotSettlementQueryKey = (batchId: number,) => {
+    return [
+    `/api/v1/lots/${batchId}/settlement`
+    ] as const;
+    }
+
+
+export const getGetLotSettlementQueryOptions = <TData = Awaited<ReturnType<typeof getLotSettlement>>, TError = unknown>(batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotSettlement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLotSettlementQueryKey(batchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLotSettlement>>> = ({ signal }) => getLotSettlement(batchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLotSettlement>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLotSettlementQueryResult = NonNullable<Awaited<ReturnType<typeof getLotSettlement>>>
+export type GetLotSettlementQueryError = unknown
+
+
+export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSettlement>>, TError = unknown>(
+ batchId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotSettlement>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotSettlement>>,
+          TError,
+          Awaited<ReturnType<typeof getLotSettlement>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSettlement>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotSettlement>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotSettlement>>,
+          TError,
+          Awaited<ReturnType<typeof getLotSettlement>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSettlement>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotSettlement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSettlement>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotSettlement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLotSettlementQueryOptions(batchId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -9052,6 +9314,105 @@ export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListMembersQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPartnerBalancesUrl = (partnerId: number,) => {
+
+
+
+
+  return `/api/v1/partners/${partnerId}/balances`
+}
+
+/**
+ * A partner's three balances, kept apart: what is owed for goods (trade payable), their capital
+ * still in lots, and their profit share (owed to them, or by them).
+ */
+export const getPartnerBalances = async (partnerId: number, options?: Parameters<typeof apiFetch>[1]): Promise<PartnerBalances> => {
+
+  return apiFetch<PartnerBalances>(getGetPartnerBalancesUrl(partnerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerBalancesQueryKey = (partnerId: number,) => {
+    return [
+    `/api/v1/partners/${partnerId}/balances`
+    ] as const;
+    }
+
+
+export const getGetPartnerBalancesQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerBalances>>, TError = unknown>(partnerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerBalances>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerBalancesQueryKey(partnerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerBalances>>> = ({ signal }) => getPartnerBalances(partnerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partnerId !== null && partnerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerBalances>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPartnerBalancesQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerBalances>>>
+export type GetPartnerBalancesQueryError = unknown
+
+
+export function useGetPartnerBalances<TData = Awaited<ReturnType<typeof getPartnerBalances>>, TError = unknown>(
+ partnerId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerBalances>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartnerBalances>>,
+          TError,
+          Awaited<ReturnType<typeof getPartnerBalances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartnerBalances<TData = Awaited<ReturnType<typeof getPartnerBalances>>, TError = unknown>(
+ partnerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerBalances>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartnerBalances>>,
+          TError,
+          Awaited<ReturnType<typeof getPartnerBalances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartnerBalances<TData = Awaited<ReturnType<typeof getPartnerBalances>>, TError = unknown>(
+ partnerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerBalances>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetPartnerBalances<TData = Awaited<ReturnType<typeof getPartnerBalances>>, TError = unknown>(
+ partnerId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerBalances>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPartnerBalancesQueryOptions(partnerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

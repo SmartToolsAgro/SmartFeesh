@@ -26,9 +26,8 @@ WRITE_OFF_KINDS = frozenset({"loss", "count_correction", "adjustment"})
 RECEIPT = "receipt"
 SUPPLIER_RETURN = "supplier_return"
 
-# Customer payments are not tracked yet (P2-T06): a sale still owed money does not stop a closing, it is
-# kept as a warning with the result. P2-T06 turns this on once payments after the sale can be recorded.
-CUSTOMER_PAYMENTS_BLOCK = False
+# Customer payments exist since P2-T06 (D-062): a lot with a sale still owed money cannot be closed (Q19).
+CUSTOMER_PAYMENTS_BLOCK = True
 
 
 def _sale_rows(organization: Organization, batch_id: int) -> tuple[engine.SaleRow, ...]:
@@ -191,6 +190,16 @@ class ClosingCheck:
     amount: Decimal | None = None
 
 
+def customers_owing(organization: Organization, snapshot: engine.LotSnapshot) -> dict[int, Decimal]:
+    """What customers still owe on the lot's sales, by sale id: the one place the "customers paid" check
+    (Q19) reads receivables from.
+
+    Since P2-T06 it is what each confirmed sale still owes after customer payments, credit notes and
+    withholding (`sales.selectors.outstanding_by_sale`, D-062); a cancelled sale owes nothing.
+    """
+    return sales.outstanding_by_sale(organization, [sale.sale_id for sale in snapshot.sales])
+
+
 def closing_checks(organization: Organization, result: engine.ComputedResult) -> list[ClosingCheck]:
     """What stands between the lot and its closing, with the figures the screen explains it with."""
     snapshot = result.snapshot
@@ -199,7 +208,7 @@ def closing_checks(organization: Organization, result: engine.ComputedResult) ->
         for line in expenses.lot_cost_lines(organization, batch_id=snapshot.batch_id, approved_only=False)
         if line.status != "approved"
     ]
-    owed = {sale.sale_id: sale.amount_due for sale in snapshot.sales if sale.amount_due > 0}
+    owed = customers_owing(organization, snapshot)
     return [
         # Stock 0: everything sold, sent back or written off as a loss.
         ClosingCheck(
@@ -216,7 +225,7 @@ def closing_checks(organization: Organization, result: engine.ComputedResult) ->
             count=len(waiting),
             amount=sum((line.amount for line in waiting), ZERO),
         ),
-        # Customers paid (Q19): known only for the payment on the spot until P2-T06.
+        # Customers paid (Q19): every sale of the lot is paid, customer payments included (P2-T06).
         ClosingCheck(
             code="customers_paid",
             ok=not owed,
@@ -265,3 +274,109 @@ def closed_batch_ids(organization: Organization, *, batch_ids: list[int] | None 
     if batch_ids is not None:
         results = results.filter(batch_id__in=batch_ids)
     return set(results.values_list("batch_id", flat=True))
+
+
+# ---- Late costs and settlement (P6-T03, D-066) ----
+
+
+@dataclass(frozen=True)
+class LateDrift:
+    """How far a closed lot's live net result has moved from its frozen one, and what of it is already
+    carried to the partner's settlements."""
+
+    lot_result_id: int
+    frozen_net: Decimal
+    live_net: Decimal
+    # live − frozen: a cost recorded after the closing is negative.
+    drift: Decimal
+    # The part of the drift already booked on the partner's profit-share balance (sum of `basis`).
+    booked: Decimal
+    # The part still to book, and the partner's share of it (signed): the next settlement's adjustment.
+    pending_basis: Decimal
+    pending_share: Decimal
+
+
+def late_drift(organization: Organization, result: LotResult) -> LateDrift | None:
+    """The late adjustment a closed partnership lot is waiting for, or None for a lot without partner.
+
+    The share is computed on the whole drift and the booked part taken off, so what is booked adds up to
+    `share(live net) − share(frozen net)` exactly, whatever the number of adjustments (no rounding drift)."""
+    if result.partnership_id is None:
+        return None
+    partnership = partnerships.partnership_of(organization, result.partnership_id)
+    terms = engine.PartnershipTerms(
+        partnership_id=partnership.pk,
+        partner_id=partnership.partner_id,
+        partner_name=partnership.partner.name,
+        owner_capital=partnership.owner_capital,
+        partner_capital=partnerships.capital_put_in(partnership),
+        profit_rate=partnership.profit_rate,
+        loss_rate=partnership.loss_rate,
+    )
+    live_net = live_result(organization, batch_id=result.batch_id).net_result
+    frozen = result.net_result
+    drift = live_net - frozen
+    booked = partnerships.late_adjustments_booked(partnership, lot_result_id=result.pk)
+    share_now = engine.partner_share(terms, frozen + drift).share
+    share_booked = engine.partner_share(terms, frozen + booked).share
+    return LateDrift(
+        lot_result_id=result.pk,
+        frozen_net=frozen,
+        live_net=live_net,
+        drift=drift,
+        booked=booked,
+        pending_basis=drift - booked,
+        pending_share=share_now - share_booked,
+    )
+
+
+@dataclass(frozen=True)
+class SettlementPreview:
+    """What settling a closed partnership lot would pay, step by step (mirrors `settle_partnership`)."""
+
+    capital_to_return: Decimal
+    lot_share: Decimal
+    uncovered_loss: Decimal
+    # Late adjustments still to book on this partner's lots (this one and the others) before settling.
+    pending_adjustments: Decimal
+    # The partner's profit-share balance after those adjustments, before this lot's share.
+    carried_in: Decimal
+    share_paid: Decimal
+    total: Decimal
+    carried_out: Decimal
+
+
+def partner_closed_results(organization: Organization, *, partner_id: int) -> list[LotResult]:
+    """The frozen results of every closed or settled partnership lot of one partner, oldest lot first."""
+    results = []
+    for partnership in partnerships.partnerships_of(organization, partner_id=partner_id):
+        if partnership.status == "open":
+            continue
+        result = closed_result_of(organization, batch_id=partnership.batch_id)
+        if result is not None and result.partnership_id == partnership.pk:
+            results.append(result)
+    return sorted(results, key=lambda result: result.batch_id)
+
+
+def settlement_preview(organization: Organization, result: LotResult) -> SettlementPreview:
+    partnership = partnerships.partnership_of(organization, result.partnership_id or 0)
+    pending = ZERO
+    for other in partner_closed_results(organization, partner_id=partnership.partner_id):
+        drift = late_drift(organization, other)
+        if drift is not None:
+            pending += drift.pending_share
+    carried_in = partnerships.profit_share_balance_of_partner(organization, partner_id=partnership.partner_id) + pending
+    lot_entry = result.partner_share if result.partner_share > 0 else -result.uncovered_loss
+    balance = carried_in + lot_entry
+    share_paid = balance if balance > 0 else ZERO
+    capital = partnerships.capital_balance(partnership)
+    return SettlementPreview(
+        capital_to_return=capital,
+        lot_share=result.partner_share,
+        uncovered_loss=result.uncovered_loss,
+        pending_adjustments=pending,
+        carried_in=carried_in,
+        share_paid=share_paid,
+        total=capital + share_paid,
+        carried_out=balance - share_paid,
+    )

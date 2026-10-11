@@ -2743,6 +2743,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotResultView'
           description: ''
+  /api/v1/lots/{batch_id}/late-adjustments:
+    post:
+      operationId: bookLateAdjustments
+      description: |-
+        Carry the costs recorded after the lot closed to the partner's balance now (owner only), without
+        reopening the lot. Settling does it too; this makes the amount visible on the partner's balance.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotSettlementView'
+          description: ''
   /api/v1/lots/{batch_id}/reopen:
     post:
       operationId: reopenLot
@@ -2802,6 +2825,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotResultView'
           description: ''
+  /api/v1/lots/{batch_id}/settle:
+    post:
+      operationId: settleLot
+      description: |-
+        Settle a closed partnership lot with its partner (owner only): pay their capital back and their
+        profit share. The payments must add up to the amount shown by `getLotSettlement`.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettleLot'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SettleLot'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SettleLot'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotSettlementView'
+          description: ''
+  /api/v1/lots/{batch_id}/settlement:
+    get:
+      operationId: getLotSettlement
+      description: |-
+        The lot's settlement with its partner: what settling would pay (capital back ± share, minus what
+        the partner owes from earlier lots), or what was paid; the late costs waiting for the next
+        settlement; and the partner's three balances (trade payable, capital, profit share).
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotSettlementView'
+          description: ''
   /api/v1/me:
     get:
       operationId: getSession
@@ -2859,6 +2940,29 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/partners/{partner_id}/balances:
+    get:
+      operationId: getPartnerBalances
+      description: |-
+        A partner's three balances, kept apart: what is owed for goods (trade payable), their capital
+        still in lots, and their profit share (owed to them, or by them).
+      parameters:
+      - in: path
+        name: partner_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partners
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerBalances'
           description: ''
   /api/v1/partnerships:
     get:
@@ -9408,6 +9512,34 @@ components:
       - product_id
       - received_on
       - unit_cost
+    LateAdjustment:
+      type: object
+      properties:
+        drift:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        booked:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        pending_basis:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        pending_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - booked
+      - drift
+      - pending_basis
+      - pending_share
     LocationStock:
       type: object
       description: How many kg of one product a location holds, all batches together.
@@ -10139,6 +10271,63 @@ components:
       - live_net_result
       - result
       - state
+    LotSettlementView:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/SettlementStateEnum'
+          readOnly: true
+        partnership_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        partner_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        partner_name:
+          type: string
+          readOnly: true
+        preview:
+          allOf:
+          - $ref: '#/components/schemas/SettlementPreview'
+          readOnly: true
+          nullable: true
+        settlement:
+          allOf:
+          - $ref: '#/components/schemas/SettlementRecord'
+          readOnly: true
+          nullable: true
+        late:
+          allOf:
+          - $ref: '#/components/schemas/LateAdjustment'
+          readOnly: true
+          nullable: true
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfitShareEntry'
+          readOnly: true
+        balances:
+          allOf:
+          - $ref: '#/components/schemas/PartnerBalances'
+          readOnly: true
+          nullable: true
+      required:
+      - balances
+      - batch_id
+      - entries
+      - late
+      - partner_id
+      - partner_name
+      - partnership_id
+      - preview
+      - settlement
+      - state
     LotStateEnum:
       enum:
       - open
@@ -10719,6 +10908,42 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transfer'
+    PartnerBalances:
+      type: object
+      description: 'The three balances of a partner, kept apart: never added together
+        (D-031, D-040).'
+      properties:
+        partner_id:
+          type: integer
+          readOnly: true
+        partner_name:
+          type: string
+          readOnly: true
+        trade_payable:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        profit_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lots:
+          type: integer
+          readOnly: true
+      required:
+      - capital
+      - lots
+      - partner_id
+      - partner_name
+      - profit_share
+      - trade_payable
     PartnershipBatch:
       type: object
       properties:
@@ -11752,6 +11977,46 @@ components:
       - photo_url
       - quantity
       - reference
+    ProfitShareEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/ProfitShareKindEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        entry_date:
+          type: string
+          format: date
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - entry_date
+      - id
+      - kind
+      - note
+    ProfitShareKindEnum:
+      enum:
+      - share
+      - uncovered_loss
+      - late_adjustment
+      - payment
+      type: string
+      description: |-
+        * `share` - Part de bénéfice
+        * `uncovered_loss` - Perte au-delà de l'apport
+        * `late_adjustment` - Régularisation après clôture
+        * `payment` - Paiement
     Quote:
       type: object
       properties:
@@ -13982,6 +14247,190 @@ components:
             $ref: '#/components/schemas/PriceChange'
       required:
       - items
+    SettleLot:
+      type: object
+      properties:
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettlementPaymentWrite'
+        notes:
+          type: string
+          default: ''
+    SettlementPayment:
+      type: object
+      properties:
+        paid_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - method
+      - paid_on
+      - reference
+    SettlementPaymentWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        paid_on:
+          type: string
+          format: date
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+      required:
+      - amount
+      - method
+    SettlementPreview:
+      type: object
+      properties:
+        capital_to_return:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lot_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        uncovered_loss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        pending_adjustments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        carried_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        share_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        carried_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - capital_to_return
+      - carried_in
+      - carried_out
+      - lot_share
+      - pending_adjustments
+      - share_paid
+      - total
+      - uncovered_loss
+    SettlementRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        settled_on:
+          type: string
+          format: date
+          readOnly: true
+        capital_returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lot_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        uncovered_loss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        carried_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        share_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        carried_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettlementPayment'
+          readOnly: true
+      required:
+      - amount_paid
+      - capital_returned
+      - carried_in
+      - carried_out
+      - created_by_name
+      - id
+      - lot_share
+      - notes
+      - payments
+      - settled_on
+      - share_paid
+      - uncovered_loss
+    SettlementStateEnum:
+      enum:
+      - none
+      - not_closed
+      - ready
+      - settled
+      type: string
+      description: |-
+        * `none` - Sans partenaire
+        * `not_closed` - Lot non clôturé
+        * `ready` - À régler
+        * `settled` - Réglé
     StockLocation:
       type: object
       properties:

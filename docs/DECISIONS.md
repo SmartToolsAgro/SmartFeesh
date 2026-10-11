@@ -1015,6 +1015,9 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - Customer account history (sales at what they owe now, paid on the spot, payments) with a running balance
   ending on the balance. API: `listCustomerPayments`, `createCustomerPayment`, `getCustomerPayment`,
   `allocateCustomerPayment`, `voidCustomerPayment`, `getCustomerBalance`, `getReceivablesAgeing`.
+- **Lot closing (D-068):** `closing.selectors.customers_owing` now reads `sales.selectors.outstanding_by_sale`
+  and `CUSTOMER_PAYMENTS_BLOCK` is `True`: a lot with a sale still owed money cannot be closed until it is paid
+  (override with a reason: still not built, owner decision pending).
 
 **D-063 · Withholding certificates (P2-T06)** · accepted, provisional points marked · 2026-10-11
 - `WithholdingCertificate` per issued invoice: number, date, **amount really withheld**, file (photo stored as
@@ -1049,3 +1052,57 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   "Enregistrer un règlement"; the sale page shows the credit status and "Approuver et confirmer"; the invoice
   page a "Certificat de retenue" card; the finance settings screen the credit policy. Playwright:
   `admin.payments.spec.ts`. Pinned enums: `SaleCreditStatusEnum`, `CreditPolicyEnum`.
+
+**D-066 · Settlement with the partner and the three balances (P6-T03)** · accepted, provisional points marked · 2026-10-11
+- A closed partnership lot is **settled** once (`closing.services.settle_lot` → `partnerships.services.settle_partnership`,
+  `PartnerSettlement` one per partnership, `SettlementPayment` lines). Partnership status `closed` → `settled`.
+- **Three balances per partner, three ledgers, never added together** (D-031, D-040): *trade payable* (D-043,
+  read from `purchasing.supplier_balance`, never written here); *capital* (`CapitalEntry`, D-060: a settlement
+  posts the `return` of what is left after a loss share); *profit share* (new append-only `ProfitShareEntry`,
+  signed, + the company owes the partner, − the partner owes the company). Kinds: `share` (profit share, posted
+  at settlement), `uncovered_loss` (D-031's loss beyond the capital, −), `late_adjustment` (D-067), `payment` (−).
+  `partnerships.selectors.partner_balances` gives the three numbers.
+- **Arithmetic:** capital to return = capital balance (already net of a deducted loss share). The partner's
+  profit-share balance B over **all their lots** = earlier entries + this lot's `share` (+) or `uncovered_loss`
+  (−). Paid = capital + max(B, 0). A negative B is **recovered from this lot's share first**; what the share
+  cannot cover stays on the profit-share balance (`carried_out`) for their next settlement and is **never taken
+  from the capital** (D-031: "recovered from their next profit shares"; provisional until P0-T02).
+- **Payments:** `payments` (method from the supplier-payment list, amount, reference, date) must add up to
+  exactly what is paid, to the millime; nothing to pay means none. **No partial settlement** (provisional: the
+  lot is settled in one go, possibly with several payment lines such as cash + cheque). A settled lot cannot be
+  reopened (D-061); a correction is a late adjustment on the partner's next settlement.
+- Concurrency: the lots of the partner involved are locked (`lock_lot`) in lot-id order, then the partnership
+  row; a second settlement of the same lot is refused. Audited (`partnership.settled`).
+
+**D-067 · A cost arriving after the lot closed goes to the partner's next settlement (P6-T03, D-041)** · accepted, provisional points marked · 2026-10-11
+- The frozen `LotResult` is never touched and the lot is never reopened. `closing.selectors.late_drift` compares
+  the live net result with the frozen one: `drift = live − frozen`. The partner's share of it is
+  `share(frozen + drift) − share(frozen + already booked)` using the lot's two rates (so adjustments telescope
+  to exactly `share(live) − share(frozen)`, whatever their number, no rounding drift; tested).
+- It is booked as a `late_adjustment` profit-share entry (`basis` = the change of net result it covers, so the
+  next call books only the rest) by `book_late_adjustments` (owner, `bookLateAdjustments`) or automatically
+  by the partner's **next settlement**, which books the drift of every closed lot of that partner first. A cost
+  after the lot's own settlement therefore reduces the partner's next payout (or sits as an amount they owe).
+- Provisional: the owner's share of a late cost is not tracked (only the partner's side is a balance); a late
+  adjustment never comes out of capital. The same mechanism carries a late **sale** or the electricity bill
+  difference of D-041 (P5-T02), whatever put the live net result off the frozen one.
+
+**D-068 · "Customers paid" check behind one function (P6-T03, Q19)** · accepted, provisional · 2026-10-11
+- Q19: a lot closes when sold out, costs in and customers paid. Receivables now come from one place,
+  `closing.selectors.customers_owing(organization, snapshot)`: what each sale still owes (`amount_due` = sale
+  total − payment on the spot). **P2-T06 (customer payments) replaces only that body** (and flips
+  `CUSTOMER_PAYMENTS_BLOCK`); the checks, the frozen `payments_unverified` flag and the screen stay as they are.
+- Still a **warning, not a refusal** until P2-T06: today a credit sale cannot be paid after the sale, so a hard
+  block would make such a lot impossible to close. Once P2-T06 lands, `CUSTOMER_PAYMENTS_BLOCK = True` makes it
+  blocking (owner decision pending on an override with a reason; not built).
+
+**D-069 · Who may settle, API and the lot page (P6-T03)** · accepted, provisional points marked · 2026-10-11
+- Same rule as D-060/D-061 (provisional): the owner settles, books late adjustments, closes and reopens; the
+  owner and the accountant read; managers and drivers get 403. API (`closing` app): `getLotSettlement`
+  (state `none` / `not_closed` / `ready` / `settled`, preview or record, late drift, the partner's profit-share
+  ledger on the lot, the three balances), `settleLot`, `bookLateAdjustments`, `getPartnerBalances`.
+- The lot page gets a "Règlement du partenaire" card under "Résultat du lot": what is paid step by step, the
+  payments dialog with the amount still to type, the late-cost notice with a button to carry it now, and the
+  three balances. The full P6-T07 screens (list of partnership lots by status, partner page) are not built.
+- Known gaps: no settlement PDF (P6-T04); a cancelled partnership with capital returned is not part of the
+  balances beyond its ledger; the settlement uses today's date (no back-dating field).

@@ -4817,6 +4817,99 @@ export const CloseLotResponse = zod.object({
 
 
 /**
+ * Carry the costs recorded after the lot closed to the partner's balance now (owner only), without
+ * reopening the lot. Settling does it too; this makes the amount visible on the partner's balance.
+ */
+export const BookLateAdjustmentsParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const bookLateAdjustmentsResponsePreviewOneCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponsePreviewOneLotShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponsePreviewOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponsePreviewOnePendingAdjustmentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponsePreviewOneCarriedInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponsePreviewOneSharePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponsePreviewOneTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponsePreviewOneCarriedOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOneCapitalReturnedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOneLotShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOneCarriedInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOneSharePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOneAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOneCarriedOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseSettlementOnePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseLateOneDriftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseLateOneBookedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseLateOnePendingBasisRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseLateOnePendingShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseBalancesOneTradePayableRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseBalancesOneCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const bookLateAdjustmentsResponseBalancesOneProfitShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const BookLateAdjustmentsResponse = zod.object({
+  "batch_id": zod.int(),
+  "state": zod.enum(['none', 'not_closed', 'ready', 'settled']).describe('* `none` - Sans partenaire\n* `not_closed` - Lot non clôturé\n* `ready` - À régler\n* `settled` - Réglé'),
+  "partnership_id": zod.int().nullable(),
+  "partner_id": zod.int().nullable(),
+  "partner_name": zod.string(),
+  "preview": zod.union([zod.object({
+  "capital_to_return": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOneCapitalToReturnRegExp),
+  "lot_share": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOneLotShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOneUncoveredLossRegExp),
+  "pending_adjustments": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOnePendingAdjustmentsRegExp),
+  "carried_in": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOneCarriedInRegExp),
+  "share_paid": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOneSharePaidRegExp),
+  "total": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOneTotalRegExp),
+  "carried_out": zod.stringFormat('decimal', bookLateAdjustmentsResponsePreviewOneCarriedOutRegExp)
+}),zod.null()]),
+  "settlement": zod.union([zod.object({
+  "id": zod.int(),
+  "settled_on": zod.iso.date(),
+  "capital_returned": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOneCapitalReturnedRegExp),
+  "lot_share": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOneLotShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOneUncoveredLossRegExp),
+  "carried_in": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOneCarriedInRegExp),
+  "share_paid": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOneSharePaidRegExp),
+  "amount_paid": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOneAmountPaidRegExp),
+  "carried_out": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOneCarriedOutRegExp),
+  "notes": zod.string(),
+  "created_by_name": zod.string(),
+  "payments": zod.array(zod.object({
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', bookLateAdjustmentsResponseSettlementOnePaymentsItemAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}))
+}),zod.null()]),
+  "late": zod.union([zod.object({
+  "drift": zod.stringFormat('decimal', bookLateAdjustmentsResponseLateOneDriftRegExp),
+  "booked": zod.stringFormat('decimal', bookLateAdjustmentsResponseLateOneBookedRegExp),
+  "pending_basis": zod.stringFormat('decimal', bookLateAdjustmentsResponseLateOnePendingBasisRegExp),
+  "pending_share": zod.stringFormat('decimal', bookLateAdjustmentsResponseLateOnePendingShareRegExp)
+}),zod.null()]),
+  "entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['share', 'uncovered_loss', 'late_adjustment', 'payment']).describe('* `share` - Part de bénéfice\n* `uncovered_loss` - Perte au-delà de l\'apport\n* `late_adjustment` - Régularisation après clôture\n* `payment` - Paiement'),
+  "amount": zod.stringFormat('decimal', bookLateAdjustmentsResponseEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string()
+})),
+  "balances": zod.union([zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "trade_payable": zod.stringFormat('decimal', bookLateAdjustmentsResponseBalancesOneTradePayableRegExp),
+  "capital": zod.stringFormat('decimal', bookLateAdjustmentsResponseBalancesOneCapitalRegExp),
+  "profit_share": zod.stringFormat('decimal', bookLateAdjustmentsResponseBalancesOneProfitShareRegExp),
+  "lots": zod.int()
+}).describe('The three balances of a partner, kept apart: never added together (D-031, D-040).'),zod.null()])
+})
+
+
+/**
  * Reopen a closed lot (owner only, reason required, audited). The frozen result stays as history.
  */
 export const ReopenLotParams = zod.object({
@@ -5166,6 +5259,208 @@ export const GetLotResultResponse = zod.object({
 
 
 /**
+ * Settle a closed partnership lot with its partner (owner only): pay their capital back and their
+ * profit share. The payments must add up to the amount shown by `getLotSettlement`.
+ */
+export const SettleLotParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const settleLotBodyPaymentsItemReferenceDefault = ``;
+export const settleLotBodyPaymentsItemReferenceMax = 50;
+
+export const settleLotBodyNotesDefault = ``;
+
+export const SettleLotBody = zod.object({
+  "payments": zod.array(zod.object({
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "paid_on": zod.iso.date().optional(),
+  "reference": zod.string().max(settleLotBodyPaymentsItemReferenceMax).default(settleLotBodyPaymentsItemReferenceDefault)
+})).optional(),
+  "notes": zod.string().default(settleLotBodyNotesDefault)
+})
+
+export const settleLotResponsePreviewOneCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponsePreviewOneLotShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponsePreviewOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponsePreviewOnePendingAdjustmentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponsePreviewOneCarriedInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponsePreviewOneSharePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponsePreviewOneTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponsePreviewOneCarriedOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOneCapitalReturnedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOneLotShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOneCarriedInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOneSharePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOneAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOneCarriedOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseSettlementOnePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseLateOneDriftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseLateOneBookedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseLateOnePendingBasisRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseLateOnePendingShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseBalancesOneTradePayableRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseBalancesOneCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const settleLotResponseBalancesOneProfitShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SettleLotResponse = zod.object({
+  "batch_id": zod.int(),
+  "state": zod.enum(['none', 'not_closed', 'ready', 'settled']).describe('* `none` - Sans partenaire\n* `not_closed` - Lot non clôturé\n* `ready` - À régler\n* `settled` - Réglé'),
+  "partnership_id": zod.int().nullable(),
+  "partner_id": zod.int().nullable(),
+  "partner_name": zod.string(),
+  "preview": zod.union([zod.object({
+  "capital_to_return": zod.stringFormat('decimal', settleLotResponsePreviewOneCapitalToReturnRegExp),
+  "lot_share": zod.stringFormat('decimal', settleLotResponsePreviewOneLotShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', settleLotResponsePreviewOneUncoveredLossRegExp),
+  "pending_adjustments": zod.stringFormat('decimal', settleLotResponsePreviewOnePendingAdjustmentsRegExp),
+  "carried_in": zod.stringFormat('decimal', settleLotResponsePreviewOneCarriedInRegExp),
+  "share_paid": zod.stringFormat('decimal', settleLotResponsePreviewOneSharePaidRegExp),
+  "total": zod.stringFormat('decimal', settleLotResponsePreviewOneTotalRegExp),
+  "carried_out": zod.stringFormat('decimal', settleLotResponsePreviewOneCarriedOutRegExp)
+}),zod.null()]),
+  "settlement": zod.union([zod.object({
+  "id": zod.int(),
+  "settled_on": zod.iso.date(),
+  "capital_returned": zod.stringFormat('decimal', settleLotResponseSettlementOneCapitalReturnedRegExp),
+  "lot_share": zod.stringFormat('decimal', settleLotResponseSettlementOneLotShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', settleLotResponseSettlementOneUncoveredLossRegExp),
+  "carried_in": zod.stringFormat('decimal', settleLotResponseSettlementOneCarriedInRegExp),
+  "share_paid": zod.stringFormat('decimal', settleLotResponseSettlementOneSharePaidRegExp),
+  "amount_paid": zod.stringFormat('decimal', settleLotResponseSettlementOneAmountPaidRegExp),
+  "carried_out": zod.stringFormat('decimal', settleLotResponseSettlementOneCarriedOutRegExp),
+  "notes": zod.string(),
+  "created_by_name": zod.string(),
+  "payments": zod.array(zod.object({
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', settleLotResponseSettlementOnePaymentsItemAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}))
+}),zod.null()]),
+  "late": zod.union([zod.object({
+  "drift": zod.stringFormat('decimal', settleLotResponseLateOneDriftRegExp),
+  "booked": zod.stringFormat('decimal', settleLotResponseLateOneBookedRegExp),
+  "pending_basis": zod.stringFormat('decimal', settleLotResponseLateOnePendingBasisRegExp),
+  "pending_share": zod.stringFormat('decimal', settleLotResponseLateOnePendingShareRegExp)
+}),zod.null()]),
+  "entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['share', 'uncovered_loss', 'late_adjustment', 'payment']).describe('* `share` - Part de bénéfice\n* `uncovered_loss` - Perte au-delà de l\'apport\n* `late_adjustment` - Régularisation après clôture\n* `payment` - Paiement'),
+  "amount": zod.stringFormat('decimal', settleLotResponseEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string()
+})),
+  "balances": zod.union([zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "trade_payable": zod.stringFormat('decimal', settleLotResponseBalancesOneTradePayableRegExp),
+  "capital": zod.stringFormat('decimal', settleLotResponseBalancesOneCapitalRegExp),
+  "profit_share": zod.stringFormat('decimal', settleLotResponseBalancesOneProfitShareRegExp),
+  "lots": zod.int()
+}).describe('The three balances of a partner, kept apart: never added together (D-031, D-040).'),zod.null()])
+})
+
+
+/**
+ * The lot's settlement with its partner: what settling would pay (capital back ± share, minus what
+ * the partner owes from earlier lots), or what was paid; the late costs waiting for the next
+ * settlement; and the partner's three balances (trade payable, capital, profit share).
+ */
+export const GetLotSettlementParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const getLotSettlementResponsePreviewOneCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponsePreviewOneLotShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponsePreviewOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponsePreviewOnePendingAdjustmentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponsePreviewOneCarriedInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponsePreviewOneSharePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponsePreviewOneTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponsePreviewOneCarriedOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOneCapitalReturnedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOneLotShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOneUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOneCarriedInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOneSharePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOneAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOneCarriedOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseSettlementOnePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseLateOneDriftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseLateOneBookedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseLateOnePendingBasisRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseLateOnePendingShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseBalancesOneTradePayableRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseBalancesOneCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotSettlementResponseBalancesOneProfitShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetLotSettlementResponse = zod.object({
+  "batch_id": zod.int(),
+  "state": zod.enum(['none', 'not_closed', 'ready', 'settled']).describe('* `none` - Sans partenaire\n* `not_closed` - Lot non clôturé\n* `ready` - À régler\n* `settled` - Réglé'),
+  "partnership_id": zod.int().nullable(),
+  "partner_id": zod.int().nullable(),
+  "partner_name": zod.string(),
+  "preview": zod.union([zod.object({
+  "capital_to_return": zod.stringFormat('decimal', getLotSettlementResponsePreviewOneCapitalToReturnRegExp),
+  "lot_share": zod.stringFormat('decimal', getLotSettlementResponsePreviewOneLotShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', getLotSettlementResponsePreviewOneUncoveredLossRegExp),
+  "pending_adjustments": zod.stringFormat('decimal', getLotSettlementResponsePreviewOnePendingAdjustmentsRegExp),
+  "carried_in": zod.stringFormat('decimal', getLotSettlementResponsePreviewOneCarriedInRegExp),
+  "share_paid": zod.stringFormat('decimal', getLotSettlementResponsePreviewOneSharePaidRegExp),
+  "total": zod.stringFormat('decimal', getLotSettlementResponsePreviewOneTotalRegExp),
+  "carried_out": zod.stringFormat('decimal', getLotSettlementResponsePreviewOneCarriedOutRegExp)
+}),zod.null()]),
+  "settlement": zod.union([zod.object({
+  "id": zod.int(),
+  "settled_on": zod.iso.date(),
+  "capital_returned": zod.stringFormat('decimal', getLotSettlementResponseSettlementOneCapitalReturnedRegExp),
+  "lot_share": zod.stringFormat('decimal', getLotSettlementResponseSettlementOneLotShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', getLotSettlementResponseSettlementOneUncoveredLossRegExp),
+  "carried_in": zod.stringFormat('decimal', getLotSettlementResponseSettlementOneCarriedInRegExp),
+  "share_paid": zod.stringFormat('decimal', getLotSettlementResponseSettlementOneSharePaidRegExp),
+  "amount_paid": zod.stringFormat('decimal', getLotSettlementResponseSettlementOneAmountPaidRegExp),
+  "carried_out": zod.stringFormat('decimal', getLotSettlementResponseSettlementOneCarriedOutRegExp),
+  "notes": zod.string(),
+  "created_by_name": zod.string(),
+  "payments": zod.array(zod.object({
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getLotSettlementResponseSettlementOnePaymentsItemAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string()
+}))
+}),zod.null()]),
+  "late": zod.union([zod.object({
+  "drift": zod.stringFormat('decimal', getLotSettlementResponseLateOneDriftRegExp),
+  "booked": zod.stringFormat('decimal', getLotSettlementResponseLateOneBookedRegExp),
+  "pending_basis": zod.stringFormat('decimal', getLotSettlementResponseLateOnePendingBasisRegExp),
+  "pending_share": zod.stringFormat('decimal', getLotSettlementResponseLateOnePendingShareRegExp)
+}),zod.null()]),
+  "entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['share', 'uncovered_loss', 'late_adjustment', 'payment']).describe('* `share` - Part de bénéfice\n* `uncovered_loss` - Perte au-delà de l\'apport\n* `late_adjustment` - Régularisation après clôture\n* `payment` - Paiement'),
+  "amount": zod.stringFormat('decimal', getLotSettlementResponseEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string()
+})),
+  "balances": zod.union([zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "trade_payable": zod.stringFormat('decimal', getLotSettlementResponseBalancesOneTradePayableRegExp),
+  "capital": zod.stringFormat('decimal', getLotSettlementResponseBalancesOneCapitalRegExp),
+  "profit_share": zod.stringFormat('decimal', getLotSettlementResponseBalancesOneProfitShareRegExp),
+  "lots": zod.int()
+}).describe('The three balances of a partner, kept apart: never added together (D-031, D-040).'),zod.null()])
+})
+
+
+/**
  * The logged-in user, their organization and their role.
  */
 export const GetSessionResponse = zod.object({
@@ -5235,6 +5530,29 @@ export const ListMembersResponseItem = zod.object({
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * A partner's three balances, kept apart: what is owed for goods (trade payable), their capital
+ * still in lots, and their profit share (owed to them, or by them).
+ */
+export const GetPartnerBalancesParams = zod.object({
+  "partner_id": zod.int()
+})
+
+export const getPartnerBalancesResponseTradePayableRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerBalancesResponseCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerBalancesResponseProfitShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPartnerBalancesResponse = zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "trade_payable": zod.stringFormat('decimal', getPartnerBalancesResponseTradePayableRegExp),
+  "capital": zod.stringFormat('decimal', getPartnerBalancesResponseCapitalRegExp),
+  "profit_share": zod.stringFormat('decimal', getPartnerBalancesResponseProfitShareRegExp),
+  "lots": zod.int()
+}).describe('The three balances of a partner, kept apart: never added together (D-031, D-040).')
 
 
 /**

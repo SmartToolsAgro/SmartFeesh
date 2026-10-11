@@ -373,3 +373,15 @@ def credit_notes_of(
             | Q(invoice__customer__name__icontains=search)
         )
     return notes
+
+
+# ---- Receivables for other apps (P2-T06, D-062) ----
+
+
+def outstanding_by_sale(organization: Organization, sale_ids: list[int]) -> dict[int, Decimal]:
+    """What customers still owe on the given confirmed sales, by sale id (only the sales with something left):
+    after payments, credit notes and withholding. The "customers paid" check of lot closing reads it (D-068)."""
+    from . import receivables  # receivables imports models only; kept local to avoid a cycle with selectors
+
+    rows = receivables.sale_receivables(organization, sale_ids=sale_ids)
+    return {row.sale_id: row.outstanding for row in rows if row.outstanding > 0}
