@@ -119,9 +119,9 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
       corrects any difference, a loss records any shortage with its reason.
 
 ### P1-T11 · Stock screens · M
-- [ ] Admin stock page like the prototype: location cards, product cards with per-location kg, low-stock badge.
-- [ ] Product → batch → movement history drill-down; movement list with filters.
-- [ ] **Average purchase price** per product: weighted by kg over the batches still on hand, with the
+- [x] Admin stock page like the prototype: location cards, product cards with per-location kg, low-stock badge.
+- [x] Product → batch → movement history drill-down; movement list with filters.
+- [x] **Average purchase price** per product: weighted by kg over the batches still on hand, with the
       last cost next to it (client meeting 2026-10-11). For pricing only; sales stay FIFO (D-040).
 
 ### P1-T12 · Truck of the day · S

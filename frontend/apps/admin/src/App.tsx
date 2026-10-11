@@ -14,6 +14,9 @@ import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
 
 import { LocationsPage } from "./locations/LocationsPage";
+import { BatchStockPage } from "./stock/BatchStockPage";
+import { MovementsPage } from "./stock/MovementsPage";
+import { ProductStockPage } from "./stock/ProductStockPage";
 import { ProductsPage } from "./products/ProductsPage";
 import { SupplierInvoiceDetailPage } from "./purchasing/SupplierInvoiceDetailPage";
 import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
@@ -156,6 +159,10 @@ function AppRoutes() {
         <Route path="/achats/factures/:invoiceId/modifier" element={<SupplierInvoiceFormPage />} />
         <Route path="/achats/paiements" element={<SupplierPaymentsPage />} />
         <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
+        {/* Stock screens (P1-T11) */}
+        <Route path="/stock/mouvements" element={<MovementsPage />} />
+        <Route path="/stock/produits/:productId" element={<ProductStockPage />} />
+        <Route path="/stock/lots/:batchId" element={<BatchStockPage />} />
         {/* Stock sections (P1-T09) */}
         <Route path="/stock/transferts" element={<TransfersPage />} />
         <Route path="/stock/transferts/nouveau" element={<TransferFormPage />} />

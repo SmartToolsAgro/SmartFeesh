@@ -581,3 +581,20 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   they come from sales, invoices and payments (P2-T04 to P2-T06). The seed loads limits and terms only.
 - `ENUM_NAME_OVERRIDES` in the schema settings names the customer kind enum `CustomerKindEnum`: several
   models have a `kind` field and the generated names collided.
+
+**D-048 · Stock screens and purchase prices (P1-T11)** · accepted · 2026-10-11
+- Read-only: three office endpoints in `inventory` (drivers get 403): `getStockOverview` (each active location
+  with kg and cost, each product with kg per location, low-stock flag and prices), `getProductStock` (the same
+  for one product plus the batches still on hand with their locations) and `listMovements` (the ledger,
+  paginated, filters location / product / batch / kind / date_from / date_to). Nothing writes `StockOnHand`.
+- **Value of a location** = sum of kg × the unit cost of each batch it holds (cost, never sale price).
+- **Average purchase price** of a product = cost per kg weighted by the kg still on hand over all batches and
+  places (`selectors.average_purchase_cost`); empty without stock. **Last cost** = unit cost of the latest batch
+  received (by receipt date, then id), kept even when that batch is sold out. Both are pricing information
+  only; a sale is still valued FIFO per batch (D-040).
+- **Low stock** = total kg over every place is below `Product.min_stock` (a minimum of 0 never warns). The
+  stock page lists products that hold stock, plus active products with a minimum, so an empty shelf shows low.
+- UI: "Emplacements" (`/stock`) keeps its cards and gains kg and cost on each, then product cards like the
+  prototype; new "Mouvements" tab (`/stock/mouvements`); product page `/stock/produits/:id`; batch page
+  `/stock/lots/:id`. Filters on the movement list are native selects (a Radix select cannot hold "all").
+

@@ -1,6 +1,6 @@
-import { useListLocations, useListTrucks } from "@frutti/api";
+import { useGetStockOverview, useListLocations, useListTrucks } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { useTranslation } from "@frutti/i18n";
+import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, cn, Dialog, Icon, Illustration, type IllustrationName, PageHeader, Pill } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
@@ -8,6 +8,7 @@ import { useOutletContext } from "react-router";
 
 import { type Status, StatusFilter } from "../lib/StatusFilter";
 import { StockTabs } from "../lib/StockTabs";
+import { StockProductCard } from "../stock/StockProductCard";
 import { LocationDialog } from "./LocationDialog";
 import { canEditLocations } from "./shared";
 import { TruckDayPanel } from "./TruckDayPanel";
@@ -20,6 +21,7 @@ function PlaceCard({
   illustration,
   title,
   subtitle,
+  stock = null,
   pills,
   numeric = false,
   onOpen,
@@ -27,6 +29,8 @@ function PlaceCard({
   illustration: IllustrationName;
   title: string;
   subtitle: ReactNode;
+  // Kilos and cost held, once the stock is loaded.
+  stock?: string | null;
   pills: ReactNode;
   // The subtitle is a plate or another code: fixed-width digits.
   numeric?: boolean;
@@ -42,6 +46,7 @@ function PlaceCard({
           {title}
         </h3>
         <span className={cn("text-[0.82rem] text-ink-2", numeric && "num")}>{subtitle}</span>
+        {stock && <span className="num text-[0.85rem] font-semibold">{stock}</span>}
         <span className="flex flex-wrap gap-1.5">{pills}</span>
       </div>
     </>
@@ -76,6 +81,18 @@ export function LocationsPage() {
   const truckList = trucks.data ?? [];
   const editingRoom = open?.kind === "room" ? rooms.find((room) => room.id === open.id) : undefined;
   const editingTruck = open?.kind === "truck" ? truckList.find((truck) => truck.id === open.id) : undefined;
+  // Kilos and cost held per place, and the products with their stock (P1-T11).
+  const overview = useGetStockOverview();
+  const totals = overview.data?.locations ?? [];
+  const stockLine = (locationId: number) => {
+    const total = totals.find((row) => row.id === locationId);
+    return total
+      ? t("admin.stock.locationLine", {
+          quantity: formatQuantity(total.quantity),
+          value: formatMoney(total.value),
+        })
+      : null;
+  };
   const failed = locations.isError || trucks.isError;
   const loading = locations.isPending || trucks.isPending;
 
@@ -134,6 +151,7 @@ export function LocationsPage() {
                     illustration="fridge"
                     title={room.name}
                     subtitle={t(`admin.locations.kinds.${room.kind}`)}
+                    stock={stockLine(room.id)}
                     pills={
                       <>
                         {room.counter_sales && <Pill tone="sea">{t("admin.locations.counterSales")}</Pill>}
@@ -159,6 +177,7 @@ export function LocationsPage() {
                     illustration="truck"
                     title={truck.driver ? `${truck.name} · ${truck.driver.name}` : truck.name}
                     subtitle={truck.plate}
+                    stock={stockLine(truck.location_id)}
                     numeric
                     pills={
                       <>
@@ -174,6 +193,26 @@ export function LocationsPage() {
           </section>
         </>
       )}
+
+      <section aria-labelledby="stock-products-title" className="flex flex-col gap-3">
+        <h2 id="stock-products-title">{t("admin.stock.productsTitle")}</h2>
+        <p className="text-ink-2">{t("admin.stock.productsIntro")}</p>
+        {overview.isPending ? (
+          <p className="text-ink-2">{t("common.loading")}</p>
+        ) : overview.isError ? (
+          <p role="alert" className="text-bad">
+            {t("admin.stock.loadError")}
+          </p>
+        ) : overview.data.products.length === 0 ? (
+          <p className="text-ink-2">{t("admin.stock.noProducts")}</p>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+            {overview.data.products.map((stock) => (
+              <StockProductCard key={stock.id} stock={stock} places={totals} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <TruckDayPanel canEdit={canEdit} />
 
