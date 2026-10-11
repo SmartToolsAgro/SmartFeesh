@@ -11,7 +11,9 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 ---
 
 ### P3-T01 · Start of day · S
-- [ ] Driver confirms the loaded stock (from the P1-T09 transfer) and the starting cash float.
+- [ ] Driver picks the truck of the day if the office has not (D-042, P1-T12); any truck, not a fixed one.
+- [ ] Driver confirms the loaded stock with its price per kg (from the P1-T09 transfer) and the
+      starting cash float.
 - [ ] Opens a `DriverDay` (truck, driver, date, status).
 
 ### P3-T02 · My stock · S
@@ -36,7 +38,8 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [ ] Report damaged/spoiled product with reason and photo; return unsold stock to the cold room.
 
 ### P3-T06 · End-of-day closing · M
-- [ ] Summary: sales, cash, other payments, credit sales, expenses, remaining stock.
+- [ ] Summary: sales, cash, other payments, credit sales, expenses, remaining stock; per product,
+      loaded vs sold vs returned (client meeting 2026-10-11).
 - [ ] Driver enters counted cash → difference shown neutrally; driver can add a note.
 - [ ] Admin review screen: approve or ask for a justification. Approved day is locked.
 
@@ -46,7 +49,8 @@ Read: ARCHITECTURE §4 rule 7.
 - [ ] Writes go to an IndexedDB queue with `client_uuid`; sync when online; idempotent server endpoints.
 - [ ] Sync status always visible ("3 sales waiting to send"). Conflicts (e.g. stock changed by admin)
       are shown to the admin, never silently dropped.
-- [ ] Offline sales can only use the truck's own stock, which only that driver changes.
+- [ ] Offline sales can only use the stock of the driver's truck of the day, which only that driver
+      changes that day.
 
 ### P3-T08 · Field test · human · M
 Runs last, after P3-T09 and P3-T10.

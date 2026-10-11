@@ -2,6 +2,10 @@
 
 *Prepared from the discussion and the Facebook page screenshots provided in this chat*
 
+> **Updated by `client-meeting-2026-10-11.md`:** profit is computed and shared per lot, not per month;
+> lot costs, day-labour calendar, cold-room cost per day, truck chosen per day. Where they disagree, the
+> meeting notes win.
+
 # Document purpose and scope
 
 This document consolidates the requirements, ideas, examples, workflows, calculations, open questions, and technical recommendations discussed in this conversation. It is intended as a working project brief, not as a verbatim word-for-word transcript of every assistant response. The user's requirements and the key content from the brainstorming are retained and organized so that nothing material from this project discussion is lost.
