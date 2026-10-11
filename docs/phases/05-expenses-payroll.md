@@ -10,15 +10,15 @@ _Coarse plan: detail each task when the phase starts._
 ---
 
 ### P5-T01 · Expenses · M
-- [ ] Categories (personnel, day labour, transport, fuel, cold storage, handling, rent, accountant,
+- [x] Categories (personnel, day labour, transport, fuel, cold storage, handling, rent, accountant,
       administration, financial, miscellaneous).
-- [ ] Expense: date, category, amount, payment method, receipt file, entered by, approval status.
-- [ ] **Optional lot:** an expense typed on a lot (fuel, transport, misc.) is a cost of that lot.
+- [x] Expense: date, category, amount, payment method, receipt file, entered by, approval status.
+- [x] **Optional lot:** an expense typed on a lot (fuel, transport, misc.) is a cost of that lot.
       Without a lot it is a general cost (truck, location or "general" tag).
-- [ ] **Truck costs of the day:** an expense tagged to a truck and a date (transport, labour, misc.) is
+- [x] **Truck costs of the day:** an expense tagged to a truck and a date (transport, labour, misc.) is
       split over the lots on that truck's load that day, by kg loaded (D-041, Q24 provisional), and
       shows as a line on each lot.
-- [ ] Approval workflow; driver expenses from P3-T04 land here.
+- [x] Approval workflow; driver expenses from P3-T04 land here.
 
 ### P5-T02 · Cold-room cost per day · M
 - [ ] Monthly electricity bill per company (or per meter), typed by the owner.
@@ -27,10 +27,10 @@ _Coarse plan: detail each task when the phase starts._
 - [ ] Before the bill is typed: estimate from the previous month; difference booked when it arrives.
 
 ### P5-T03 · Day-labour calendar · M
-- [ ] Day labourers (name, phone, usual daily pay). Not employees: no payroll, no CNSS.
-- [ ] Calendar screen: pick a day, add who worked, amount paid, optional lot, optional work type
+- [x] Day labourers (name, phone, usual daily pay). Not employees: no payroll, no CNSS.
+- [x] Calendar screen: pick a day, add who worked, amount paid, optional lot, optional work type
       (organising stock, store, cleaning…).
-- [ ] One record, two ways in: day labour typed on a lot shows in the calendar on that day, and a
+- [x] One record, two ways in: day labour typed on a lot shows in the calendar on that day, and a
       calendar entry linked to a lot shows on the lot.
 
 ### P5-T04 · Employees and salaries · M
@@ -54,5 +54,6 @@ _Coarse plan: detail each task when the phase starts._
 - [ ] Loan schedule: interest = expense, principal = not an expense.
 
 ### P5-T08 · Screens · M
-- [ ] Expenses list/approval, lot costs tab, day-labour calendar, cold-room cost, employees, payroll
+- [ ] Expenses list/approval (done, P5-T01), lot costs tab (a first card on the lot page, P5-T01),
+      day-labour calendar (done, P5-T03), cold-room cost, employees, payroll
       month view, assets.
