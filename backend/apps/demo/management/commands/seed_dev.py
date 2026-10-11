@@ -11,6 +11,7 @@ from apps.demo.catalogue import seed_catalogue
 from apps.demo.customers import seed_customers
 from apps.demo.locations import seed_locations
 from apps.demo.losses import seed_losses
+from apps.demo.prices import seed_prices
 from apps.demo.receipts import seed_receipts
 from apps.demo.stock import seed_stock
 from apps.demo.supplier_invoices import seed_supplier_invoices
@@ -75,6 +76,7 @@ class Command(BaseCommand):
         customers = seed_customers(organization=organization, actor=owner)
         transfers = seed_transfers(organization=organization, actor=owner)
         losses = seed_losses(organization=organization, actor=owner)
+        prices = seed_prices(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
@@ -88,3 +90,4 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(f"{transfers} new transfers"))
         self.stdout.write(self.style.SUCCESS(f"{losses} new losses and stock counts"))
+        self.stdout.write(self.style.SUCCESS(f"{prices} new minimum prices and price lists"))

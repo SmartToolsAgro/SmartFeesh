@@ -55,3 +55,13 @@ export function percentChange(next: string, previous: string): string | null {
   const absolute = negative ? -tenthsOfPercent : tenthsOfPercent;
   return `${negative ? "-" : ""}${absolute / 10n}.${absolute % 10n}`;
 }
+
+/** The margin as a percentage of the price, one decimal ("23.3"), or null when the price is not above zero. */
+export function marginPercent(price: string, cost: string): string | null {
+  const sale = toThousandths(price);
+  if (sale <= 0n) return null;
+  const tenths = divideRounded((sale - toThousandths(cost)) * 1000n, sale);
+  const negative = tenths < 0n;
+  const absolute = negative ? -tenths : tenths;
+  return `${negative ? "-" : ""}${absolute / 10n}.${absolute % 10n}`;
+}

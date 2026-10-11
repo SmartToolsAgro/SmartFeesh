@@ -1001,6 +1001,166 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/price-board:
+    get:
+      operationId: getPriceBoard
+      description: |-
+        The "Prix du jour" screen: each active product with its price, the cost of what is in stock
+        (last and weighted average), the margin, and the prices already set today with who and when.
+      tags:
+      - price-board
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceBoard'
+          description: ''
+    post:
+      operationId: setPriceBoard
+      description: |-
+        Save many prices in one transaction. Each changed price applies from this moment; a product
+        whose price did not change is left alone. A price below the minimum is accepted and listed in
+        `below_minimum`; it is also logged in the audit.
+      tags:
+      - price-board
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPrices'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetPrices'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetPrices'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceBoard'
+          description: ''
+  /api/v1/price-lists:
+    get:
+      operationId: listPriceLists
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - price-lists
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriceList'
+          description: ''
+    post:
+      operationId: createPriceList
+      tags:
+      - price-lists
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceListWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PriceListWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PriceListWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceList'
+          description: ''
+  /api/v1/price-lists/{price_list_id}:
+    get:
+      operationId: getPriceList
+      parameters:
+      - in: path
+        name: price_list_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-lists
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceList'
+          description: ''
+    put:
+      operationId: updatePriceList
+      description: Replace the name, customer, state and items of a list. Items not
+        sent are removed.
+      parameters:
+      - in: path
+        name: price_list_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-lists
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceListWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PriceListWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PriceListWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceList'
+          description: ''
   /api/v1/products:
     get:
       operationId: listProducts
@@ -4126,6 +4286,194 @@ components:
       - id
       - kind
       - name
+    PriceBoard:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceBoardRow'
+        below_minimum:
+          type: array
+          items:
+            type: integer
+      required:
+      - below_minimum
+      - rows
+    PriceBoardPrice:
+      type: object
+      description: 'A price that started today: who set it and when.'
+      properties:
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        valid_from:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          nullable: true
+      required:
+      - created_by
+      - price
+      - valid_from
+    PriceBoardRow:
+      type: object
+      properties:
+        product:
+          $ref: '#/components/schemas/Product'
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        price_from:
+          type: string
+          format: date-time
+          nullable: true
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        last_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        average_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        margin_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,1})?$
+          nullable: true
+        below_minimum:
+          type: boolean
+        todays_prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceBoardPrice'
+      required:
+      - average_cost
+      - below_minimum
+      - last_cost
+      - margin
+      - margin_percent
+      - min_price
+      - price
+      - price_from
+      - product
+      - stock
+      - todays_prices
+    PriceChange:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+      required:
+      - product
+    PriceList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        customer:
+          type: integer
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceListItemOut'
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - customer
+      - id
+      - is_active
+      - items
+      - name
+      - updated_at
+    PriceListItem:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+      required:
+      - price
+      - product
+    PriceListItemOut:
+      type: object
+      properties:
+        product:
+          type: integer
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - price
+      - product
+    PriceListWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        customer:
+          type: integer
+          minimum: 1
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceListItem'
+      required:
+      - name
     Product:
       type: object
       description: A product as the screens show it, with the sale price in force
@@ -4189,6 +4537,12 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
         updated_at:
           type: string
           format: date-time
@@ -4201,6 +4555,7 @@ components:
       - id
       - illustration
       - is_active
+      - min_price
       - min_stock
       - name
       - name_ar
@@ -4739,6 +5094,15 @@ components:
           nullable: true
       required:
       - price
+    SetPrices:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceChange'
+      required:
+      - items
     StockLocation:
       type: object
       properties:

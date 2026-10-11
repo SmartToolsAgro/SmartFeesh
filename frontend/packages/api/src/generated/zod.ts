@@ -1418,6 +1418,260 @@ export const ListMembersResponse = zod.array(ListMembersResponseItem)
 
 
 /**
+ * The "Prix du jour" screen: each active product with its price, the cost of what is in stock
+ * (last and weighted average), the margin, and the prices already set today with who and when.
+ */
+export const getPriceBoardResponseRowsItemProductMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemProductStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getPriceBoardResponseRowsItemProductStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getPriceBoardResponseRowsItemProductCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemProductMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemLastCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemAverageCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPriceBoardResponseRowsItemMarginPercentRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,1})?$');
+export const getPriceBoardResponseRowsItemTodaysPricesItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPriceBoardResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', getPriceBoardResponseRowsItemProductMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', getPriceBoardResponseRowsItemProductStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', getPriceBoardResponseRowsItemProductStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', getPriceBoardResponseRowsItemProductCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', getPriceBoardResponseRowsItemProductMinPriceRegExp).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.'),
+  "price": zod.stringFormat('decimal', getPriceBoardResponseRowsItemPriceRegExp).nullable(),
+  "price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', getPriceBoardResponseRowsItemMinPriceRegExp).nullable(),
+  "stock": zod.stringFormat('decimal', getPriceBoardResponseRowsItemStockRegExp),
+  "last_cost": zod.stringFormat('decimal', getPriceBoardResponseRowsItemLastCostRegExp).nullable(),
+  "average_cost": zod.stringFormat('decimal', getPriceBoardResponseRowsItemAverageCostRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', getPriceBoardResponseRowsItemMarginRegExp).nullable(),
+  "margin_percent": zod.stringFormat('decimal', getPriceBoardResponseRowsItemMarginPercentRegExp).nullable(),
+  "below_minimum": zod.boolean(),
+  "todays_prices": zod.array(zod.object({
+  "price": zod.stringFormat('decimal', getPriceBoardResponseRowsItemTodaysPricesItemPriceRegExp),
+  "valid_from": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string().nullable()
+}).describe('A price that started today: who set it and when.'))
+})),
+  "below_minimum": zod.array(zod.int())
+})
+
+
+/**
+ * Save many prices in one transaction. Each changed price applies from this moment; a product
+ * whose price did not change is left alone. A price below the minimum is accepted and listed in
+ * `below_minimum`; it is also logged in the audit.
+ */
+
+export const setPriceBoardBodyItemsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardBodyItemsItemMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetPriceBoardBody = zod.object({
+  "items": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "price": zod.stringFormat('decimal', setPriceBoardBodyItemsItemPriceRegExp).optional(),
+  "min_price": zod.stringFormat('decimal', setPriceBoardBodyItemsItemMinPriceRegExp).nullish()
+}))
+})
+
+export const setPriceBoardResponseRowsItemProductMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemProductStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setPriceBoardResponseRowsItemProductStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setPriceBoardResponseRowsItemProductCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemProductMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemLastCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemAverageCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setPriceBoardResponseRowsItemMarginPercentRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,1})?$');
+export const setPriceBoardResponseRowsItemTodaysPricesItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetPriceBoardResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "base_unit": zod.string(),
+  "min_stock": zod.stringFormat('decimal', setPriceBoardResponseRowsItemProductMinStockRegExp),
+  "storage_temp_min": zod.stringFormat('decimal', setPriceBoardResponseRowsItemProductStorageTempMinRegExp).nullable(),
+  "storage_temp_max": zod.stringFormat('decimal', setPriceBoardResponseRowsItemProductStorageTempMaxRegExp).nullable(),
+  "illustration": zod.enum(['shrimp', 'peeled', 'fish', 'bass', 'squid', 'octopus', 'mussel', 'mix']).describe('* `shrimp` - Crevette\n* `peeled` - Crevette décortiquée\n* `fish` - Poisson\n* `bass` - Loup\n* `squid` - Calamar\n* `octopus` - Poulpe\n* `mussel` - Coquillage\n* `mix` - Mélange'),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "current_price": zod.stringFormat('decimal', setPriceBoardResponseRowsItemProductCurrentPriceRegExp).nullable(),
+  "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', setPriceBoardResponseRowsItemProductMinPriceRegExp).nullable(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}).describe('A product as the screens show it, with the sale price in force now.'),
+  "price": zod.stringFormat('decimal', setPriceBoardResponseRowsItemPriceRegExp).nullable(),
+  "price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', setPriceBoardResponseRowsItemMinPriceRegExp).nullable(),
+  "stock": zod.stringFormat('decimal', setPriceBoardResponseRowsItemStockRegExp),
+  "last_cost": zod.stringFormat('decimal', setPriceBoardResponseRowsItemLastCostRegExp).nullable(),
+  "average_cost": zod.stringFormat('decimal', setPriceBoardResponseRowsItemAverageCostRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', setPriceBoardResponseRowsItemMarginRegExp).nullable(),
+  "margin_percent": zod.stringFormat('decimal', setPriceBoardResponseRowsItemMarginPercentRegExp).nullable(),
+  "below_minimum": zod.boolean(),
+  "todays_prices": zod.array(zod.object({
+  "price": zod.stringFormat('decimal', setPriceBoardResponseRowsItemTodaysPricesItemPriceRegExp),
+  "valid_from": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string().nullable()
+}).describe('A price that started today: who set it and when.'))
+})),
+  "below_minimum": zod.array(zod.int())
+})
+
+
+
+export const listPriceListsQueryStatusDefault = `active`;
+
+export const ListPriceListsQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "status": zod.enum(['active', 'archived', 'all']).default(listPriceListsQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
+})
+
+export const listPriceListsResponseItemsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListPriceListsResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "customer": zod.int().nullable(),
+  "is_active": zod.boolean(),
+  "items": zod.array(zod.object({
+  "product": zod.int(),
+  "price": zod.stringFormat('decimal', listPriceListsResponseItemsItemPriceRegExp)
+})),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListPriceListsResponse = zod.array(ListPriceListsResponseItem)
+
+
+export const createPriceListBodyNameMax = 100;
+
+
+export const createPriceListBodyIsActiveDefault = true;
+export const createPriceListBodyItemsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreatePriceListBody = zod.object({
+  "name": zod.string().max(createPriceListBodyNameMax),
+  "customer": zod.int().min(1).nullish(),
+  "is_active": zod.boolean().default(createPriceListBodyIsActiveDefault),
+  "items": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "price": zod.stringFormat('decimal', createPriceListBodyItemsItemPriceRegExp)
+})).optional()
+})
+
+export const createPriceListResponseItemsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreatePriceListResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "customer": zod.int().nullable(),
+  "is_active": zod.boolean(),
+  "items": zod.array(zod.object({
+  "product": zod.int(),
+  "price": zod.stringFormat('decimal', createPriceListResponseItemsItemPriceRegExp)
+})),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetPriceListParams = zod.object({
+  "price_list_id": zod.int()
+})
+
+export const getPriceListResponseItemsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPriceListResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "customer": zod.int().nullable(),
+  "is_active": zod.boolean(),
+  "items": zod.array(zod.object({
+  "product": zod.int(),
+  "price": zod.stringFormat('decimal', getPriceListResponseItemsItemPriceRegExp)
+})),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Replace the name, customer, state and items of a list. Items not sent are removed.
+ */
+export const UpdatePriceListParams = zod.object({
+  "price_list_id": zod.int()
+})
+
+export const updatePriceListBodyNameMax = 100;
+
+
+export const updatePriceListBodyIsActiveDefault = true;
+export const updatePriceListBodyItemsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdatePriceListBody = zod.object({
+  "name": zod.string().max(updatePriceListBodyNameMax),
+  "customer": zod.int().min(1).nullish(),
+  "is_active": zod.boolean().default(updatePriceListBodyIsActiveDefault),
+  "items": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "price": zod.stringFormat('decimal', updatePriceListBodyItemsItemPriceRegExp)
+})).optional()
+})
+
+export const updatePriceListResponseItemsItemPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdatePriceListResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "customer": zod.int().nullable(),
+  "is_active": zod.boolean(),
+  "items": zod.array(zod.object({
+  "product": zod.int(),
+  "price": zod.stringFormat('decimal', updatePriceListResponseItemsItemPriceRegExp)
+})),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Products sorted by name. Archived ones only when asked (`status`). Not paginated: a catalogue
  * holds tens of products, not thousands (D-030).
  */
@@ -1437,6 +1691,7 @@ export const listProductsResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\
 export const listProductsResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const listProductsResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const listProductsResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listProductsResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListProductsResponseItem = zod.object({
@@ -1457,6 +1712,7 @@ export const ListProductsResponseItem = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', listProductsResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', listProductsResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
@@ -1493,6 +1749,7 @@ export const createProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.
 export const createProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const createProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const createProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createProductResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const CreateProductResponse = zod.object({
@@ -1513,6 +1770,7 @@ export const CreateProductResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', createProductResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', createProductResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 
@@ -1525,6 +1783,7 @@ export const getProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d
 export const getProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const getProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const getProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getProductResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetProductResponse = zod.object({
@@ -1545,6 +1804,7 @@ export const GetProductResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', getProductResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', getProductResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 
@@ -1584,6 +1844,7 @@ export const updateProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.
 export const updateProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const updateProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const updateProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateProductResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const UpdateProductResponse = zod.object({
@@ -1604,6 +1865,7 @@ export const UpdateProductResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', updateProductResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', updateProductResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 
@@ -1619,6 +1881,7 @@ export const archiveProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\
 export const archiveProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const archiveProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const archiveProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const archiveProductResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ArchiveProductResponse = zod.object({
@@ -1639,6 +1902,7 @@ export const ArchiveProductResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', archiveProductResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', archiveProductResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 
@@ -1658,6 +1922,7 @@ export const uploadProductPhotoResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(
 export const uploadProductPhotoResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const uploadProductPhotoResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const uploadProductPhotoResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const uploadProductPhotoResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const UploadProductPhotoResponse = zod.object({
@@ -1678,6 +1943,7 @@ export const UploadProductPhotoResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', uploadProductPhotoResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', uploadProductPhotoResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 
@@ -1690,6 +1956,7 @@ export const removeProductPhotoResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(
 export const removeProductPhotoResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const removeProductPhotoResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const removeProductPhotoResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const removeProductPhotoResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const RemoveProductPhotoResponse = zod.object({
@@ -1710,6 +1977,7 @@ export const RemoveProductPhotoResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', removeProductPhotoResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', removeProductPhotoResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 
@@ -1753,6 +2021,7 @@ export const setProductPriceResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\
 export const setProductPriceResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const setProductPriceResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const setProductPriceResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setProductPriceResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const SetProductPriceResponse = zod.object({
@@ -1773,6 +2042,7 @@ export const SetProductPriceResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', setProductPriceResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', setProductPriceResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 
@@ -1785,6 +2055,7 @@ export const restoreProductResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\
 export const restoreProductResponseStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const restoreProductResponseStorageTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const restoreProductResponseCurrentPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const restoreProductResponseMinPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const RestoreProductResponse = zod.object({
@@ -1805,6 +2076,7 @@ export const RestoreProductResponse = zod.object({
   "is_active": zod.boolean(),
   "current_price": zod.stringFormat('decimal', restoreProductResponseCurrentPriceRegExp).nullable(),
   "current_price_from": zod.iso.datetime({"offset":true}).nullable(),
+  "min_price": zod.stringFormat('decimal', restoreProductResponseMinPriceRegExp).nullable(),
   "updated_at": zod.iso.datetime({"offset":true})
 }).describe('A product as the screens show it, with the sale price in force now.')
 

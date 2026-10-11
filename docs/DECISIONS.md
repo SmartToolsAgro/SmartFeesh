@@ -598,3 +598,23 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   prototype; new "Mouvements" tab (`/stock/mouvements`); product page `/stock/produits/:id`; batch page
   `/stock/lots/:id`. Filters on the movement list are native selects (a Radix select cannot hold "all").
 
+**D-049 · Prices (P2-T02)** · accepted · 2026-10-11
+- **Prix du jour** (`GET/POST /api/v1/price-board`, screen `/prix`): every active product with the price in
+  force, the cost of the batches in stock and the margin. Costs come from `inventory.selectors.on_hand_of`
+  (all locations together): last cost = the most recently received batch still in stock, average = weighted
+  by kg in stock; the margin (DT/kg and % of the price) is taken against the **average** cost. A product
+  with no stock shows no cost. Costs are office data: drivers get 403 on the board; the accountant reads.
+- `catalog.services.set_sale_prices` saves many prices in **one transaction** (all or nothing, products
+  locked in id order). Each changed price is a new `ProductPrice` from that moment (D-030: history is never
+  overwritten, so changing it again the same day just adds a row); a price equal to the one in force is
+  skipped. The board lists the prices that started today with who set them and when.
+- **Minimum price** per product (`Product.min_price`, optional, set from the board). A price below it is
+  accepted and returned in `below_minimum` (screen warning); the audit logs `product.price_below_minimum`.
+  Changing the minimum is audited too (`product.min_price_set`).
+- **Price lists** (`PriceList` + `PriceListItem`): a name, optionally one customer (one list per customer,
+  customer checked through `partners.selectors`), an active flag and items (product, price) replaced as a
+  whole on update; audited. API `price-lists` (members read, owner/manager write). No admin screen yet.
+- `catalog.selectors.price_in_force(product, at, customer_id=None)` is the single answer to "what do we
+  charge": the customer's active list price if it holds the product, else the daily price. Provisional: a
+  price list has no validity dates and no quantity tiers. The sale line snapshot and the use of this
+  selector by sales are P2-T04; loads keep reading the daily price (D-044).

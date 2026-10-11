@@ -15,16 +15,17 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
       payments (P2-T04, P2-T06): the detail page has a placeholder card for them.
 
 ### P2-T02 · Prices · M
-- [ ] "Prix du jour" screen: the owner or manager sets the sale price for every product in one go,
+- [x] "Prix du jour" screen: the owner or manager sets the sale price for every product in one go,
       prefilled with the current one. Each row shows the cost of the batches in stock and the margin,
       since purchase costs also change daily (P1-T07).
-- [ ] A price can be changed again at any time of the day; the change applies from that moment, and
+- [x] A price can be changed again at any time of the day; the change applies from that moment, and
       the screen shows the day's earlier prices with who changed them and when.
-- [ ] A sale uses the price in force at the moment it is made.
+- [ ] A sale uses the price in force at the moment it is made. (Selector `catalog.selectors.price_in_force`
+      done, D-049; the sale itself uses it in P2-T04.)
 - [ ] A sale line keeps the price actually charged; later price changes never touch past sales,
       invoices or profit. A quote keeps its own prices until its validity date.
-- [ ] Price lists and customer-specific prices; minimum price per product; warning (not block) below it,
-      logged in audit.
+- [x] Price lists and customer-specific prices; minimum price per product; warning (not block) below it,
+      logged in audit. (API and tests only; no price-list screen yet, D-049.)
 
 ### P2-T03 · Quotes (devis) · M
 - [ ] `Quote` + lines, validity date, statuses (draft, sent, accepted, refused, expired).

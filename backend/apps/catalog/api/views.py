@@ -1,4 +1,8 @@
+from typing import Any
+
+from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
@@ -7,19 +11,24 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors, services
-from apps.catalog.models import Category, Product
+from apps.catalog.models import Category, PriceList, Product
 from apps.core.models import Membership, Organization
-from apps.core.permissions import ReadMemberWriteOwnerOrManager, membership_of
+from apps.core.permissions import ReadMemberWriteOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
 
 from .serializers import (
     CategorySerializer,
     PhotoUploadSerializer,
+    PriceBoardSerializer,
+    PriceListFilterSerializer,
+    PriceListSerializer,
+    PriceListWriteSerializer,
     ProductCreateSerializer,
     ProductFilterSerializer,
     ProductPriceSerializer,
     ProductSerializer,
     ProductUpdateSerializer,
     SetPriceSerializer,
+    SetPricesSerializer,
 )
 
 
@@ -188,3 +197,120 @@ class ProductPhotoView(CatalogView):
     def delete(self, request: Request, product_id: int) -> Response:
         services.remove_product_photo(product=self.product(product_id), actor=self.membership.user)
         return self.product_answer(product_id)
+
+
+def _products_by_id(organization: Organization, ids: list[int]) -> dict[int, Product]:
+    return {p.pk: p for p in Product.objects.for_organization(organization).filter(pk__in=ids)}
+
+
+def _unknown_product() -> ValidationError:
+    return ValidationError({"items": _("Produit inconnu.")})
+
+
+class PriceBoardView(CatalogView):
+    # Costs are office data: drivers get 403 (D-049).
+    permission_classes = (ReadOfficeWriteOwnerOrManager,)  # type: ignore[assignment]
+
+    def board(self) -> dict[str, Any]:
+        rows = selectors.price_board(self.organization)
+        return {"rows": rows, "below_minimum": [row.product.pk for row in rows if row.below_minimum]}
+
+    @extend_schema(operation_id="getPriceBoard", responses=PriceBoardSerializer)
+    def get(self, request: Request) -> Response:
+        """The "Prix du jour" screen: each active product with its price, the cost of what is in stock
+        (last and weighted average), the margin, and the prices already set today with who and when."""
+        return Response(PriceBoardSerializer(self.board()).data)
+
+    @extend_schema(operation_id="setPriceBoard", request=SetPricesSerializer, responses=PriceBoardSerializer)
+    def post(self, request: Request) -> Response:
+        """Save many prices in one transaction. Each changed price applies from this moment; a product
+        whose price did not change is left alone. A price below the minimum is accepted and listed in
+        `below_minimum`; it is also logged in the audit."""
+        serializer = SetPricesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        items = serializer.validated_data["items"]
+        products = _products_by_id(self.organization, [item["product"] for item in items])
+        changes: list[services.PriceChange] = []
+        for item in items:
+            if item["product"] not in products:
+                raise _unknown_product()
+            change: services.PriceChange = {"product": products[item["product"]]}
+            if "price" in item:
+                change["price"] = item["price"]
+            if "min_price" in item:
+                change["min_price"] = item["min_price"]
+            changes.append(change)
+        services.set_sale_prices(organization=self.organization, actor=self.membership.user, changes=changes)
+        return Response(PriceBoardSerializer(self.board()).data)
+
+
+class PriceListBaseView(CatalogView):
+    def validated(self, request: Request) -> dict[str, Any]:
+        serializer = PriceListWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data: dict[str, Any] = dict(serializer.validated_data)
+        products = _products_by_id(self.organization, [item["product"] for item in data["items"]])
+        items: list[services.PriceListItemInput] = []
+        for item in data["items"]:
+            if item["product"] not in products:
+                raise _unknown_product()
+            items.append({"product": products[item["product"]], "price": item["price"]})
+        data["items"] = items
+        return data
+
+
+class PriceListListView(PriceListBaseView):
+    @extend_schema(
+        operation_id="listPriceLists", parameters=[PriceListFilterSerializer], responses=PriceListSerializer(many=True)
+    )
+    def get(self, request: Request) -> Response:
+        filters = PriceListFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        lists = selectors.price_lists_of(
+            self.organization,
+            customer_id=filters.validated_data.get("customer"),
+            status=filters.validated_data["status"],
+        )
+        return Response(PriceListSerializer(lists, many=True).data)
+
+    @extend_schema(
+        operation_id="createPriceList", request=PriceListWriteSerializer, responses={201: PriceListSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        data = self.validated(request)
+        price_list = services.create_price_list(
+            organization=self.organization,
+            actor=self.membership.user,
+            name=data["name"],
+            customer_id=data["customer"],
+            items=data["items"],
+        )
+        answer = selectors.price_list_of(self.organization, price_list.pk)
+        return Response(PriceListSerializer(answer).data, status=status.HTTP_201_CREATED)
+
+
+class PriceListDetailView(PriceListBaseView):
+    def price_list(self, price_list_id: int) -> PriceList:
+        try:
+            return selectors.price_list_of(self.organization, price_list_id)
+        except PriceList.DoesNotExist:
+            raise Http404 from None
+
+    @extend_schema(operation_id="getPriceList", responses=PriceListSerializer)
+    def get(self, request: Request, price_list_id: int) -> Response:
+        return Response(PriceListSerializer(self.price_list(price_list_id)).data)
+
+    @extend_schema(operation_id="updatePriceList", request=PriceListWriteSerializer, responses=PriceListSerializer)
+    def put(self, request: Request, price_list_id: int) -> Response:
+        """Replace the name, customer, state and items of a list. Items not sent are removed."""
+        price_list = self.price_list(price_list_id)
+        data = self.validated(request)
+        services.update_price_list(
+            price_list=price_list,
+            actor=self.membership.user,
+            name=data["name"],
+            customer_id=data["customer"],
+            is_active=data["is_active"],
+            items=data["items"],
+        )
+        return Response(PriceListSerializer(self.price_list(price_list_id)).data)

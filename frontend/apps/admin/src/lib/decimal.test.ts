@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { fromThousandths, lineTotal, percentChange, subtract, sum, toThousandths } from "./decimal";
+import { fromThousandths, lineTotal, marginPercent, percentChange, subtract, sum, toThousandths } from "./decimal";
 
 test("decimal strings become thousandths and back, exactly", () => {
   expect(toThousandths("20.25")).toBe(20250n);
@@ -28,4 +28,10 @@ test("the change against the last cost, in percent with one decimal", () => {
   expect(percentChange("18", "20")).toBe("-10.0");
   expect(percentChange("20", "20")).toBe("0.0");
   expect(percentChange("5", "0")).toBeNull();
+});
+
+test("the margin percentage is taken on the price, one decimal", () => {
+  expect(marginPercent("30.000", "23.000")).toBe("23.3");
+  expect(marginPercent("10.000", "12.500")).toBe("-25.0");
+  expect(marginPercent("0.000", "5.000")).toBeNull();
 });
