@@ -841,3 +841,81 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   7 stand-ins of `docs/spec/sample/employees.csv`, last month approved and paid except two, this month in
   draft, three days on a lot. `SalaryStatusEnum` and `SalaryPaymentMethodEnum` are pinned in
   `ENUM_NAME_OVERRIDES`.
+
+**D-060 · Partnership lots and the partner's capital ledger (P6-T01)** · accepted, provisional points marked · 2026-10-11
+- New `partnerships` app (ARCHITECTURE §3). `LotPartnership`: lot (`Batch`), partner (a `Supplier`), what the
+  owner and the partner put in (`owner_capital`, `partner_capital`), **profit %** and **loss %** (two
+  decimals, 0-100, D-031), status `open` → `closed` (the lot's result is frozen, D-061) → `settled` (P6-T03),
+  or `cancelled`; notes, who and when, the cancel reason. **One live partnership per lot** (partial unique
+  constraint, cancelled ones excluded); a supplier may be partner in any number of lots, each with its own
+  capital and rates (Q22). Pinned enums `PartnershipStatusEnum`, `CapitalEntryKindEnum`.
+- **When:** on a lot that still has stock and has **no confirmed sale** (`sales.batch_sales_totals`; a sale
+  cancelled later gave its kilos back and does not count). The terms change, and the partnership can be
+  cancelled (reason required), only under the same condition; afterwards they are what the result uses.
+  Changes on a lot are serialized by a PostgreSQL advisory lock on the lot (`core.locks.lock_lot`, shared
+  with the closing).
+- **Capital ledger** (`CapitalEntry`, per partner and lot, signed, append-only like the stock ledger):
+  `contribution` (+, posted with the partnership), `correction` (± the difference when the capital is changed
+  before the first sale), `loss_deduction` (−, posted by the closing), `loss_reversal` (+, when a closed lot is
+  reopened), `return` (−, capital paid back: at settlement, P6-T03, or when a partnership is cancelled). The
+  balance is the sum. It never touches the supplier's trade payable (D-043) nor the profit share: **three
+  balances**. `capital_put_in` (contributions and corrections) is what a lot result starts from;
+  `capital_by_partner` sums a partner over their lots.
+- **Who (provisional):** the owner writes; the owner and the accountant read; managers and drivers get 403
+  (`core.permissions.ReadOwnerOrAccountantWriteOwner`). API: `listPartnerships` (paginated; status, partner,
+  lot, search; cancelled ones only on request), `createPartnership`, `getPartnership` (with the ledger and
+  `has_sold`), `updatePartnership`, `cancelPartnership`.
+- **Screens:** the lot page (Stock › lot) gets a "Partenariat" section (terms, capital now, ledger; "Mettre en
+  partenariat", "Modifier" and "Annuler le partenariat" for the owner while the lot is unsold); the menu's
+  "Partage des bénéfices" opens "Partenariats" (list by status, search, a link to each lot). **TODO:** the
+  goods-receipt form (P1-T07) has no "partenariat" section yet: a receipt makes one lot per line, so it would
+  be per line; for now the owner opens the new lot and sets the partnership there before its first sale.
+- Demo: Pêcherie Kerkennah (F-001, 40 % / 25 %) shares the seiche lot KRK-1192 (owner 200.000, partner
+  107.500), set before the demo sales, so Sidi Mansour's converted quote is its first sale; 18.000 DT of
+  transport typed on it (DP-0010).
+
+**D-061 · The lot result engine, closing a lot and its frozen result (P6-T02)** · accepted, provisional points marked · 2026-10-11
+- New `closing` app. `engine.py` is **pure** (no database): a `LotSnapshot` (the lot's sale rows with kg,
+  price, revenue and cost from the sale snapshots; stock written off or found; cost lines by kind; the
+  partnership terms) → a `ComputedResult` with **every step**: revenue − purchase cost of the kg sold (COGS,
+  D-051) − kg written off − each kind of cost = **net result**, then the partner's and the owner's shares.
+  `engine.to_json` gives the same JSON for the live result and the frozen copy; the API sends it as is.
+- **Shares (Q3, D-031):** profit → partner = profit % × net, rounded half up once to the millime; loss →
+  the partner carries loss % × loss, rounded once, **taken from their capital**; what the capital cannot
+  cover is `uncovered_loss`, owed by the partner (D-031, still provisional; recovering it from their next
+  profit shares belongs to the settlement, P6-T03); zero → nothing, no rate. The owner's share is always net −
+  partner share, so **the two add up to the net result** (property test). Capital to return = capital −
+  deducted; payable to the partner at settlement = capital to return + a profit share.
+- **Spoilage (our choice):** a loss posts `loss` movements at the lot's cost, which are not in COGS (COGS is
+  the sale rows only). The engine reads the lot's `loss`, `count_correction` and `adjustment` movements (out =
+  written off, in = found again) and charges their value at the movement's cost as its own step "Pertes et
+  écarts". Supplier returns are not a cost of the lot (the supplier takes the goods back). So for a closed lot
+  (stock 0): COGS + written off = (received − returned) × cost. Kilos still in stock are shown at cost and are
+  **not** a cost: an open lot shows its result "so far".
+- **Costs:** every approved line of `expenses.lot_cost_lines`, whatever its `kind`, read generically (`kind`,
+  date, category name, amount, the expense when there is one): typed costs (`lot`), truck-day shares
+  (`truck_day`); the cold-room and general-cost kinds of P5-T02/T05 plug in unchanged (unknown kinds are
+  listed after the known ones). Employees' days come from `hr.lot_work_days_of` (kind `employee`, the cost kept
+  on the day). **If P5 adds employee days to `lot_cost_lines`, drop the hr read** so they are not counted twice.
+- **Closing** (`close_lot`, owner only, `closeLot`): refused while stock remains (sell it or record a loss),
+  while costs typed on the lot wait for approval, without `costs_confirmed` (only a person knows every cost is
+  in), or when already closed. Customers still owing on the lot's sales (the payment on the spot is all the
+  system knows until P2-T06) are a **warning** kept with the result (`payments_unverified`);
+  `selectors.CUSTOMER_PAYMENTS_BLOCK` turns it into a refusal once P2-T06 lands. Closing writes a `LotResult`
+  (figures as columns + the whole JSON with the checks), posts the partner's loss deduction on the capital
+  ledger and closes the partnership, in one transaction under the lot's advisory lock; one closed result per
+  lot (partial unique constraint). Two closings at once: one wins, the others are refused (tested).
+- **Immutable:** a `LotResult` is never updated or deleted (queryset guards). A cost or sale recorded after the
+  closing changes only the live figure (`live_net_result`) and goes to the partner's next settlement (D-041,
+  P6-T03). **Reopen** (`reopenLot`, owner, reason required, audited): the result stays as history with status
+  `reopened`, the deducted loss share comes back to the capital (`loss_reversal`), the partnership is open
+  again; a settled partnership is not reopened. Pinned enums `LotResultStatusEnum`, `LotOutcomeEnum`,
+  `LotStateEnum`.
+- **Who (provisional):** the owner closes and reopens; the owner and the accountant read (`getLotResult`);
+  managers and drivers get 403 (the result shows margins, partner shares and employee costs, D-055). The lot
+  page's "Résultat du lot" card shows each step, opening on the sales, losses, expenses or employees behind
+  it, the partner's share, the closing checks, the drift after closing and earlier closings.
+- Known gaps: P2-T07 partial customer returns will need the result to read returned kilos; a sale cancelled
+  after its lot closed puts stock back on a closed lot (shown as drift); hr days on a closed lot can still be
+  deleted (D-055's hook). The P0-T02 golden lot is still missing: the golden tests use a lot worked out by hand
+  (`closing/tests/test_engine.py`), to be joined by the client's real lot.
