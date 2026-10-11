@@ -7,6 +7,7 @@
 import type { QuoteCustomer } from './quoteCustomer';
 import type { QuoteLocation } from './quoteLocation';
 import type { QuoteStatusEnum } from './quoteStatusEnum';
+import type { SaleRef } from './saleRef';
 
 export interface Quote {
   readonly id: number;
@@ -42,4 +43,5 @@ export interface Quote {
   readonly refusal_reason: string;
   /** @nullable */
   readonly expired_at: string | null;
+  readonly sale: SaleRef | null;
 }

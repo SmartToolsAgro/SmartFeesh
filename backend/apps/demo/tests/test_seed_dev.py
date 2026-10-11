@@ -77,14 +77,16 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert list(shrimp_batches.values_list("receipt_reference", flat=True)) == ["KRK-1187", "KRK-1192"]
 
     # Every batch was received into a cold room, and Camion 1 was loaded once.
-    # + Camion 2's demo load and return, + the 1.5 kg of mussels lost on Camion 1
-    assert inventory.movements_of(organization).count() == 15 + 4 + 2 + 4 + 1
+    # + Camion 2's demo load and return, + the 1.5 kg of mussels lost on Camion 1, + the demo sales' lines
+    assert inventory.movements_of(organization).count() == 15 + 4 + 2 + 4 + 1 + 6
     rooms = {location.name: location for location in inventory.locations_of(organization)}
-    assert inventory.quantity_on_hand(organization, location_id=truck.location_id) == Decimal("38.500")
-    assert inventory.quantity_on_hand(organization, product_id=shrimp.pk) == Decimal("65.000")
+    # 38.5 kg, then 7 kg sold to Restaurant Le Corail (P2-T04 demo sales)
+    assert inventory.quantity_on_hand(organization, location_id=truck.location_id) == Decimal("31.500")
+    # 65 kg, then 3 kg sold from Camion 1 and 4 kg on Sidi Mansour's converted quote
+    assert inventory.quantity_on_hand(organization, product_id=shrimp.pk) == Decimal("58.000")
     assert inventory.quantity_on_hand(
         organization, location_id=rooms["Chambre froide 1 (frais)"].pk, product_id=shrimp.pk
-    ) == Decimal("46.000")  # 53 kg, then 8 kg loaded on Camion 2 and 1 kg back
+    ) == Decimal("42.000")  # 53 kg, then 8 kg loaded on Camion 2 and 1 kg back, then 4 kg sold
     assert inventory.quantity_on_hand(organization, location_id=rooms["Chambre froide 2 (congelé)"].pk) == Decimal(
         "107.000"
     )

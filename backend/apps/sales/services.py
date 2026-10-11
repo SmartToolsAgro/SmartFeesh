@@ -16,9 +16,22 @@ from apps.catalog import selectors as catalog
 from apps.core import audit
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity, line_total, money
+from apps.inventory import services as inventory
+from apps.partners import services as partners
 
 from . import selectors
-from .models import DocumentCounter, Quote, QuoteLine, QuoteStatus
+from .models import (
+    DocumentCounter,
+    PriceSource,
+    Quote,
+    QuoteLine,
+    QuoteStatus,
+    Sale,
+    SaleLine,
+    SaleLineBatch,
+    SalePaymentMethod,
+    SaleStatus,
+)
 
 if TYPE_CHECKING:
     from apps.catalog.models import Product
@@ -94,24 +107,28 @@ def _header_errors(
     return errors
 
 
-def _checked_price(product: "Product | None", price: Any, at: dt.datetime, customer: "Customer") -> Decimal | str:
-    """The price per kg of a line, or the message saying why there is none.
+def _checked_price(
+    product: "Product | None", price: Any, at: dt.datetime, customer: "Customer", typed_source: str = PriceSource.TYPED
+) -> tuple[Decimal, str] | str:
+    """The price per kg of a line and where it comes from (`PriceSource`), or the message saying why there is
+    none.
 
     Empty takes what the customer is charged at `at` (`catalog.price_in_force`, D-049): their own price
-    list when it holds the product, else the daily price. A typed price must be above zero.
+    list when it holds the product, else the daily price. A typed price must be above zero; it is recorded
+    as `typed_source` (typed by hand, or copied from a quote).
     """
     if price in (None, ""):
         in_force = catalog.price_in_force(product, at, customer_id=customer.pk) if product is not None else None
         if in_force is None:
             return _("Aucun prix de vente en vigueur : indiquez un prix.")
-        return in_force.price
+        return in_force.price, in_force.source
     try:
         amount = checked_amount(price)
     except (ValueError, TypeError):
         amount = None
     if amount is None or amount <= 0:
         return _("Indiquez un prix en DT par kg, supérieur à zéro, au millime près.")
-    return amount
+    return amount, typed_source
 
 
 def _checked_rate(rate: Any) -> Decimal | None:
@@ -143,8 +160,12 @@ def _checked_lines(
     lines: Sequence[QuoteLineFields],
     at: dt.datetime,
     errors: dict[str, str],
+    typed_source: str = PriceSource.TYPED,
 ) -> list[dict[str, Any]]:
-    """The lines' values once checked and priced; each problem is added to `errors` under the line's keys."""
+    """The lines' values once checked and priced; each problem is added to `errors` under the line's keys.
+
+    Each line also says where its price comes from (`price_source`) and whether it is below the product's
+    minimum price (`below_minimum`, a warning only, D-049)."""
     checked_lines: list[dict[str, Any]] = []
     seen: set[int] = set()
     for index, line in enumerate(lines):
@@ -164,9 +185,10 @@ def _checked_lines(
         except (ValueError, TypeError):
             errors[line_error_key(index, "quantity")] = _("Indiquez un poids en kg, supérieur à zéro.")
         if line_error_key(index, "product") not in errors:
-            price = _checked_price(product, line.get("unit_price"), at, customer)
-            if isinstance(price, Decimal):
-                checked["unit_price"] = price
+            price = _checked_price(product, line.get("unit_price"), at, customer, typed_source)
+            if isinstance(price, tuple):
+                checked["unit_price"], checked["price_source"] = price
+                checked["below_minimum"] = product is not None and catalog.is_below_minimum(product, price[0])
             else:
                 errors[line_error_key(index, "unit_price")] = price
         rate = _checked_rate(line.get("discount_rate"))
@@ -436,3 +458,474 @@ def expire_quotes(*, organization: Organization, actor: User | None = None, toda
         audit.record(organization=organization, actor=actor, action="quote.expired", target=quote)
         expired += 1
     return expired
+
+
+# ---- Sales (P2-T04, D-051) ----
+
+SALE_SERIES = "VE"
+# A sale may be dated slightly ahead of the server's clock (a phone or a till a little fast).
+CLOCK_MARGIN = dt.timedelta(minutes=5)
+
+
+class SaleLineFields(TypedDict, total=False):
+    product: "Product"
+    quantity: Number
+    # DT per kg; empty takes what the customer is charged at the sale's moment (`catalog.price_in_force`).
+    unit_price: Number | None
+    # Percent with at most 2 decimals; empty means none.
+    discount_rate: Number | None
+
+
+class PaymentFields(TypedDict, total=False):
+    # What the customer pays on the spot; empty means nothing.
+    amount_paid: Number | None
+    # The whole total is paid on the spot (a counter sale): `amount_paid` is then ignored.
+    paid_in_full: bool
+    payment_method: str
+    payment_reference: str
+
+
+def _sale_header_errors(
+    organization: Organization,
+    customer: "Customer",
+    location: "StockLocation",
+    sold_at: dt.datetime,
+) -> dict[str, str]:
+    errors: dict[str, str] = {}
+    if customer.organization_id != organization.pk:
+        errors["customer"] = _("Client inconnu.")
+    elif not customer.is_active:
+        errors["customer"] = _("Ce client est archivé.")
+    if location.organization_id != organization.pk:
+        errors["location"] = _("Emplacement inconnu.")
+    elif not location.is_active:
+        errors["location"] = _("« %(name)s » est archivé.") % {"name": location.name}
+    elif not location.sells:
+        errors["location"] = _("« %(name)s » ne fait pas de vente au comptoir.") % {"name": location.name}
+    if sold_at > timezone.now() + CLOCK_MARGIN:
+        errors["sold_at"] = _("Une vente ne peut pas être datée dans le futur.")
+    return errors
+
+
+def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, str]) -> dict[str, Any]:
+    """The payment made on the spot, checked against the sale's total; problems are added to `errors`."""
+    method = (payment.get("payment_method") or "").strip()
+    reference = (payment.get("payment_reference") or "").strip()[:50]
+    if payment.get("paid_in_full"):
+        paid = total
+    else:
+        raw: Any = payment.get("amount_paid")
+        try:
+            paid = checked_amount(raw) if raw not in (None, "") else Decimal("0.000")
+        except (ValueError, TypeError):
+            errors["amount_paid"] = _("Indiquez un montant en DT, au millime près.")
+            paid = Decimal("0.000")
+        if paid > total:
+            errors["amount_paid"] = _("Le montant payé dépasse le total de la vente (%(total)s DT).") % {"total": total}
+    if paid > 0 and not method:
+        errors["payment_method"] = _("Indiquez le mode de paiement.")
+    elif method and method not in SalePaymentMethod.values:
+        errors["payment_method"] = _("Mode de paiement inconnu.")
+    if paid == 0:
+        method, reference = "", ""
+    return {"amount_paid": paid, "payment_method": method, "payment_reference": reference}
+
+
+def _prepared_sale(
+    organization: Organization,
+    customer: "Customer",
+    location: "StockLocation",
+    sold_at: dt.datetime,
+    lines: Sequence[SaleLineFields],
+    payment: PaymentFields,
+    typed_source: str = PriceSource.TYPED,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The checked lines and payment of a sale, or a ValidationError with every problem at once."""
+    errors = _sale_header_errors(organization, customer, location, sold_at)
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un produit.")
+    checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source)
+    total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
+    paid = _checked_payment(total, payment, errors)
+    if errors:
+        raise ValidationError(errors)
+    return checked_lines, paid
+
+
+def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dict[str, Any]) -> None:
+    """Replace the lines and set the sale's totals and payment from them (no VAT yet: P2-T05)."""
+    SaleLine.objects.bulk_create(
+        [
+            SaleLine(
+                organization_id=sale.organization_id,
+                sale=sale,
+                product=values["product"],
+                quantity=values["quantity"],
+                unit_price=values["unit_price"],
+                price_source=values["price_source"],
+                below_minimum=values["below_minimum"],
+                discount_rate=values["discount_rate"],
+                gross_amount=values["gross_amount"],
+                discount_amount=values["discount_amount"],
+                amount=values["amount"],
+            )
+            for values in checked_lines
+        ]
+    )
+    sale.subtotal = sum((values["gross_amount"] for values in checked_lines), Decimal("0.000"))
+    sale.discount_total = sum((values["discount_amount"] for values in checked_lines), Decimal("0.000"))
+    sale.total_excl_tax = sale.subtotal - sale.discount_total
+    # P2-T05 hook: VAT and the fiscal stamp come from the finance settings (D-018).
+    sale.tax_amount = None
+    sale.total = sale.total_excl_tax
+    sale.amount_paid = paid["amount_paid"]
+    sale.payment_method = paid["payment_method"]
+    sale.payment_reference = paid["payment_reference"]
+    sale.amount_due = sale.total - sale.amount_paid
+    sale.save()
+
+
+def _sale_snapshot(sale: Sale) -> dict[str, Any]:
+    return {
+        "number": sale.number,
+        "status": sale.status,
+        "customer": sale.customer.reference,
+        "location": sale.location.name,
+        "sold_at": sale.sold_at.isoformat(),
+        "quote": sale.quote.number if sale.quote is not None else None,
+        "lines": [
+            {
+                "product": line.product.reference,
+                "quantity": str(line.quantity),
+                "unit_price": str(line.unit_price),
+                "price_source": line.price_source,
+                "discount_rate": str(line.discount_rate),
+                "amount": str(line.amount),
+            }
+            for line in sale.lines.select_related("product").order_by("id")
+        ],
+        "total": str(sale.total),
+        "amount_paid": str(sale.amount_paid),
+        "payment_method": sale.payment_method,
+        "amount_due": str(sale.amount_due),
+    }
+
+
+@transaction.atomic
+def create_sale(
+    *,
+    organization: Organization,
+    actor: User | None,
+    customer: "Customer | None",
+    location: "StockLocation",
+    lines: Sequence[SaleLineFields],
+    sold_at: dt.datetime | None = None,
+    notes: str = "",
+    payment: PaymentFields | None = None,
+    client_uuid: uuid.UUID | None = None,
+    confirm: bool = False,
+    quote: Quote | None = None,
+    typed_source: str = PriceSource.TYPED,
+) -> Sale:
+    """Type a sale as a draft; with `confirm`, also confirm it (one transaction: a refusal leaves nothing).
+
+    No customer means the walk-in customer (a counter sale, D-047). A line without a price takes what the
+    customer is charged at `sold_at` (now by default), kept on the line. A `client_uuid` already used
+    returns that sale.
+    """
+    if client_uuid is not None:
+        existing = Sale.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            return existing
+    if customer is None:
+        customer = partners.ensure_walk_in_customer(organization=organization, actor=actor)
+    sold_at = sold_at or timezone.now()
+    checked_lines, paid = _prepared_sale(organization, customer, location, sold_at, lines, payment or {}, typed_source)
+    sale = Sale.objects.create(
+        organization=organization,
+        number=_next_number(organization, SALE_SERIES),
+        customer=customer,
+        location=location,
+        sold_at=sold_at,
+        quote=quote,
+        notes=notes.strip(),
+        created_by=actor,
+        client_uuid=client_uuid,
+    )
+    _write_sale_lines(sale, checked_lines, paid)
+    audit.record(organization=organization, actor=actor, action="sale.created", target=sale, after=_sale_snapshot(sale))
+    if confirm:
+        return confirm_sale(sale=sale, actor=actor)
+    return sale
+
+
+def _locked_sale(sale: Sale) -> Sale:
+    """The sale locked until commit, so it is never confirmed or cancelled twice at once."""
+    return (
+        Sale.objects.select_for_update(of=("self",))
+        .select_related("organization", "customer", "location", "quote")
+        .get(pk=sale.pk)
+    )
+
+
+def _sale_status_name(sale: Sale) -> str:
+    return str(SaleStatus(sale.status).label).lower()
+
+
+def _locked_draft_sale(sale: Sale) -> Sale:
+    locked = _locked_sale(sale)
+    if locked.status != SaleStatus.DRAFT:
+        raise ValidationError(
+            _("Cette vente est %(status)s : elle ne se modifie plus.") % {"status": _sale_status_name(locked)}
+        )
+    return locked
+
+
+@transaction.atomic
+def update_sale(
+    *,
+    sale: Sale,
+    actor: User | None,
+    customer: "Customer | None",
+    location: "StockLocation",
+    lines: Sequence[SaleLineFields],
+    sold_at: dt.datetime | None = None,
+    notes: str = "",
+    payment: PaymentFields | None = None,
+    confirm: bool = False,
+) -> Sale:
+    """Change a draft: customer, place, moment, notes, payment and lines (all replaced). With `confirm`,
+    confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment."""
+    sale = _locked_draft_sale(sale)
+    organization = sale.organization
+    if customer is None:
+        customer = partners.ensure_walk_in_customer(organization=organization, actor=actor)
+    before = _sale_snapshot(sale)
+    sold_at = sold_at or sale.sold_at
+    # A sale made from a quote keeps "quote" as the source of the prices typed again from it.
+    typed_source = PriceSource.QUOTE if sale.quote_id is not None else PriceSource.TYPED
+    checked_lines, paid = _prepared_sale(organization, customer, location, sold_at, lines, payment or {}, typed_source)
+    sale.customer = customer
+    sale.location = location
+    sale.sold_at = sold_at
+    sale.notes = notes.strip()
+    sale.lines.all().delete()
+    _write_sale_lines(sale, checked_lines, paid)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="sale.updated",
+        target=sale,
+        before=before,
+        after=_sale_snapshot(sale),
+    )
+    if confirm:
+        return confirm_sale(sale=sale, actor=actor)
+    return sale
+
+
+def check_credit(sale: Sale) -> None:
+    """P2-T06 hook: the customer's credit limit, checked at confirmation for every seller (Q16).
+
+    What happens above the limit (block, ask the owner, warn and log) is a company setting (D-018) that does
+    not exist yet, so only the walk-in customer is checked for now: they always pay at once (D-047).
+    """
+    if sale.customer.is_walk_in and sale.amount_due > 0:
+        raise ValidationError({"amount_paid": _("Un client de passage paie toute la vente sur place.")})
+
+
+def record_receivable(sale: Sale) -> None:
+    """P2-T06 hook: a confirmed sale's `amount_due` is what the customer owes for it.
+
+    Customer payments, their allocation and the customer balance come with P2-T06, the invoice with its VAT
+    and fiscal stamp with P2-T05. Until then the receivable is read from confirmed sales; nothing to write.
+    """
+
+
+def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decimal]:
+    """`amount` shared by kg over `quantities`, each part rounded once; the last part takes the rest, so the
+    parts always add up to `amount`."""
+    total_kg = sum(quantities, Decimal("0.000"))
+    parts = [money(amount * kg / total_kg) for kg in quantities[:-1]]
+    return [*parts, amount - sum(parts, Decimal("0.000"))]
+
+
+def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
+    """Take the line's kilos out of the sale's place, oldest batch first, and keep which batches went."""
+    movements = inventory.post_fifo_movements(
+        organization=sale.organization,
+        actor=actor,
+        kind=inventory.MovementKind.SALE,
+        product_id=line.product_id,
+        quantity=line.quantity,
+        from_location=sale.location,
+        reason=sale.number,
+        source=line,
+        occurred_at=sale.sold_at,
+    )
+    revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
+    rows = [
+        SaleLineBatch(
+            organization_id=sale.organization_id,
+            line=line,
+            batch_id=movement.batch_id,
+            quantity=movement.quantity,
+            unit_cost=movement.unit_cost,
+            cost_amount=line_total(movement.quantity, movement.unit_cost),
+            revenue_amount=revenue,
+        )
+        for movement, revenue in zip(movements, revenues, strict=True)
+    ]
+    SaleLineBatch.objects.bulk_create(rows)
+    line.cost_amount = sum((row.cost_amount for row in rows), Decimal("0.000"))
+    line.save(update_fields=["cost_amount"])
+
+
+@transaction.atomic
+def confirm_sale(*, sale: Sale, actor: User | None) -> Sale:
+    """The goods leave the stock and the customer owes what was not paid, all in one transaction.
+
+    Each line's kilos leave the sale's place oldest batch first (D-037); the line keeps which batches went,
+    their cost per kg then and their cost (COGS). Refused as a whole when any line asks more than the place
+    holds (each on `lines.<index>.quantity`), when the customer or the place were archived meanwhile, or when
+    a walk-in customer does not pay everything. Lines are posted in product order, so two sales confirmed at
+    once lock the same rows in the same order.
+    """
+    sale = _locked_draft_sale(sale)
+    organization = sale.organization
+    errors = _sale_header_errors(organization, sale.customer, sale.location, sale.sold_at)
+    if errors:
+        raise ValidationError(errors)
+    check_credit(sale)
+    lines = list(sale.lines.order_by("id"))
+    for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
+        try:
+            _post_line(sale, line, actor)
+        except ValidationError as error:
+            # The line's own savepoint is rolled back; the other lines are still checked, then all is refused.
+            for field, messages in getattr(error, "message_dict", {"lines": error.messages}).items():
+                key = line_error_key(index, "quantity") if field == "quantity" else field
+                errors.setdefault(key, messages[0])
+    if errors:
+        raise ValidationError(errors)
+    sale.cost_total = sum((line.cost_amount or Decimal("0.000") for line in lines), Decimal("0.000"))
+    sale.amount_due = sale.total - sale.amount_paid
+    sale.status = SaleStatus.CONFIRMED
+    sale.confirmed_by = actor
+    sale.confirmed_at = timezone.now()
+    sale.save(update_fields=["cost_total", "amount_due", "status", "confirmed_by", "confirmed_at", "updated_at"])
+    record_receivable(sale)
+    audit.record(
+        organization=organization, actor=actor, action="sale.confirmed", target=sale, after=_sale_snapshot(sale)
+    )
+    below = [line for line in lines if line.below_minimum]
+    if below:
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="sale.price_below_minimum",
+            target=sale,
+            after={"lines": [{"product": line.product_id, "unit_price": str(line.unit_price)} for line in below]},
+        )
+    return sale
+
+
+@transaction.atomic
+def cancel_sale(*, sale: Sale, actor: User | None, reason: str = "") -> Sale:
+    """Give up a sale; it is never deleted. A draft simply stops. A confirmed sale is not edited either: its
+    kilos come back to the same batches at the same place by `customer_return` movements (at the cost they
+    left with), and it stays, marked cancelled, with who, when and why. Its batch rows stay; its status says
+    they no longer count.
+
+    P2-T05 hook: once invoices exist, an invoiced sale is corrected by a credit note instead. P2-T06 hook:
+    money already paid on a cancelled sale becomes the customer's credit (refunded or allocated).
+    """
+    sale = _locked_sale(sale)
+    if sale.status == SaleStatus.CANCELLED:
+        raise ValidationError(_("Cette vente est déjà annulée."))
+    reason = reason.strip()[:255]
+    if sale.status == SaleStatus.CONFIRMED:
+        if not reason:
+            raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})
+        rows = SaleLineBatch.objects.filter(line__sale=sale).select_related("batch", "line").order_by("batch_id", "id")
+        for row in rows:
+            try:
+                inventory.post_movement(
+                    organization=sale.organization,
+                    actor=actor,
+                    kind=inventory.MovementKind.CUSTOMER_RETURN,
+                    batch=row.batch,
+                    quantity=row.quantity,
+                    to_location=sale.location,
+                    reason=_("Annulation de la vente %(number)s") % {"number": sale.number},
+                    source=row.line,
+                )
+            except ValidationError as error:
+                messages = getattr(error, "message_dict", {})
+                raise ValidationError({"location": messages.get("to_location", error.messages)[0]}) from None
+    sale.status = SaleStatus.CANCELLED
+    sale.cancelled_by = actor
+    sale.cancelled_at = timezone.now()
+    sale.cancel_reason = reason
+    sale.save(update_fields=["status", "cancelled_by", "cancelled_at", "cancel_reason", "updated_at"])
+    audit.record(
+        organization=sale.organization, actor=actor, action="sale.cancelled", target=sale, after={"reason": reason}
+    )
+    return sale
+
+
+@transaction.atomic
+def create_sale_from_quote(
+    *,
+    quote: Quote,
+    actor: User | None,
+    location: "StockLocation | None" = None,
+    sold_at: dt.datetime | None = None,
+    payment: PaymentFields | None = None,
+    confirm: bool = False,
+) -> Sale:
+    """Turn an accepted quote, still valid, into a sale: same customer, products, kg, prices and discounts.
+
+    The place is the quote's unless another is given. The quote stays accepted and points to its sale
+    (`Sale.quote`): one live sale per quote, and another only once that one is cancelled.
+    """
+    quote = _locked(quote)
+    if quote.status != QuoteStatus.ACCEPTED:
+        raise ValidationError(_("Seul un devis accepté devient une vente."))
+    if quote.valid_until < timezone.localdate():
+        raise _expiry_error(quote)
+    live = quote.sales.exclude(status=SaleStatus.CANCELLED).first()
+    if live is not None:
+        raise ValidationError(_("Ce devis est déjà devenu la vente %(number)s.") % {"number": live.number})
+    location = location or quote.location
+    if location is None:
+        raise ValidationError({"location": _("Indiquez d'où part la marchandise.")})
+    sale = create_sale(
+        organization=quote.organization,
+        actor=actor,
+        customer=quote.customer,
+        location=location,
+        sold_at=sold_at,
+        lines=[
+            {
+                "product": line.product,
+                "quantity": line.quantity,
+                "unit_price": line.unit_price,
+                "discount_rate": line.discount_rate,
+            }
+            for line in quote.lines.select_related("product").order_by("id")
+        ],
+        notes=quote.notes,
+        payment=payment,
+        quote=quote,
+        typed_source=PriceSource.QUOTE,
+        confirm=confirm,
+    )
+    audit.record(
+        organization=quote.organization,
+        actor=actor,
+        action="quote.converted",
+        target=quote,
+        after={"sale": sale.number},
+    )
+    return sale

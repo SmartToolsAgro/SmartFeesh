@@ -140,6 +140,10 @@ SPECTACULAR_SETTINGS = {
         "LossReasonEnum": "apps.inventory.models.LossReason",
         "CountStatusEnum": "apps.inventory.models.CountStatus",
         "QuoteStatusEnum": "apps.sales.models.QuoteStatus",
+        # P2-T04 · sales
+        "SaleStatusEnum": "apps.sales.models.SaleStatus",
+        "SalePaymentMethodEnum": "apps.sales.models.SalePaymentMethod",
+        "SalePriceSourceEnum": "apps.sales.models.PriceSource",
         "SalaryStatusEnum": "apps.hr.models.SalaryStatus",
         "SalaryPaymentMethodEnum": "apps.hr.models.SalaryPaymentMethod",
         "ExpenseStatusEnum": "apps.expenses.models.ExpenseStatus",

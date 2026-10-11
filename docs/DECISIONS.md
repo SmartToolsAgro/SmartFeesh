@@ -667,6 +667,51 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   379.500, the prototype's quote and the start of the Phase 2 acceptance test), one sent to Hôtel Thyna,
   one accepted, one refused, one draft; dated the day of the first seed, so the sent ones expire later.
 
+**D-051 · Sales: documents, lots sold, cancellation and quote conversion (P2-T04a)** · accepted · 2026-10-11
+- In the `sales` app: `Sale` (number `VE-0001`… from the quotes' `DocumentCounter`, taken with the draft;
+  a sale is never deleted, so no gaps), customer, **place** (a cold room with `counter_sales` or a truck:
+  `StockLocation.sells`), `sold_at` (date and time; not in the future, 5 minutes of clock margin), status
+  `draft` → `confirmed` or `cancelled`, notes, the quote it came from, totals as on quotes (`tax_amount`
+  empty, `total` without VAT: P2-T05 hook), `cost_total`, the payment on the spot and `amount_due`.
+  `SaleLine`: product (one line per product), kg, price per kg actually charged, `price_source`
+  (customer's list, daily price, quote, typed), `below_minimum`, discount %, amounts, `cost_amount`.
+- **Prices:** an empty price takes `catalog.price_in_force(product, sold_at, customer_id=)` (D-049) and is
+  kept on the line (D-020); a draft keeps its moment's prices until it is retyped. A price below the
+  product's minimum is accepted, flagged on the line and audited at confirmation (`sale.price_below_minimum`).
+- **Lots (D-040):** confirming posts each line with `post_fifo_movements` (kind `sale`, the line as source,
+  at `sold_at`), lines in product order inside their own savepoints (all shortages come back together on
+  `lines.<i>.quantity`, then all is refused; the sale row is locked), and writes one **`SaleLineBatch`**
+  per batch taken: kg, the batch's cost per kg then, cost = kg × cost (rounded once) and the line's
+  amount **shared by kg** (each part rounded, the last batch takes the rest, so parts add up to the line).
+  `selectors.batch_sales` / `batch_sales_totals` give a lot's kg sold, revenue, COGS and margin over
+  confirmed sales: the sales side of the Phase 6 lot result. `getBatchSales` exposes it (office only).
+- **"Save and confirm"** (`confirm_now`) is one transaction: a refusal leaves no draft behind. A
+  `client_uuid` already used returns the same sale (driver app, seed).
+- **Cancel = the sale stays.** A draft just becomes cancelled. A confirmed sale needs a reason; its kilos
+  come back **to the same batches at the same place** by `customer_return` movements (cost = the batch's,
+  unchanged), its lot rows stay and stop counting (status). No separate reversal document: the ledger's
+  return movements, the cancelled status, who/when/why and the audit entry are the reversal. Hooks: an
+  invoiced sale will need a credit note (P2-T05); money already paid becomes customer credit (P2-T06).
+- **Payment on the spot** (minimal until P2-T06): `amount_paid` (≤ total), `paid_in_full`, method (cash,
+  cheque, transfer, card: `SalePaymentMethodEnum`, a list of its own since suppliers use traite and not
+  card) and a reference; `amount_due` = total − paid is the receivable. `check_credit` and
+  `record_receivable` are the P2-T06 hooks; today `check_credit` only enforces that the **walk-in
+  customer** (used when no customer is given, `ensure_walk_in_customer`, D-047) pays everything.
+- **From a quote:** `create_sale_from_quote` takes an **accepted quote still valid** (validity date not
+  passed, provisional), same customer, products, kg, prices and discounts (`price_source` = quote), place =
+  the quote's or one given. The quote stays accepted; `Sale.quote` links them and the quote API shows its
+  live `sale`. One live sale per quote (partial unique constraint); after cancelling it, the quote may
+  be converted again. Audited `quote.converted`.
+- **Who:** owner and manager sell anywhere and cancel; the accountant reads; a **driver** sells (creates,
+  changes and confirms their own drafts) only from the truck of their day (`fleet.may_use_location`, 403
+  otherwise), always "now" (a `sold_at` sent by a driver is ignored until Phase 3's offline sync), sees
+  only the sales they made, never costs (cost fields are null) and cannot cancel. A truck sale takes the
+  customer's price in force, not the load's price (D-044): provisional, to align in Phase 3.
+- API: `listSales`, `createSale`, `getSale`, `updateSale`, `confirmSale`, `cancelSale`,
+  `convertQuoteToSale`, `getBatchSales`. Pinned enum names: `SaleStatusEnum`, `SalePaymentMethodEnum`,
+  `SalePriceSourceEnum`. Demo: a walk-in counter sale paid cash, a Camion 1 sale by the driver to Le
+  Corail partly paid, Sidi Mansour's accepted quote converted on credit, a draft for Hôtel Thyna.
+
 **D-053 · Expenses, lot costs and truck costs of the day (P5-T01)** · accepted · 2026-10-11
 - New `expenses` app (ARCHITECTURE §3) with its own `DocumentCounter` (`DP-0001`… per organization; a
   deleted draft leaves a gap, not a fiscal number). **Categories** (`ExpenseCategory`): every organization
