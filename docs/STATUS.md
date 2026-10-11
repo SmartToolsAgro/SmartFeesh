@@ -4,9 +4,10 @@ _Last updated: 2026-10-11_
 
 ## Where we are
 
-- **Phase:** 1 · Catalogue, suppliers & stock, nearly done: only P1-T11 (stock screens) is left. Phase 2
-  has started with P2-T01. Phase 0 agent work is done; its human items are under Blockers.
-- **On `main`:** P1-T02 to P1-T10 and P1-T12, P2-T01, and the client-meeting plan (PRs #3 to #17).
+- **Phase:** 1 is done. Phase 2 (sales) is half done, Phase 5 (costs) is mostly done, Phase 6 (lot
+  profit and partner share) is next. Phase 0 agent work is done; its human items are under Blockers.
+- **On `main`:** P1-T02 to P1-T12; P2-T01 to P2-T04 (customers, prices, quotes, sales and counter sale);
+  P5-T01, P5-T03, P5-T04 (expenses, day-labour calendar, employees and salaries); PRs #3 to #25.
   Every merge to `main` deploys staging.
 - **Staging** (D-036, `docs/runbook.md`): admin http://admin.217-182-205-137.sslip.io:8095, driver
   http://chauffeur.217-182-205-137.sslip.io:8096. Demo logins `owner` / `driver`, password in
@@ -24,15 +25,15 @@ _Last updated: 2026-10-11_
 
 ## Next step (do this first)
 
-1. Agent: **P1-T11** stock screens: location cards with per-location kg, product cards, low-stock badge,
-   product → batch → movement drill-down, and the **average purchase price** per product (D-040).
-2. In parallel: **P2-T02** prices and **P2-T03** quotes (read `docs/phases/02-sales-invoicing.md`);
-   P2-T04 sales is split first. Sales must call `partners.services.ensure_walk_in_customer` for counter
-   sales (D-047).
-3. Later in Phase 3: a narrow customer endpoint for drivers (drivers get 403 on `/customers`, D-047),
-   a driver-side screen to pick the truck of the day (API exists, D-046), driver confirmation of loads
-   (fields exist on transfers, D-044).
-4. Mahmoud: check the apps on staging; upload one product photo.
+1. Agents (parallel): **P2-T05** invoices (finance settings, VAT, stamp, withholding, gap-free numbers);
+   **P5-T02 + P5-T05** cold-room cost per day and rent/accountant "like a salary" on lots;
+   **P6-T01..T03** partnership lots and the lot result engine (reads sales per lot `batch_sales_totals`,
+   `expenses.lot_cost_lines`, hr `LotWorkDay`; cold-room and general cost lines plug in when they land).
+2. Then P2-T06 customer payments and credit limit (hooks `check_credit` / `record_receivable` in
+   `sales.services`), P2-T07 returns, P2-T08 PDFs, Phase 3 driver app, P6-T04..T07 statements/closing.
+3. Phase 3 leftovers: narrow customer endpoint for drivers (D-047), driver truck-of-day screen (D-046),
+   driver confirmation of loads (D-044), a truck sale should use the load's price (D-051).
+4. Mahmoud: check the apps on staging; get the real lot for P0-T02.
 
 ## Blockers / waiting on client
 
@@ -75,20 +76,19 @@ _Last updated: 2026-10-11_
 
 ## Last session (2026-10-11)
 
-First parallel wave, four agents (Opus for T08 and T09/T10, Sonnet for T12 and P2-T01):
-- **P1-T08** (PR #15, D-043): supplier invoices `FF-0001` linked to receipts, payments `RF-0001` with
-  allocation, supplier balance (owed, overdue, advances). Supplier payments live in `purchasing`.
-- **P1-T09** (PR #14, D-044): transfers (load, return, between places) validated FIFO; a load carries
-  the day's price per kg; "truck's day" view loaded / returned / sold-or-lost.
-- **P1-T10** (PR #17, D-045): losses with reason, photo and owner approval above a threshold; stock
-  counts with approval posting `count_correction` movements.
-- **P1-T12** (PR #16, D-046): `TruckAssignment` per date; one driver per truck and one truck per driver
-  per day; "Camions du jour" panel.
-- **P2-T01** (PR #13, D-047): customers with credit limit and terms, walk-in customer, admin screens.
-- An API rate limit interrupted three agents once; their worktrees were intact and they resumed.
+Second and third parallel waves (Opus for the money-critical tasks, Sonnet for the rest):
+- **P1-T11** stock screens + average purchase price (D-048); **P2-T02** "Prix du jour", price lists,
+  `price_in_force` (D-049); **P2-T03** quotes, new `sales` app (D-050).
+- **P2-T04** sales (D-051, D-052): FIFO lot rows with cost snapshots, cancel by reversal, quote
+  conversion, quick counter sale, `batch_sales_totals` per lot.
+- **P5-T01/T03** expenses with lot/truck-day costs, day-labour calendar (D-053, D-054); **P5-T04** `hr`
+  employees, salaries, days on a lot (D-055).
+- Two Opus agents were cut off by the API rate limit; resumed or finished by hand. A time-of-day
+  dependent inventory test was fixed (it failed CI after 11:00 UTC).
 
 ## Recently done
 
+- 2026-10-11 · P1-T11, P2-T02, P2-T03, P2-T04, P5-T01, P5-T03, P5-T04
 - 2026-10-11 · P1-T08, P1-T09, P1-T10, P1-T12, P2-T01 (first parallel wave)
 - 2026-10-11 · Plan updated after the client meeting (per-lot profit)
 - 2026-10-11 · P1-T07 goods receipts
