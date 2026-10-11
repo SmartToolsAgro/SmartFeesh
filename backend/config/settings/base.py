@@ -124,4 +124,6 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     # The schema is generated offline for the TS client (make gen-api); online it needs a login.
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    # Several models have a field called `kind`: give each choice set its own stable name.
+    "ENUM_NAME_OVERRIDES": {"CustomerKindEnum": "apps.partners.models.CustomerKind"},
 }

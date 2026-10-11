@@ -9,9 +9,10 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 ---
 
 ### P2-T01 · Customers · S
-- [ ] `Customer` (type: restaurant, hotel, fish shop, supermarket, wholesaler, individual; tax ID; contacts;
-      credit limit; payment terms; active). "Walk-in customer" default record.
-- [ ] Admin list/detail with balance and history.
+- [x] `Customer` (type: restaurant, hotel, fish shop, supermarket, wholesaler, caterer, individual; tax ID;
+      contacts; credit limit; payment terms; active). "Walk-in customer" default record (D-047).
+- [x] Admin list/detail with credit limit and payment terms. Balance and history come with sales and
+      payments (P2-T04, P2-T06): the detail page has a placeholder card for them.
 
 ### P2-T02 · Prices · M
 - [ ] "Prix du jour" screen: the owner or manager sets the sale price for every product in one go,

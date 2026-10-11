@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.functions import Lower
 
@@ -55,3 +56,77 @@ class SupplierContact(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.supplier.name})"
+
+
+class CustomerKind(models.TextChoices):
+    RESTAURANT = "restaurant", "Restaurant"
+    HOTEL = "hotel", "Hôtel"
+    FISH_SHOP = "fish_shop", "Poissonnerie"
+    SUPERMARKET = "supermarket", "Supermarché"
+    WHOLESALER = "wholesaler", "Grossiste"
+    CATERER = "caterer", "Traiteur"
+    INDIVIDUAL = "individual", "Particulier"
+
+
+class Customer(OrganizationScopedModel, TimeStampedModel):
+    """Someone the company sells to: a restaurant, a hotel, a fish shop, a supermarket, a wholesaler, a person.
+
+    The balance owed comes with sales and payments (P2-T06) and is not stored here. The credit limit
+    (Q16) is the ceiling each customer may owe; what happens above it is a company setting (P2-T06).
+    """
+
+    reference = models.CharField(max_length=30)
+    name = models.CharField(max_length=150)
+    kind = models.CharField(max_length=20, choices=CustomerKind.choices, default=CustomerKind.RESTAURANT)
+    # Tunisian "matricule fiscal", stored as 1234567A/A/M/000 (or 1234567A alone). Empty when unknown.
+    tax_id = models.CharField(max_length=20, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    # What the customer may owe at most, in DT. 0 = no credit: pays at once.
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=3, default=0, validators=[MinValueValidator(0)])
+    # Days after the invoice date by which the customer pays; 0 = on delivery.
+    payment_terms_days = models.PositiveSmallIntegerField(default=0, validators=[MaxValueValidator(365)])
+    # The "Client de passage" record counters and anonymous sales use: one per organization, never archived.
+    is_walk_in = models.BooleanField(default=False)
+    # Archived customers keep their history but cannot be sold to.
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                "organization", Lower("reference"), name="customer_reference_unique_per_organization"
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "tax_id"],
+                condition=~models.Q(tax_id=""),
+                name="customer_tax_id_unique_per_organization",
+            ),
+            models.UniqueConstraint(
+                fields=["organization"],
+                condition=models.Q(is_walk_in=True),
+                name="customer_one_walk_in_per_organization",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.reference} · {self.name}"
+
+
+class CustomerContact(OrganizationScopedModel):
+    """A person to call at a customer: the chef, the purchasing manager, the accountant."""
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="contacts")
+    name = models.CharField(max_length=150)
+    role = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+
+    class Meta:
+        ordering = ["customer", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.customer.name})"

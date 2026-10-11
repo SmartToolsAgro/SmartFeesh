@@ -444,3 +444,20 @@ Supersedes the "one active truck per driver" and "own truck" parts of D-033 (cli
 - A truck load carries the price per kg of each product for that day; the evening return shows sold vs
   returned (P1-T09, P3-T01, P3-T06).
 
+**D-047 · Customers (P2-T01)** · accepted · 2026-10-11
+- `Customer` and `CustomerContact` live in the `partners` app beside suppliers and copy D-032: reference
+  `C-NNN` generated when left empty, optional tax ID in the same `1234567A/A/M/000` shape (unique per
+  organization when given), contacts replaced as a whole list, no delete (archive / restore), audit before/after.
+- Fields beyond the suppliers': `kind` (restaurant, hotel, fish shop, supermarket, wholesaler, caterer,
+  individual), `credit_limit` (Decimal, 3 places, 0 = no credit, Q16) and `payment_terms_days` (0 to 365,
+  0 = on delivery). What happens above the limit is a company setting of P2-T06, not stored here.
+- **Walk-in customer** ("Client de passage"): `is_walk_in`, one per organization (partial unique
+  constraint), created by `partners.services.ensure_walk_in_customer` (idempotent; the seed and counter
+  sales call it), never archived, credit limit always 0. It is listed last.
+- Customers are **office data** like suppliers: owner, manager and accountant read, owner and manager
+  change, drivers get 403 (`ReadOfficeWriteOwnerOrManager`). Provisional: the driver app (Phase 3) will need
+  a narrower endpoint (name, reference, credit left) for choosing a customer on credit; add it then.
+- The balance, opening balances (`opening_balance_dt` of the sample CSV) and history are not on `Customer`:
+  they come from sales, invoices and payments (P2-T04 to P2-T06). The seed loads limits and terms only.
+- `ENUM_NAME_OVERRIDES` in the schema settings names the customer kind enum `CustomerKindEnum`: several
+  models have a `kind` field and the generated names collided.
