@@ -25,6 +25,7 @@ import type {
 
 import type {
   Batch,
+  BatchSales,
   Category,
   Count,
   CountWrite,
@@ -46,6 +47,7 @@ import type {
   ListQuotesParams,
   ListReceiptDifferencesParams,
   ListReceiptsParams,
+  ListSalesParams,
   ListSupplierInvoicesParams,
   ListSupplierPaymentsParams,
   ListSuppliersParams,
@@ -65,6 +67,7 @@ import type {
   PaginatedLossList,
   PaginatedQuoteList,
   PaginatedReceiptList,
+  PaginatedSaleList,
   PaginatedStockMovementList,
   PaginatedSupplierInvoiceList,
   PaginatedSupplierPaymentList,
@@ -85,11 +88,15 @@ import type {
   ProductCreate,
   ProductPrice,
   ProductStockDetail,
+  QuoteConvert,
   QuoteDetail,
   QuoteRefuse,
   QuoteWrite,
   Receipt,
   ReceiptWrite,
+  SaleCancel,
+  SaleDetail,
+  SaleWrite,
   Session,
   SetPrice,
   SetPrices,
@@ -600,6 +607,105 @@ export function useGetBatch<TData = Awaited<ReturnType<typeof getBatch>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetBatchQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBatchSalesUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/batches/${batchId}/sales`
+}
+
+/**
+ * What one lot sold over its confirmed sales: kg, revenue without VAT, cost of the goods and margin,
+ * then each sale line that took from it (oldest first). Office data: drivers get 403.
+ */
+export const getBatchSales = async (batchId: number, options?: Parameters<typeof apiFetch>[1]): Promise<BatchSales> => {
+
+  return apiFetch<BatchSales>(getGetBatchSalesUrl(batchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBatchSalesQueryKey = (batchId: number,) => {
+    return [
+    `/api/v1/batches/${batchId}/sales`
+    ] as const;
+    }
+
+
+export const getGetBatchSalesQueryOptions = <TData = Awaited<ReturnType<typeof getBatchSales>>, TError = unknown>(batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatchSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBatchSalesQueryKey(batchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBatchSales>>> = ({ signal }) => getBatchSales(batchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBatchSales>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBatchSalesQueryResult = NonNullable<Awaited<ReturnType<typeof getBatchSales>>>
+export type GetBatchSalesQueryError = unknown
+
+
+export function useGetBatchSales<TData = Awaited<ReturnType<typeof getBatchSales>>, TError = unknown>(
+ batchId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatchSales>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBatchSales>>,
+          TError,
+          Awaited<ReturnType<typeof getBatchSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBatchSales<TData = Awaited<ReturnType<typeof getBatchSales>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatchSales>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBatchSales>>,
+          TError,
+          Awaited<ReturnType<typeof getBatchSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBatchSales<TData = Awaited<ReturnType<typeof getBatchSales>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatchSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBatchSales<TData = Awaited<ReturnType<typeof getBatchSales>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBatchSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBatchSalesQueryOptions(batchId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -5241,6 +5347,94 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getAcceptQuoteMutationOptions(options), queryClient);
     }
 
+export const getConvertQuoteToSaleUrl = (quoteId: number,) => {
+
+
+
+
+  return `/api/v1/quotes/${quoteId}/convert`
+}
+
+/**
+ * Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
+ * customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
+ * quote stays accepted and links to its sale.
+ */
+export const convertQuoteToSale = async (quoteId: number,
+    quoteConvert?: QuoteConvert, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SaleDetail>(getConvertQuoteToSaleUrl(quoteId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(quoteConvert)
+  }
+);}
+
+
+
+
+
+export const getConvertQuoteToSaleMutationKey = () => ['convertQuoteToSale'] as const;
+
+export const getConvertQuoteToSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertQuoteToSale>>, TError,ConvertQuoteToSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof convertQuoteToSale>>, TError,ConvertQuoteToSaleMutationVariables, TContext> => {
+
+const mutationKey = getConvertQuoteToSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof convertQuoteToSale>>, ConvertQuoteToSaleMutationVariables> = (props) => {
+          const {quoteId,data} = props ?? {};
+
+          return  convertQuoteToSale(quoteId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConvertQuoteToSaleMutationResult = NonNullable<Awaited<ReturnType<typeof convertQuoteToSale>>>
+    export type ConvertQuoteToSaleMutationBody = QuoteConvert | undefined
+    export type ConvertQuoteToSaleMutationError = unknown
+    export type ConvertQuoteToSaleMutationVariables = {quoteId: number;data?: QuoteConvert}
+
+    export const useConvertQuoteToSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertQuoteToSale>>, TError,ConvertQuoteToSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof convertQuoteToSale>>,
+        TError,
+        ConvertQuoteToSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConvertQuoteToSaleMutationOptions(options), queryClient);
+    }
+
 export const getRefuseQuoteUrl = (quoteId: number,) => {
 
 
@@ -5898,6 +6092,546 @@ export function useListLastPurchaseCosts<TData = Awaited<ReturnType<typeof listL
 
 
 
+
+export const getListSalesUrl = (params?: ListSalesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/sales?${stringifiedParams}` : `/api/v1/sales`
+}
+
+/**
+ * Sales, newest first, paginated (`limit`, `offset`). Filter by status, customer, place, days of the
+ * sale (inclusive) or `search` (number, customer). A driver sees only their own sales, without costs.
+ */
+export const listSales = async (params?: ListSalesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedSaleList> => {
+
+  return apiFetch<PaginatedSaleList>(getListSalesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSalesQueryKey = (params?: ListSalesParams,) => {
+    return [
+    `/api/v1/sales`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSalesQueryOptions = <TData = Awaited<ReturnType<typeof listSales>>, TError = unknown>(params?: ListSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSalesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSales>>> = ({ signal }) => listSales(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSales>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSalesQueryResult = NonNullable<Awaited<ReturnType<typeof listSales>>>
+export type ListSalesQueryError = unknown
+
+
+export function useListSales<TData = Awaited<ReturnType<typeof listSales>>, TError = unknown>(
+ params: undefined |  ListSalesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSales>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSales>>,
+          TError,
+          Awaited<ReturnType<typeof listSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSales<TData = Awaited<ReturnType<typeof listSales>>, TError = unknown>(
+ params?: ListSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSales>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSales>>,
+          TError,
+          Awaited<ReturnType<typeof listSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSales<TData = Awaited<ReturnType<typeof listSales>>, TError = unknown>(
+ params?: ListSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSales<TData = Awaited<ReturnType<typeof listSales>>, TError = unknown>(
+ params?: ListSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSalesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSaleUrl = () => {
+
+
+
+
+  return `/api/v1/sales`
+}
+
+/**
+ * Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
+ * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
+ * who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+ * Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
+ * day, at the present moment.
+ */
+export const createSale = async (saleWrite: SaleWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SaleDetail>(getCreateSaleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saleWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateSaleMutationKey = () => ['createSale'] as const;
+
+export const getCreateSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSale>>, TError,CreateSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSale>>, TError,CreateSaleMutationVariables, TContext> => {
+
+const mutationKey = getCreateSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSale>>, CreateSaleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSale(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSaleMutationResult = NonNullable<Awaited<ReturnType<typeof createSale>>>
+    export type CreateSaleMutationBody = SaleWrite
+    export type CreateSaleMutationError = unknown
+    export type CreateSaleMutationVariables = {data: SaleWrite}
+
+    export const useCreateSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSale>>, TError,CreateSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createSale>>,
+        TError,
+        CreateSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSaleMutationOptions(options), queryClient);
+    }
+
+export const getGetSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}`
+}
+
+/**
+ * One sale with its lines and, once confirmed, the lots each line came from with their cost (not
+ * shown to drivers). Totals are without VAT until P2-T05.
+ */
+export const getSale = async (saleId: number, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+  return apiFetch<SaleDetail>(getGetSaleUrl(saleId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSaleQueryKey = (saleId: number,) => {
+    return [
+    `/api/v1/sales/${saleId}`
+    ] as const;
+    }
+
+
+export const getGetSaleQueryOptions = <TData = Awaited<ReturnType<typeof getSale>>, TError = unknown>(saleId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSaleQueryKey(saleId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSale>>> = ({ signal }) => getSale(saleId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: saleId !== null && saleId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSaleQueryResult = NonNullable<Awaited<ReturnType<typeof getSale>>>
+export type GetSaleQueryError = unknown
+
+
+export function useGetSale<TData = Awaited<ReturnType<typeof getSale>>, TError = unknown>(
+ saleId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSale>>,
+          TError,
+          Awaited<ReturnType<typeof getSale>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSale<TData = Awaited<ReturnType<typeof getSale>>, TError = unknown>(
+ saleId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSale>>,
+          TError,
+          Awaited<ReturnType<typeof getSale>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSale<TData = Awaited<ReturnType<typeof getSale>>, TError = unknown>(
+ saleId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSale<TData = Awaited<ReturnType<typeof getSale>>, TError = unknown>(
+ saleId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSaleQueryOptions(saleId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}`
+}
+
+/**
+ * Change a draft (every line is replaced), and with `confirm_now` confirm it too. A confirmed sale no
+ * longer changes: cancel it instead.
+ */
+export const updateSale = async (saleId: number,
+    saleWrite: SaleWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SaleDetail>(getUpdateSaleUrl(saleId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saleWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateSaleMutationKey = () => ['updateSale'] as const;
+
+export const getUpdateSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSale>>, TError,UpdateSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSale>>, TError,UpdateSaleMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSale>>, UpdateSaleMutationVariables> = (props) => {
+          const {saleId,data} = props ?? {};
+
+          return  updateSale(saleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSaleMutationResult = NonNullable<Awaited<ReturnType<typeof updateSale>>>
+    export type UpdateSaleMutationBody = SaleWrite
+    export type UpdateSaleMutationError = unknown
+    export type UpdateSaleMutationVariables = {saleId: number;data: SaleWrite}
+
+    export const useUpdateSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSale>>, TError,UpdateSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSale>>,
+        TError,
+        UpdateSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSaleMutationOptions(options), queryClient);
+    }
+
+export const getCancelSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}/cancel`
+}
+
+/**
+ * Cancel a sale (owner or manager). A confirmed sale needs a reason: its kilos come back to the same
+ * lots at the same place; the sale stays, marked cancelled.
+ */
+export const cancelSale = async (saleId: number,
+    saleCancel?: SaleCancel, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SaleDetail>(getCancelSaleUrl(saleId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saleCancel)
+  }
+);}
+
+
+
+
+
+export const getCancelSaleMutationKey = () => ['cancelSale'] as const;
+
+export const getCancelSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSale>>, TError,CancelSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelSale>>, TError,CancelSaleMutationVariables, TContext> => {
+
+const mutationKey = getCancelSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelSale>>, CancelSaleMutationVariables> = (props) => {
+          const {saleId,data} = props ?? {};
+
+          return  cancelSale(saleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelSaleMutationResult = NonNullable<Awaited<ReturnType<typeof cancelSale>>>
+    export type CancelSaleMutationBody = SaleCancel | undefined
+    export type CancelSaleMutationError = unknown
+    export type CancelSaleMutationVariables = {saleId: number;data?: SaleCancel}
+
+    export const useCancelSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSale>>, TError,CancelSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelSale>>,
+        TError,
+        CancelSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelSaleMutationOptions(options), queryClient);
+    }
+
+export const getConfirmSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}/confirm`
+}
+
+/**
+ * Confirm a draft: the stock leaves oldest batch first and the customer owes what is not paid. Refused
+ * as a whole when the place holds too little (`lines.<index>.quantity`).
+ */
+export const confirmSale = async (saleId: number, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+  return apiFetch<SaleDetail>(getConfirmSaleUrl(saleId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmSaleMutationKey = () => ['confirmSale'] as const;
+
+export const getConfirmSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmSale>>, TError,ConfirmSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmSale>>, TError,ConfirmSaleMutationVariables, TContext> => {
+
+const mutationKey = getConfirmSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmSale>>, ConfirmSaleMutationVariables> = (props) => {
+          const {saleId} = props ?? {};
+
+          return  confirmSale(saleId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmSaleMutationResult = NonNullable<Awaited<ReturnType<typeof confirmSale>>>
+
+    export type ConfirmSaleMutationError = unknown
+    export type ConfirmSaleMutationVariables = {saleId: number}
+
+    export const useConfirmSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmSale>>, TError,ConfirmSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof confirmSale>>,
+        TError,
+        ConfirmSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmSaleMutationOptions(options), queryClient);
+    }
 
 export const getGetStockSettingsUrl = () => {
 

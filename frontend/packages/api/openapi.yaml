@@ -124,6 +124,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/Batch'
           description: ''
+  /api/v1/batches/{batch_id}/sales:
+    get:
+      operationId: getBatchSales
+      description: |-
+        What one lot sold over its confirmed sales: kg, revenue without VAT, cost of the goods and margin,
+        then each sale line that took from it (oldest first). Office data: drivers get 403.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - batches
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchSales'
+          description: ''
   /api/v1/categories:
     get:
       operationId: listCategories
@@ -1606,6 +1629,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/QuoteDetail'
           description: ''
+  /api/v1/quotes/{quote_id}/convert:
+    post:
+      operationId: convertQuoteToSale
+      description: |-
+        Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
+        customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
+        quote stays accepted and links to its sale.
+      parameters:
+      - in: path
+        name: quote_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - quotes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteConvert'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuoteConvert'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuoteConvert'
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/quotes/{quote_id}/refuse:
     post:
       operationId: refuseQuote
@@ -1831,6 +1889,220 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LastCost'
+          description: ''
+  /api/v1/sales:
+    get:
+      operationId: listSales
+      description: |-
+        Sales, newest first, paginated (`limit`, `offset`). Filter by status, customer, place, days of the
+        sale (inclusive) or `search` (number, customer). A driver sees only their own sales, without costs.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - confirmed
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `confirmed` - Confirmée
+          * `cancelled` - Annulée
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSaleList'
+          description: ''
+    post:
+      operationId: createSale
+      description: |-
+        Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
+        and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
+        who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+        Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
+        day, at the present moment.
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/{sale_id}:
+    get:
+      operationId: getSale
+      description: |-
+        One sale with its lines and, once confirmed, the lots each line came from with their cost (not
+        shown to drivers). Totals are without VAT until P2-T05.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+    put:
+      operationId: updateSale
+      description: |-
+        Change a draft (every line is replaced), and with `confirm_now` confirm it too. A confirmed sale no
+        longer changes: cancel it instead.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/{sale_id}/cancel:
+    post:
+      operationId: cancelSale
+      description: |-
+        Cancel a sale (owner or manager). A confirmed sale needs a reason: its kilos come back to the same
+        lots at the same place; the sale stays, marked cancelled.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleCancel'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleCancel'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleCancel'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/{sale_id}/confirm:
+    post:
+      operationId: confirmSale
+      description: |-
+        Confirm a draft: the stock leaves oldest batch first and the customer owes what is not paid. Refused
+        as a whole when the place holds too little (`lines.<index>.quantity`).
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
           description: ''
   /api/v1/stock-settings:
     get:
@@ -3086,6 +3358,109 @@ components:
       - id
       - name
       - reference
+    BatchSaleRow:
+      type: object
+      description: The kilos of one lot sold by one sale line.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        sale:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        sold_at:
+          type: string
+          format: date-time
+          readOnly: true
+        customer:
+          type: string
+          readOnly: true
+        location:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        revenue_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - cost_amount
+      - customer
+      - discount_rate
+      - id
+      - location
+      - quantity
+      - revenue_amount
+      - sale
+      - sold_at
+      - unit_cost
+      - unit_price
+    BatchSales:
+      type: object
+      description: 'What one lot sold over its confirmed sales: the sales side of
+        its result (D-040).'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchSaleRow'
+          readOnly: true
+      required:
+      - batch_id
+      - cost
+      - margin
+      - quantity
+      - revenue
+      - rows
     BatchSupplier:
       type: object
       properties:
@@ -3102,6 +3477,9 @@ components:
       - id
       - name
       - reference
+    BlankEnum:
+      enum:
+      - ''
     Category:
       type: object
       properties:
@@ -4164,6 +4542,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Receipt'
+    PaginatedSaleList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sale'
     PaginatedStockMovementList:
       type: object
       required:
@@ -5136,6 +5537,11 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        sale:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          nullable: true
+          readOnly: true
       required:
       - answered_at
       - answered_by
@@ -5151,6 +5557,7 @@ components:
       - number
       - quoted_on
       - refusal_reason
+      - sale
       - sent_at
       - sent_by
       - status
@@ -5159,6 +5566,35 @@ components:
       - total
       - total_excl_tax
       - valid_until
+    QuoteConvert:
+      type: object
+      properties:
+        amount_paid:
+          type: string
+          nullable: true
+        paid_in_full:
+          type: boolean
+          default: false
+        payment_method:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        payment_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        location:
+          type: integer
+          minimum: 1
+          nullable: true
+        sold_at:
+          type: string
+          format: date-time
+          nullable: true
+        confirm_now:
+          type: boolean
+          default: false
     QuoteCustomer:
       type: object
       properties:
@@ -5280,6 +5716,11 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        sale:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          nullable: true
+          readOnly: true
         lines:
           type: array
           items:
@@ -5301,6 +5742,7 @@ components:
       - number
       - quoted_on
       - refusal_reason
+      - sale
       - sent_at
       - sent_by
       - status
@@ -5403,6 +5845,18 @@ components:
       - id
       - name
       - reference
+    QuoteRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
     QuoteRefuse:
       type: object
       properties:
@@ -5719,6 +6173,581 @@ components:
         * `manager` - Gestionnaire
         * `driver` - Chauffeur
         * `accountant` - Comptable
+    Sale:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SaleStatusEnum'
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/SaleCustomer'
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/SaleLocation'
+          readOnly: true
+        sold_at:
+          type: string
+          format: date-time
+          readOnly: true
+        quote:
+          allOf:
+          - $ref: '#/components/schemas/QuoteRef'
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        line_count:
+          type: integer
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        tax_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+        amount_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payment_method:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        payment_reference:
+          type: string
+          readOnly: true
+        amount_due:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        confirmed_by:
+          type: string
+          readOnly: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_by:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancel_reason:
+          type: string
+          readOnly: true
+      required:
+      - amount_due
+      - amount_paid
+      - cancel_reason
+      - cancelled_at
+      - cancelled_by
+      - confirmed_at
+      - confirmed_by
+      - cost_total
+      - created_at
+      - created_by
+      - customer
+      - discount_total
+      - id
+      - line_count
+      - location
+      - margin
+      - notes
+      - number
+      - payment_method
+      - payment_reference
+      - quote
+      - sold_at
+      - status
+      - subtotal
+      - tax_amount
+      - total
+      - total_excl_tax
+    SaleBatch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
+    SaleCancel:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+    SaleCustomer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+        is_walk_in:
+          type: boolean
+          readOnly: true
+      required:
+      - address
+      - city
+      - id
+      - is_walk_in
+      - name
+      - reference
+      - tax_id
+    SaleDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SaleStatusEnum'
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/SaleCustomer'
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/SaleLocation'
+          readOnly: true
+        sold_at:
+          type: string
+          format: date-time
+          readOnly: true
+        quote:
+          allOf:
+          - $ref: '#/components/schemas/QuoteRef'
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        line_count:
+          type: integer
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        tax_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+        amount_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payment_method:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        payment_reference:
+          type: string
+          readOnly: true
+        amount_due:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        confirmed_by:
+          type: string
+          readOnly: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_by:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancel_reason:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleLine'
+          readOnly: true
+      required:
+      - amount_due
+      - amount_paid
+      - cancel_reason
+      - cancelled_at
+      - cancelled_by
+      - confirmed_at
+      - confirmed_by
+      - cost_total
+      - created_at
+      - created_by
+      - customer
+      - discount_total
+      - id
+      - line_count
+      - lines
+      - location
+      - margin
+      - notes
+      - number
+      - payment_method
+      - payment_reference
+      - quote
+      - sold_at
+      - status
+      - subtotal
+      - tax_amount
+      - total
+      - total_excl_tax
+    SaleLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/QuoteProduct'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        price_source:
+          allOf:
+          - $ref: '#/components/schemas/SalePriceSourceEnum'
+          readOnly: true
+        below_minimum:
+          type: boolean
+          readOnly: true
+        discount_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        gross_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        batches:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleLineBatch'
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - batches
+      - below_minimum
+      - cost_amount
+      - discount_amount
+      - discount_rate
+      - gross_amount
+      - id
+      - price_source
+      - product
+      - quantity
+      - unit_price
+    SaleLineBatch:
+      type: object
+      description: The kilos of a line taken from one lot, with their cost (office
+        only).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/SaleBatch'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cost_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch
+      - cost_amount
+      - id
+      - quantity
+      - revenue_amount
+      - unit_cost
+    SaleLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - kind
+      - name
+    SalePaymentMethodEnum:
+      enum:
+      - cash
+      - cheque
+      - transfer
+      - card
+      type: string
+      description: |-
+        * `cash` - Espèces
+        * `cheque` - Chèque
+        * `transfer` - Virement
+        * `card` - Carte bancaire
+    SalePriceSourceEnum:
+      enum:
+      - price_list
+      - daily
+      - quote
+      - typed
+      type: string
+      description: |-
+        * `price_list` - Liste du client
+        * `daily` - Prix du jour
+        * `quote` - Devis
+        * `typed` - Saisi
+    SaleRef:
+      type: object
+      description: A sale named from another document (the quote it came from, a lot's
+        sales).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SaleStatusEnum'
+          readOnly: true
+      required:
+      - id
+      - number
+      - status
+    SaleStatusEnum:
+      enum:
+      - draft
+      - confirmed
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `confirmed` - Confirmée
+        * `cancelled` - Annulée
+    SaleWrite:
+      type: object
+      properties:
+        amount_paid:
+          type: string
+          nullable: true
+        paid_in_full:
+          type: boolean
+          default: false
+        payment_method:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        payment_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        customer:
+          type: integer
+          minimum: 1
+          nullable: true
+        location:
+          type: integer
+          minimum: 1
+        sold_at:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuoteLineWrite'
+        confirm_now:
+          type: boolean
+          default: false
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - lines
+      - location
     Session:
       type: object
       description: 'Who is logged in and what they may do: the answer of `/me` and
