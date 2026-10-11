@@ -8,6 +8,7 @@ from apps.core import services
 from apps.core.models import Organization, Role, User
 from apps.demo.batches import seed_batches
 from apps.demo.catalogue import seed_catalogue
+from apps.demo.costing import seed_costing
 from apps.demo.customers import seed_customers
 from apps.demo.employees import seed_employees
 from apps.demo.expenses import seed_expenses
@@ -87,6 +88,7 @@ class Command(BaseCommand):
         sale_invoices = seed_invoices(organization=organization, actor=owner)
         employees = seed_employees(organization=organization, actor=owner, driver=driver)
         expenses = seed_expenses(organization=organization, actor=owner)
+        costing = seed_costing(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
@@ -106,3 +108,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"{sale_invoices} new customer invoices"))
         self.stdout.write(self.style.SUCCESS(f"{employees} new employees"))
         self.stdout.write(self.style.SUCCESS(f"{expenses} new expenses, day labourers and days worked"))
+        self.stdout.write(self.style.SUCCESS(f"{costing} new cold-room costs and general costs"))

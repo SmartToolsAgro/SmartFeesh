@@ -16,6 +16,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from
 import { EmployeeDetailPage } from "./hr/EmployeeDetailPage";
 import { EmployeesPage } from "./hr/EmployeesPage";
 import { PayrollPage } from "./hr/PayrollPage";
+import { ColdRoomCostPage } from "./expenses/ColdRoomCostPage";
 import { DayLabourCalendarPage } from "./expenses/DayLabourCalendarPage";
 import { DayLabourersPage } from "./expenses/DayLabourersPage";
 import { ExpenseDetailPage } from "./expenses/ExpenseDetailPage";
@@ -24,6 +25,8 @@ import { ExpensesPage } from "./expenses/ExpensesPage";
 import { FinanceSettingsPage } from "./invoices/FinanceSettingsPage";
 import { InvoicePage } from "./invoices/InvoicePage";
 import { InvoicesPage } from "./invoices/InvoicesPage";
+
+import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
@@ -212,6 +215,8 @@ function AppRoutes() {
         <Route path="/charges/nouvelle" element={<ExpenseFormPage />} />
         <Route path="/charges/calendrier" element={<DayLabourCalendarPage />} />
         <Route path="/charges/journaliers" element={<DayLabourersPage />} />
+        <Route path="/charges/froid" element={<ColdRoomCostPage />} />
+        <Route path="/charges/frais-generaux" element={<GeneralCostsPage />} />
         <Route path="/charges/:expenseId" element={<ExpenseDetailPage />} />
         <Route path="/charges/:expenseId/modifier" element={<ExpenseEditPage />} />
         {/* Stock sections (P1-T10) */}

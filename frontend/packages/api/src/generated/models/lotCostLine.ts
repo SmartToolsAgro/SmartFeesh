@@ -9,7 +9,8 @@ import type { LotCostKindEnum } from './lotCostKindEnum';
 
 export interface LotCostLine {
   readonly kind: LotCostKindEnum;
-  readonly expense_id: number;
+  /** @nullable */
+  readonly expense_id: number | null;
   readonly expense_number: string;
   readonly status: ExpenseStatusEnum;
   readonly spent_on: string;
@@ -31,4 +32,8 @@ export interface LotCostLine {
      * @pattern ^-?\d{0,9}(?:\.\d{0,3})?$
      */
   readonly day_quantity: string | null;
+  readonly location_name: string;
+  /** @nullable */
+  readonly month: string | null;
+  readonly estimated: boolean;
 }

@@ -214,9 +214,11 @@ class LotCostFilterSerializer(serializers.Serializer[Any]):
 
 
 class LotCostLineSerializer(serializers.Serializer[Any]):
-    # "lot": an expense typed on the lot; "truck_day": its share of a truck's costs that day.
+    # "lot": typed on the lot; "truck_day": its share of a truck's costs that day; "cold_room",
+    # "cold_room_adjustment" and "general": worked out from the stock ledger (D-058, D-059).
     kind = serializers.ChoiceField(choices=LotCostKind.choices, read_only=True)
-    expense_id = serializers.IntegerField(read_only=True)
+    # Empty for a cold-room estimate made before the month's bill exists.
+    expense_id = serializers.IntegerField(read_only=True, allow_null=True)
     expense_number = serializers.CharField(read_only=True)
     status = serializers.ChoiceField(choices=ExpenseStatus.choices, read_only=True)
     spent_on = serializers.DateField(read_only=True)
@@ -228,6 +230,11 @@ class LotCostLineSerializer(serializers.Serializer[Any]):
     truck_name = serializers.CharField(read_only=True)
     quantity = serializers.DecimalField(read_only=True, allow_null=True, max_digits=12, decimal_places=3)
     day_quantity = serializers.DecimalField(read_only=True, allow_null=True, max_digits=12, decimal_places=3)
+    # Cold room: the room; cold room and general costs: the month charged, with the lot's kg-days in
+    # `quantity`. `estimated`: the amount is an estimate (no bill yet for that month).
+    location_name = serializers.CharField(read_only=True)
+    month = serializers.DateField(read_only=True, allow_null=True)
+    estimated = serializers.BooleanField(read_only=True)
 
 
 class LotCostsSerializer(serializers.Serializer[Any]):

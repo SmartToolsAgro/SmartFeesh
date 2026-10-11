@@ -883,3 +883,33 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   document, `print:` classes hide the shell; a draft shows the VAT toggle and typed values beside what the
   settings propose), "Facturer" on a confirmed sale, the credit note dialog, "Paramètres financiers"
   (`/factures/parametres`). The VAT preview is computed by the server on "Enregistrer et recalculer".
+
+**D-058 · Cold-room cost per day, estimate then correction (P5-T02)** · accepted · 2026-10-11
+- In `expenses`. `ElectricityBill` (month, one-to-one with an `Expense` of category cold storage: one record,
+  so it also feeds the books; typed after the month ends, one per month, a refused one can be retyped).
+  `ColdRoomWeight` per cold room (default 1, owner only). Approving the bill (`approve_expense` or the
+  bill's endpoint) freezes `ColdRoomMonthRate` per active room (weight, part of the bill, estimate rate used):
+  rooms get `split_by_weight(bill, weights)`, each room's part is spread evenly over the month's days, each
+  day over the lots in the room that day by kg: shares add up to the millime at every level.
+- **Kg held** come from the ledger replayed by date: `inventory.selectors.kg_by_batch_by_day` /
+  `kg_by_batch_on_day` / `first_movement_day` (end-of-day balance per place, local date; the day a lot
+  moves is charged to the room it ends the day in).
+- **Estimate:** a month with no approved bill uses the latest earlier billed month's daily rate per room
+  (month part / days), flagged `estimated`; nothing before the first bill. When the real bill is approved
+  each lot gets a `LotCostAdjustment` (real minus estimate, per room, signed, dated that day, immutable):
+  a closed lot is never reopened, the later settlement picks the line up (D-041). Frozen estimates are
+  not recomputed.
+- `lot_cost_lines` gains kinds `cold_room`, `cold_room_adjustment`, `general` (plus `location_name`, `month`,
+  `estimated`; `expense_id` may be null for an estimate). Screen "Chambres froides : coût"
+  (`/charges/froid`). Pinned enum `LotCostAdjustmentKindEnum`. Provisional: weights are read at approval
+  time; rooms archived later keep their frozen rows.
+
+**D-059 · General costs on lots, like a salary (P5-T05)** · accepted · 2026-10-11
+- `RecurringCost` (template: category, monthly amount, first/last month) generates the month's `Expense`
+  (`generate_recurring_costs`, idempotent, owner/manager); `GeneralCostPeriod` marks an expense as a general
+  cost covering `months` months from `first_month` (bill over several months is spread equally, exact to
+  the millime). Templates are owner-only; generated and multi-month costs follow the expense approval.
+  Such an expense is changed/deleted only through its own endpoints.
+- Charge to lots (**Q21 provisional**): each month part / 26 per day, each day split over the lots in stock
+  anywhere that day by kg held (end-of-day ledger balance); days with nothing in stock charge nobody. Only
+  approved expenses count; days up to today. Screen "Frais généraux" (`/charges/frais-generaux`).
