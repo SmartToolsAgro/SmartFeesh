@@ -35,10 +35,14 @@ from .serializers import (
     LossRejectSerializer,
     LossSerializer,
     LossWriteSerializer,
+    ProductStockDetailSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
     StockLocationSerializer,
     StockLocationUpdateSerializer,
+    StockMovementFilterSerializer,
+    StockMovementSerializer,
+    StockOverviewSerializer,
     StockSettingsSerializer,
     StockSettingsWriteSerializer,
     TransferDetailSerializer,
@@ -544,3 +548,68 @@ class CountCancelView(CountView):
         """Give up an open count: nothing moved."""
         services.cancel_count(count=self.count(count_id), actor=self.membership.user)
         return self.answer(count_id)
+
+
+# ---- Stock screens (P1-T11) ----
+
+
+class StockOverviewView(OfficeView):
+    @extend_schema(operation_id="getStockOverview", responses=StockOverviewSerializer)
+    def get(self, request: Request) -> Response:
+        """Each active location with the kg and cost it holds, and each product with its kg per location,
+        its low-stock warning and its average and last purchase cost (pricing information only, D-040)."""
+        overview = {
+            "locations": selectors.location_totals(self.organization),
+            "products": selectors.product_stocks(self.organization),
+        }
+        return Response(StockOverviewSerializer(overview).data)
+
+
+class _StockWithBatches:
+    """A product's stock with its batches, as one object for the serializer."""
+
+    def __init__(self, stock: selectors.ProductStock, batches: list[selectors.BatchHolding]) -> None:
+        self.product = stock.product
+        self.quantity = stock.quantity
+        self.by_location = stock.by_location
+        self.average_cost = stock.average_cost
+        self.last_cost = stock.last_cost
+        self.is_low = stock.is_low
+        self.batches = batches
+
+
+class ProductStockView(OfficeView):
+    @extend_schema(operation_id="getProductStock", responses=ProductStockDetailSerializer)
+    def get(self, request: Request, product_id: int) -> Response:
+        """One product's stock like the overview, plus the batches still on hand with their locations."""
+        try:
+            stock = selectors.product_stock(self.organization, product_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        batches = selectors.batch_holdings(self.organization, product_id=product_id)
+        return Response(ProductStockDetailSerializer(_StockWithBatches(stock, batches)).data)
+
+
+class MovementListView(OfficeView, ListAPIView[Any]):
+    serializer_class = StockMovementSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[Any]:
+        filters = StockMovementFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        data = filters.validated_data
+        return selectors.movements_of(
+            self.organization,
+            location_id=data.get("location"),
+            product_id=data.get("product"),
+            batch_id=data.get("batch"),
+            kind=data.get("kind"),
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+        )
+
+    @extend_schema(operation_id="listMovements", parameters=[StockMovementFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """The stock ledger, newest first, paginated (`limit`, `offset`). A location filter keeps the
+        movements coming in or going out of it; dates are inclusive."""
+        return super().get(request, *args, **kwargs)

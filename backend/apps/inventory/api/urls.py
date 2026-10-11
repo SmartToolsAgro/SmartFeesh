@@ -28,4 +28,8 @@ urlpatterns = [
     path("counts/<int:count_id>/lines", views.CountLinesView.as_view(), name="count-lines"),
     path("counts/<int:count_id>/approve", views.CountApproveView.as_view(), name="count-approve"),
     path("counts/<int:count_id>/cancel", views.CountCancelView.as_view(), name="count-cancel"),
+    # P1-T11 · stock screens
+    path("stock/overview", views.StockOverviewView.as_view(), name="stock-overview"),
+    path("stock/products/<int:product_id>", views.ProductStockView.as_view(), name="stock-product"),
+    path("stock/movements", views.MovementListView.as_view(), name="movement-list"),
 ]

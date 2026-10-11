@@ -13,8 +13,9 @@ from django.db import connection
 from django.db.models import Prefetch, Q, QuerySet, Sum
 from django.utils.translation import gettext as _
 
+from apps.catalog import selectors as catalog
 from apps.core.models import Organization
-from apps.core.money import Number, checked_quantity, line_total
+from apps.core.money import Number, checked_quantity, line_total, money
 
 from .models import (
     FIFO_ORDER,
@@ -164,8 +165,12 @@ def movements_of(
     location_id: int | None = None,
     product_id: int | None = None,
     batch_id: int | None = None,
+    kind: str | None = None,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
 ) -> QuerySet[StockMovement]:
-    """The ledger, newest first. A location filter keeps movements coming in or going out of it."""
+    """The ledger, newest first. A location filter keeps movements coming in or going out of it; the
+    dates (inclusive, local days) filter on when the movement happened."""
     movements = (
         StockMovement.objects.for_organization(organization)
         .select_related("batch", "product", "from_location", "to_location", "user")
@@ -177,6 +182,12 @@ def movements_of(
         movements = movements.filter(product_id=product_id)
     if batch_id is not None:
         movements = movements.filter(batch_id=batch_id)
+    if kind:
+        movements = movements.filter(kind=kind)
+    if date_from is not None:
+        movements = movements.filter(occurred_at__date__gte=date_from)
+    if date_to is not None:
+        movements = movements.filter(occurred_at__date__lte=date_to)
     return movements
 
 
@@ -500,3 +511,154 @@ def counts_of(
 def count_of(organization: Organization, count_id: int) -> StockCount:
     """One count with its sheet. Raises StockCount.DoesNotExist outside the organization."""
     return counts_of(organization).get(pk=count_id)
+
+
+# ---- Stock screens (P1-T11, D-048) ----
+
+
+@dataclass(frozen=True)
+class LocationTotal:
+    """What one location holds now: kg of everything, and what that cost (kg × each batch's unit cost)."""
+
+    location: StockLocation
+    quantity: Decimal
+    value: Decimal
+
+
+@dataclass(frozen=True)
+class ProductStock:
+    """One product's stock across the locations, with its purchase prices.
+
+    `average_cost` is the cost per kg weighted by the kg still on hand over every batch; `last_cost` is the
+    unit cost of the latest batch received. Both are for pricing information only: a sale is still valued
+    FIFO per batch (D-040).
+    """
+
+    product: Any
+    quantity: Decimal
+    by_location: dict[int, Decimal]
+    average_cost: Decimal | None
+    last_cost: Decimal | None
+
+    @property
+    def is_low(self) -> bool:
+        """Under the product's minimum stock (never for a product without one)."""
+        return bool(self.product.min_stock > 0 and self.quantity < self.product.min_stock)
+
+
+@dataclass(frozen=True)
+class BatchHolding:
+    """A batch still on hand: its kg in total and per location, and their cost."""
+
+    batch: Batch
+    quantity: Decimal
+    value: Decimal
+    by_location: list[tuple[StockLocation, Decimal]]
+
+
+def _holdings(organization: Organization, *, product_id: int | None = None) -> list[StockOnHand]:
+    rows = (
+        StockOnHand.objects.for_organization(organization)
+        .filter(quantity__gt=0)
+        .select_related("location", "batch", "batch__supplier")
+        .order_by("location__kind", "location__name", "batch__received_on", "batch_id")
+    )
+    if product_id is not None:
+        rows = rows.filter(product_id=product_id)
+    return list(rows)
+
+
+def last_costs(organization: Organization, *, product_id: int | None = None) -> dict[int, Decimal]:
+    """The unit cost of the latest batch of each product (by receipt date, then number of creation)."""
+    batches = Batch.objects.for_organization(organization).order_by("product_id", "-received_on", "-id")
+    if product_id is not None:
+        batches = batches.filter(product_id=product_id)
+    return {batch.product_id: batch.unit_cost for batch in batches.distinct("product_id")}
+
+
+def _average(rows: Iterable[StockOnHand]) -> Decimal | None:
+    kg = Decimal(0)
+    cost = Decimal(0)
+    for row in rows:
+        kg += row.quantity
+        cost += row.quantity * row.batch.unit_cost
+    return money(cost / kg) if kg > 0 else None
+
+
+def average_purchase_cost(organization: Organization, *, product_id: int) -> Decimal | None:
+    """Cost per kg of a product weighted by the kg of each batch still on hand; empty without stock."""
+    return _average(_holdings(organization, product_id=product_id))
+
+
+def location_totals(organization: Organization) -> list[LocationTotal]:
+    """Every active location (cold rooms first, then trucks) with the kg and cost it holds."""
+    kg: dict[int, Decimal] = defaultdict(lambda: Decimal("0.000"))
+    value: dict[int, Decimal] = defaultdict(lambda: Decimal("0.000"))
+    for row in _holdings(organization):
+        kg[row.location_id] += row.quantity
+        value[row.location_id] += line_total(row.quantity, row.batch.unit_cost)
+    return [
+        LocationTotal(location=location, quantity=kg[location.pk], value=value[location.pk])
+        for location in locations_of(organization)
+    ]
+
+
+def _product_stocks(
+    organization: Organization, products: Sequence[Any], rows: Sequence[StockOnHand]
+) -> list[ProductStock]:
+    by_product: dict[int, list[StockOnHand]] = defaultdict(list)
+    for row in rows:
+        by_product[row.product_id].append(row)
+    last = last_costs(organization)
+    stocks: list[ProductStock] = []
+    for product in products:
+        held = by_product.get(product.pk, [])
+        by_location: dict[int, Decimal] = defaultdict(lambda: Decimal("0.000"))
+        for row in held:
+            by_location[row.location_id] += row.quantity
+        stocks.append(
+            ProductStock(
+                product=product,
+                quantity=sum(by_location.values(), Decimal("0.000")),
+                by_location=dict(by_location),
+                average_cost=_average(held),
+                last_cost=last.get(product.pk),
+            )
+        )
+    return stocks
+
+
+def product_stocks(organization: Organization) -> list[ProductStock]:
+    """The products the stock page shows, by name: those holding stock, and the active ones with a
+    minimum stock (so an empty shelf still shows as low)."""
+    rows = _holdings(organization)
+    held = {row.product_id for row in rows}
+    products = [
+        product
+        for product in catalog.products_of(organization, status="all")
+        if product.pk in held or (product.is_active and product.min_stock > 0)
+    ]
+    return _product_stocks(organization, products, rows)
+
+
+def product_stock(organization: Organization, product_id: int) -> ProductStock:
+    """One product's stock. Raises Product.DoesNotExist outside the organization."""
+    product = catalog.product_of(organization, product_id)
+    return _product_stocks(organization, [product], _holdings(organization, product_id=product_id))[0]
+
+
+def batch_holdings(organization: Organization, *, product_id: int) -> list[BatchHolding]:
+    """The batches of a product still on hand, oldest first (the order they leave in)."""
+    per_batch: dict[int, list[StockOnHand]] = defaultdict(list)
+    for row in _holdings(organization, product_id=product_id):
+        per_batch[row.batch_id].append(row)
+    holdings = [
+        BatchHolding(
+            batch=rows[0].batch,
+            quantity=sum((row.quantity for row in rows), Decimal("0.000")),
+            value=sum((line_total(row.quantity, row.batch.unit_cost) for row in rows), Decimal("0.000")),
+            by_location=[(row.location, row.quantity) for row in rows],
+        )
+        for rows in per_batch.values()
+    ]
+    return sorted(holdings, key=lambda holding: (holding.batch.received_on, holding.batch.pk))
