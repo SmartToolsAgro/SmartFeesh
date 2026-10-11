@@ -94,13 +94,14 @@ def _header_errors(
     return errors
 
 
-def _checked_price(product: "Product | None", price: Any, at: dt.datetime) -> Decimal | str:
+def _checked_price(product: "Product | None", price: Any, at: dt.datetime, customer: "Customer") -> Decimal | str:
     """The price per kg of a line, or the message saying why there is none.
 
-    Empty takes the sale price in force at `at` (`catalog.price_at`); a typed price must be above zero.
+    Empty takes what the customer is charged at `at` (`catalog.price_in_force`, D-049): their own price
+    list when it holds the product, else the daily price. A typed price must be above zero.
     """
     if price in (None, ""):
-        in_force = catalog.price_at(product, at) if product is not None else None
+        in_force = catalog.price_in_force(product, at, customer_id=customer.pk) if product is not None else None
         if in_force is None:
             return _("Aucun prix de vente en vigueur : indiquez un prix.")
         return in_force.price
@@ -137,7 +138,11 @@ def priced_line(quantity: Decimal, unit_price: Decimal, discount_rate: Decimal) 
 
 
 def _checked_lines(
-    organization: Organization, lines: Sequence[QuoteLineFields], at: dt.datetime, errors: dict[str, str]
+    organization: Organization,
+    customer: "Customer",
+    lines: Sequence[QuoteLineFields],
+    at: dt.datetime,
+    errors: dict[str, str],
 ) -> list[dict[str, Any]]:
     """The lines' values once checked and priced; each problem is added to `errors` under the line's keys."""
     checked_lines: list[dict[str, Any]] = []
@@ -159,7 +164,7 @@ def _checked_lines(
         except (ValueError, TypeError):
             errors[line_error_key(index, "quantity")] = _("Indiquez un poids en kg, supérieur à zéro.")
         if line_error_key(index, "product") not in errors:
-            price = _checked_price(product, line.get("unit_price"), at)
+            price = _checked_price(product, line.get("unit_price"), at, customer)
             if isinstance(price, Decimal):
                 checked["unit_price"] = price
             else:
@@ -190,7 +195,7 @@ def _prepared(
     errors = _header_errors(organization, customer, location, quoted_on, valid_until)
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
-    checked_lines = _checked_lines(organization, lines, moment_of(quoted_on), errors)
+    checked_lines = _checked_lines(organization, customer, lines, moment_of(quoted_on), errors)
     if errors:
         raise ValidationError(errors)
     return valid_until, checked_lines

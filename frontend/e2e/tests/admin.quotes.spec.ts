@@ -42,13 +42,15 @@ test("the owner quotes a hotel with a discount, sends it, and records the yes", 
   await choose(page, page, "Stock consulté", FRESH_ROOM);
   const line = page.getByRole("group", { name: "Produit 1" });
   await choose(page, line, "Produit", "Dorade royale · DO-003");
-  // The price in force is proposed, and the stock of the chosen cold room is shown for information.
-  await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("24,500");
+  // The hotel's own price list is proposed (D-049), and the stock of the chosen cold room is shown for
+  // information.
+  await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("22,500");
+  await expect(line).toContainText(/Prix du client \(Hôtel Thyna\) : 22,500\sDT/);
   await expect(line).toContainText(/En stock à Chambre froide 1 \(frais\) : [\d\s,]+kg/);
   await line.getByLabel("Poids (kg)").fill("4");
   await line.getByLabel("Remise (%)").fill("10");
-  // 4 × 24.500 = 98.000, less 10 % = 88.200
-  await expect(line).toContainText(/88,200\sDT/);
+  // 4 × 22.500 = 90.000, less 10 % = 81.000
+  await expect(line).toContainText(/81,000\sDT/);
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
 
   await expect(page.getByText(/Devis DV-\d+ enregistré et envoyé/)).toBeVisible();
@@ -56,7 +58,7 @@ test("the owner quotes a hotel with a discount, sends it, and records the yes", 
   await expect(page.getByText("Envoyé", { exact: true })).toBeVisible();
   const quote = page.getByRole("article", { name: /Devis DV-\d+/ });
   await expect(quote.getByRole("row", { name: /Dorade royale/ })).toContainText(/10\s%/);
-  await expect(quote).toContainText(/Remises\s*−9,800\sDT/);
+  await expect(quote).toContainText(/Remises\s*−9,000\sDT/);
   await expect(page.getByRole("button", { name: "Modifier" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Accepté par le client" }).click();

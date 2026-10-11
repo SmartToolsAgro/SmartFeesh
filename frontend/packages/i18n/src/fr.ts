@@ -462,6 +462,7 @@ export const fr = {
         discount: "Remise (%)",
         priceInForce: "Prix en vigueur : {{price}}",
         noPrice: "Aucun prix en vigueur : indiquez un prix.",
+        listPrice: "Prix du client ({{list}}) : {{price}}",
         available: "En stock à {{location}} : {{quantity}}",
         notAvailable: "Rien de ce produit à {{location}}.",
         addLine: "Ajouter un produit",

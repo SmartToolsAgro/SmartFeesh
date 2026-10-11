@@ -8,6 +8,7 @@ import {
   useListCustomers,
   useListLocations,
   useListLocationStock,
+  useListPriceLists,
   useListProducts,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
@@ -136,16 +137,28 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
     for (const row of stock.data ?? []) byProduct.set(String(row.product_id), row.quantity);
     return byProduct;
   }, [stock.data]);
-  const priceInForce = useMemo(() => {
+  const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
     return byProduct;
   }, [products.data]);
+  // The customer's own price list wins over the daily price, as on the server (D-049).
+  const priceLists = useListPriceLists(
+    { customer: Number(customer), status: "active" },
+    { query: { enabled: customer !== "" } },
+  );
+  const customerList = priceLists.data?.[0];
+  const listPrice = useMemo(() => {
+    const byProduct = new Map<string, string>();
+    for (const item of customerList?.items ?? []) byProduct.set(String(item.product), item.price);
+    return byProduct;
+  }, [customerList]);
+  const proposedPrice = (product: string): string | null => listPrice.get(product) ?? dailyPrice.get(product) ?? null;
 
-  // A line shows the price in force until a price is typed; the server keeps it on the line.
+  // A line shows the price the customer is charged until a price is typed; the server keeps it on the line.
   const priceOf = (line: Line): string => {
     if (line.priceTouched) return line.unit_price;
-    const price = priceInForce.get(line.product);
+    const price = proposedPrice(line.product);
     return price ? asTyped(price) : "";
   };
 
@@ -318,12 +331,15 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
           <CardTitle className="mb-0">{t("admin.quotes.form.lines")}</CardTitle>
           {lines.map((line, index) => {
             const available = line.product ? availableOf.get(line.product) : undefined;
-            const inForce = line.product ? priceInForce.get(line.product) : undefined;
+            const fromList = line.product ? listPrice.get(line.product) : undefined;
+            const inForce = line.product ? dailyPrice.get(line.product) : undefined;
             const hints = [
               line.product
-                ? inForce
-                  ? t("admin.quotes.form.priceInForce", { price: formatMoney(inForce) })
-                  : t("admin.quotes.form.noPrice")
+                ? fromList && customerList
+                  ? t("admin.quotes.form.listPrice", { list: customerList.name, price: formatMoney(fromList) })
+                  : inForce
+                    ? t("admin.quotes.form.priceInForce", { price: formatMoney(inForce) })
+                    : t("admin.quotes.form.noPrice")
                 : null,
               line.product && place && stock.data
                 ? available

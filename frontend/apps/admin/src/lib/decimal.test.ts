@@ -1,6 +1,15 @@
 import { expect, test } from "vitest";
 
-import { fromThousandths, lineTotal, marginPercent, percentChange, percentOf, subtract, sum, toThousandths } from "./decimal";
+import {
+  fromThousandths,
+  lineTotal,
+  marginPercent,
+  percentChange,
+  percentOf,
+  subtract,
+  sum,
+  toThousandths,
+} from "./decimal";
 
 test("a discount in percent is rounded once to the millime, like the server", () => {
   // 94.568 × 7.5 % = 7.0926 → 7.093

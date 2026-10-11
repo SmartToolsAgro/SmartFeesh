@@ -10,6 +10,7 @@ from django.core.management import call_command
 from django.db import connection
 from django.utils import timezone
 
+from apps.catalog import services as catalog
 from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
 from apps.core.models import AuditLog
 from apps.core.tests.factories import OrganizationFactory, UserFactory
@@ -126,6 +127,25 @@ def test_a_typed_price_and_a_discount_are_kept_and_rounded_once_per_line(organiz
         Decimal("7.093"),
         Decimal("87.475"),
     )
+
+
+def test_the_customers_price_list_wins_over_the_daily_price(organization, actor, customer, crevette, calamar):
+    catalog.create_price_list(
+        organization=organization,
+        actor=actor,
+        name="Le Corail",
+        customer_id=customer.pk,
+        items=[{"product": crevette, "price": Decimal("39.500")}],
+    )
+    other = CustomerFactory.create(organization=organization)
+    lines = [{"product": crevette, "quantity": "2"}, {"product": calamar, "quantity": "1"}]
+
+    own = quote(organization, actor, customer, lines)
+    elsewhere = quote(organization, actor, other, lines)
+
+    # The list holds the shrimp only: the squid stays at the daily price.
+    assert [line.unit_price for line in own.lines.order_by("id")] == [Decimal("39.500"), Decimal("29.000")]
+    assert [line.unit_price for line in elsewhere.lines.order_by("id")] == [Decimal("42.000"), Decimal("29.000")]
 
 
 def test_a_quote_dated_earlier_takes_the_price_in_force_that_day(organization, actor, customer):

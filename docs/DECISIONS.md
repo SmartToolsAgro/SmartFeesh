@@ -633,11 +633,13 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   decimals), and the amounts computed by the service: gross = kg × price, discount = gross × % / 100,
   each rounded once half up, amount = gross − discount. Quote totals (gross, discounts, total excl. tax)
   are stored by the service with the lines.
-- **Prices:** a line without a typed price takes the `ProductPrice` in force at the quote's moment (now
-  for today, noon of an earlier day: same rule as loads, D-044) through `catalog.selectors.price_at`, and
-  keeps it: later price changes never touch the quote (D-020). When P2-T02 adds customer prices or price
-  lists, the default should come from its selector instead. No price in force and none typed is refused
-  on `lines.<i>.unit_price`.
+- **Prices:** a line without a typed price takes what the customer is charged at the quote's moment (now
+  for today, noon of an earlier day: same rule as loads, D-044) through
+  `catalog.selectors.price_in_force(product, at, customer_id=)` (D-049): the customer's active price list
+  when it holds the product, else the daily price. The line keeps it: later price or list changes never
+  touch the quote (D-020). The form proposes the same price ("Prix du client (liste) : …" or "Prix en
+  vigueur : …"). No price and none typed is refused on `lines.<i>.unit_price`. Minimum prices (D-049) are
+  not checked on quotes yet.
 - **VAT hook:** `tax_amount` is empty and `total` = total excl. tax until P2-T05's finance settings (D-018)
   decide the rate and whether prices include VAT. The quote page shows "TVA : avec la facturation". No
   fiscal stamp on a quote.
