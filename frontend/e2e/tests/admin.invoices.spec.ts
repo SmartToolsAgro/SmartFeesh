@@ -3,7 +3,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { OWNER_STATE } from "./owner";
 
 // The demo invoices come from `manage.py seed_dev` (D-057): Restaurant Le Corail's is issued, Café-Resto
-// Sidi Mansour's is a draft. These tests make their own sale in Seiche, which the other tests leave alone.
+// Sidi Mansour's is a draft. These tests make their own sale in Sardine (never Seiche: the partnership lot test counts its kilos).
 test.use({ storageState: OWNER_STATE });
 
 const FRESH_ROOM = "Chambre froide 1 (frais)";
@@ -45,7 +45,7 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
   await choose(page, page, "Depuis", FRESH_ROOM);
   const line = page.getByRole("group", { name: "Produit 1" });
-  await choose(page, line, "Produit", "Seiche · SE-012");
+  await choose(page, line, "Produit", "Sardine · SA-010");
   await line.getByLabel("Poids (kg)").fill("2");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
   await expect(page.getByText(/Brouillon VE-\d+ enregistré/)).toBeVisible();
@@ -68,7 +68,7 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
 
   // With VAT again, a typed rate of 7 % and a typed amount, both flagged.
   await page.getByLabel("Facture avec TVA").check();
-  await page.getByLabel(/^Taux de TVA de Seiche/).fill("7");
+  await page.getByLabel(/^Taux de TVA de Sardine/).fill("7");
   await page.getByRole("button", { name: "Enregistrer et recalculer" }).click();
   await expect(document).toContainText("TVA 7 %");
   await expect(document).toContainText("taux saisi");
