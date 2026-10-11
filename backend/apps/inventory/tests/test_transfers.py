@@ -52,7 +52,7 @@ def truck(organization):
 def dorade(organization):
     product = ProductFactory.create(organization=organization, name="Dorade royale", reference="DO-003")
     ProductPriceFactory.create(
-        product=product, price=Decimal("28.000"), valid_from=timezone.now() - dt.timedelta(days=1)
+        product=product, price=Decimal("28.000"), valid_from=timezone.now() - dt.timedelta(days=3)
     )
     return product
 

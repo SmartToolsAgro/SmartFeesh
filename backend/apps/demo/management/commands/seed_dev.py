@@ -9,6 +9,7 @@ from apps.core.models import Organization, Role, User
 from apps.demo.batches import seed_batches
 from apps.demo.catalogue import seed_catalogue
 from apps.demo.customers import seed_customers
+from apps.demo.employees import seed_employees
 from apps.demo.locations import seed_locations
 from apps.demo.losses import seed_losses
 from apps.demo.prices import seed_prices
@@ -79,6 +80,7 @@ class Command(BaseCommand):
         losses = seed_losses(organization=organization, actor=owner)
         prices = seed_prices(organization=organization, actor=owner)
         quotes = seed_quotes(organization=organization, actor=owner)
+        employees = seed_employees(organization=organization, actor=owner, driver=driver)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
@@ -94,3 +96,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"{losses} new losses and stock counts"))
         self.stdout.write(self.style.SUCCESS(f"{prices} new minimum prices and price lists"))
         self.stdout.write(self.style.SUCCESS(f"{quotes} new quotes"))
+        self.stdout.write(self.style.SUCCESS(f"{employees} new employees"))

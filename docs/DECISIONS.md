@@ -666,3 +666,38 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - Demo: DV-0001 to Restaurant Le Corail (5 kg Crevette Royale at 42.000, Calamar, Symphonie Marine:
   379.500, the prototype's quote and the start of the Phase 2 acceptance test), one sent to Hôtel Thyna,
   one accepted, one refused, one draft; dated the day of the first seed, so the sent ones expire later.
+
+**D-055 · Employees, salaries and days on a lot, the `hr` app (P5-T04)** · accepted · 2026-10-11
+- **App `hr`:** `Employee`, `SalaryRecord`, `SalaryAdjustment`, `SalaryPayment` (+ allocations),
+  `LotWorkDay`. It imports no other app's models; the lot of a work day is read through
+  `inventory.selectors.batch_of` and the login through `core` selectors.
+- **Private pay:** the owner reads and writes; the accountant reads; **managers and drivers get 403 on
+  everything** (`ReadOwnerOrAccountantWriteOwner`), even for their own salary. The admin screens show a
+  "Paie réservée" page to a manager. The Django admin never shows salaries.
+- **Employee:** reference `E-NNN`, name, position, phone, hire date, fixed gross monthly salary, CNSS number
+  and employer rate (default **17,07 %**, from the sample data: provisional, the accountant confirms), an
+  optional login (one login per employee). No fixed truck (D-042). Archived, never deleted.
+- **Salary record** per employee per month (first day of the month, unique): base, bonus, overtime,
+  deductions, `gross = base + bonus + overtime`, `employer_cnss = gross × rate`, rounded once,
+  `net = gross − deductions` (what the employee receives). The rate used is kept on the record.
+  **Expense of the month = gross + employer CNSS** (deductions are money kept from the employee, not a cost
+  reduction: provisional). `monthly_personnel_expense` is the selector P5-T01 and the month closing read.
+- **Generate the month** creates drafts for every active employee with a salary and a hire date not after
+  the month, who has none yet; idempotent; no future month; no pro-rata in the hire month (type the base).
+- **Draft → approved**, one by one or the whole month. A draft can be changed or deleted; an approved record
+  is immutable and corrected by a `SalaryAdjustment` (signed amount, reason, audit; the due amount may not
+  fall below zero). Due = net + adjustments.
+- **Payments** copy D-043: `PS-0001` numbers, a payment is immutable, allocations go to approved records of
+  the same employee, never above what is left; the unallocated part is an advance, allocated later
+  (`allocateSalaryPayment`). Errors on `allocations.<index>.<field>`. The payment is a cash movement apart
+  from the expense. Methods: cash, cheque, transfer, other (provisional). Unpaid = approved due − allocated,
+  shown per employee, per month and over all months (`getPayrollSummary`, `unpaid` on employees).
+- **Days on a lot:** `employee_cost_for_lot_days(days, monthly_salary) = days × salary / 26`, rounded once
+  (pure selector, tested). A `LotWorkDay` keeps the salary and the cost as they were when typed (snapshot);
+  days are a fraction (two decimals, 0 < days ≤ 1), at most 1 day per employee and date in all; the lot is
+  optional; deletable until lots are closed (Phase 6, provisional). `employee_cost_of_lot` sums a lot.
+- **Screens:** "Personnel & salaires" (`/salaires`): "Paie" month view (generate, approve, edit, pay, adjust,
+  unpaid badge) and "Employés" (list, page with salaries, payments and "Jours sur lot", form). Demo:
+  7 stand-ins of `docs/spec/sample/employees.csv`, last month approved and paid except two, this month in
+  draft, three days on a lot. `SalaryStatusEnum` and `SalaryPaymentMethodEnum` are pinned in
+  `ENUM_NAME_OVERRIDES`.
