@@ -82,6 +82,20 @@ def batch_of(organization: Organization, batch_id: int) -> Batch:
     return batches_of(organization).get(pk=batch_id)
 
 
+def last_batches_from(organization: Organization, *, supplier_id: int) -> QuerySet[Batch]:
+    """The latest batch of each product bought from one supplier: what was last paid for it (D-020).
+
+    The receipt form suggests this cost and shows the change against it (P1-T07).
+    """
+    return (
+        Batch.objects.for_organization(organization)
+        .filter(supplier_id=supplier_id)
+        .select_related("product")
+        .order_by("product_id", "-received_on", "-id")
+        .distinct("product_id")
+    )
+
+
 def batches_oldest_first(organization: Organization, *, product_id: int) -> QuerySet[Batch]:
     """A product's batches in the order stock leaves them: oldest receipt first (D-009, Q7).
 

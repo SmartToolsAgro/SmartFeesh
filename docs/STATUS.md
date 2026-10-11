@@ -14,9 +14,9 @@ _Last updated: 2026-10-11_
 - **On `main`:** P1-T02 to P1-T06b and D-031 (PRs #3 to #8). Every merge to `main` deploys staging.
 - **Merging (2026-10-11):** Mahmoud lets agents open, merge (green CI only) and verify PRs with `gh`
   (`C:\Program Files\GitHub CLI\gh.exe` on his machine).
-- **This branch:** `p1-t06c-rebuild` (P1-T06c), PR to `main`.
-- **Next tasks:** P1-T07 · Goods receipt (another Claude session plans to take it from `main`, D-039+),
-  then P1-T08 supplier invoices and payments.
+- **On `main` too:** P1-T06c (PR #9, nightly stock check on staging).
+- **This branch:** `p1-t07-receipts` (P1-T07, goods receipts), PR to `main`.
+- **Next task:** P1-T08 · Supplier invoices and payments (D-040+).
 - The client is not available: keep building the plan with the stand-in data of `docs/spec/sample/`
   (Mahmoud, 2026-10-10) and adjust when real requirements arrive.
 
@@ -24,9 +24,12 @@ _Last updated: 2026-10-11_
 
 1. After P1-T06c is deployed: `sudo docker ps` shows `frutti-staging-nightly-1` running; the first
    check runs just after 03:00 UTC (`sudo docker logs frutti-staging-nightly-1`).
-2. Agent: P1-T07 goods receipts (`PurchaseOrder` optional → `GoodsReceipt` lines with ordered,
-   invoiced and accepted net kg, unit cost → batches + receipt movements through `post_movement`).
-3. Mahmoud: check the two apps side by side in one browser on the new host names; upload one product
+2. After P1-T07 is deployed: on staging, "Achats" shows `BR-0001` (Mareyeur Port de Sfax, dorade 60 kg
+   accepted for 62 invoiced) and a new receipt can be recorded.
+3. Agent: P1-T08 supplier invoices and payments: `SupplierInvoice` linked to receipts (invoiced kg ×
+   cost is the line's `invoiced_amount`, D-039), due date, status; `SupplierPayment` with allocation;
+   supplier balance. Nothing touches capital or profit shares (separate balances).
+4. Mahmoud: check the two apps side by side in one browser on the new host names; upload one product
    photo on staging.
 
 ## Blockers / waiting on client
@@ -61,15 +64,18 @@ _Last updated: 2026-10-11_
 
 ## Last session (2026-10-11)
 
-- **P1-T06c:** `selectors.on_hand_differences` (ledger vs cache in one statement),
-  `services.rebuild_on_hand` (locks cache writes, repairs, audits), `manage.py rebuild_on_hand [--check]`,
-  and a `nightly` container on staging that runs the check at 03:00 UTC (D-038).
-- Local results: 257 backend tests, ruff, mypy, import boundaries; compose file validated on the server.
-  No API or screen changed.
+- **P1-T07:** new `purchasing` app: `GoodsReceipt` + lines (ordered, invoiced, accepted net kg, cost);
+  saving creates the batches and receipt movements in one transaction; per-line errors on
+  `lines.<i>.<field>`; differences report; last cost per product and supplier. Admin "Achats": list,
+  receipt page with the weight-difference notice, "Nouvelle réception" form with the last cost filled
+  in and the change in percent. Demo receipt `BR-0001` (D-039).
+- Local results: 272 backend tests; vitest (now also in the admin app); 23 Playwright tests including 3
+  new ones for receipts; ruff, mypy, import boundaries, eslint, prettier, API client. Screens checked
+  at desktop (light) and phone width (dark).
 
 ## Recently done
 
+- 2026-10-11 · P1-T07 goods receipts
 - 2026-10-11 · P1-T06c rebuild and nightly check
 - 2026-10-10 · P1-T06b FIFO allocation
 - 2026-10-10 · P1-T06a stock ledger and on-hand cache
-- 2026-10-10 · Staging: one host name per app; CI deploy green end to end (PR #4)
