@@ -60,8 +60,8 @@ def close_lot(
 
     Refused: a lot already closed; stock still on hand (sell it or record it as a loss); costs typed on
     the lot still waiting for approval; `costs_confirmed` not given (only the person closing knows every
-    cost is in). Customers still owing money are a warning kept with the result until customer payments
-    exist (P2-T06). A partner's loss share is taken from their capital in the same transaction. Two
+    cost is in); customers still owing money on its sales (customer payments, P2-T06, D-062).
+    A partner's loss share is taken from their capital in the same transaction. Two
     closings of the same lot at once: the second waits, then is refused.
     """
     lock_lot(batch_id)

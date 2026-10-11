@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { CreditPolicyEnum } from './creditPolicyEnum';
 
 /**
  * One version of the finance settings.
@@ -18,6 +19,7 @@ export interface FinanceSettings {
   readonly prices_include_vat: boolean;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   readonly withholding_rate: string;
+  readonly credit_policy: CreditPolicyEnum;
   readonly legal_name: string;
   readonly address: string;
   readonly phone: string;

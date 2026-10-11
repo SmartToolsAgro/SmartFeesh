@@ -542,6 +542,176 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreditNote'
           description: ''
+  /api/v1/customer-payments:
+    get:
+      operationId: listCustomerPayments
+      description: |-
+        Customer payments, newest first, paginated, voided ones included. Filter by customer, days
+        received (inclusive) or `search` (number, reference, customer).
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      tags:
+      - customer-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCustomerPaymentList'
+          description: ''
+    post:
+      operationId: createCustomerPayment
+      description: |-
+        Register a payment received from a customer (owner or manager). `allocations` empty or absent
+        settles their oldest open sales first; a list names the sales and amounts (an empty list keeps
+        everything as credit). Errors of a row come back on `allocations.<index>.amount`.
+      tags:
+      - customer-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerPaymentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerPaymentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerPaymentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPaymentDetail'
+          description: ''
+  /api/v1/customer-payments/{payment_id}:
+    get:
+      operationId: getCustomerPayment
+      description: One payment with the sales it settled.
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPaymentDetail'
+          description: ''
+  /api/v1/customer-payments/{payment_id}/allocate:
+    post:
+      operationId: allocateCustomerPayment
+      description: |-
+        Settle sales with what is left of a payment: the named sales and amounts, or (without
+        `allocations`) the customer's oldest open sales first.
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AllocateWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AllocateWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AllocateWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPaymentDetail'
+          description: ''
+  /api/v1/customer-payments/{payment_id}/void:
+    post:
+      operationId: voidCustomerPayment
+      description: |-
+        Cancel a payment typed by mistake (a reason is required): it stays, marked voided, and the sales
+        it settled owe again.
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VoidWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VoidWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPaymentDetail'
+          description: ''
   /api/v1/customers:
     get:
       operationId: listCustomers
@@ -701,6 +871,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/v1/customers/{customer_id}/balance:
+    get:
+      operationId: getCustomerBalance
+      description: |-
+        What one customer owes: balance (negative = their credit), the part overdue, the ageing in 0-30,
+        31-60 and 61+ days, the open sales (oldest first) and their account history with a running balance.
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerBalance'
           description: ''
   /api/v1/customers/{customer_id}/restore:
     post:
@@ -1997,6 +2190,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
+  /api/v1/invoices/{invoice_id}/withholding-certificate:
+    post:
+      operationId: recordWithholdingCertificate
+      description: |-
+        Record what the customer withheld on an issued invoice with its certificate's number, date and
+        amount (owner or manager). The amount replaces the planned withholding in the receivable. The file
+        is joined with `addWithholdingCertificateFile`.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithholdingCertificateWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WithholdingCertificateWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WithholdingCertificateWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithholdingCertificate'
           description: ''
   /api/v1/locations:
     get:
@@ -3802,6 +4031,23 @@ paths:
                 items:
                   $ref: '#/components/schemas/LastCost'
           description: ''
+  /api/v1/receivables/ageing:
+    get:
+      operationId: getReceivablesAgeing
+      description: |-
+        Every customer who owes, or whose credit is held, biggest balance first: balance, part overdue,
+        credit and the ageing buckets (0-30, 31-60, 61+ days), with the totals.
+      tags:
+      - receivables
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceivablesAgeing'
+          description: ''
   /api/v1/recurring-costs:
     get:
       operationId: listRecurringCosts
@@ -4447,7 +4693,10 @@ paths:
       operationId: confirmSale
       description: |-
         Confirm a draft: the stock leaves oldest batch first and the customer owes what is not paid. Refused
-        as a whole when the place holds too little (`lines.<index>.quantity`).
+        as a whole when the place holds too little (`lines.<index>.quantity`) or, under the company's "block"
+        policy, when the customer would go above their credit limit (`credit_limit`). Under the "approval"
+        policy the sale stays a draft with `credit_status` pending until the owner or a manager confirms it
+        with `approve_credit`.
       parameters:
       - in: path
         name: sale_id
@@ -4456,6 +4705,17 @@ paths:
         required: true
       tags:
       - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleConfirm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleConfirm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleConfirm'
       security:
       - cookieAuth: []
       responses:
@@ -5581,6 +5841,106 @@ paths:
               schema:
                 $ref: '#/components/schemas/Truck'
           description: ''
+  /api/v1/withholding-certificates/{certificate_id}/file:
+    put:
+      operationId: addWithholdingCertificateFile
+      description: |-
+        Join the certificate's file: a photo (turned upright, shrunk, stored as WebP) or a PDF. Replaces
+        an earlier file of a live certificate.
+      parameters:
+      - in: path
+        name: certificate_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - withholding-certificates
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WithholdingFile'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithholdingCertificate'
+          description: ''
+        '400':
+          description: Not a photo or a PDF
+  /api/v1/withholding-certificates/{certificate_id}/void:
+    post:
+      operationId: voidWithholdingCertificate
+      description: |-
+        Cancel a certificate typed by mistake (a reason is required): the invoice's planned withholding
+        counts again.
+      parameters:
+      - in: path
+        name: certificate_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - withholding-certificates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VoidWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VoidWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithholdingCertificate'
+          description: ''
+  /api/v1/withholding-summary:
+    get:
+      operationId: getWithholdingSummary
+      description: |-
+        For the accountant: what customers withheld over a period (certificate dates, both ends
+        included): total, per month, per customer, each certificate, and the issued invoices that planned a
+        withholding but have no certificate yet.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      tags:
+      - withholding-summary
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithholdingSummary'
+          description: ''
 components:
   schemas:
     AdjustmentWrite:
@@ -5594,6 +5954,74 @@ components:
       required:
       - amount
       - reason
+    AgeBuckets:
+      type: object
+      properties:
+        d0_30:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d31_60:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d60_plus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - d0_30
+      - d31_60
+      - d60_plus
+    AgeingRow:
+      type: object
+      properties:
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        ageing:
+          allOf:
+          - $ref: '#/components/schemas/AgeBuckets'
+          readOnly: true
+      required:
+      - ageing
+      - balance
+      - credit
+      - credit_limit
+      - customer
+      - overdue
+    AllocateWrite:
+      type: object
+      properties:
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerAllocationWrite'
+          nullable: true
     AllocationWrite:
       type: object
       properties:
@@ -5618,6 +6046,36 @@ components:
       required:
       - approved
       - month
+    AwaitingInvoice:
+      type: object
+      description: An issued invoice that planned a withholding and has no certificate
+        yet.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+      required:
+      - customer
+      - id
+      - issued_on
+      - number
+      - withholding_amount
     Batch:
       type: object
       properties:
@@ -5957,6 +6415,40 @@ components:
       required:
       - id
       - name
+    CertificateInvoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+        total_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+      required:
+      - customer
+      - id
+      - issued_on
+      - number
+      - total_incl_tax
+      - withholding_amount
     CloseLot:
       type: object
       properties:
@@ -6568,6 +7060,16 @@ components:
       required:
       - kind
       - reason
+    CreditPolicyEnum:
+      enum:
+      - block
+      - approval
+      - warn
+      type: string
+      description: |-
+        * `block` - Bloquer la vente
+        * `approval` - Demander l'approbation du propriétaire ou du gérant
+        * `warn` - Avertir et consigner
     Customer:
       type: object
       properties:
@@ -6643,6 +7145,79 @@ components:
       - reference
       - tax_id
       - updated_at
+    CustomerAllocationWrite:
+      type: object
+      properties:
+        sale:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+      required:
+      - amount
+      - sale
+    CustomerBalance:
+      type: object
+      properties:
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        open_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        available_credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        ageing:
+          allOf:
+          - $ref: '#/components/schemas/AgeBuckets'
+          readOnly: true
+        open_sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenSale'
+          readOnly: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryEntry'
+          readOnly: true
+      required:
+      - ageing
+      - available_credit
+      - balance
+      - credit
+      - credit_limit
+      - customer
+      - history
+      - open_sales
+      - open_total
+      - overdue
     CustomerContact:
       type: object
       properties:
@@ -6685,6 +7260,221 @@ components:
         * `wholesaler` - Grossiste
         * `caterer` - Traiteur
         * `individual` - Particulier
+    CustomerPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        allocated_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unallocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        voided_by:
+          type: string
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - allocated_total
+      - amount
+      - created_at
+      - created_by
+      - customer
+      - id
+      - is_voided
+      - method
+      - notes
+      - number
+      - received_on
+      - reference
+      - unallocated
+      - void_reason
+      - voided_at
+      - voided_by
+    CustomerPaymentAllocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        sale:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - id
+      - sale
+    CustomerPaymentDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        allocated_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unallocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        voided_by:
+          type: string
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerPaymentAllocation'
+          readOnly: true
+      required:
+      - allocated_total
+      - allocations
+      - amount
+      - created_at
+      - created_by
+      - customer
+      - id
+      - is_voided
+      - method
+      - notes
+      - number
+      - received_on
+      - reference
+      - unallocated
+      - void_reason
+      - voided_at
+      - voided_by
+    CustomerPaymentWrite:
+      type: object
+      properties:
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerAllocationWrite'
+          nullable: true
+        customer:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/SalePaymentMethodEnum'
+        received_on:
+          type: string
+          format: date
+          nullable: true
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+      required:
+      - amount
+      - customer
+      - method
     CustomerWrite:
       type: object
       properties:
@@ -7619,6 +8409,10 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        credit_policy:
+          allOf:
+          - $ref: '#/components/schemas/CreditPolicyEnum'
+          readOnly: true
         legal_name:
           type: string
           readOnly: true
@@ -7645,6 +8439,7 @@ components:
       - address
       - created_at
       - created_by
+      - credit_policy
       - fiscal_stamp
       - id
       - legal_name
@@ -7691,6 +8486,8 @@ components:
           type: boolean
         withholding_rate:
           type: string
+        credit_policy:
+          $ref: '#/components/schemas/CreditPolicyEnum'
         legal_name:
           type: string
           default: ''
@@ -7857,6 +8654,58 @@ components:
       required:
       - database
       - status
+    HistoryEntry:
+      type: object
+      properties:
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/HistoryEntryKindEnum'
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        object_id:
+          type: integer
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          type: string
+          readOnly: true
+        voided:
+          type: boolean
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - balance
+      - day
+      - kind
+      - method
+      - number
+      - object_id
+      - voided
+    HistoryEntryKindEnum:
+      enum:
+      - sale
+      - on_spot
+      - payment
+      type: string
+      description: |-
+        * `sale` - sale
+        * `on_spot` - on_spot
+        * `payment` - payment
     IllustrationEnum:
       enum:
       - shrimp
@@ -8032,6 +8881,62 @@ components:
       - withholding_amount
       - withholding_applied
       - withholding_rate
+    InvoiceCertificate:
+      type: object
+      description: The withholding certificate of an invoice (P2-T06, D-063).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        file_url:
+          type: string
+          nullable: true
+          readOnly: true
+        file_type:
+          type: string
+          readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        void_reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by
+      - file_type
+      - file_url
+      - id
+      - is_voided
+      - issued_on
+      - number
+      - void_reason
+      - voided_at
     InvoiceChoices:
       type: object
       description: What may change on a draft invoice. Every empty value takes the
@@ -8224,6 +9129,11 @@ components:
         einvoice_reference:
           type: string
           readOnly: true
+        certificate:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceCertificate'
+          nullable: true
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -8283,6 +9193,7 @@ components:
       - apply_vat
       - bill_to
       - cancelled_at
+      - certificate
       - created_at
       - created_by
       - credit_notes
@@ -9548,6 +10459,75 @@ components:
       - batch_id
       - batch_number
       - quantity
+    OpenSale:
+      type: object
+      description: A confirmed sale with something left to collect.
+      properties:
+        sale_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        invoice_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        invoice_number:
+          type: string
+          readOnly: true
+        sold_at:
+          type: string
+          format: date-time
+          readOnly: true
+        document_date:
+          type: string
+          format: date
+          readOnly: true
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+        age_days:
+          type: integer
+          readOnly: true
+        is_overdue:
+          type: boolean
+          readOnly: true
+        owed:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        on_spot:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        allocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - age_days
+      - allocated
+      - document_date
+      - due_on
+      - invoice_id
+      - invoice_number
+      - is_overdue
+      - number
+      - on_spot
+      - outstanding
+      - owed
+      - sale_id
+      - sold_at
     Organization:
       type: object
       properties:
@@ -9629,6 +10609,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CreditNote'
+    PaginatedCustomerPaymentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerPayment'
     PaginatedDifferenceLineList:
       type: object
       required:
@@ -11714,6 +12717,41 @@ components:
       - location
       - received_on
       - supplier
+    ReceivablesAgeing:
+      type: object
+      description: Every customer who owes (or whose credit we hold), biggest balance
+        first, and the totals.
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgeingRow'
+          readOnly: true
+        total_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        totals:
+          allOf:
+          - $ref: '#/components/schemas/AgeBuckets'
+          readOnly: true
+      required:
+      - rows
+      - total_balance
+      - total_credit
+      - total_overdue
+      - totals
     RecordPayment:
       type: object
       description: The part of one payment that settled the salary.
@@ -12614,6 +13652,24 @@ components:
           - $ref: '#/components/schemas/SaleInvoiceRef'
           nullable: true
           readOnly: true
+        credit_status:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/SaleCreditStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        credit_over_by:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit_decided_by:
+          type: string
+          readOnly: true
+        credit_decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
       required:
       - amount_due
       - amount_paid
@@ -12625,6 +13681,10 @@ components:
       - cost_total
       - created_at
       - created_by
+      - credit_decided_at
+      - credit_decided_by
+      - credit_over_by
+      - credit_status
       - customer
       - discount_total
       - id
@@ -12662,6 +13722,22 @@ components:
           type: string
           default: ''
           maxLength: 255
+    SaleConfirm:
+      type: object
+      properties:
+        approve_credit:
+          type: boolean
+          default: false
+    SaleCreditStatusEnum:
+      enum:
+      - pending
+      - approved
+      - warned
+      type: string
+      description: |-
+        * `pending` - En attente d'approbation
+        * `approved` - Approuvée
+        * `warned` - Limite dépassée
     SaleCustomer:
       type: object
       properties:
@@ -12817,6 +13893,24 @@ components:
           - $ref: '#/components/schemas/SaleInvoiceRef'
           nullable: true
           readOnly: true
+        credit_status:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/SaleCreditStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        credit_over_by:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit_decided_by:
+          type: string
+          readOnly: true
+        credit_decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         lines:
           type: array
           items:
@@ -12833,6 +13927,10 @@ components:
       - cost_total
       - created_at
       - created_by
+      - credit_decided_at
+      - credit_decided_by
+      - credit_over_by
+      - credit_status
       - customer
       - discount_total
       - id
@@ -13088,6 +14186,9 @@ components:
           items:
             $ref: '#/components/schemas/QuoteLineWrite'
         confirm_now:
+          type: boolean
+          default: false
+        approve_credit:
           type: boolean
           default: false
         client_uuid:
@@ -14529,6 +15630,182 @@ components:
       - language
       - last_name
       - username
+    VoidWrite:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - reason
+    WithholdingCertificate:
+      type: object
+      description: The withholding certificate of an invoice (P2-T06, D-063).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/CertificateInvoice'
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        file_url:
+          type: string
+          nullable: true
+          readOnly: true
+        file_type:
+          type: string
+          readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        void_reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by
+      - file_type
+      - file_url
+      - id
+      - invoice
+      - is_voided
+      - issued_on
+      - number
+      - void_reason
+      - voided_at
+    WithholdingCertificateWrite:
+      type: object
+      properties:
+        number:
+          type: string
+          maxLength: 50
+        issued_on:
+          type: string
+          format: date
+        amount:
+          type: string
+      required:
+      - amount
+      - issued_on
+      - number
+    WithholdingCustomerTotal:
+      type: object
+      properties:
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        count:
+          type: integer
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - count
+      - customer
+    WithholdingFile:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    WithholdingMonth:
+      type: object
+      properties:
+        month:
+          type: string
+          readOnly: true
+        count:
+          type: integer
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - count
+      - month
+    WithholdingSummary:
+      type: object
+      description: |-
+        What customers withheld over a period, for the accountant: totals, per month, per customer, each
+        certificate, and the invoices still waiting for theirs.
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        by_month:
+          type: array
+          items:
+            $ref: '#/components/schemas/WithholdingMonth'
+          readOnly: true
+        by_customer:
+          type: array
+          items:
+            $ref: '#/components/schemas/WithholdingCustomerTotal'
+          readOnly: true
+        certificates:
+          type: array
+          items:
+            $ref: '#/components/schemas/WithholdingCertificate'
+          readOnly: true
+        awaiting:
+          type: array
+          items:
+            $ref: '#/components/schemas/AwaitingInvoice'
+          readOnly: true
+        awaiting_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - awaiting
+      - awaiting_total
+      - by_customer
+      - by_month
+      - certificates
+      - count
+      - total
     WorkTypeEnum:
       enum:
       - loading

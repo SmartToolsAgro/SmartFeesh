@@ -141,7 +141,9 @@ def sales_of(
     )
     sales = (
         Sale.objects.for_organization(organization)
-        .select_related("customer", "location", "quote", "created_by", "confirmed_by", "cancelled_by")
+        .select_related(
+            "customer", "location", "quote", "created_by", "confirmed_by", "cancelled_by", "credit_decided_by"
+        )
         .prefetch_related(Prefetch("lines", queryset=lines))
         .prefetch_related(
             Prefetch(
@@ -277,6 +279,7 @@ def invoices_of(
         .prefetch_related(Prefetch("lines", queryset=InvoiceLine.objects.select_related("product").order_by("id")))
         .prefetch_related(Prefetch("vat_lines", queryset=InvoiceVatLine.objects.order_by("-rate")))
         .prefetch_related(Prefetch("credit_notes", queryset=credit_notes))
+        .prefetch_related("certificates")
         .annotate(
             line_count=Count("lines", distinct=True),
             credited_total=Coalesce(
@@ -370,3 +373,15 @@ def credit_notes_of(
             | Q(invoice__customer__name__icontains=search)
         )
     return notes
+
+
+# ---- Receivables for other apps (P2-T06, D-062) ----
+
+
+def outstanding_by_sale(organization: Organization, sale_ids: list[int]) -> dict[int, Decimal]:
+    """What customers still owe on the given confirmed sales, by sale id (only the sales with something left):
+    after payments, credit notes and withholding. The "customers paid" check of lot closing reads it (D-068)."""
+    from . import receivables  # receivables imports models only; kept local to avoid a cycle with selectors
+
+    rows = receivables.sale_receivables(organization, sale_ids=sale_ids)
+    return {row.sale_id: row.outstanding for row in rows if row.outstanding > 0}

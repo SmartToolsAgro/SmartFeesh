@@ -15,6 +15,7 @@ from apps.core.tests.factories import MembershipFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.partnerships import selectors as partnerships
 from apps.partnerships.models import CapitalEntryKind, PartnershipStatus
+from apps.sales import services as sales
 
 from .conftest import client_for, cost, employee_day, lose, member, partnership, receive, sell
 
@@ -175,15 +176,26 @@ def test_a_loss_lot_takes_the_loss_share_from_the_capital_and_reopening_gives_it
     assert partnerships.capital_balance(live) == D("0.000")
 
 
-def test_customers_still_owing_are_a_warning_kept_with_the_result(organization, actor, cold_room):
+def test_customers_still_owing_block_the_closing_until_they_pay(organization, actor, cold_room):
     batch = receive(organization, cold_room, "10.000")
-    sell(organization, actor, cold_room, batch, "10.000", "30.000", paid=False)
+    sale = sell(organization, actor, cold_room, batch, "10.000", "30.000", paid=False)
 
+    with pytest.raises(ValidationError) as refused:
+        close(organization, actor, batch)
+    assert "300.000" in refused.value.messages[0]
+    owed = next(
+        check
+        for check in selectors.closing_checks(organization, selectors.live_result(organization, batch_id=batch.pk))
+        if check.code == "customers_paid"
+    )
+    assert (owed.ok, owed.blocking, owed.amount) == (False, True, D("300.000"))
+
+    sales.record_customer_payment(
+        organization=organization, actor=actor, customer=sale.customer, amount="300.000", method="cash"
+    )
     result = close(organization, actor, batch)
 
-    assert result.payments_unverified is True
-    owed = next(check for check in result.data["checks"] if check["code"] == "customers_paid")
-    assert (owed["ok"], owed["blocking"], owed["amount"]) == (False, False, "300.000")
+    assert result.payments_unverified is False
 
 
 def test_a_lot_fully_spoiled_closes_at_a_loss_without_a_sale(organization, actor, cold_room):

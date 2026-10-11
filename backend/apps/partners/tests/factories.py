@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import factory
 from factory.django import DjangoModelFactory
 
@@ -31,6 +33,8 @@ class CustomerFactory(DjangoModelFactory[Customer]):
     reference = factory.Sequence(lambda n: f"C-{n + 1:03d}")
     name = factory.Sequence(lambda n: f"Client {n}")
     kind = CustomerKind.RESTAURANT
+    # Enough credit that a test selling on credit is not stopped by the limit (P2-T06).
+    credit_limit = Decimal("100000.000")
 
 
 class CustomerContactFactory(DjangoModelFactory[CustomerContact]):

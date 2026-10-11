@@ -6,6 +6,7 @@
  */
 import type { QuoteRef } from './quoteRef';
 import type { SaleCustomer } from './saleCustomer';
+import type { SaleDetailCreditStatus } from './saleDetailCreditStatus';
 import type { SaleDetailPaymentMethod } from './saleDetailPaymentMethod';
 import type { SaleInvoiceRef } from './saleInvoiceRef';
 import type { SaleLine } from './saleLine';
@@ -61,5 +62,11 @@ export interface SaleDetail {
   readonly cancelled_at: string | null;
   readonly cancel_reason: string;
   readonly invoice: SaleInvoiceRef | null;
+  readonly credit_status: typeof SaleDetailCreditStatus[keyof typeof SaleDetailCreditStatus];
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly credit_over_by: string;
+  readonly credit_decided_by: string;
+  /** @nullable */
+  readonly credit_decided_at: string | null;
   readonly lines: readonly SaleLine[];
 }

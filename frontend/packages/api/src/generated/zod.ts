@@ -746,6 +746,296 @@ export const GetCreditNoteResponse = zod.object({
 
 
 /**
+ * Customer payments, newest first, paginated, voided ones included. Filter by customer, days
+ * received (inclusive) or `search` (number, reference, customer).
+ */
+
+export const listCustomerPaymentsQuerySearchDefault = ``;
+export const listCustomerPaymentsQuerySearchMax = 100;
+
+
+
+export const ListCustomerPaymentsQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listCustomerPaymentsQuerySearchMax).default(listCustomerPaymentsQuerySearchDefault)
+})
+
+export const listCustomerPaymentsResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCustomerPaymentsResponseResultsItemAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCustomerPaymentsResponseResultsItemUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListCustomerPaymentsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
+  "received_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_total": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemAllocatedTotalRegExp),
+  "unallocated": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemUnallocatedRegExp),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Register a payment received from a customer (owner or manager). `allocations` empty or absent
+ * settles their oldest open sales first; a list names the sales and amounts (an empty list keeps
+ * everything as credit). Errors of a row come back on `allocations.<index>.amount`.
+ */
+
+
+export const createCustomerPaymentBodyReferenceDefault = ``;
+export const createCustomerPaymentBodyReferenceMax = 50;
+
+export const createCustomerPaymentBodyNotesDefault = ``;
+
+export const CreateCustomerPaymentBody = zod.object({
+  "allocations": zod.array(zod.object({
+  "sale": zod.int().min(1),
+  "amount": zod.string()
+})).nullish(),
+  "customer": zod.int().min(1),
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
+  "received_on": zod.iso.date().nullish(),
+  "reference": zod.string().max(createCustomerPaymentBodyReferenceMax).default(createCustomerPaymentBodyReferenceDefault),
+  "notes": zod.string().default(createCustomerPaymentBodyNotesDefault)
+})
+
+export const createCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateCustomerPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', createCustomerPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
+  "received_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_total": zod.stringFormat('decimal', createCustomerPaymentResponseAllocatedTotalRegExp),
+  "unallocated": zod.stringFormat('decimal', createCustomerPaymentResponseUnallocatedRegExp),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "sale": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "amount": zod.stringFormat('decimal', createCustomerPaymentResponseAllocationsItemAmountRegExp)
+}))
+})
+
+
+/**
+ * One payment with the sales it settled.
+ */
+export const GetCustomerPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+export const getCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetCustomerPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', getCustomerPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
+  "received_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_total": zod.stringFormat('decimal', getCustomerPaymentResponseAllocatedTotalRegExp),
+  "unallocated": zod.stringFormat('decimal', getCustomerPaymentResponseUnallocatedRegExp),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "sale": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "amount": zod.stringFormat('decimal', getCustomerPaymentResponseAllocationsItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Settle sales with what is left of a payment: the named sales and amounts, or (without
+ * `allocations`) the customer's oldest open sales first.
+ */
+export const AllocateCustomerPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+
+
+
+export const AllocateCustomerPaymentBody = zod.object({
+  "allocations": zod.array(zod.object({
+  "sale": zod.int().min(1),
+  "amount": zod.string()
+})).nullish()
+})
+
+export const allocateCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AllocateCustomerPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', allocateCustomerPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
+  "received_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_total": zod.stringFormat('decimal', allocateCustomerPaymentResponseAllocatedTotalRegExp),
+  "unallocated": zod.stringFormat('decimal', allocateCustomerPaymentResponseUnallocatedRegExp),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "sale": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "amount": zod.stringFormat('decimal', allocateCustomerPaymentResponseAllocationsItemAmountRegExp)
+}))
+})
+
+
+/**
+ * Cancel a payment typed by mistake (a reason is required): it stays, marked voided, and the sales
+ * it settled owe again.
+ */
+export const VoidCustomerPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+export const voidCustomerPaymentBodyReasonMax = 255;
+
+
+
+export const VoidCustomerPaymentBody = zod.object({
+  "reason": zod.string().max(voidCustomerPaymentBodyReasonMax)
+})
+
+export const voidCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const VoidCustomerPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', voidCustomerPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
+  "received_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "allocated_total": zod.stringFormat('decimal', voidCustomerPaymentResponseAllocatedTotalRegExp),
+  "unallocated": zod.stringFormat('decimal', voidCustomerPaymentResponseUnallocatedRegExp),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "sale": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "amount": zod.stringFormat('decimal', voidCustomerPaymentResponseAllocationsItemAmountRegExp)
+}))
+})
+
+
+/**
  * Customers sorted by name, with their contacts. Archived ones only when asked (`status`); `kind`
  * keeps one type. Not paginated (D-047).
  */
@@ -1114,6 +1404,79 @@ export const ArchiveCustomerResponse = zod.object({
   "is_walk_in": zod.boolean(),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * What one customer owes: balance (negative = their credit), the part overdue, the ageing in 0-30,
+ * 31-60 and 61+ days, the open sales (oldest first) and their account history with a running balance.
+ */
+export const GetCustomerBalanceParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const getCustomerBalanceResponseCreditLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseAvailableCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseAgeingOneD030RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseAgeingOneD3160RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseAgeingOneD60PlusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenSalesItemOwedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenSalesItemOnSpotRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenSalesItemAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenSalesItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseHistoryItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseHistoryItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetCustomerBalanceResponse = zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "credit_limit": zod.stringFormat('decimal', getCustomerBalanceResponseCreditLimitRegExp),
+  "balance": zod.stringFormat('decimal', getCustomerBalanceResponseBalanceRegExp),
+  "overdue": zod.stringFormat('decimal', getCustomerBalanceResponseOverdueRegExp),
+  "open_total": zod.stringFormat('decimal', getCustomerBalanceResponseOpenTotalRegExp),
+  "credit": zod.stringFormat('decimal', getCustomerBalanceResponseCreditRegExp),
+  "available_credit": zod.stringFormat('decimal', getCustomerBalanceResponseAvailableCreditRegExp),
+  "ageing": zod.object({
+  "d0_30": zod.stringFormat('decimal', getCustomerBalanceResponseAgeingOneD030RegExp),
+  "d31_60": zod.stringFormat('decimal', getCustomerBalanceResponseAgeingOneD3160RegExp),
+  "d60_plus": zod.stringFormat('decimal', getCustomerBalanceResponseAgeingOneD60PlusRegExp)
+}),
+  "open_sales": zod.array(zod.object({
+  "sale_id": zod.int(),
+  "number": zod.string(),
+  "invoice_id": zod.int().nullable(),
+  "invoice_number": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "document_date": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "age_days": zod.int(),
+  "is_overdue": zod.boolean(),
+  "owed": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOwedRegExp),
+  "on_spot": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOnSpotRegExp),
+  "allocated": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemAllocatedRegExp),
+  "outstanding": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOutstandingRegExp)
+}).describe('A confirmed sale with something left to collect.')),
+  "history": zod.array(zod.object({
+  "kind": zod.enum(['sale', 'on_spot', 'payment']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment'),
+  "day": zod.iso.date(),
+  "number": zod.string(),
+  "object_id": zod.int(),
+  "amount": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemAmountRegExp),
+  "method": zod.string(),
+  "voided": zod.boolean(),
+  "balance": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemBalanceRegExp)
+}))
 })
 
 
@@ -2421,6 +2784,7 @@ export const GetFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneWithholdingRateRegExp),
+  "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
   "phone": zod.string(),
@@ -2436,6 +2800,7 @@ export const GetFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
+  "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
   "phone": zod.string(),
@@ -2475,6 +2840,7 @@ export const SaveFinanceSettingsBody = zod.object({
   "fiscal_stamp": zod.string(),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.string(),
+  "credit_policy": zod.enum(['block', 'approval', 'warn']).optional().describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string().max(saveFinanceSettingsBodyLegalNameMax).default(saveFinanceSettingsBodyLegalNameDefault),
   "address": zod.string().max(saveFinanceSettingsBodyAddressMax).default(saveFinanceSettingsBodyAddressDefault),
   "phone": zod.string().max(saveFinanceSettingsBodyPhoneMax).default(saveFinanceSettingsBodyPhoneDefault),
@@ -2498,6 +2864,7 @@ export const SaveFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneWithholdingRateRegExp),
+  "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
   "phone": zod.string(),
@@ -2513,6 +2880,7 @@ export const SaveFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
+  "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
   "phone": zod.string(),
@@ -2754,6 +3122,7 @@ export const createInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0
 export const createInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const createInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseSettingsWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -2829,6 +3198,19 @@ export const CreateInvoiceResponse = zod.object({
   "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
   "einvoice_reference": zod.string(),
+  "certificate": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', createInvoiceResponseCertificateOneAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -2941,6 +3323,7 @@ export const getInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11
 export const getInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseSettingsWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -3016,6 +3399,19 @@ export const GetInvoiceResponse = zod.object({
   "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
   "einvoice_reference": zod.string(),
+  "certificate": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getInvoiceResponseCertificateOneAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -3149,6 +3545,7 @@ export const updateInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0
 export const updateInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const updateInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseSettingsWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -3224,6 +3621,19 @@ export const UpdateInvoiceResponse = zod.object({
   "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
   "einvoice_reference": zod.string(),
+  "certificate": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', updateInvoiceResponseCertificateOneAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -3420,6 +3830,7 @@ export const issueInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,
 export const issueInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const issueInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseSettingsWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -3495,6 +3906,19 @@ export const IssueInvoiceResponse = zod.object({
   "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
   "einvoice_reference": zod.string(),
+  "certificate": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', issueInvoiceResponseCertificateOneAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -3586,6 +4010,60 @@ export const IssueInvoiceResponse = zod.object({
   "einvoice_reference": zod.string()
 }))
 })
+
+
+/**
+ * Record what the customer withheld on an issued invoice with its certificate's number, date and
+ * amount (owner or manager). The amount replaces the planned withholding in the receivable. The file
+ * is joined with `addWithholdingCertificateFile`.
+ */
+export const RecordWithholdingCertificateParams = zod.object({
+  "invoice_id": zod.int()
+})
+
+export const recordWithholdingCertificateBodyNumberMax = 50;
+
+
+
+export const RecordWithholdingCertificateBody = zod.object({
+  "number": zod.string().max(recordWithholdingCertificateBodyNumberMax),
+  "issued_on": zod.iso.date(),
+  "amount": zod.string()
+})
+
+export const recordWithholdingCertificateResponseInvoiceOneTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const recordWithholdingCertificateResponseInvoiceOneWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const recordWithholdingCertificateResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RecordWithholdingCertificateResponse = zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "total_incl_tax": zod.stringFormat('decimal', recordWithholdingCertificateResponseInvoiceOneTotalInclTaxRegExp),
+  "withholding_amount": zod.stringFormat('decimal', recordWithholdingCertificateResponseInvoiceOneWithholdingAmountRegExp),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+})
+}),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', recordWithholdingCertificateResponseAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).')
 
 
 /**
@@ -6560,6 +7038,7 @@ export const convertQuoteToSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11
 export const convertQuoteToSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -6621,6 +7100,10 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
 }).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', convertQuoteToSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -7125,6 +7608,56 @@ export const ListLastPurchaseCostsResponseItem = zod.object({
   "batch_number": zod.string()
 }).describe('What was last paid a supplier for one product: the cost of their latest batch of it.')
 export const ListLastPurchaseCostsResponse = zod.array(ListLastPurchaseCostsResponseItem)
+
+
+/**
+ * Every customer who owes, or whose credit is held, biggest balance first: balance, part overdue,
+ * credit and the ageing buckets (0-30, 31-60, 61+ days), with the totals.
+ */
+export const getReceivablesAgeingResponseRowsItemCreditLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseRowsItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseRowsItemOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseRowsItemCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseRowsItemAgeingOneD030RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseRowsItemAgeingOneD3160RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseRowsItemAgeingOneD60PlusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseTotalBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseTotalOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseTotalCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseTotalsOneD030RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseTotalsOneD3160RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceivablesAgeingResponseTotalsOneD60PlusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetReceivablesAgeingResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "credit_limit": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemCreditLimitRegExp),
+  "balance": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemBalanceRegExp),
+  "overdue": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemOverdueRegExp),
+  "credit": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemCreditRegExp),
+  "ageing": zod.object({
+  "d0_30": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemAgeingOneD030RegExp),
+  "d31_60": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemAgeingOneD3160RegExp),
+  "d60_plus": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemAgeingOneD60PlusRegExp)
+})
+})),
+  "total_balance": zod.stringFormat('decimal', getReceivablesAgeingResponseTotalBalanceRegExp),
+  "total_overdue": zod.stringFormat('decimal', getReceivablesAgeingResponseTotalOverdueRegExp),
+  "total_credit": zod.stringFormat('decimal', getReceivablesAgeingResponseTotalCreditRegExp),
+  "totals": zod.object({
+  "d0_30": zod.stringFormat('decimal', getReceivablesAgeingResponseTotalsOneD030RegExp),
+  "d31_60": zod.stringFormat('decimal', getReceivablesAgeingResponseTotalsOneD3160RegExp),
+  "d60_plus": zod.stringFormat('decimal', getReceivablesAgeingResponseTotalsOneD60PlusRegExp)
+})
+}).describe('Every customer who owes (or whose credit we hold), biggest balance first, and the totals.')
 
 
 /**
@@ -7926,6 +8459,7 @@ export const listSalesResponseResultsItemCostTotalRegExp = new RegExp('^-?\\d{0,
 export const listSalesResponseResultsItemMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalesResponseResultsItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalesResponseResultsItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalesResponseResultsItemCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListSalesResponse = zod.object({
@@ -7979,7 +8513,11 @@ export const ListSalesResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
-}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()])
+}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', listSalesResponseResultsItemCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable()
 }))
 })
 
@@ -8000,6 +8538,7 @@ export const createSaleBodyPaymentReferenceMax = 50;
 
 export const createSaleBodyNotesDefault = ``;
 export const createSaleBodyConfirmNowDefault = false;
+export const createSaleBodyApproveCreditDefault = false;
 
 export const CreateSaleBody = zod.object({
   "amount_paid": zod.string().nullish(),
@@ -8017,6 +8556,7 @@ export const CreateSaleBody = zod.object({
   "discount_rate": zod.string().nullish()
 })),
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
+  "approve_credit": zod.boolean().default(createSaleBodyApproveCreditDefault),
   "client_uuid": zod.uuid().nullish()
 })
 
@@ -8029,6 +8569,7 @@ export const createSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\
 export const createSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -8090,6 +8631,10 @@ export const CreateSaleResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
 }).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', createSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8138,6 +8683,7 @@ export const getSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{
 export const getSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -8199,6 +8745,10 @@ export const GetSaleResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
 }).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', getSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8247,6 +8797,7 @@ export const updateSaleBodyPaymentReferenceMax = 50;
 
 export const updateSaleBodyNotesDefault = ``;
 export const updateSaleBodyConfirmNowDefault = false;
+export const updateSaleBodyApproveCreditDefault = false;
 
 export const UpdateSaleBody = zod.object({
   "amount_paid": zod.string().nullish(),
@@ -8264,6 +8815,7 @@ export const UpdateSaleBody = zod.object({
   "discount_rate": zod.string().nullish()
 })),
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
+  "approve_credit": zod.boolean().default(updateSaleBodyApproveCreditDefault),
   "client_uuid": zod.uuid().nullish()
 })
 
@@ -8276,6 +8828,7 @@ export const updateSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\
 export const updateSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -8337,6 +8890,10 @@ export const UpdateSaleResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
 }).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', updateSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8394,6 +8951,7 @@ export const cancelSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\
 export const cancelSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -8455,6 +9013,10 @@ export const CancelSaleResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
 }).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', cancelSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8488,10 +9050,19 @@ export const CancelSaleResponse = zod.object({
 
 /**
  * Confirm a draft: the stock leaves oldest batch first and the customer owes what is not paid. Refused
- * as a whole when the place holds too little (`lines.<index>.quantity`).
+ * as a whole when the place holds too little (`lines.<index>.quantity`) or, under the company's "block"
+ * policy, when the customer would go above their credit limit (`credit_limit`). Under the "approval"
+ * policy the sale stays a draft with `credit_status` pending until the owner or a manager confirms it
+ * with `approve_credit`.
  */
 export const ConfirmSaleParams = zod.object({
   "sale_id": zod.int()
+})
+
+export const confirmSaleBodyApproveCreditDefault = false;
+
+export const ConfirmSaleBody = zod.object({
+  "approve_credit": zod.boolean().default(confirmSaleBodyApproveCreditDefault)
 })
 
 export const confirmSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -8503,6 +9074,7 @@ export const confirmSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.
 export const confirmSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
@@ -8564,6 +9136,10 @@ export const ConfirmSaleResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
 }).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', confirmSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -10386,3 +10962,191 @@ export const RestoreTruckResponse = zod.object({
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
 })
+
+
+/**
+ * Join the certificate's file: a photo (turned upright, shrunk, stored as WebP) or a PDF. Replaces
+ * an earlier file of a live certificate.
+ */
+export const AddWithholdingCertificateFileParams = zod.object({
+  "certificate_id": zod.int()
+})
+
+export const AddWithholdingCertificateFileBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const addWithholdingCertificateFileResponseInvoiceOneTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const addWithholdingCertificateFileResponseInvoiceOneWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const addWithholdingCertificateFileResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AddWithholdingCertificateFileResponse = zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "total_incl_tax": zod.stringFormat('decimal', addWithholdingCertificateFileResponseInvoiceOneTotalInclTaxRegExp),
+  "withholding_amount": zod.stringFormat('decimal', addWithholdingCertificateFileResponseInvoiceOneWithholdingAmountRegExp),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+})
+}),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', addWithholdingCertificateFileResponseAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).')
+
+
+/**
+ * Cancel a certificate typed by mistake (a reason is required): the invoice's planned withholding
+ * counts again.
+ */
+export const VoidWithholdingCertificateParams = zod.object({
+  "certificate_id": zod.int()
+})
+
+export const voidWithholdingCertificateBodyReasonMax = 255;
+
+
+
+export const VoidWithholdingCertificateBody = zod.object({
+  "reason": zod.string().max(voidWithholdingCertificateBodyReasonMax)
+})
+
+export const voidWithholdingCertificateResponseInvoiceOneTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidWithholdingCertificateResponseInvoiceOneWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidWithholdingCertificateResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const VoidWithholdingCertificateResponse = zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "total_incl_tax": zod.stringFormat('decimal', voidWithholdingCertificateResponseInvoiceOneTotalInclTaxRegExp),
+  "withholding_amount": zod.stringFormat('decimal', voidWithholdingCertificateResponseInvoiceOneWithholdingAmountRegExp),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+})
+}),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', voidWithholdingCertificateResponseAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).')
+
+
+/**
+ * For the accountant: what customers withheld over a period (certificate dates, both ends
+ * included): total, per month, per customer, each certificate, and the issued invoices that planned a
+ * withholding but have no certificate yet.
+ */
+
+
+
+export const GetWithholdingSummaryQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional()
+})
+
+export const getWithholdingSummaryResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getWithholdingSummaryResponseByMonthItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getWithholdingSummaryResponseByCustomerItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getWithholdingSummaryResponseCertificatesItemInvoiceOneTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getWithholdingSummaryResponseCertificatesItemInvoiceOneWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getWithholdingSummaryResponseCertificatesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getWithholdingSummaryResponseAwaitingItemWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getWithholdingSummaryResponseAwaitingTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetWithholdingSummaryResponse = zod.object({
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', getWithholdingSummaryResponseTotalRegExp),
+  "by_month": zod.array(zod.object({
+  "month": zod.string(),
+  "count": zod.int(),
+  "amount": zod.stringFormat('decimal', getWithholdingSummaryResponseByMonthItemAmountRegExp)
+})),
+  "by_customer": zod.array(zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+}),
+  "count": zod.int(),
+  "amount": zod.stringFormat('decimal', getWithholdingSummaryResponseByCustomerItemAmountRegExp)
+})),
+  "certificates": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "total_incl_tax": zod.stringFormat('decimal', getWithholdingSummaryResponseCertificatesItemInvoiceOneTotalInclTaxRegExp),
+  "withholding_amount": zod.stringFormat('decimal', getWithholdingSummaryResponseCertificatesItemInvoiceOneWithholdingAmountRegExp),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+})
+}),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getWithholdingSummaryResponseCertificatesItemAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).')),
+  "awaiting": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "withholding_amount": zod.stringFormat('decimal', getWithholdingSummaryResponseAwaitingItemWithholdingAmountRegExp),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string()
+})
+}).describe('An issued invoice that planned a withholding and has no certificate yet.')),
+  "awaiting_total": zod.stringFormat('decimal', getWithholdingSummaryResponseAwaitingTotalRegExp)
+}).describe('What customers withheld over a period, for the accountant: totals, per month, per customer, each\ncertificate, and the invoices still waiting for theirs.')

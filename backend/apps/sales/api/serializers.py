@@ -2,12 +2,15 @@ from typing import Any
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 
 from apps.sales import selectors
 from apps.sales.models import (
     CreditNote,
     CreditNoteKind,
     CreditNoteLine,
+    CreditPolicy,
+    CreditStatus,
     EInvoiceStatus,
     FinanceSettings,
     Invoice,
@@ -23,6 +26,7 @@ from apps.sales.models import (
     SaleLineBatch,
     SalePaymentMethod,
     SaleStatus,
+    WithholdingCertificate,
 )
 
 # ---- Quotes (P2-T03) ----
@@ -271,6 +275,10 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     cancelled_by = serializers.SerializerMethodField()
     # Its invoice, draft or issued, unless cancelled by a credit note (P2-T05).
     invoice = serializers.SerializerMethodField()
+    # Against the customer's credit limit (P2-T06): empty, pending (a draft waiting for the owner or a
+    # manager), approved or warned.
+    credit_status = serializers.ChoiceField(choices=CreditStatus.choices, read_only=True, allow_blank=True)
+    credit_decided_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -303,8 +311,15 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "cancelled_at",
             "cancel_reason",
             "invoice",
+            "credit_status",
+            "credit_over_by",
+            "credit_decided_by",
+            "credit_decided_at",
         )
         read_only_fields: tuple[str, ...] = fields
+
+    def get_credit_decided_by(self, sale: Sale) -> str:
+        return person_name(sale.credit_decided_by)
 
     @extend_schema_field(SaleInvoiceRefSerializer(allow_null=True))
     def get_invoice(self, sale: Sale) -> dict[str, Any] | None:
@@ -362,6 +377,9 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     lines = QuoteLineWriteSerializer(many=True, allow_empty=True)
     # Confirm at once (the stock leaves); otherwise it stays a draft.
     confirm_now = serializers.BooleanField(required=False, default=False)
+    # Accept going above the customer's credit limit (owner or manager only, when the company asks for
+    # approval).
+    approve_credit = serializers.BooleanField(required=False, default=False)
     # Sent by an app that may retry: the same value never makes two sales.
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
 
@@ -371,6 +389,12 @@ class QuoteConvertSerializer(SalePaymentWriteSerializer):
     location = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     sold_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
     confirm_now = serializers.BooleanField(required=False, default=False)
+
+
+class SaleConfirmSerializer(serializers.Serializer[Any]):
+    # Accept going above the customer's credit limit (owner or manager only, when the company asks for
+    # approval).
+    approve_credit = serializers.BooleanField(required=False, default=False)
 
 
 class SaleCancelSerializer(serializers.Serializer[Any]):
@@ -422,6 +446,7 @@ class BatchSalesSerializer(serializers.Serializer[Any]):
 class FinanceSettingsSerializer(serializers.ModelSerializer[FinanceSettings]):
     """One version of the finance settings."""
 
+    credit_policy = serializers.ChoiceField(choices=CreditPolicy.choices, read_only=True)
     created_by = serializers.SerializerMethodField()
 
     class Meta:
@@ -433,6 +458,7 @@ class FinanceSettingsSerializer(serializers.ModelSerializer[FinanceSettings]):
             "fiscal_stamp",
             "prices_include_vat",
             "withholding_rate",
+            "credit_policy",
             "legal_name",
             "address",
             "phone",
@@ -463,6 +489,9 @@ class FinanceSettingsWriteSerializer(serializers.Serializer[Any]):
     fiscal_stamp = serializers.CharField(allow_blank=True)
     prices_include_vat = serializers.BooleanField()
     withholding_rate = serializers.CharField(allow_blank=True)
+    # What happens above a customer's credit limit: block, ask the owner or a manager, or warn and log.
+    # Empty keeps the version in force.
+    credit_policy = serializers.ChoiceField(choices=CreditPolicy.choices, required=False)
     legal_name = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
     address = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
     phone = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
@@ -658,14 +687,62 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
 
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
     def get_remaining_to_pay(self, invoice: Invoice) -> str:
-        credited = getattr(invoice, "credited_total", None) or 0
-        return str(invoice.net_to_pay - credited)
+        # An issued invoice: what its sale still owes (payments, credit notes, certificate taken off, D-062).
+        if invoice.status == InvoiceStatus.ISSUED:
+            return str(invoice.sale.amount_due)
+        if invoice.status == InvoiceStatus.CANCELLED:
+            return "0.000"
+        return str(invoice.net_to_pay)
 
     def get_created_by(self, invoice: Invoice) -> str:
         return person_name(invoice.created_by)
 
     def get_issued_by(self, invoice: Invoice) -> str:
         return person_name(invoice.issued_by)
+
+
+class InvoiceCertificateSerializer(serializers.ModelSerializer[WithholdingCertificate]):
+    """The withholding certificate of an invoice (P2-T06, D-063)."""
+
+    file_url = serializers.SerializerMethodField()
+    # "application/pdf" or "image/webp"; empty without a file.
+    file_type = serializers.SerializerMethodField()
+    is_voided = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WithholdingCertificate
+        fields: tuple[str, ...] = (
+            "id",
+            "number",
+            "issued_on",
+            "amount",
+            "file_url",
+            "file_type",
+            "is_voided",
+            "voided_at",
+            "void_reason",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_file_url(self, certificate: WithholdingCertificate) -> str | None:
+        if not certificate.file.name:
+            return None
+        return reverse("withholding-certificate-file", args=[certificate.pk])
+
+    def get_file_type(self, certificate: WithholdingCertificate) -> str:
+        if not certificate.file.name:
+            return ""
+        return "application/pdf" if certificate.file.name.endswith(".pdf") else "image/webp"
+
+    def get_is_voided(self, certificate: WithholdingCertificate) -> bool:
+        return certificate.voided_at is not None
+
+    def get_created_by(self, certificate: WithholdingCertificate) -> str:
+        return person_name(certificate.created_by)
 
 
 class InvoiceDetailSerializer(InvoiceSerializer):
@@ -687,9 +764,18 @@ class InvoiceDetailSerializer(InvoiceSerializer):
         source="settings_version.withholding_rate", max_digits=5, decimal_places=2, read_only=True, allow_null=True
     )
 
+    # The live withholding certificate (P2-T06), if one was recorded.
+    certificate = serializers.SerializerMethodField()
+
+    @extend_schema_field(InvoiceCertificateSerializer(allow_null=True))
+    def get_certificate(self, invoice: Invoice) -> dict[str, Any] | None:
+        live = next((row for row in invoice.certificates.all() if row.voided_at is None), None)
+        return dict(InvoiceCertificateSerializer(live).data) if live is not None else None
+
     class Meta(InvoiceSerializer.Meta):
         fields = (
             *InvoiceSerializer.Meta.fields,
+            "certificate",
             "notes",
             "fiscal_stamp_overridden",
             "withholding_rate_overridden",

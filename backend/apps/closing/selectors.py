@@ -26,9 +26,8 @@ WRITE_OFF_KINDS = frozenset({"loss", "count_correction", "adjustment"})
 RECEIPT = "receipt"
 SUPPLIER_RETURN = "supplier_return"
 
-# Customer payments are not tracked yet (P2-T06): a sale still owed money does not stop a closing, it is
-# kept as a warning with the result. P2-T06 turns this on once payments after the sale can be recorded.
-CUSTOMER_PAYMENTS_BLOCK = False
+# Customer payments exist since P2-T06 (D-062): a lot with a sale still owed money cannot be closed (Q19).
+CUSTOMER_PAYMENTS_BLOCK = True
 
 
 def _sale_rows(organization: Organization, batch_id: int) -> tuple[engine.SaleRow, ...]:
@@ -195,11 +194,10 @@ def customers_owing(organization: Organization, snapshot: engine.LotSnapshot) ->
     """What customers still owe on the lot's sales, by sale id: the one place the "customers paid" check
     (Q19) reads receivables from.
 
-    Today it is what the sales themselves know (`amount_due`: the sale total less the payment taken on the
-    spot). P2-T06 (customer payments) replaces this body with the receivables it keeps; nothing else in
-    closing, settlement or the screens changes (D-066).
+    Since P2-T06 it is what each confirmed sale still owes after customer payments, credit notes and
+    withholding (`sales.selectors.outstanding_by_sale`, D-062); a cancelled sale owes nothing.
     """
-    return {sale.sale_id: sale.amount_due for sale in snapshot.sales if sale.amount_due > 0}
+    return sales.outstanding_by_sale(organization, [sale.sale_id for sale in snapshot.sales])
 
 
 def closing_checks(organization: Organization, result: engine.ComputedResult) -> list[ClosingCheck]:
@@ -227,7 +225,7 @@ def closing_checks(organization: Organization, result: engine.ComputedResult) ->
             count=len(waiting),
             amount=sum((line.amount for line in waiting), ZERO),
         ),
-        # Customers paid (Q19): known only for the payment on the spot until P2-T06.
+        # Customers paid (Q19): every sale of the lot is paid, customer payments included (P2-T06).
         ClosingCheck(
             code="customers_paid",
             ok=not owed,

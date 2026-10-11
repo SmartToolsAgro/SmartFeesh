@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
@@ -192,6 +193,22 @@ class PriceSource(models.TextChoices):
     TYPED = "typed", _("Saisi")
 
 
+class CreditStatus(models.TextChoices):
+    """Where a sale stands against its customer's credit limit (P2-T06)."""
+
+    PENDING = "pending", _("En attente d'approbation")
+    APPROVED = "approved", _("Approuvée")
+    WARNED = "warned", _("Limite dépassée")
+
+
+class CreditPolicy(models.TextChoices):
+    """What happens when a sale takes a customer above their credit limit: a company setting (D-018, Q16)."""
+
+    BLOCK = "block", _("Bloquer la vente")
+    APPROVAL = "approval", _("Demander l'approbation du propriétaire ou du gérant")
+    WARN = "warn", _("Avertir et consigner")
+
+
 class Sale(OrganizationScopedModel, TimeStampedModel):
     """Goods sold to a customer from one place (a cold room's counter or a truck), at one moment.
 
@@ -249,6 +266,16 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     )
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancel_reason = models.CharField(max_length=255, blank=True)
+    # The credit limit check at confirmation (P2-T06, D-018, D-062): "" = within the limit (or nothing owed),
+    # `pending` = above it and waiting for the owner or a manager (a draft), `approved` = they accepted it,
+    # `warned` = above it under the "warn and log" policy. `credit_over_by` is by how much the customer's
+    # balance, with this sale, was above their limit.
+    credit_status = models.CharField(max_length=20, choices=CreditStatus.choices, blank=True)
+    credit_over_by = MoneyField(default=Decimal("0.000"))
+    credit_decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    credit_decided_at = models.DateTimeField(null=True, blank=True)
     # Sent by an app that may retry (the driver app, the seed): the same request never makes two sales.
     client_uuid = models.UUIDField(null=True, blank=True)
 
@@ -388,6 +415,8 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
     prices_include_vat = models.BooleanField(default=False)
     # Percent, 2 decimals: the withholding tax (retenue à la source) some customers apply; 0 = never shown.
     withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    # What happens above a customer's credit limit (P2-T06, D-018, D-062): block, ask for approval, or warn.
+    credit_policy = models.CharField(max_length=20, choices=CreditPolicy.choices, default=CreditPolicy.BLOCK)
     # Who issues the invoices, as printed on them (article 18 of the VAT code).
     legal_name = models.CharField(max_length=200, blank=True)
     address = models.CharField(max_length=255, blank=True)
@@ -697,3 +726,111 @@ class CreditNoteLine(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.credit_note} · {self.invoice_line_id}"
+
+
+# ---- Customer payments (P2-T06, D-062) ----
+
+
+def certificate_path(certificate: "WithholdingCertificate", filename: str) -> str:
+    # A random name: the address of a customer's certificate cannot be guessed.
+    extension = ".pdf" if filename.lower().endswith(".pdf") else ".webp"
+    return f"withholding/{certificate.organization_id}/{uuid.uuid4().hex}{extension}"
+
+
+class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
+    """Money a customer paid after the sale (cash, cheque, transfer, card): `RG-0001`... per organization.
+
+    It is allocated to one or more sales (`PaymentAllocation`); what is not allocated stays as the customer's
+    credit and lowers their balance all the same. Never edited or deleted: a mistake is voided (reason, who,
+    when) and typed again. What a customer paid on the spot, at the sale, stays on the sale (`amount_paid`).
+    """
+
+    number = models.CharField(max_length=20)
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="payments")
+    amount = MoneyField()
+    method = models.CharField(max_length=20, choices=SalePaymentMethod.choices)
+    # The day the money was received (not in the future).
+    received_on = models.DateField()
+    # Cheque number, transfer reference...
+    reference = models.CharField(max_length=50, blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    void_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-received_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="customer_payment_number_unique"),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_payment_amount_positive"),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "customer", "received_on"], name="customer_payment_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class PaymentAllocation(OrganizationScopedModel):
+    """The part of a payment that settles one sale. Written once; a voided payment's rows stop counting."""
+
+    payment = models.ForeignKey(CustomerPayment, on_delete=models.PROTECT, related_name="allocations")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="allocations")
+    amount = MoneyField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["payment", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="payment_allocation_amount_positive"),
+        ]
+        indexes = [models.Index(fields=["organization", "sale"], name="payment_allocation_sale_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.payment} -> {self.sale} · {self.amount}"
+
+
+class WithholdingCertificate(OrganizationScopedModel, TimeStampedModel):
+    """The certificate (retenue à la source) a customer gives for what they withheld on an issued invoice:
+    its number, date and file, and the amount really withheld (D-063).
+
+    The invoice's receivable already took its own withholding off at issue (D-057); the certificate's amount
+    replaces it, so a customer who withheld more or less than planned changes what they still owe. One live
+    certificate per invoice; a mistake is voided and typed again.
+    """
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name="certificates")
+    number = models.CharField(max_length=50)
+    issued_on = models.DateField()
+    amount = MoneyField()
+    # A photo (stored as WebP) or a PDF; may be joined later.
+    file = models.FileField(upload_to=certificate_path, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    void_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-issued_on", "-id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="withholding_cert_amount_positive"),
+            models.UniqueConstraint(
+                fields=["invoice"],
+                condition=models.Q(voided_at__isnull=True),
+                name="one_live_certificate_per_invoice",
+            ),
+        ]
+        indexes = [models.Index(fields=["organization", "issued_on"], name="withholding_cert_day_idx")]
+
+    def __str__(self) -> str:
+        return self.number

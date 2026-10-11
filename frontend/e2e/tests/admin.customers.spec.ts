@@ -50,7 +50,7 @@ test("the owner creates a customer with a credit limit, edits it and archives it
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
   await expect(page.getByText(/^C-\d{3}$/)).toBeVisible();
   await expect(page.getByText(`${taxNumber}A/A/M/000`)).toBeVisible();
-  await expect(page.getByText(/1\s250,500\sDT/)).toBeVisible();
+  await expect(page.getByText(/1\s250,500\sDT/).first()).toBeVisible();
   await expect(page.getByText("30 jours")).toBeVisible();
 
   await page.getByRole("button", { name: "Modifier" }).click();
@@ -58,7 +58,7 @@ test("the owner creates a customer with a credit limit, edits it and archives it
   await edit.getByLabel("Limite de crédit (DT)").fill("2000");
   await edit.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText("Modifications enregistrées.")).toBeVisible();
-  await expect(page.getByText(/2\s000,000\sDT/)).toBeVisible();
+  await expect(page.getByText(/2\s000,000\sDT/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Archiver" }).click();
   await expect(page.getByText("Archivé", { exact: true })).toBeVisible();

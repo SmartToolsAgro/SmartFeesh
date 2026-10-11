@@ -75,9 +75,10 @@ export function SaleDetailPage() {
     toast.error(Object.values(fromServer)[0] ?? t("admin.sales.detail.actionError"));
   };
   const confirm = useMutation({
-    mutationFn: () => confirmSale(id),
+    mutationFn: (approveCredit: boolean) => confirmSale(id, { approve_credit: approveCredit }),
     onSuccess: async (saved) => {
-      toast.success(t("admin.sales.detail.confirmed", { number: saved.number }));
+      if (saved.status === "draft") toast.warning(t("admin.payments.sale.pendingToast"));
+      else toast.success(t("admin.sales.detail.confirmed", { number: saved.number }));
       await refreshAfterSale(queryClient);
     },
     onError: onFailure,
@@ -137,9 +138,11 @@ export function SaleDetailPage() {
         {canWrite && data.status === "draft" && (
           <>
             <Button onClick={() => void navigate(`/ventes/${data.id}/modifier`)}>{t("admin.sales.detail.edit")}</Button>
-            <Button variant="primary" disabled={busy} onClick={() => confirm.mutate()}>
+            <Button variant="primary" disabled={busy} onClick={() => confirm.mutate(data.credit_status === "pending")}>
               <Icon name="check" />
-              {confirm.isPending ? t("admin.sales.detail.confirming") : t("admin.sales.detail.confirm")}
+              {confirm.isPending
+                ? t("admin.sales.detail.confirming")
+                : t(data.credit_status === "pending" ? "admin.payments.sale.approve" : "admin.sales.detail.confirm")}
             </Button>
           </>
         )}
@@ -163,6 +166,20 @@ export function SaleDetailPage() {
           </Button>
         )}
       </PageHeader>
+
+      {data.credit_status === "pending" && (
+        <p role="alert" className="rounded-chip bg-warn-soft px-3 py-2 text-[0.9rem]">
+          {t("admin.payments.sale.pending", { amount: formatMoney(data.credit_over_by) })}
+        </p>
+      )}
+      {(data.credit_status === "approved" || data.credit_status === "warned") && (
+        <p role="note" className="rounded-chip bg-surface-2 px-3 py-2 text-[0.9rem]">
+          {t(`admin.payments.sale.${data.credit_status}`, {
+            amount: formatMoney(data.credit_over_by),
+            name: data.credit_decided_by,
+          })}
+        </p>
+      )}
 
       <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start gap-4 max-[1000px]:grid-cols-1">
         <Card aria-label={t("admin.sales.detail.title", { number: data.number })} role="region">
