@@ -25,3 +25,13 @@ export const STATUS_TONES = {
 } as const satisfies Record<InvoiceStatusEnum, string>;
 
 export const isZero = (value: string | null | undefined) => !value || /^0+(\.0+)?$/.test(value);
+
+/** An API decimal as people type it here: "19.00" becomes "19,00". */
+export const toInput = (value: string | null | undefined) => (value ?? "").replace(".", ",");
+
+/** A rate as "19" or "7,5" for a label or a placeholder. */
+export function plainRate(value: string): string {
+  const [whole = "0", decimals = ""] = value.split(".");
+  const trimmed = decimals.replace(/0+$/, "");
+  return trimmed ? `${whole},${trimmed}` : whole;
+}

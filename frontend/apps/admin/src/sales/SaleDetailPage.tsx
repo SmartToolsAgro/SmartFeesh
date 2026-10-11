@@ -1,4 +1,4 @@
-import { ApiError, cancelSale, confirmSale, useGetSale } from "@frutti/api";
+import { ApiError, cancelSale, confirmSale, createInvoice, useGetSale } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import {
@@ -82,6 +82,15 @@ export function SaleDetailPage() {
     },
     onError: onFailure,
   });
+  const invoice = useMutation({
+    mutationFn: () => createInvoice({ sale: id }),
+    onSuccess: async (saved) => {
+      toast.success(t("admin.sales.detail.invoiceReady"));
+      await refreshAfterSale(queryClient);
+      void navigate(`/factures/${saved.id}`);
+    },
+    onError: onFailure,
+  });
   const cancel = useMutation({
     mutationFn: () => cancelSale(id, { reason: reason.trim() }),
     onSuccess: async (saved) => {
@@ -116,7 +125,7 @@ export function SaleDetailPage() {
   const data = sale.data;
   const none = t("admin.sales.detail.none");
   const canWrite = canSell(session);
-  const busy = confirm.isPending || cancel.isPending;
+  const busy = confirm.isPending || cancel.isPending || invoice.isPending;
   const hasDiscount = !isZero(data.discount_total);
   const showCosts = data.cost_total !== null;
 
@@ -133,6 +142,12 @@ export function SaleDetailPage() {
               {confirm.isPending ? t("admin.sales.detail.confirming") : t("admin.sales.detail.confirm")}
             </Button>
           </>
+        )}
+        {canWrite && data.status === "confirmed" && !data.invoice && (
+          <Button variant="primary" disabled={busy} onClick={() => invoice.mutate()}>
+            <Icon name="receipt" />
+            {t("admin.sales.detail.invoice")}
+          </Button>
         )}
         {canWrite && data.status !== "cancelled" && (
           <Button
@@ -262,6 +277,13 @@ export function SaleDetailPage() {
             <Detail label={t("admin.sales.detail.soldAt")} numeric>
               {formatDateTime(data.sold_at)}
             </Detail>
+            {data.invoice && (
+              <Detail label={t("admin.sales.detail.invoiceLabel")}>
+                <Link to={`/factures/${data.invoice.id}`} className="font-semibold text-sea hover:underline">
+                  {data.invoice.number || t("admin.invoices.draftNumber")}
+                </Link>
+              </Detail>
+            )}
             {data.quote && (
               <Detail label={t("admin.sales.detail.quote")}>
                 <Link to={`/devis/${data.quote.id}`} className="font-semibold text-sea hover:underline">

@@ -274,9 +274,7 @@ export function InvoicesPage() {
         )}
         <span className="ms-auto text-[0.85rem] text-ink-2" aria-live="polite">
           {count !== undefined &&
-            (tab === "invoices"
-              ? t("admin.invoices.count", { count })
-              : t("admin.invoices.creditCount", { count }))}
+            (tab === "invoices" ? t("admin.invoices.count", { count }) : t("admin.invoices.creditCount", { count }))}
         </span>
       </Card>
 
