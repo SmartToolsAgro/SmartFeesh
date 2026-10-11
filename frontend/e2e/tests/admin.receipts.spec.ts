@@ -56,7 +56,9 @@ test("the owner records a receipt; the last cost is suggested and the change sho
   await expect(page.getByText(/Réception BR-\d+ enregistrée/)).toBeVisible();
   await expect(page.getByRole("heading", { name: /^BR-\d+$/, level: 1 })).toBeVisible();
   await expect(page.getByText(deliveryNote)).toBeVisible();
-  await expect(page.getByRole("note")).toContainText(/Loup de mer L-\d+ : 17,500\skg acceptés pour 18,000\skg facturés/);
+  await expect(page.getByRole("note")).toContainText(
+    /Loup de mer L-\d+ : 17,500\skg acceptés pour 18,000\skg facturés/,
+  );
 });
 
 test("a receipt without weights is refused on the line's own fields", async ({ page }) => {
