@@ -42,6 +42,8 @@ LOCAL_APPS = [
     "apps.sales",
     "apps.hr",
     "apps.expenses",
+    "apps.partnerships",
+    "apps.closing",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -149,5 +151,9 @@ SPECTACULAR_SETTINGS = {
         "ExpenseStatusEnum": "apps.expenses.models.ExpenseStatus",
         "LotCostKindEnum": "apps.expenses.models.LotCostKind",
         "WorkTypeEnum": "apps.expenses.models.WorkType",
+        # P6-T01 / P6-T02 · partnership lots and lot results
+        "PartnershipStatusEnum": "apps.partnerships.models.PartnershipStatus",
+        "CapitalEntryKindEnum": "apps.partnerships.models.CapitalEntryKind",
+        "LotResultStatusEnum": "apps.closing.models.LotResultStatus",
     },
 }
