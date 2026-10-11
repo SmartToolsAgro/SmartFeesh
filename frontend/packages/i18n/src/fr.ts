@@ -1867,10 +1867,17 @@ export const fr = {
       intro:
         "Lots achetés avec un fournisseur partenaire : chacun apporte un capital ; à la clôture du lot, le partenaire reçoit son capital ± sa part du résultat.",
       search: "Rechercher un lot, un produit, un partenaire",
-      empty: "Aucun partenariat pour l'instant. Un partenariat se crée depuis la page d'un lot, avant sa première vente.",
+      empty:
+        "Aucun partenariat pour l'instant. Un partenariat se crée depuis la page d'un lot, avant sa première vente.",
       loadError: "Impossible de charger les partenariats.",
       filter: "Statut des partenariats",
-      filters: { live: "En cours et clôturés", open: "En cours", closed: "Clôturés", settled: "Réglés", cancelled: "Annulés" },
+      filters: {
+        live: "En cours et clôturés",
+        open: "En cours",
+        closed: "Clôturés",
+        settled: "Réglés",
+        cancelled: "Annulés",
+      },
       statuses: { open: "En cours", closed: "Clôturé", settled: "Réglé", cancelled: "Annulé" },
       columns: {
         lot: "Lot",
@@ -1994,7 +2001,8 @@ export const fr = {
         costs_approved: "Coûts du lot approuvés",
         costs_approvedFailed: "{{count}} coût(s) attendent une approbation ({{amount}})",
         customers_paid: "Clients payés",
-        customers_paidFailed: "Les clients doivent encore {{amount}} sur {{count}} vente(s) : vérifiez avant de clôturer",
+        customers_paidFailed:
+          "Les clients doivent encore {{amount}} sur {{count}} vente(s) : vérifiez avant de clôturer",
       },
       paymentsWarning:
         "Les paiements clients ne sont pas encore suivis dans l'application : vérifiez que les clients ont payé.",
