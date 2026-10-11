@@ -16,6 +16,7 @@ from apps.demo.losses import seed_losses
 from apps.demo.prices import seed_prices
 from apps.demo.quotes import seed_quotes
 from apps.demo.receipts import seed_receipts
+from apps.demo.sale_invoices import seed_invoices
 from apps.demo.sales import seed_sales
 from apps.demo.stock import seed_stock
 from apps.demo.supplier_invoices import seed_supplier_invoices
@@ -83,6 +84,7 @@ class Command(BaseCommand):
         prices = seed_prices(organization=organization, actor=owner)
         quotes = seed_quotes(organization=organization, actor=owner)
         sales = seed_sales(organization=organization, actor=owner, driver=driver)
+        sale_invoices = seed_invoices(organization=organization, actor=owner)
         employees = seed_employees(organization=organization, actor=owner, driver=driver)
         expenses = seed_expenses(organization=organization, actor=owner)
 
@@ -101,5 +103,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"{prices} new minimum prices and price lists"))
         self.stdout.write(self.style.SUCCESS(f"{quotes} new quotes"))
         self.stdout.write(self.style.SUCCESS(f"{sales} new sales"))
+        self.stdout.write(self.style.SUCCESS(f"{sale_invoices} new customer invoices"))
         self.stdout.write(self.style.SUCCESS(f"{employees} new employees"))
         self.stdout.write(self.style.SUCCESS(f"{expenses} new expenses, day labourers and days worked"))
