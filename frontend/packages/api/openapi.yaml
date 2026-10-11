@@ -1485,6 +1485,123 @@ paths:
               schema:
                 $ref: '#/components/schemas/StockSettings'
           description: ''
+  /api/v1/stock/movements:
+    get:
+      operationId: listMovements
+      description: |-
+        The stock ledger, newest first, paginated (`limit`, `offset`). A location filter keeps the
+        movements coming in or going out of it; dates are inclusive.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - receipt
+          - transfer
+          - sale
+          - customer_return
+          - supplier_return
+          - loss
+          - adjustment
+          - count_correction
+          type: string
+          minLength: 1
+        description: |-
+          * `receipt` - Réception
+          * `transfer` - Transfert
+          * `sale` - Vente
+          * `customer_return` - Retour client
+          * `supplier_return` - Retour fournisseur
+          * `loss` - Perte
+          * `adjustment` - Ajustement
+          * `count_correction` - Correction d'inventaire
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: product
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - stock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStockMovementList'
+          description: ''
+  /api/v1/stock/overview:
+    get:
+      operationId: getStockOverview
+      description: |-
+        Each active location with the kg and cost it holds, and each product with its kg per location,
+        its low-stock warning and its average and last purchase cost (pricing information only, D-040).
+      tags:
+      - stock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockOverview'
+          description: ''
+  /api/v1/stock/products/{product_id}:
+    get:
+      operationId: getProductStock
+      description: One product's stock like the overview, plus the batches still on
+        hand with their locations.
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - stock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStockDetail'
+          description: ''
   /api/v1/supplier-balances/{supplier_id}:
     get:
       operationId: getSupplierBalance
@@ -2502,6 +2619,67 @@ components:
       - supplier
       - unit_cost
       - use_by
+    BatchHolding:
+      type: object
+      description: A batch of the product still on hand.
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchLocation'
+          readOnly: true
+      required:
+      - batch_id
+      - locations
+      - number
+      - quantity
+      - received_on
+      - supplier_name
+      - unit_cost
+      - value
+    BatchLocation:
+      type: object
+      properties:
+        location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - location
+      - quantity
     BatchProduct:
       type: object
       properties:
@@ -3135,6 +3313,36 @@ components:
       - product_name
       - product_reference
       - quantity
+    LocationTotal:
+      type: object
+      description: A location with the kg it holds and what they cost.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/StockLocationKindEnum'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - kind
+      - name
+      - quantity
+      - value
     Login:
       type: object
       properties:
@@ -3543,6 +3751,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Receipt'
+    PaginatedStockMovementList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockMovement'
     PaginatedSupplierInvoiceList:
       type: object
       required:
@@ -4021,6 +4252,20 @@ components:
       - name
       - reference
       - sale_price
+    ProductLocationQuantity:
+      type: object
+      properties:
+        location_id:
+          type: integer
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - location_id
+      - quantity
     ProductPrice:
       type: object
       properties:
@@ -4050,6 +4295,146 @@ components:
       - id
       - price
       - valid_from
+    ProductStock:
+      type: object
+      description: 'One product''s stock: kg per location, the minimum-stock warning
+        and the purchase prices (D-048).'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        illustration:
+          type: string
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        is_low:
+          type: boolean
+          readOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductLocationQuantity'
+          readOnly: true
+        average_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        last_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - average_cost
+      - id
+      - illustration
+      - is_active
+      - is_low
+      - last_cost
+      - locations
+      - min_stock
+      - name
+      - photo_url
+      - quantity
+      - reference
+    ProductStockDetail:
+      type: object
+      description: 'One product''s stock: kg per location, the minimum-stock warning
+        and the purchase prices (D-048).'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        illustration:
+          type: string
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        is_low:
+          type: boolean
+          readOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductLocationQuantity'
+          readOnly: true
+        average_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        last_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        batches:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchHolding'
+          readOnly: true
+      required:
+      - average_cost
+      - batches
+      - id
+      - illustration
+      - is_active
+      - is_low
+      - last_cost
+      - locations
+      - min_stock
+      - name
+      - photo_url
+      - quantity
+      - reference
     Receipt:
       type: object
       properties:
@@ -4420,6 +4805,105 @@ components:
         * `cold_room` - Chambre froide
         * `truck` - Camion
         * `other` - Autre
+    StockMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/StockMovementKindEnum'
+          readOnly: true
+        occurred_at:
+          type: string
+          format: date-time
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        from_location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+          nullable: true
+        to_location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+          nullable: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        user_name:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - from_location
+      - id
+      - kind
+      - occurred_at
+      - product
+      - quantity
+      - reason
+      - to_location
+      - unit_cost
+      - user_name
+    StockMovementKindEnum:
+      enum:
+      - receipt
+      - transfer
+      - sale
+      - customer_return
+      - supplier_return
+      - loss
+      - adjustment
+      - count_correction
+      type: string
+      description: |-
+        * `receipt` - Réception
+        * `transfer` - Transfert
+        * `sale` - Vente
+        * `customer_return` - Retour client
+        * `supplier_return` - Retour fournisseur
+        * `loss` - Perte
+        * `adjustment` - Ajustement
+        * `count_correction` - Correction d'inventaire
+    StockOverview:
+      type: object
+      properties:
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationTotal'
+          readOnly: true
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductStock'
+          readOnly: true
+      required:
+      - locations
+      - products
     StockSettings:
       type: object
       properties:

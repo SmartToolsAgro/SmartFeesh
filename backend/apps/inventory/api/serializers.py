@@ -13,6 +13,7 @@ from apps.inventory.models import (
     LocationKind,
     LossReason,
     LossStatus,
+    MovementKind,
     StockCount,
     StockCountLine,
     StockLocation,
@@ -449,3 +450,112 @@ class CountedSerializer(serializers.Serializer[Any]):
 class CountFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=CountStatus.choices, required=False)
     location = serializers.IntegerField(required=False, min_value=1)
+
+
+# ---- Stock screens (P1-T11) ----
+
+
+class LocationTotalSerializer(serializers.Serializer[Any]):
+    """A location with the kg it holds and what they cost."""
+
+    id = serializers.IntegerField(source="location.id", read_only=True)
+    name = serializers.CharField(source="location.name", read_only=True)
+    kind = serializers.ChoiceField(source="location.kind", choices=LocationKind.choices, read_only=True)
+    quantity = serializers.DecimalField(read_only=True, max_digits=12, decimal_places=3)
+    value = serializers.DecimalField(read_only=True, max_digits=14, decimal_places=3)
+
+
+class ProductLocationQuantitySerializer(serializers.Serializer[Any]):
+    location_id = serializers.IntegerField(read_only=True)
+    quantity = serializers.DecimalField(read_only=True, max_digits=12, decimal_places=3)
+
+
+class ProductStockSerializer(serializers.Serializer[Any]):
+    """One product's stock: kg per location, the minimum-stock warning and the purchase prices (D-048)."""
+
+    id = serializers.IntegerField(source="product.id", read_only=True)
+    reference = serializers.CharField(source="product.reference", read_only=True)
+    name = serializers.CharField(source="product.name", read_only=True)
+    illustration = serializers.CharField(source="product.illustration", read_only=True)
+    photo_url = serializers.SerializerMethodField()
+    is_active = serializers.BooleanField(source="product.is_active", read_only=True)
+    min_stock = serializers.DecimalField(source="product.min_stock", read_only=True, max_digits=12, decimal_places=3)
+    quantity = serializers.DecimalField(read_only=True, max_digits=12, decimal_places=3)
+    is_low = serializers.BooleanField(read_only=True)
+    locations = serializers.SerializerMethodField()
+    # Weighted by the kg of each batch still on hand; for pricing information only (D-040). Empty without stock.
+    average_cost = serializers.DecimalField(read_only=True, allow_null=True, max_digits=14, decimal_places=3)
+    # Unit cost of the latest batch received.
+    last_cost = serializers.DecimalField(read_only=True, allow_null=True, max_digits=14, decimal_places=3)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_photo_url(self, stock: Any) -> str | None:
+        product = stock.product
+        if not product.photo.name:
+            return None
+        version = product.photo.name.rsplit("/", 1)[-1].split(".", 1)[0]
+        return f"{reverse('product-photo', args=[product.pk])}?v={version}"
+
+    @extend_schema_field(ProductLocationQuantitySerializer(many=True))
+    def get_locations(self, stock: Any) -> Any:
+        rows = [{"location_id": key, "quantity": quantity} for key, quantity in stock.by_location.items()]
+        return ProductLocationQuantitySerializer(rows, many=True).data
+
+
+class StockOverviewSerializer(serializers.Serializer[Any]):
+    locations = LocationTotalSerializer(many=True, read_only=True)
+    products = ProductStockSerializer(many=True, read_only=True)
+
+
+class BatchLocationSerializer(serializers.Serializer[Any]):
+    location = PlaceSerializer(read_only=True)
+    quantity = serializers.DecimalField(read_only=True, max_digits=12, decimal_places=3)
+
+
+class BatchHoldingSerializer(serializers.Serializer[Any]):
+    """A batch of the product still on hand."""
+
+    batch_id = serializers.IntegerField(source="batch.id", read_only=True)
+    number = serializers.CharField(source="batch.number", read_only=True)
+    supplier_name = serializers.CharField(source="batch.supplier.name", read_only=True)
+    received_on = serializers.DateField(source="batch.received_on", read_only=True)
+    unit_cost = serializers.DecimalField(source="batch.unit_cost", read_only=True, max_digits=14, decimal_places=3)
+    quantity = serializers.DecimalField(read_only=True, max_digits=12, decimal_places=3)
+    value = serializers.DecimalField(read_only=True, max_digits=14, decimal_places=3)
+    locations = serializers.SerializerMethodField()
+
+    @extend_schema_field(BatchLocationSerializer(many=True))
+    def get_locations(self, holding: Any) -> Any:
+        rows = [{"location": location, "quantity": quantity} for location, quantity in holding.by_location]
+        return BatchLocationSerializer(rows, many=True).data
+
+
+class ProductStockDetailSerializer(ProductStockSerializer):
+    batches = BatchHoldingSerializer(many=True, read_only=True)
+
+
+class StockMovementSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    kind = serializers.ChoiceField(choices=MovementKind.choices, read_only=True)
+    occurred_at = serializers.DateTimeField(read_only=True)
+    product = BatchProductSerializer(read_only=True)
+    batch_id = serializers.IntegerField(read_only=True)
+    batch_number = serializers.CharField(source="batch.number", read_only=True)
+    from_location = PlaceSerializer(read_only=True, allow_null=True)
+    to_location = PlaceSerializer(read_only=True, allow_null=True)
+    quantity = serializers.DecimalField(read_only=True, max_digits=12, decimal_places=3)
+    unit_cost = serializers.DecimalField(read_only=True, max_digits=14, decimal_places=3)
+    reason = serializers.CharField(read_only=True)
+    user_name = serializers.SerializerMethodField()
+
+    def get_user_name(self, movement: Any) -> str:
+        return person_name(movement.user)
+
+
+class StockMovementFilterSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(required=False, min_value=1)
+    product = serializers.IntegerField(required=False, min_value=1)
+    batch = serializers.IntegerField(required=False, min_value=1)
+    kind = serializers.ChoiceField(choices=MovementKind.choices, required=False)
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)

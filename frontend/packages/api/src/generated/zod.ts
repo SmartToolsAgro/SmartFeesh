@@ -2151,6 +2151,158 @@ export const UpdateStockSettingsResponse = zod.object({
 
 
 /**
+ * The stock ledger, newest first, paginated (`limit`, `offset`). A location filter keeps the
+ * movements coming in or going out of it; dates are inclusive.
+ */
+
+
+
+
+
+export const ListMovementsQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "kind": zod.enum(['receipt', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).optional().describe('* `receipt` - Réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "location": zod.int().min(1).optional(),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "product": zod.int().min(1).optional()
+})
+
+export const listMovementsResponseResultsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMovementsResponseResultsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMovementsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['receipt', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).describe('* `receipt` - Réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "occurred_at": zod.iso.datetime({"offset":true}),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "from_location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),zod.null()]),
+  "to_location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),zod.null()]),
+  "quantity": zod.stringFormat('decimal', listMovementsResponseResultsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', listMovementsResponseResultsItemUnitCostRegExp),
+  "reason": zod.string(),
+  "user_name": zod.string()
+}))
+})
+
+
+/**
+ * Each active location with the kg and cost it holds, and each product with its kg per location,
+ * its low-stock warning and its average and last purchase cost (pricing information only, D-040).
+ */
+export const getStockOverviewResponseLocationsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getStockOverviewResponseLocationsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockOverviewResponseProductsItemMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getStockOverviewResponseProductsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getStockOverviewResponseProductsItemLocationsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getStockOverviewResponseProductsItemAverageCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockOverviewResponseProductsItemLastCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetStockOverviewResponse = zod.object({
+  "locations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "quantity": zod.stringFormat('decimal', getStockOverviewResponseLocationsItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', getStockOverviewResponseLocationsItemValueRegExp)
+}).describe('A location with the kg it holds and what they cost.')),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "min_stock": zod.stringFormat('decimal', getStockOverviewResponseProductsItemMinStockRegExp),
+  "quantity": zod.stringFormat('decimal', getStockOverviewResponseProductsItemQuantityRegExp),
+  "is_low": zod.boolean(),
+  "locations": zod.array(zod.object({
+  "location_id": zod.int(),
+  "quantity": zod.stringFormat('decimal', getStockOverviewResponseProductsItemLocationsItemQuantityRegExp)
+})),
+  "average_cost": zod.stringFormat('decimal', getStockOverviewResponseProductsItemAverageCostRegExp).nullable(),
+  "last_cost": zod.stringFormat('decimal', getStockOverviewResponseProductsItemLastCostRegExp).nullable()
+}).describe('One product\'s stock: kg per location, the minimum-stock warning and the purchase prices (D-048).'))
+})
+
+
+/**
+ * One product's stock like the overview, plus the batches still on hand with their locations.
+ */
+export const GetProductStockParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const getProductStockResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseLocationsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseAverageCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseLastCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseBatchesItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getProductStockResponseBatchesItemLocationsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const GetProductStockResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "min_stock": zod.stringFormat('decimal', getProductStockResponseMinStockRegExp),
+  "quantity": zod.stringFormat('decimal', getProductStockResponseQuantityRegExp),
+  "is_low": zod.boolean(),
+  "locations": zod.array(zod.object({
+  "location_id": zod.int(),
+  "quantity": zod.stringFormat('decimal', getProductStockResponseLocationsItemQuantityRegExp)
+})),
+  "average_cost": zod.stringFormat('decimal', getProductStockResponseAverageCostRegExp).nullable(),
+  "last_cost": zod.stringFormat('decimal', getProductStockResponseLastCostRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', getProductStockResponseBatchesItemUnitCostRegExp),
+  "quantity": zod.stringFormat('decimal', getProductStockResponseBatchesItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', getProductStockResponseBatchesItemValueRegExp),
+  "locations": zod.array(zod.object({
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "quantity": zod.stringFormat('decimal', getProductStockResponseBatchesItemLocationsItemQuantityRegExp)
+}))
+}).describe('A batch of the product still on hand.'))
+}).describe('One product\'s stock: kg per location, the minimum-stock warning and the purchase prices (D-048).')
+
+
+/**
  * The trade balance with one supplier: posted invoices − payments, with what is overdue, advances not
  * allocated, drafts and receipts not invoiced yet. A partner's capital and profit share are not in it.
  */
