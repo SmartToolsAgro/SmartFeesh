@@ -19,6 +19,9 @@ import { MovementsPage } from "./stock/MovementsPage";
 import { ProductStockPage } from "./stock/ProductStockPage";
 import { PriceBoardPage } from "./prices/PriceBoardPage";
 import { ProductsPage } from "./products/ProductsPage";
+import { QuoteDetailPage } from "./quotes/QuoteDetailPage";
+import { QuoteEditPage, QuoteFormPage } from "./quotes/QuoteFormPage";
+import { QuotesPage } from "./quotes/QuotesPage";
 import { SupplierInvoiceDetailPage } from "./purchasing/SupplierInvoiceDetailPage";
 import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "./purchasing/SupplierInvoicesPage";
@@ -85,6 +88,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/fournisseurs": <SuppliersPage />,
   "/clients": <CustomersPage />,
   "/prix": <PriceBoardPage />,
+  "/devis": <QuotesPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
@@ -154,6 +158,10 @@ function AppRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
+        {/* Quotes (P2-T03) */}
+        <Route path="/devis/nouveau" element={<QuoteFormPage />} />
+        <Route path="/devis/:quoteId" element={<QuoteDetailPage />} />
+        <Route path="/devis/:quoteId/modifier" element={<QuoteEditPage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         <Route path="/achats/factures" element={<SupplierInvoicesPage />} />

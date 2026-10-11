@@ -28,8 +28,11 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
       logged in audit. (API and tests only; no price-list screen yet, D-049.)
 
 ### P2-T03 · Quotes (devis) · M
-- [ ] `Quote` + lines, validity date, statuses (draft, sent, accepted, refused, expired).
-- [ ] Convert accepted quote → sale (optionally reserve stock).
+- [x] `Quote` + lines, validity date, statuses (draft, sent, accepted, refused, expired) (D-050): new
+      `sales` app, `DV-0001` numbers, price in force kept on the line, discount in %, nightly
+      `expire_quotes`, "Devis" screens, demo quotes.
+- [ ] Convert accepted quote → sale (optionally reserve stock). Moved to P2-T04, which creates `Sale`: the
+      accepted quote keeps its customer, location, lines and prices for it. No stock is reserved.
 
 ### P2-T04 · Sales · L → split before starting
 - [ ] `Sale` + lines from a location (cold room or truck). Lines allocated to batches with `allocate_fifo`.

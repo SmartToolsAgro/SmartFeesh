@@ -69,6 +69,7 @@ services:
     # Sleeps until just after 03:00 UTC, then checks the stock on hand against the ledger (D-038). A
     # difference is logged as an error (Sentry once its DSN is set) and repaired by hand:
     # `docker compose ... exec backend python manage.py rebuild_on_hand`.
+    # Then marks as expired the sent quotes whose validity date has passed (D-050).
     command:
       - sh
       - -c
@@ -76,6 +77,7 @@ services:
         while true; do
           sleep $$(( (86400 + 3 * 3600 - $$(date +%s) % 86400) % 86400 + 60 ))
           python manage.py rebuild_on_hand --check || true
+          python manage.py expire_quotes || true
         done
 
 volumes:
