@@ -86,14 +86,16 @@ Read: ARCHITECTURE §4 rule 3, DECISIONS D-006.
 - [x] Tests: rebuild equals cache; a damaged cache is reported, then repaired.
 
 ### P1-T07 · Goods receipt from suppliers · M
-- [ ] `PurchaseOrder` (optional) → `GoodsReceipt` with lines: ordered qty, invoiced qty (net weight,
-      Q12), **accepted net qty**, unit cost → creates batches + receipt movements. No gross-weight or
-      glaze fields.
-- [ ] Differences (ordered vs accepted) visible on the receipt and in a report.
-- [ ] Purchase prices change from one day to the next (2026-10-10): the unit cost is typed on every
+- [x] `GoodsReceipt` with lines: ordered qty (optional), invoiced qty (net weight, Q12), **accepted net
+      qty**, unit cost → creates batches + receipt movements. No gross-weight or glaze fields. No
+      `PurchaseOrder` document yet: the ordered weight is typed on the line (D-039).
+- [x] Differences (ordered or invoiced vs accepted) visible on the receipt and in a report
+      (`listReceiptDifferences`; the receipts list filters on them).
+- [x] Purchase prices change from one day to the next (2026-10-10): the unit cost is typed on every
       receipt line and belongs to that batch only. There is no fixed supplier price list. The form
       suggests the last cost paid to that supplier for that product and shows the change against it.
-- [ ] Purchase price history per product and supplier (date, cost), read from the batches.
+- [x] Purchase price history per product and supplier (date, cost), read from the batches
+      (`listBatches?product=&supplier=`; a screen comes with the stock screens, P1-T11).
 
 ### P1-T08 · Supplier invoices and payments · M
 - [ ] `SupplierInvoice` linked to receipts; due date; status (draft, posted, partly paid, paid).

@@ -27,14 +27,20 @@ import type {
   Batch,
   Category,
   Health,
+  LastCost,
   ListBatchesParams,
+  ListLastPurchaseCostsParams,
   ListLocationsParams,
   ListProductsParams,
+  ListReceiptDifferencesParams,
+  ListReceiptsParams,
   ListSuppliersParams,
   ListTrucksParams,
   Login,
   Member,
   PaginatedBatchList,
+  PaginatedDifferenceLineList,
+  PaginatedReceiptList,
   PatchedCategory,
   PatchedLanguage,
   PatchedProductUpdate,
@@ -45,6 +51,8 @@ import type {
   Product,
   ProductCreate,
   ProductPrice,
+  Receipt,
+  ReceiptWrite,
   Session,
   SetPrice,
   StockLocation,
@@ -2534,6 +2542,506 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRestoreProductMutationOptions(options), queryClient);
     }
+
+export const getListReceiptsUrl = (params?: ListReceiptsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/receipts?${stringifiedParams}` : `/api/v1/receipts`
+}
+
+/**
+ * Goods receipts, newest first, paginated (`limit`, `offset`), each with its lines and totals.
+ * Filter by supplier, by `search` (number, supplier's reference, supplier name) or to receipts with
+ * a weight difference.
+ */
+export const listReceipts = async (params?: ListReceiptsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedReceiptList> => {
+
+  return apiFetch<PaginatedReceiptList>(getListReceiptsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReceiptsQueryKey = (params?: ListReceiptsParams,) => {
+    return [
+    `/api/v1/receipts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListReceiptsQueryOptions = <TData = Awaited<ReturnType<typeof listReceipts>>, TError = unknown>(params?: ListReceiptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceipts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReceiptsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReceipts>>> = ({ signal }) => listReceipts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReceipts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListReceiptsQueryResult = NonNullable<Awaited<ReturnType<typeof listReceipts>>>
+export type ListReceiptsQueryError = unknown
+
+
+export function useListReceipts<TData = Awaited<ReturnType<typeof listReceipts>>, TError = unknown>(
+ params: undefined |  ListReceiptsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceipts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReceipts>>,
+          TError,
+          Awaited<ReturnType<typeof listReceipts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReceipts<TData = Awaited<ReturnType<typeof listReceipts>>, TError = unknown>(
+ params?: ListReceiptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceipts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReceipts>>,
+          TError,
+          Awaited<ReturnType<typeof listReceipts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReceipts<TData = Awaited<ReturnType<typeof listReceipts>>, TError = unknown>(
+ params?: ListReceiptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceipts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListReceipts<TData = Awaited<ReturnType<typeof listReceipts>>, TError = unknown>(
+ params?: ListReceiptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceipts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListReceiptsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateReceiptUrl = () => {
+
+
+
+
+  return `/api/v1/receipts`
+}
+
+/**
+ * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
+ * Errors of a line come back on `lines.<index>.<field>`.
+ */
+export const createReceipt = async (receiptWrite: ReceiptWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Receipt>(getCreateReceiptUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(receiptWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateReceiptMutationKey = () => ['createReceipt'] as const;
+
+export const getCreateReceiptMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReceipt>>, TError,CreateReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReceipt>>, TError,CreateReceiptMutationVariables, TContext> => {
+
+const mutationKey = getCreateReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReceipt>>, CreateReceiptMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReceipt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof createReceipt>>>
+    export type CreateReceiptMutationBody = ReceiptWrite
+    export type CreateReceiptMutationError = unknown
+    export type CreateReceiptMutationVariables = {data: ReceiptWrite}
+
+    export const useCreateReceipt = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReceipt>>, TError,CreateReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createReceipt>>,
+        TError,
+        CreateReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateReceiptMutationOptions(options), queryClient);
+    }
+
+export const getGetReceiptUrl = (receiptId: number,) => {
+
+
+
+
+  return `/api/v1/receipts/${receiptId}`
+}
+
+export const getReceipt = async (receiptId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
+
+  return apiFetch<Receipt>(getGetReceiptUrl(receiptId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReceiptQueryKey = (receiptId: number,) => {
+    return [
+    `/api/v1/receipts/${receiptId}`
+    ] as const;
+    }
+
+
+export const getGetReceiptQueryOptions = <TData = Awaited<ReturnType<typeof getReceipt>>, TError = unknown>(receiptId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReceipt>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReceiptQueryKey(receiptId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReceipt>>> = ({ signal }) => getReceipt(receiptId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: receiptId !== null && receiptId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReceipt>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetReceiptQueryResult = NonNullable<Awaited<ReturnType<typeof getReceipt>>>
+export type GetReceiptQueryError = unknown
+
+
+export function useGetReceipt<TData = Awaited<ReturnType<typeof getReceipt>>, TError = unknown>(
+ receiptId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReceipt>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReceipt>>,
+          TError,
+          Awaited<ReturnType<typeof getReceipt>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReceipt<TData = Awaited<ReturnType<typeof getReceipt>>, TError = unknown>(
+ receiptId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReceipt>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReceipt>>,
+          TError,
+          Awaited<ReturnType<typeof getReceipt>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReceipt<TData = Awaited<ReturnType<typeof getReceipt>>, TError = unknown>(
+ receiptId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReceipt>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetReceipt<TData = Awaited<ReturnType<typeof getReceipt>>, TError = unknown>(
+ receiptId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReceipt>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetReceiptQueryOptions(receiptId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListReceiptDifferencesUrl = (params?: ListReceiptDifferencesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/receipts/differences?${stringifiedParams}` : `/api/v1/receipts/differences`
+}
+
+/**
+ * Weight differences report: receipt lines whose accepted weight is not the invoiced or ordered
+ * weight, newest first, paginated. Filter by supplier and by receipt dates (inclusive).
+ */
+export const listReceiptDifferences = async (params?: ListReceiptDifferencesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedDifferenceLineList> => {
+
+  return apiFetch<PaginatedDifferenceLineList>(getListReceiptDifferencesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReceiptDifferencesQueryKey = (params?: ListReceiptDifferencesParams,) => {
+    return [
+    `/api/v1/receipts/differences`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListReceiptDifferencesQueryOptions = <TData = Awaited<ReturnType<typeof listReceiptDifferences>>, TError = unknown>(params?: ListReceiptDifferencesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiptDifferences>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReceiptDifferencesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReceiptDifferences>>> = ({ signal }) => listReceiptDifferences(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReceiptDifferences>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListReceiptDifferencesQueryResult = NonNullable<Awaited<ReturnType<typeof listReceiptDifferences>>>
+export type ListReceiptDifferencesQueryError = unknown
+
+
+export function useListReceiptDifferences<TData = Awaited<ReturnType<typeof listReceiptDifferences>>, TError = unknown>(
+ params: undefined |  ListReceiptDifferencesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiptDifferences>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReceiptDifferences>>,
+          TError,
+          Awaited<ReturnType<typeof listReceiptDifferences>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReceiptDifferences<TData = Awaited<ReturnType<typeof listReceiptDifferences>>, TError = unknown>(
+ params?: ListReceiptDifferencesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiptDifferences>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReceiptDifferences>>,
+          TError,
+          Awaited<ReturnType<typeof listReceiptDifferences>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReceiptDifferences<TData = Awaited<ReturnType<typeof listReceiptDifferences>>, TError = unknown>(
+ params?: ListReceiptDifferencesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiptDifferences>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListReceiptDifferences<TData = Awaited<ReturnType<typeof listReceiptDifferences>>, TError = unknown>(
+ params?: ListReceiptDifferencesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiptDifferences>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListReceiptDifferencesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListLastPurchaseCostsUrl = (params: ListLastPurchaseCostsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/receipts/last-costs?${stringifiedParams}` : `/api/v1/receipts/last-costs`
+}
+
+/**
+ * What was last paid one supplier for each product (its latest batch). The receipt form suggests
+ * it and shows the change. The full history per product and supplier is `listBatches`.
+ */
+export const listLastPurchaseCosts = async (params: ListLastPurchaseCostsParams, options?: Parameters<typeof apiFetch>[1]): Promise<LastCost[]> => {
+
+  return apiFetch<LastCost[]>(getListLastPurchaseCostsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLastPurchaseCostsQueryKey = (params?: ListLastPurchaseCostsParams,) => {
+    return [
+    `/api/v1/receipts/last-costs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListLastPurchaseCostsQueryOptions = <TData = Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError = unknown>(params: ListLastPurchaseCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLastPurchaseCostsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLastPurchaseCosts>>> = ({ signal }) => listLastPurchaseCosts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListLastPurchaseCostsQueryResult = NonNullable<Awaited<ReturnType<typeof listLastPurchaseCosts>>>
+export type ListLastPurchaseCostsQueryError = unknown
+
+
+export function useListLastPurchaseCosts<TData = Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError = unknown>(
+ params: ListLastPurchaseCostsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLastPurchaseCosts>>,
+          TError,
+          Awaited<ReturnType<typeof listLastPurchaseCosts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLastPurchaseCosts<TData = Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError = unknown>(
+ params: ListLastPurchaseCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLastPurchaseCosts>>,
+          TError,
+          Awaited<ReturnType<typeof listLastPurchaseCosts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLastPurchaseCosts<TData = Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError = unknown>(
+ params: ListLastPurchaseCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListLastPurchaseCosts<TData = Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError = unknown>(
+ params: ListLastPurchaseCostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLastPurchaseCosts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListLastPurchaseCostsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSuppliersUrl = (params?: ListSuppliersParams,) => {
   const normalizedParams = new URLSearchParams();

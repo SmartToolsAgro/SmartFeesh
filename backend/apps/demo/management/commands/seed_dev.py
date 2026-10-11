@@ -9,6 +9,7 @@ from apps.core.models import Organization, Role, User
 from apps.demo.batches import seed_batches
 from apps.demo.catalogue import seed_catalogue
 from apps.demo.locations import seed_locations
+from apps.demo.receipts import seed_receipts
 from apps.demo.stock import seed_stock
 from apps.demo.suppliers import seed_suppliers
 
@@ -65,6 +66,7 @@ class Command(BaseCommand):
         locations = seed_locations(organization=organization, actor=owner, driver=driver)
         batches = seed_batches(organization=organization, actor=owner)
         movements = seed_stock(organization=organization, actor=owner)
+        receipts = seed_receipts(organization=organization, actor=owner)
 
         logins = ", ".join(username for username, *_ in DEV_USERS)
         shown = password if password == DEV_PASSWORD else "the one given"
@@ -72,6 +74,6 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"{ORGANIZATION_NAME}: logins {logins}, password {shown}, "
                 f"{products} new products, {suppliers} new suppliers, {locations} new cold rooms and trucks, "
-                f"{batches} new batches, {movements} new stock movements"
+                f"{batches} new batches, {movements} new stock movements, {receipts} new goods receipts"
             )
         )

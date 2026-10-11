@@ -371,3 +371,33 @@ dependencies and starts PostgreSQL with the `frutti` role.
 - **Nightly, without Celery or the shared server's crontab:** a `nightly` service in
   `compose.staging.yml` runs the backend image and sleeps until just after 03:00 UTC (04:00 in Tunisia),
   then runs the check. It moves to Celery beat when Celery arrives (ARCHITECTURE: Phase 2).
+
+**D-039 · Goods receipts (P1-T07)** · accepted · 2026-10-11
+- New `purchasing` app (ARCHITECTURE §3): `GoodsReceipt` (number `BR-0001`… per organization from a locked
+  counter, supplier, receiving location, date, supplier's delivery note or invoice number, notes, who
+  typed it) and `GoodsReceiptLine` (product, its batch one-to-one, ordered kg or empty, invoiced kg,
+  accepted kg, cost per kg). Weights are net (Q12).
+- **Saved = posted.** `services.create_receipt` checks everything first, then in one transaction makes one
+  batch per line (`inventory.services.create_batch`, cost on the batch, D-020), posts a `receipt`
+  movement of the **accepted** weight with the line as source document, and audits. There is no draft
+  and no edit: a mistake is corrected by a supplier return or an adjustment, like every posted record.
+  A receipt typed later for an earlier day posts its movement at noon of that day.
+- **No `PurchaseOrder` yet:** the client works from notebooks and phone calls; the optional ordered
+  weight on the line gives the "ordered vs received" difference. A purchase order document can be
+  added later without changing receipts.
+- **Errors per line** come back on flat keys `lines.<index>.<field>` (and the header's on their own
+  field), all at once. Weights and costs travel as strings and are checked by the service
+  (`checked_quantity`, `checked_amount`), so a typed "20,5" is refused there, not rounded.
+- **Amounts:** invoiced amount = invoiced kg × cost (what the supplier will charge, P1-T08); accepted
+  amount = accepted kg × cost (value entering stock). Each line is rounded, then added. A line differs
+  when accepted ≠ invoiced, or ≠ ordered when there was an order; `listReceiptDifferences` is the report.
+- **Last cost:** `inventory.selectors.last_batches_from(supplier)` (latest batch per product). The form
+  fills the cost with it until the person types one, and shows the change in percent.
+- **Admin screens:** "Achats" lists receipts (paginated, search, "with differences" filter), a receipt
+  page shows lines, batches and the weight-difference notice of the prototype, and "Nouvelle
+  réception" records one. Browser-side previews of amounts use exact `bigint` thousandths
+  (`apps/admin/src/lib/decimal.ts`, unit-tested: the admin app now runs vitest); the server stays the
+  reference. `formatPercent` joins the i18n formatters.
+- Demo: receipt `BR-0001` from Mareyeur Port de Sfax today, dorade 62 kg ordered and invoiced, 60 kg
+  accepted (the prototype's difference and the start of the Phase 1 acceptance test).
+

@@ -53,6 +53,17 @@ export function formatDateTime(iso: string, language: Language = currentLanguage
   }).format(date);
 }
 
+/** A change in percent: "1.3" → "+1,3 %", "-10.0" → "-10,0 %", "0.0" → "0,0 %". */
+export function formatPercent(percent: DecimalString, language: Language = currentLanguage()): string {
+  if (!/^-?\d+(\.\d+)?$/.test(percent)) throw new TypeError(`Not a decimal string: ${JSON.stringify(percent)}`);
+  const formatter = new Intl.NumberFormat(LOCALES[language], {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    signDisplay: "exceptZero",
+  });
+  return `${formatter.format(percent as Intl.StringNumericLiteral)}${NO_BREAK_SPACE}%`;
+}
+
 /** "-18.0" → "-18 °C", "2.5" → "2,5 °C" */
 export function formatTemperature(celsius: DecimalString, language: Language = currentLanguage()): string {
   if (!/^-?\d+(\.\d+)?$/.test(celsius)) throw new TypeError(`Not a decimal string: ${JSON.stringify(celsius)}`);

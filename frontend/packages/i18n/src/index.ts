@@ -2,6 +2,7 @@ export {
   formatDate,
   formatDateTime,
   formatMoney,
+  formatPercent,
   formatQuantity,
   formatTemperature,
   parseDecimalInput,

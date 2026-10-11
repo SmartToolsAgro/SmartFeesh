@@ -15,6 +15,9 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from
 
 import { LocationsPage } from "./locations/LocationsPage";
 import { ProductsPage } from "./products/ProductsPage";
+import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
+import { ReceiptFormPage } from "./receipts/ReceiptFormPage";
+import { ReceiptsPage } from "./receipts/ReceiptsPage";
 import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
 import { SuppliersPage } from "./suppliers/SuppliersPage";
 
@@ -58,11 +61,11 @@ function useNav(): AdminNavGroup[] {
 const SCREENS: Record<string, ReactNode> = {
   "/stock": <LocationsPage />,
   "/produits": <ProductsPage />,
+  "/achats": <ReceiptsPage />,
   "/fournisseurs": <SuppliersPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {
-  "/achats": "fish",
   "/ventes": "truck",
 };
 
@@ -128,6 +131,8 @@ function AppRoutes() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
+        <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
+        <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         {nav.flatMap((group) =>
           group.items
             .filter((item) => item.to !== "/")

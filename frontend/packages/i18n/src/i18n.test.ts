@@ -5,6 +5,7 @@ import {
   formatDate,
   formatDateTime,
   formatMoney,
+  formatPercent,
   formatQuantity,
   formatTemperature,
   i18n,
@@ -92,4 +93,10 @@ test.each([
 
 test.each(["", "abc", "1.2345", "1,2,3", ",5", "1e3", "12 kg"])("typed text %j is not a number", (typed) => {
   expect(parseDecimalInput(typed, 3)).toBeNull();
+});
+
+test("a change in percent carries its sign and one decimal", () => {
+  expect(formatPercent("1.3")).toMatch(/^\+1,3\s%$/);
+  expect(formatPercent("-10.0")).toMatch(/^-10,0\s%$/);
+  expect(formatPercent("0.0")).toMatch(/^0,0\s%$/);
 });

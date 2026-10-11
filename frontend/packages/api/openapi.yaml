@@ -705,6 +705,172 @@ paths:
               schema:
                 $ref: '#/components/schemas/Product'
           description: ''
+  /api/v1/receipts:
+    get:
+      operationId: listReceipts
+      description: |-
+        Goods receipts, newest first, paginated (`limit`, `offset`), each with its lines and totals.
+        Filter by supplier, by `search` (number, supplier's reference, supplier name) or to receipts with
+        a weight difference.
+      parameters:
+      - in: query
+        name: differences
+        schema:
+          type: boolean
+          default: false
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - receipts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReceiptList'
+          description: ''
+    post:
+      operationId: createReceipt
+      description: |-
+        Record goods received from a supplier: one batch per line, its accepted net weight into stock.
+        Errors of a line come back on `lines.<index>.<field>`.
+      tags:
+      - receipts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReceiptWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReceiptWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
+  /api/v1/receipts/{receipt_id}:
+    get:
+      operationId: getReceipt
+      parameters:
+      - in: path
+        name: receipt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - receipts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
+  /api/v1/receipts/differences:
+    get:
+      operationId: listReceiptDifferences
+      description: |-
+        Weight differences report: receipt lines whose accepted weight is not the invoiced or ordered
+        weight, newest first, paginated. Filter by supplier and by receipt dates (inclusive).
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - receipts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDifferenceLineList'
+          description: ''
+  /api/v1/receipts/last-costs:
+    get:
+      operationId: listLastPurchaseCosts
+      description: |-
+        What was last paid one supplier for each product (its latest batch). The receipt form suggests
+        it and shows the change. The full history per product and supplier is `listBatches`.
+      parameters:
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - receipts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LastCost'
+          description: ''
   /api/v1/suppliers:
     get:
       operationId: listSuppliers
@@ -1123,6 +1289,70 @@ components:
       required:
       - id
       - name
+    DifferenceLine:
+      type: object
+      properties:
+        receipt:
+          allOf:
+          - $ref: '#/components/schemas/ReceiptRef'
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/ReceiptBatch'
+          readOnly: true
+        ordered_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        invoiced_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        accepted_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        invoiced_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        accepted_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        has_difference:
+          type: boolean
+          readOnly: true
+      required:
+      - accepted_amount
+      - accepted_quantity
+      - batch
+      - has_difference
+      - id
+      - invoiced_amount
+      - invoiced_quantity
+      - ordered_quantity
+      - product
+      - receipt
+      - unit_cost
     DriverRef:
       type: object
       properties:
@@ -1180,6 +1410,31 @@ components:
       description: |-
         * `fr` - Français
         * `ar` - العربية
+    LastCost:
+      type: object
+      description: 'What was last paid a supplier for one product: the cost of their
+        latest batch of it.'
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+      required:
+      - batch_number
+      - product_id
+      - received_on
+      - unit_cost
     Login:
       type: object
       properties:
@@ -1250,6 +1505,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Batch'
+    PaginatedDifferenceLineList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DifferenceLine'
+    PaginatedReceiptList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Receipt'
     PatchedCategory:
       type: object
       properties:
@@ -1522,6 +1823,252 @@ components:
       - id
       - price
       - valid_from
+    Receipt:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/ReceiptLocation'
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        supplier_reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptLine'
+          readOnly: true
+        has_differences:
+          type: boolean
+          readOnly: true
+        invoiced_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        accepted_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - accepted_total
+      - created_at
+      - created_by
+      - has_differences
+      - id
+      - invoiced_total
+      - lines
+      - location
+      - notes
+      - number
+      - received_on
+      - supplier
+      - supplier_reference
+    ReceiptBatch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - number
+      - use_by
+    ReceiptLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        batch:
+          allOf:
+          - $ref: '#/components/schemas/ReceiptBatch'
+          readOnly: true
+        ordered_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        invoiced_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        accepted_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        invoiced_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        accepted_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        has_difference:
+          type: boolean
+          readOnly: true
+      required:
+      - accepted_amount
+      - accepted_quantity
+      - batch
+      - has_difference
+      - id
+      - invoiced_amount
+      - invoiced_quantity
+      - ordered_quantity
+      - product
+      - unit_cost
+    ReceiptLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        ordered_quantity:
+          type: string
+          nullable: true
+        invoiced_quantity:
+          type: string
+        accepted_quantity:
+          type: string
+        unit_cost:
+          type: string
+        use_by:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - accepted_quantity
+      - invoiced_quantity
+      - product
+      - unit_cost
+    ReceiptLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    ReceiptRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+      required:
+      - id
+      - number
+      - received_on
+      - supplier
+    ReceiptWrite:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+        location:
+          type: integer
+          minimum: 1
+        received_on:
+          type: string
+          format: date
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptLineWrite'
+      required:
+      - lines
+      - location
+      - received_on
+      - supplier
+    Ref:
+      type: object
+      description: A supplier or a product, as shown on a receipt.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
     RoleEnum:
       enum:
       - owner
