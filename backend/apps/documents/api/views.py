@@ -3,6 +3,7 @@ from django.http import FileResponse, Http404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import serializers, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -31,6 +32,8 @@ class DocumentPdfView(APIView):
         organization = membership.organization
         if not services.is_known(kind):
             raise Http404
+        if not services.may_read(kind, membership.role):
+            raise PermissionDenied
         retry = request.query_params.get("retry") in {"1", "true"}
         try:
             row = services.request_pdf(organization=organization, kind=kind, object_id=object_id, retry=retry)

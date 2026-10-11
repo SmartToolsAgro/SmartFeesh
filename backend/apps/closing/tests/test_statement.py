@@ -139,4 +139,5 @@ def test_the_api_serves_the_statement_to_the_office_only(organization, actor, fi
 
     assert client_for(member(organization, Role.OWNER)).get(url).status_code == 200
     assert client_for(member(organization, Role.ACCOUNTANT)).get(url).status_code == 200
+    assert client_for(member(organization, Role.MANAGER)).get(url).status_code == 403
     assert client_for(member(organization, Role.DRIVER)).get(url).status_code == 403

@@ -94,4 +94,7 @@ def partner_statement_printable(organization: Organization, partnership_id: int)
 
 
 def register_printables() -> None:
-    documents.register(documents.DocumentKind.PARTNER_STATEMENT, partner_statement_printable)
+    # The owner's own money, like the lot result (D-061): the owner and the accountant, not managers.
+    documents.register(
+        documents.DocumentKind.PARTNER_STATEMENT, partner_statement_printable, roles=frozenset({"owner", "accountant"})
+    )
