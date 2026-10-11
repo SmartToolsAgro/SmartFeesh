@@ -51,7 +51,7 @@ test("the owner creates a customer with a credit limit, edits it and archives it
   await expect(page.getByText(/^C-\d{3}$/)).toBeVisible();
   await expect(page.getByText(`${taxNumber}A/A/M/000`)).toBeVisible();
   await expect(page.getByText(/1\s250,500\sDT/).first()).toBeVisible();
-  await expect(page.getByText("30 jours")).toBeVisible();
+  await expect(page.getByText("30 jours", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Modifier" }).click();
   const edit = page.getByRole("dialog", { name: "Modifier le client" });
