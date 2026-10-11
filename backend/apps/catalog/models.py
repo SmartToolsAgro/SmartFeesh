@@ -84,6 +84,8 @@ class Product(OrganizationScopedModel, TimeStampedModel):
     photo = models.ImageField(upload_to=product_photo_path, blank=True)
     # Archived products keep their history but cannot be bought or sold.
     is_active = models.BooleanField(default=True)
+    # Selling below this price only warns (and is logged in the audit), it never blocks (D-049).
+    min_price = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
 
     class Meta:
         ordering = ["name", "id"]
@@ -144,3 +146,47 @@ class ProductPrice(OrganizationScopedModel):
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise TypeError("Prices are history: they are never deleted")
+
+
+class PriceList(OrganizationScopedModel, TimeStampedModel):
+    """Special sale prices for some products, for everybody or for one customer (D-049).
+
+    A price list is a working document, not history: its items are replaced as a whole and every change is
+    audited. Its prices apply to a sale before the product's daily price does.
+    """
+
+    name = models.CharField(max_length=100)
+    # By name, not by import: an app only uses another app's services and selectors (ARCHITECTURE §3).
+    customer = models.ForeignKey("partners.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        constraints = [
+            models.UniqueConstraint("organization", Lower("name"), name="price_list_name_unique_per_organization"),
+            # One list per customer keeps "the customer's price" unambiguous.
+            models.UniqueConstraint(
+                fields=["organization", "customer"],
+                condition=models.Q(customer__isnull=False),
+                name="one_price_list_per_customer",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class PriceListItem(OrganizationScopedModel):
+    price_list = models.ForeignKey(PriceList, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="+")
+    price = MoneyField()
+
+    class Meta:
+        ordering = ["product__name", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["price_list", "product"], name="one_item_per_product_in_price_list"),
+            models.CheckConstraint(condition=models.Q(price__gt=0), name="price_list_item_price_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.price_list} · {self.product} · {self.price}"

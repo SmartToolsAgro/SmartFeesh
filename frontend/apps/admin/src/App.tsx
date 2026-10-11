@@ -17,6 +17,7 @@ import { LocationsPage } from "./locations/LocationsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
 import { ProductStockPage } from "./stock/ProductStockPage";
+import { PriceBoardPage } from "./prices/PriceBoardPage";
 import { ProductsPage } from "./products/ProductsPage";
 import { SupplierInvoiceDetailPage } from "./purchasing/SupplierInvoiceDetailPage";
 import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
@@ -52,6 +53,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/devis", label: t("admin.nav.quotes"), icon: "quote" },
         { to: "/ventes", label: t("admin.nav.sales"), icon: "receipt" },
         { to: "/clients", label: t("admin.nav.customers"), icon: "users" },
+        { to: "/prix", label: t("admin.nav.prices"), icon: "badge" },
       ],
     },
     {
@@ -82,6 +84,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/achats": <ReceiptsPage />,
   "/fournisseurs": <SuppliersPage />,
   "/clients": <CustomersPage />,
+  "/prix": <PriceBoardPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {

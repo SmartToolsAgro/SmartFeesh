@@ -11,4 +11,7 @@ urlpatterns = [
     path("products/<int:product_id>/restore", views.ProductRestoreView.as_view(), name="product-restore"),
     path("products/<int:product_id>/prices", views.ProductPriceListView.as_view(), name="product-prices"),
     path("products/<int:product_id>/photo", views.ProductPhotoView.as_view(), name="product-photo"),
+    path("price-board", views.PriceBoardView.as_view(), name="price-board"),
+    path("price-lists", views.PriceListListView.as_view(), name="price-list-list"),
+    path("price-lists/<int:price_list_id>", views.PriceListDetailView.as_view(), name="price-list-detail"),
 ]
