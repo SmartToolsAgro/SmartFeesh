@@ -47,6 +47,7 @@ type FormValues = {
   storage_temp_min: string;
   storage_temp_max: string;
   illustration: IllustrationEnum;
+  vat_rate: string;
 };
 
 type ProductDescription = Omit<ProductCreate, "sale_price">;
@@ -63,6 +64,7 @@ const EMPTY: FormValues = {
   storage_temp_min: "",
   storage_temp_max: "",
   illustration: IllustrationEnum.fish,
+  vat_rate: "",
 };
 
 // The API writes "20.000"; people here write "20,000". Both are read back by parseDecimalInput.
@@ -79,6 +81,7 @@ function valuesOf(product: Product): FormValues {
     storage_temp_min: typed(product.storage_temp_min),
     storage_temp_max: typed(product.storage_temp_max),
     illustration: product.illustration,
+    vat_rate: typed(product.vat_rate),
   };
 }
 
@@ -189,6 +192,8 @@ export function ProductDialog({ product, onDone }: { product?: Product; onDone: 
       storage_temp_min: decimal("storage_temp_min", 1, false),
       storage_temp_max: decimal("storage_temp_max", 1, false),
       illustration: values.illustration,
+      // Empty: the organization's rate from the finance settings (D-056); 0 = exempt.
+      vat_rate: decimal("vat_rate", 2, false),
     };
     // Only a new product takes a price here; later prices go through the price section.
     const salePrice = product ? "" : (decimal("sale_price", 3, true) ?? "");
@@ -296,6 +301,10 @@ export function ProductDialog({ product, onDone }: { product?: Product; onDone: 
 
         {!product && input("sale_price", t("admin.products.form.salePrice"), "decimal")}
         {input("min_stock", t("admin.products.form.minStock"), "decimal")}
+        <div className="col-span-full">
+          {input("vat_rate", t("admin.products.form.vatRate"), "decimal")}
+          <p className="mt-1 text-[0.8rem] text-ink-2">{t("admin.products.form.vatRateHint")}</p>
+        </div>
 
         <div className="col-span-full grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
           {input("storage_temp_min", t("admin.products.form.tempMin"), "decimal")}
