@@ -1,4 +1,3 @@
-from decimal import Decimal
 from typing import Any
 
 from drf_spectacular.utils import extend_schema_field
@@ -288,10 +287,11 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
         read_only_fields: tuple[str, ...] = fields
 
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
-    def get_margin(self, sale: Sale) -> Decimal | None:
+    def get_margin(self, sale: Sale) -> str | None:
+        # A string like every amount of the API ("110.000"), never a JSON number.
         if sale.cost_total is None:
             return None
-        return sale.total_excl_tax - sale.cost_total
+        return str(sale.total_excl_tax - sale.cost_total)
 
     def get_created_by(self, sale: Sale) -> str:
         return person_name(sale.created_by)

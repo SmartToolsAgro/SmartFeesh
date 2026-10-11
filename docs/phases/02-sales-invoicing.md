@@ -20,10 +20,9 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
       since purchase costs also change daily (P1-T07).
 - [x] A price can be changed again at any time of the day; the change applies from that moment, and
       the screen shows the day's earlier prices with who changed them and when.
-- [ ] A sale uses the price in force at the moment it is made. (Selector `catalog.selectors.price_in_force`
-      done, D-049; the sale itself uses it in P2-T04.)
-- [ ] A sale line keeps the price actually charged; later price changes never touch past sales,
-      invoices or profit. A quote keeps its own prices until its validity date.
+- [x] A sale uses the price in force at the moment it is made (`price_in_force` at `sold_at`, D-049, D-051).
+- [x] A sale line keeps the price actually charged; later price changes never touch past sales,
+      invoices or profit. A quote keeps its own prices until its validity date. (Invoices: P2-T05.)
 - [x] Price lists and customer-specific prices; minimum price per product; warning (not block) below it,
       logged in audit. (API and tests only; no price-list screen yet, D-049.)
 
@@ -31,15 +30,23 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 - [x] `Quote` + lines, validity date, statuses (draft, sent, accepted, refused, expired) (D-050): new
       `sales` app, `DV-0001` numbers, price in force kept on the line, discount in %, nightly
       `expire_quotes`, "Devis" screens, demo quotes.
-- [ ] Convert accepted quote → sale (optionally reserve stock). Moved to P2-T04, which creates `Sale`: the
-      accepted quote keeps its customer, location, lines and prices for it. No stock is reserved.
+- [x] Convert accepted quote → sale (`create_sale_from_quote`, `convertQuoteToSale`, D-051): accepted and
+      still valid, same lines and prices, the quote links to its sale. No stock is reserved. (Button on
+      the quote page: P2-T04b.)
 
-### P2-T04 · Sales · L → split before starting
-- [ ] `Sale` + lines from a location (cold room or truck). Lines allocated to batches with `allocate_fifo`.
-- [ ] Each line stores price, discount, tax, **batch, unit cost** (snapshot) → COGS per line.
-- [ ] `sales.services.confirm_sale(...)` posts sale movements, creates the receivable, all in one transaction.
-- [ ] Cancel = reversal document, never deletion.
-- [ ] Counter sale at a cold room is a first-class flow (regular, Q8): same service, location = cold room.
+### P2-T04 · Sales · L → split in two PRs: T04a backend (D-051), T04b screens (D-052)
+- [x] `Sale` + lines from a location (cold room or truck). Lines allocated to batches FIFO at confirmation
+      (`post_fifo_movements`), one `SaleLineBatch` per batch.
+- [x] Each line stores price, discount, **batch, unit cost** (snapshot) → COGS per line and per lot. Tax:
+      empty hook until P2-T05.
+- [x] `sales.services.confirm_sale(...)` posts sale movements and sets `amount_due`, all in one transaction.
+      The receivable proper (payments, balance, credit limit) is P2-T06: `record_receivable` and
+      `check_credit` are the hooks.
+- [x] Cancel = reversal (returns to the same batches), never deletion.
+- [x] Counter sale at a cold room is a first-class flow (regular, Q8): same service, location = cold room,
+      walk-in customer by default. (Quick screen: P2-T04b.)
+- [ ] T04b: "Ventes" list/detail, sale form, quick counter-sale screen, "Convertir en vente" on a quote,
+      a lot's sales on the batch page, Playwright tests.
 
 ### P2-T05 · Invoices · M
 - [ ] Gap-free numbering per organization per year.
