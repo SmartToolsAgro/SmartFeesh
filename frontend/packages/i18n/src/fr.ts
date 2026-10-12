@@ -2659,6 +2659,9 @@ export const fr = {
       stillOwed: "Reste à payer",
       share: "Envoyer le reçu",
       newSale: "Nouvelle vente",
+      notEnough: "Il n'y a pas assez de ce produit dans le camion.",
+      keptOnPhone: "Vente gardée sur le téléphone",
+      keptOnPhoneBody: "Pas de réseau : elle sera envoyée toute seule dès que le réseau revient.",
     },
     expense: {
       add: "Ajouter une dépense",
@@ -2702,6 +2705,11 @@ export const fr = {
       giveBackSure: "Oui, tout rendre à la chambre froide",
       returned: "Retour fait vers {{room}}.",
       returnFailed: "Le retour n'a pas pu être fait. Réessayez.",
+    },
+    sync: {
+      waiting_one: "{{count}} vente attend le réseau pour être envoyée.",
+      waiting_other: "{{count}} ventes attendent le réseau pour être envoyées.",
+      refused: "Vente à {{customer}} refusée par le serveur : {{reason}}",
     },
     offline: {
       banner: "Pas de réseau : les chiffres affichés datent de la dernière connexion.",

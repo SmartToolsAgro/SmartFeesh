@@ -1270,3 +1270,16 @@ says when there is no signal. Not yet shown: the time of the last update on each
 Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
 rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
 customers the driver sold to most recently first (up to 8), then the others by name, the walk-in customer last.
+
+**D-097 · Queue of unsent sales in IndexedDB (P3-T07b)** · accepted · 2026-10-12
+A sale made without connection (or when the request fails for network reasons) is kept in IndexedDB
+(`apps/truck/src/salesQueue.ts`, store `sales` keyed by the sale's `client_uuid`) and the driver sees a receipt marked
+"gardée sur le téléphone" with the screen's own figures. Sending (`syncSales.ts`) runs at start, on the `online` event,
+after each successful sale and every 30 s, oldest first, one at a time; the server's idempotency on `client_uuid` makes
+a repeat harmless. A **network error or a 401 stops the run and keeps everything**; any other server answer (400, 403...)
+marks that sale **refused** with the server's message: it stays in the queue and on screen, never dropped (the office
+side of this is P3-T07d). A line "N ventes attendent le réseau" is always visible while something waits. The stock
+shown on the sale screen is the truck's stock minus the kilos of waiting sales, and a sale above it is blocked, so an
+offline driver cannot promise more than the truck holds. Expenses, losses and the closing are not queued yet (T07c).
+Not covered by automated tests (the truck app has no unit-test setup and IndexedDB needs a browser): checked in the
+field test.
