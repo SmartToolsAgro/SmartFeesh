@@ -11,6 +11,11 @@ export interface ReceiptWrite {
   supplier: number;
   /** @minimum 1 */
   location: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  purchase_order?: number | null;
   received_on: string;
   /** @maxLength 50 */
   supplier_reference?: string;

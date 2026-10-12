@@ -6,7 +6,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.models import Organization, User
-from apps.fleet.models import Truck, TruckAssignment
+from apps.fleet.models import DriverDay, Truck, TruckAssignment
 
 
 class DriverRefSerializer(serializers.ModelSerializer[User]):
@@ -76,3 +76,24 @@ class TruckFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(
         choices=[("active", "active"), ("archived", "archived"), ("all", "all")], required=False, default="active"
     )
+
+
+class TruckChoiceSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(source="location.name", read_only=True)
+    plate = serializers.CharField(read_only=True)
+    # Already given to another driver today.
+    taken = serializers.BooleanField(read_only=True)
+
+
+class DriverDaySerializer(serializers.ModelSerializer[DriverDay]):
+    truck_name = serializers.CharField(source="truck.location.name", read_only=True)
+
+    class Meta:
+        model = DriverDay
+        fields = ("id", "date", "truck_name", "opening_cash")
+        read_only_fields = fields
+
+
+class DriverDayOpenSerializer(serializers.Serializer[Any]):
+    opening_cash = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)

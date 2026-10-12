@@ -51,8 +51,8 @@ _Coarse plan: detail each task when the phase starts._
       settlement (D-041), never by reopening the lot. _D-067._
 
 ### P6-T04 · Partner statement PDF · S
-- [ ] Per lot: purchase, sales (customer, kg, price), each cost line, net profit, %, share, payments,
-      balance. "Haka bayek": readable by the partner without explanation.
+- [x] Per lot: purchase, sales (customer, kg, price), each cost line, net profit, %, share, payments,
+      balance. "Haka bayek": readable by the partner without explanation. _D-072; layout to check by eye._
 
 ### P6-T05 · Month-end inventory valuation and COGS · M
 - [x] Stock value at month-end by batch; COGS of the month from sale-line snapshots. _D-073._

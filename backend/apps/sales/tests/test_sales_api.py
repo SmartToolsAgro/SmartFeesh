@@ -19,6 +19,8 @@ from apps.sales.models import Sale, SaleStatus
 
 pytestmark = pytest.mark.django_db
 
+FIRST_BL = f"BL-{timezone.localdate().year}-0001"
+
 
 @pytest.fixture
 def manager():
@@ -100,7 +102,7 @@ def test_the_office_sells_and_confirms_at_once_and_reads_the_lots_back(api, orga
     assert response.status_code == 201
     body = response.json()
     assert (body["number"], body["status"], body["total"], body["amount_due"]) == (
-        "VE-0001",
+        FIRST_BL,
         "confirmed",
         "210.000",
         "110.000",
@@ -123,7 +125,7 @@ def test_the_office_sells_and_confirms_at_once_and_reads_the_lots_back(api, orga
     lot = api.get(reverse("batch-sales", args=[batch.pk])).json()
     assert (lot["quantity"], lot["revenue"], lot["cost"], lot["margin"]) == ("5.000", "210.000", "100.000", "110.000")
     assert [(row["sale"]["number"], row["customer"], row["quantity"]) for row in lot["rows"]] == [
-        ("VE-0001", "Restaurant Le Corail", "5.000")
+        (FIRST_BL, "Restaurant Le Corail", "5.000")
     ]
 
 
@@ -178,7 +180,7 @@ def test_a_draft_is_changed_confirmed_then_cancelled_with_a_reason(api, organiza
     assert no_reason.status_code == 400
     assert (cancelled.json()["status"], cancelled.json()["cancel_reason"]) == ("cancelled", "Erreur")
     listed = api.get(reverse("sale-list"), {"status": "cancelled"}).json()
-    assert [row["number"] for row in listed["results"]] == ["VE-0001"]
+    assert [row["number"] for row in listed["results"]] == [FIRST_BL]
 
 
 def test_an_accepted_quote_is_converted_and_points_to_its_sale(api, manager, organization, customer, counter, crevette):
@@ -207,9 +209,9 @@ def test_an_accepted_quote_is_converted_and_points_to_its_sale(api, manager, org
     shown = api.get(reverse("quote-detail", args=[quote.pk])).json()
     assert (shown["status"], shown["sale"]) == (
         "accepted",
-        {"id": body["id"], "number": "VE-0001", "status": "confirmed"},
+        {"id": body["id"], "number": FIRST_BL, "status": "confirmed"},
     )
-    assert api.get(reverse("quote-list")).json()["results"][0]["sale"]["number"] == "VE-0001"
+    assert api.get(reverse("quote-list")).json()["results"][0]["sale"]["number"] == FIRST_BL
 
 
 # ---- permissions ----

@@ -389,6 +389,20 @@ def day_labour_entry_of(organization: Organization, entry_id: int) -> DayLabourE
     return day_labour_of(organization).get(pk=entry_id)
 
 
+# What a driver can spend on from the road (P3-T04): fuel, tolls and transport, handling (ice...), other.
+ROAD_CATEGORY_CODES = ("fuel", "transport", "handling", "miscellaneous")
+
+
+def road_categories(organization: Organization) -> QuerySet[ExpenseCategory]:
+    """The categories a driver picks from, in the order of the default list."""
+    return categories_of(organization).filter(code__in=ROAD_CATEGORY_CODES)
+
+
+def road_expenses(organization: Organization, *, user_id: int, day: dt.date) -> QuerySet[Expense]:
+    """What this driver typed on a day, newest first."""
+    return expenses_of(organization, date_from=day, date_to=day).filter(entered_by_id=user_id)
+
+
 # ---- Month figures (P6-T05, D-073) ----
 
 

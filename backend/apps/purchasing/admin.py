@@ -7,6 +7,8 @@ from django.http import HttpRequest
 from .models import (
     GoodsReceipt,
     GoodsReceiptLine,
+    PurchaseOrder,
+    PurchaseOrderLine,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierPayment,
@@ -56,6 +58,26 @@ class GoodsReceiptAdmin(admin.ModelAdmin[GoodsReceipt]):
 
     def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
+
+
+class OrderLineInline(admin.TabularInline[PurchaseOrderLine, PurchaseOrder]):
+    model = PurchaseOrderLine
+    fields = ("product", "ordered_quantity", "unit_cost")
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(ReadOnlyAdmin[PurchaseOrder]):
+    list_display = ("number", "ordered_on", "expected_on", "supplier", "status", "organization")
+    list_filter = ("organization", "status", "ordered_on")
+    search_fields = ("number",)
+    list_select_related = ("supplier", "organization")
+    inlines = (OrderLineInline,)
 
 
 class InvoiceReceiptInline(admin.TabularInline[SupplierInvoiceReceipt, SupplierInvoice]):

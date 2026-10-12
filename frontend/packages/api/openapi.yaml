@@ -915,6 +915,113 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/day-closings:
+    get:
+      operationId: listDayClosings
+      description: Days sent by the drivers, newest first. Filter by status.
+      parameters:
+      - in: query
+        name: status
+        schema:
+          enum:
+          - submitted
+          - justification
+          - approved
+          type: string
+          minLength: 1
+        description: |-
+          * `submitted` - À vérifier
+          * `justification` - Justification demandée
+          * `approved` - Approuvée
+      tags:
+      - day-closings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayClosingRow'
+          description: ''
+  /api/v1/day-closings/{closing_id}:
+    get:
+      operationId: getDayClosing
+      description: One day with its figures as the driver sent them.
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
+  /api/v1/day-closings/{closing_id}/approve:
+    post:
+      operationId: approveDayClosing
+      description: 'Approve the day (owner or manager): it is locked.'
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
+  /api/v1/day-closings/{closing_id}/request-justification:
+    post:
+      operationId: requestDayJustification
+      description: Ask the driver to explain, saying what; they send the day again
+        with a note.
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Justification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Justification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Justification'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
   /api/v1/day-labour:
     get:
       operationId: listDayLabour
@@ -3125,6 +3232,333 @@ paths:
               schema:
                 $ref: '#/components/schemas/MonthView'
           description: ''
+  /api/v1/my-customers:
+    get:
+      operationId: listMyCustomers
+      description: |-
+        Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
+        the walk-in customer last. Filter with `search`. At most 30 rows.
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - restaurant
+          - hotel
+          - fish_shop
+          - supermarket
+          - wholesaler
+          - caterer
+          - individual
+          type: string
+          minLength: 1
+        description: |-
+          * `restaurant` - Restaurant
+          * `hotel` - Hôtel
+          * `fish_shop` - Poissonnerie
+          * `supermarket` - Supermarché
+          * `wholesaler` - Grossiste
+          * `caterer` - Traiteur
+          * `individual` - Particulier
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - active
+          - archived
+          - all
+          type: string
+          default: active
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `archived` - archived
+          * `all` - all
+      tags:
+      - my-customers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerChoice'
+          description: ''
+  /api/v1/my-day:
+    get:
+      operationId: getMyDay
+      description: The day the driver opened today. 404 when they have not started
+        yet.
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
+    post:
+      operationId: openMyDay
+      description: Start the day on the driver's truck of the day, with the cash they
+        start with.
+      tags:
+      - my-day
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverDayOpen'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DriverDayOpen'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DriverDayOpen'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
+  /api/v1/my-day-closing:
+    post:
+      operationId: closeMyDay
+      description: |-
+        Send the end of the day with the cash counted and an optional note. Sent again only after the office
+        asked for a justification.
+      tags:
+      - my-day-closing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-day-summary:
+    get:
+      operationId: getMyDaySummary
+      description: |-
+        The driver's day so far: sales, cash, expenses and the stock per product, and the closing if sent.
+        404 until the day is started.
+      tags:
+      - my-day-summary
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-expense-categories:
+    get:
+      operationId: listRoadCategories
+      description: 'The few categories a driver can spend on from the road: fuel,
+        transport, handling, other.'
+      tags:
+      - my-expense-categories
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoadCategory'
+          description: ''
+  /api/v1/my-expenses:
+    get:
+      operationId: listMyExpenses
+      description: What the driver entered today, newest first.
+      tags:
+      - my-expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoadExpense'
+          description: ''
+    post:
+      operationId: addMyExpense
+      description: |-
+        Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
+        of the day and waits for the office to approve it.
+      tags:
+      - my-expenses
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoadExpenseWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadExpense'
+          description: ''
+  /api/v1/my-losses:
+    post:
+      operationId: reportMyLoss
+      description: |-
+        Report kilos lost on the driver's truck today, with a photo. Small losses leave the stock at once;
+        a heavy one waits for the owner.
+      tags:
+      - my-losses
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoadLossWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadLoss'
+          description: ''
+  /api/v1/my-return:
+    post:
+      operationId: returnMyStock
+      description: Bring everything left on the driver's truck back to the cold room
+        it was loaded from.
+      tags:
+      - my-return
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadReturn'
+          description: ''
+  /api/v1/my-stock:
+    get:
+      operationId: listMyStock
+      description: What the driver's truck holds now per product, with today's price
+        per kg. 404 without a truck.
+      tags:
+      - my-stock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyStockLine'
+          description: ''
+  /api/v1/my-sync-problems:
+    post:
+      operationId: reportSyncProblem
+      description: |-
+        The phone tells the office that the server refused something it tried to send (kept on the phone
+        until then). The same item reported twice makes one problem.
+      tags:
+      - my-sync-problems
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncProblemWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SyncProblemWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SyncProblemWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncProblem'
+          description: ''
+  /api/v1/my-truck-choices:
+    get:
+      operationId: listMyTruckChoices
+      description: The active trucks a driver may take today, each marked if another
+        driver already has it.
+      tags:
+      - my-truck-choices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TruckChoice'
+          description: ''
+  /api/v1/my-truck-day:
+    get:
+      operationId: getMyTruckDay
+      description: 'The signed-in driver''s truck today: what was loaded, with the
+        price per kg. 404 without a truck.'
+      tags:
+      - my-truck-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TruckDay'
+          description: ''
   /api/v1/partners/{partner_id}/balances:
     get:
       operationId: getPartnerBalances
@@ -3779,6 +4213,158 @@ paths:
               schema:
                 $ref: '#/components/schemas/Product'
           description: ''
+  /api/v1/purchase-orders:
+    get:
+      operationId: listPurchaseOrders
+      description: |-
+        Purchase orders (bons d'achat), newest first, paginated, each with its lines (ordered, received
+        and remaining weight) and its receipts. Filter by supplier, status (`pending` = still waiting for
+        goods) or `search` (number, supplier's name).
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - open
+          - partly_received
+          - received
+          - closed
+          - cancelled
+          - pending
+          type: string
+          minLength: 1
+        description: |-
+          * `open` - En attente
+          * `partly_received` - Reçu en partie
+          * `received` - Reçu
+          * `closed` - Clôturé
+          * `cancelled` - Annulé
+          * `pending` - pending
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - purchase-orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrderList'
+          description: ''
+    post:
+      operationId: createPurchaseOrder
+      description: |-
+        Record a purchase order: what we ask a supplier to deliver, at what price. It moves no stock;
+        deliveries are goods receipts against it, as many as the supplier makes.
+      tags:
+      - purchase-orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: ''
+  /api/v1/purchase-orders/{order_id}:
+    get:
+      operationId: getPurchaseOrder
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - purchase-orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: ''
+  /api/v1/purchase-orders/{order_id}/cancel:
+    post:
+      operationId: cancelPurchaseOrder
+      description: Cancel an order nothing was delivered against.
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - purchase-orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: ''
+  /api/v1/purchase-orders/{order_id}/close:
+    post:
+      operationId: closePurchaseOrder
+      description: 'Close an order that was delivered in part: the rest will not come.
+        Receipts stay as they are.'
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - purchase-orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: ''
   /api/v1/quotes:
     get:
       operationId: listQuotes
@@ -4070,6 +4656,11 @@ paths:
         schema:
           type: integer
       - in: query
+        name: purchase_order
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
         name: search
         schema:
           type: string
@@ -4100,7 +4691,8 @@ paths:
       operationId: createReceipt
       description: |-
         Record goods received from a supplier: one batch per line, its accepted net weight into stock.
-        Errors of a line come back on `lines.<index>.<field>`.
+        Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
+        against that bon d'achat: only its products, and only the part that arrived (partial receipts).
       tags:
       - receipts
       requestBody:
@@ -5564,6 +6156,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/sync-problems:
+    get:
+      operationId: listSyncProblems
+      description: Sends the server refused, reported by the drivers' phones and not
+        dealt with yet.
+      tags:
+      - sync-problems
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SyncProblem'
+          description: ''
+  /api/v1/sync-problems/{problem_id}/resolve:
+    post:
+      operationId: resolveSyncProblem
+      description: Mark a refused send as dealt with (owner or manager).
+      parameters:
+      - in: path
+        name: problem_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sync-problems
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncProblem'
           description: ''
   /api/v1/transfers:
     get:
@@ -7439,6 +8070,27 @@ components:
       - open_sales
       - open_total
       - overdue
+    CustomerChoice:
+      type: object
+      description: The little a driver needs to pick a customer.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        is_walk_in:
+          type: boolean
+          readOnly: true
+      required:
+      - city
+      - id
+      - is_walk_in
+      - name
     CustomerContact:
       type: object
       properties:
@@ -7523,6 +8175,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        remaining:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         is_voided:
           type: boolean
           readOnly: true
@@ -7557,6 +8214,7 @@ components:
       - number
       - received_on
       - reference
+      - remaining
       - unallocated
       - void_reason
       - voided_at
@@ -7622,6 +8280,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        remaining:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         is_voided:
           type: boolean
           readOnly: true
@@ -7662,6 +8325,7 @@ components:
       - number
       - received_on
       - reference
+      - remaining
       - unallocated
       - void_reason
       - voided_at
@@ -7753,6 +8417,175 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    DayClosingDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+        review_note:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_by_name:
+          type: string
+          readOnly: true
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/DaySummary'
+          readOnly: true
+      required:
+      - counted_cash
+      - date
+      - difference
+      - driver_name
+      - driver_note
+      - expected_cash
+      - id
+      - review_note
+      - reviewed_at
+      - reviewed_by_name
+      - status
+      - submitted_at
+      - summary
+      - truck_name
+    DayClosingRow:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - counted_cash
+      - date
+      - difference
+      - driver_name
+      - expected_cash
+      - id
+      - status
+      - truck_name
+    DayClosingState:
+      type: object
+      description: What the driver sees of their closing.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+        review_note:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - counted_cash
+      - driver_note
+      - id
+      - review_note
+      - status
+      - submitted_at
+    DayClosingStatusEnum:
+      enum:
+      - submitted
+      - justification
+      - approved
+      type: string
+      description: |-
+        * `submitted` - À vérifier
+        * `justification` - Justification demandée
+        * `approved` - Approuvée
+    DayClosingWrite:
+      type: object
+      properties:
+        counted_cash:
+          type: string
+        note:
+          type: string
+          default: ''
+      required:
+      - counted_cash
     DayLabourEntry:
       type: object
       description: A day worked, with the expense it is (one record, D-054).
@@ -7916,6 +8749,117 @@ components:
           default: true
       required:
       - name
+    DayProduct:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        loaded:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        sold:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        lost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        remaining:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - loaded
+      - lost
+      - product_id
+      - product_name
+      - remaining
+      - returned
+      - sold
+    DaySummary:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        sales_count:
+          type: integer
+          readOnly: true
+        sales_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        other_payments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        on_credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expenses_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProduct'
+          readOnly: true
+      required:
+      - cash_received
+      - date
+      - driver_name
+      - expected_cash
+      - expenses_total
+      - on_credit
+      - opening_cash
+      - other_payments
+      - products
+      - sales_count
+      - sales_total
+      - truck_name
     DifferenceLine:
       type: object
       properties:
@@ -7980,6 +8924,38 @@ components:
       - product
       - receipt
       - unit_cost
+    DriverDay:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - date
+      - id
+      - opening_cash
+      - truck_name
+    DriverDayOpen:
+      type: object
+      properties:
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+      required:
+      - opening_cash
     DriverRef:
       type: object
       properties:
@@ -9700,6 +10676,14 @@ components:
       - base
       - computed_amount
       - rate
+    Justification:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+      required:
+      - reason
     LanguageEnum:
       enum:
       - fr
@@ -11077,6 +12061,48 @@ components:
       - batch_id
       - batch_number
       - quantity
+    MyDaySummary:
+      type: object
+      properties:
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/DaySummary'
+          readOnly: true
+        closing:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingState'
+          readOnly: true
+          nullable: true
+      required:
+      - closing
+      - summary
+    MyStockLine:
+      type: object
+      description: What the driver's truck holds of one product, with today's price
+        per kg.
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - product_id
+      - product_name
+      - quantity
+      - unit_price
     OpenSale:
       type: object
       description: A confirmed sale with something left to collect.
@@ -11146,6 +12172,193 @@ components:
       - owed
       - sale_id
       - sold_at
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        ordered_on:
+          type: string
+          format: date
+          readOnly: true
+        expected_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PurchaseOrderStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLine'
+          readOnly: true
+        receipts:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderReceiptRef'
+          readOnly: true
+        ordered_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - closed_at
+      - created_at
+      - created_by
+      - expected_on
+      - id
+      - lines
+      - notes
+      - number
+      - ordered_on
+      - ordered_total
+      - receipts
+      - status
+      - supplier
+    OrderLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        ordered_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        ordered_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        received_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        remaining_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - ordered_amount
+      - ordered_quantity
+      - product
+      - received_quantity
+      - remaining_quantity
+      - unit_cost
+    OrderLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        ordered_quantity:
+          type: string
+        unit_cost:
+          type: string
+      required:
+      - ordered_quantity
+      - product
+      - unit_cost
+    OrderReceiptRef:
+      type: object
+      description: 'A delivery against an order: its receipt.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+      required:
+      - id
+      - number
+      - received_on
+    OrderRef:
+      type: object
+      description: The purchase order a receipt delivers against.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PurchaseOrderStatusEnum'
+          readOnly: true
+      required:
+      - id
+      - number
+      - status
+    OrderWrite:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+        ordered_on:
+          type: string
+          format: date
+        expected_on:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineWrite'
+      required:
+      - lines
+      - ordered_on
+      - supplier
     Organization:
       type: object
       properties:
@@ -11365,6 +12578,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LotPartnership'
+    PaginatedOrderList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
     PaginatedQuoteList:
       type: object
       required:
@@ -12650,6 +13886,20 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
+    PurchaseOrderStatusEnum:
+      enum:
+      - open
+      - partly_received
+      - received
+      - closed
+      - cancelled
+      type: string
+      description: |-
+        * `open` - En attente
+        * `partly_received` - Reçu en partie
+        * `received` - Reçu
+        * `closed` - Clôturé
+        * `cancelled` - Annulé
     Quote:
       type: object
       properties:
@@ -13132,6 +14382,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/ReceiptLocation'
           readOnly: true
+        purchase_order:
+          allOf:
+          - $ref: '#/components/schemas/OrderRef'
+          readOnly: true
+          nullable: true
         received_on:
           type: string
           format: date
@@ -13184,6 +14439,7 @@ components:
       - location
       - notes
       - number
+      - purchase_order
       - received_on
       - supplier
       - supplier_reference
@@ -13331,6 +14587,10 @@ components:
         location:
           type: integer
           minimum: 1
+        purchase_order:
+          type: integer
+          minimum: 1
+          nullable: true
         received_on:
           type: string
           format: date
@@ -13835,6 +15095,153 @@ components:
           type: string
           default: ''
           maxLength: 300
+    RoadCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    RoadExpense:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - category_name
+      - description
+      - id
+      - number
+      - rejection_reason
+      - status
+    RoadExpenseWrite:
+      type: object
+      properties:
+        category:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        description:
+          type: string
+          default: ''
+          maxLength: 255
+        receipt:
+          type: string
+          format: binary
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - amount
+      - category
+    RoadLoss:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LossStatusEnum'
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/LossReasonEnum'
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
+      - product_name
+      - quantity
+      - reason
+      - rejection_reason
+      - status
+    RoadLossWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+        reason:
+          $ref: '#/components/schemas/LossReasonEnum'
+        note:
+          type: string
+          default: ''
+        photo:
+          type: string
+          format: binary
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - product
+      - quantity
+      - reason
+    RoadReturn:
+      type: object
+      properties:
+        number:
+          type: string
+          readOnly: true
+        to_location:
+          type: string
+          readOnly: true
+        total_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - number
+      - to_location
+      - total_quantity
     RoleEnum:
       enum:
       - owner
@@ -15721,6 +17128,70 @@ components:
             $ref: '#/components/schemas/SupplierContact'
       required:
       - name
+    SyncProblem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          type: string
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - driver_name
+      - id
+      - kind
+      - label
+      - reason
+      - resolved_at
+    SyncProblemWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/SyncProblemWriteKindEnum'
+        what:
+          type: string
+          maxLength: 150
+        reason:
+          type: string
+          maxLength: 500
+        client_uuid:
+          type: string
+          format: uuid
+      required:
+      - client_uuid
+      - kind
+      - reason
+      - what
+    SyncProblemWriteKindEnum:
+      enum:
+      - sale
+      - expense
+      - loss
+      type: string
+      description: |-
+        * `sale` - sale
+        * `expense` - expense
+        * `loss` - loss
     Transfer:
       type: object
       properties:
@@ -16109,6 +17580,26 @@ components:
           format: date
       required:
       - truck
+    TruckChoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        plate:
+          type: string
+          readOnly: true
+        taken:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - name
+      - plate
+      - taken
     TruckDay:
       type: object
       properties:

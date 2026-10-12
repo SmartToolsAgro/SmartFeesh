@@ -28,6 +28,8 @@ import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
+import { PdfButton } from "../lib/PdfButton";
+import { openPdf } from "../lib/pdf";
 import { canSell, refreshAfterSale, STATUS_TONES } from "./shared";
 
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
@@ -83,6 +85,20 @@ export function SaleDetailPage() {
     },
     onError: onFailure,
   });
+  // "Valider et imprimer le BL": printing is what validates a draft (D-095); a sale held for credit approval
+  // stays a draft and prints nothing.
+  const validateAndPrint = useMutation({
+    mutationFn: async () => {
+      const saved = await confirmSale(id, { approve_credit: false });
+      if (saved.status === "draft") toast.warning(t("admin.payments.sale.pendingToast"));
+      else {
+        toast.success(t("admin.sales.detail.confirmed", { number: saved.number }));
+        await openPdf("delivery_note", id);
+      }
+      await refreshAfterSale(queryClient);
+    },
+    onError: onFailure,
+  });
   const invoice = useMutation({
     mutationFn: () => createInvoice({ sale: id }),
     onSuccess: async (saved) => {
@@ -126,7 +142,7 @@ export function SaleDetailPage() {
   const data = sale.data;
   const none = t("admin.sales.detail.none");
   const canWrite = canSell(session);
-  const busy = confirm.isPending || cancel.isPending || invoice.isPending;
+  const busy = confirm.isPending || cancel.isPending || invoice.isPending || validateAndPrint.isPending;
   const hasDiscount = !isZero(data.discount_total);
   const showCosts = data.cost_total !== null;
 
@@ -144,7 +160,16 @@ export function SaleDetailPage() {
                 ? t("admin.sales.detail.confirming")
                 : t(data.credit_status === "pending" ? "admin.payments.sale.approve" : "admin.sales.detail.confirm")}
             </Button>
+            {data.credit_status !== "pending" && (
+              <Button disabled={busy} onClick={() => validateAndPrint.mutate()}>
+                <Icon name="receipt" />
+                {t("admin.sales.detail.validateAndPrint")}
+              </Button>
+            )}
           </>
+        )}
+        {data.confirmed_at && (
+          <PdfButton kind="delivery_note" id={data.id} label={t("admin.sales.detail.deliveryNote")} />
         )}
         {canWrite && data.status === "confirmed" && !data.invoice && (
           <Button variant="primary" disabled={busy} onClick={() => invoice.mutate()}>

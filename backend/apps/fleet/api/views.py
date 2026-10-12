@@ -10,15 +10,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Membership, Organization, Role
-from apps.core.permissions import membership_of
+from apps.core.permissions import IsDriver, membership_of
 from apps.fleet import selectors, services
 from apps.fleet.models import Truck, TruckAssignment
 
 from .permissions import AssignmentsOfficeOrOwnDriver, OwnTruckOrOffice
 from .serializers import (
+    DriverDayOpenSerializer,
+    DriverDaySerializer,
     TruckAssignmentFilterSerializer,
     TruckAssignmentSerializer,
     TruckAssignmentWriteSerializer,
+    TruckChoiceSerializer,
     TruckFilterSerializer,
     TruckSerializer,
     TruckWriteSerializer,
@@ -189,3 +192,57 @@ class TruckAssignmentDetailView(TruckAssignmentView):
         self.refuse_past_day(assignment.date)
         services.unassign_truck(assignment=assignment, actor=self.membership.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MyTruckChoicesView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="listMyTruckChoices", responses=TruckChoiceSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The active trucks a driver may take today, each marked if another driver already has it."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        organization = membership.organization
+        taken = set(
+            selectors.assignments_on(organization, timezone.localdate())
+            .exclude(driver_id=membership.user_id)
+            .values_list("truck_id", flat=True)
+        )
+        trucks = [
+            {"id": t.pk, "location": t.location, "plate": t.plate, "taken": t.pk in taken}
+            for t in selectors.trucks_of(organization)
+        ]
+        return Response(TruckChoiceSerializer(trucks, many=True).data)
+
+
+class MyDayView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="getMyDay", responses=DriverDaySerializer)
+    def get(self, request: Request) -> Response:
+        """The day the driver opened today. 404 when they have not started yet."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        day = selectors.driver_day_of(membership)
+        if day is None:
+            raise Http404
+        return Response(DriverDaySerializer(day).data)
+
+    @extend_schema(operation_id="openMyDay", request=DriverDayOpenSerializer, responses={201: DriverDaySerializer})
+    def post(self, request: Request) -> Response:
+        """Start the day on the driver's truck of the day, with the cash they start with."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = DriverDayOpenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        truck = selectors.truck_of_driver(membership)
+        if truck is None:
+            raise exceptions.ValidationError(_("Choisissez d'abord votre camion."))
+        day = services.open_driver_day(
+            organization=membership.organization,
+            actor=membership.user,
+            truck=truck,
+            opening_cash=serializer.validated_data["opening_cash"],
+            date=timezone.localdate(),
+        )
+        return Response(DriverDaySerializer(day).data, status=status.HTTP_201_CREATED)

@@ -10,6 +10,8 @@ urlpatterns = [
         views.ExpenseCategoryDetailView.as_view(),
         name="expense-category-detail",
     ),
+    path("my-expense-categories", views.MyRoadCategoriesView.as_view(), name="my-expense-categories"),
+    path("my-expenses", views.MyRoadExpensesView.as_view(), name="my-expenses"),
     path("expenses", views.ExpenseListView.as_view(), name="expense-list"),
     path("expenses/totals", views.ExpenseTotalsView.as_view(), name="expense-totals"),
     path("expenses/<int:expense_id>", views.ExpenseDetailView.as_view(), name="expense-detail"),

@@ -16,6 +16,10 @@ limit?: number;
  */
 offset?: number;
 /**
+ * @minimum 1
+ */
+purchase_order?: number;
+/**
  * @maxLength 100
  */
 search?: string;

@@ -13,7 +13,8 @@ test("the driver logs in to the driver app and logs out", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Bonjour Sami" })).toBeVisible();
   // The demo driver drives Camion 1: the session says so (`/me`).
-  await expect(page.getByText("Camion 1", { exact: true })).toBeVisible();
+  // The name shows twice (header eyebrow and the truck card in <main>), so check the card.
+  await expect(page.getByRole("main").getByText("Camion 1", { exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Navigation camion" })).toBeVisible();
 
   await page.getByRole("button", { name: "Se déconnecter" }).click();

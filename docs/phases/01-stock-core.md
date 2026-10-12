@@ -135,3 +135,11 @@ Client meeting 2026-10-11, D-042: a driver is not tied to one truck.
 **Phase acceptance test (end-to-end):** receive 60 kg dorade (62 invoiced) → load 15 kg to truck 1 →
 record 1.5 kg loss on truck 1 → count cold room → all on-hand numbers match the ledger, and the supplier
 balance shows the invoice.
+
+### P1-T13 · Purchase orders and partial receipts · M (added 2026-10-12)
+- [x] `PurchaseOrder` (bon d'achat, `BA-0001`) with lines (product, kg, agreed price); status open, partly received,
+      received, closed, cancelled (D-076).
+- [x] A goods receipt (BR) can be made against an order, with only part of its products or weights; several BR per
+      order; received and remaining kg per line.
+- [x] Close an order whose rest will not come; cancel one nothing was received on.
+- [x] Screens: "Bons d'achat" tab (list, form, detail), "Recevoir" opens the BR form pre-filled with what remains.

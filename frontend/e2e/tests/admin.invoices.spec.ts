@@ -49,8 +49,8 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await line.getByLabel("Poids (kg)").fill("2");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
   await expect(page.getByText(/Brouillon VE-\d+ enregistré/)).toBeVisible();
-  await page.getByRole("button", { name: "Confirmer la vente" }).click();
-  await expect(page.getByText(/Vente VE-\d+ confirmée/)).toBeVisible();
+  await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
+  await expect(page.getByText(/BL-\d{4}-\d+ validé/)).toBeVisible();
 
   await page.getByRole("button", { name: "Facturer" }).click();
   await expect(page.getByRole("heading", { name: "Facture (brouillon)", level: 1 })).toBeVisible();

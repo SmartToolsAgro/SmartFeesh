@@ -820,6 +820,31 @@ def kg_by_batch_on_day(organization: Organization, *, location_id: int, day: dt.
     return kg_by_batch_by_day(organization, date_from=day, date_to=day, location_ids=[location_id])[location_id][day]
 
 
+def return_destination(organization: Organization, *, truck_location_id: int) -> StockLocation | None:
+    """Where a truck's unsold stock goes back to: the cold room of its latest validated load, else the first
+    active cold room by name."""
+    last_load = (
+        Transfer.objects.for_organization(organization)
+        .filter(
+            to_location_id=truck_location_id,
+            status=TransferStatus.VALIDATED,
+            from_location__kind=LocationKind.COLD_ROOM,
+            from_location__is_active=True,
+        )
+        .select_related("from_location")
+        .order_by("-validated_at", "-id")
+        .first()
+    )
+    if last_load is not None:
+        return last_load.from_location
+    return (
+        StockLocation.objects.for_organization(organization)
+        .filter(kind=LocationKind.COLD_ROOM, is_active=True)
+        .order_by("name", "id")
+        .first()
+    )
+
+
 # ---- Month-end valuation (P6-T05, D-073) ----
 
 

@@ -6,11 +6,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Membership, Organization
-from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.partners import selectors, services
 from apps.partners.models import Customer, Supplier
+from apps.sales import selectors as sales
 
 from .serializers import (
+    CustomerChoiceSerializer,
     CustomerFilterSerializer,
     CustomerSerializer,
     CustomerWriteSerializer,
@@ -181,3 +183,26 @@ class CustomerRestoreView(CustomerView):
     def post(self, request: Request, customer_id: int) -> Response:
         services.set_customer_active(customer=self.customer(customer_id), actor=self.membership.user, is_active=True)
         return self.customer_answer(customer_id)
+
+
+class MyCustomersView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(
+        operation_id="listMyCustomers",
+        parameters=[CustomerFilterSerializer],
+        responses=CustomerChoiceSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
+        the walk-in customer last. Filter with `search`. At most 30 rows."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        filters = CustomerFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        found = list(selectors.customers_of(membership.organization, search=filters.validated_data["search"]))
+        # The ones this driver sold to lately come first, then the others by name; the walk-in customer last.
+        recent = sales.recent_customer_ids(membership.organization, user_id=membership.user_id)
+        rank = {customer_id: position for position, customer_id in enumerate(recent)}
+        found.sort(key=lambda customer: (customer.is_walk_in, rank.get(customer.pk, len(rank)), customer.name))
+        return Response(CustomerChoiceSerializer(found[:30], many=True).data)

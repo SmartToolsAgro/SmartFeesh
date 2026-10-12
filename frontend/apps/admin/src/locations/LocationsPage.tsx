@@ -1,16 +1,36 @@
-import { useGetStockOverview, useListLocations, useListTrucks } from "@frutti/api";
+import {
+  archiveLocation,
+  archiveTruck,
+  restoreLocation,
+  restoreTruck,
+  useGetStockOverview,
+  useListLocations,
+  useListTrucks,
+} from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, Dialog, Icon, Illustration, type IllustrationName, PageHeader, Pill } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
+import {
+  Button,
+  Card,
+  cn,
+  Dialog,
+  Icon,
+  Illustration,
+  type IllustrationName,
+  PageHeader,
+  Pill,
+  toast,
+} from "@frutti/ui";
+import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { useOutletContext } from "react-router";
 
+import { fieldErrors } from "../lib/errors";
 import { type Status, StatusFilter } from "../lib/StatusFilter";
 import { StockTabs } from "../lib/StockTabs";
 import { StockProductCard } from "../stock/StockProductCard";
 import { LocationDialog } from "./LocationDialog";
-import { canEditLocations } from "./shared";
+import { canEditLocations, refreshLocations } from "./shared";
 import { TruckDialog } from "./TruckDialog";
 
 type Open = { kind: "room" | "truck"; id: number | "new" } | null;
@@ -24,6 +44,7 @@ function PlaceCard({
   pills,
   numeric = false,
   onOpen,
+  action,
 }: {
   illustration: IllustrationName;
   title: string;
@@ -34,6 +55,8 @@ function PlaceCard({
   // The subtitle is a plate or another code: fixed-width digits.
   numeric?: boolean;
   onOpen?: () => void;
+  // A button under the card, outside the clickable area (archive or restore).
+  action?: ReactNode;
 }) {
   const body = (
     <>
@@ -63,7 +86,27 @@ function PlaceCard({
       ) : (
         <div className="flex items-center gap-3.5 p-4">{body}</div>
       )}
+      {action && <div className="flex justify-end border-t border-line px-4 py-2">{action}</div>}
     </Card>
+  );
+}
+
+/** Archive or restore a place from its card. A place still holding stock is refused by the server. */
+function ArchiveButton({ active, toggle }: { active: boolean; toggle: () => Promise<{ is_active: boolean }> }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: toggle,
+    onSuccess: async (saved) => {
+      toast.success(t(saved.is_active ? "admin.locations.form.restoredDone" : "admin.locations.form.archivedDone"));
+      await refreshLocations(queryClient);
+    },
+    onError: (failure) => toast.error(fieldErrors(failure).detail ?? t("admin.locations.form.error")),
+  });
+  return (
+    <Button variant="ghost" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+      {t(active ? "admin.locations.form.archive" : "admin.locations.form.restore")}
+    </Button>
   );
 }
 
@@ -158,6 +201,14 @@ export function LocationsPage() {
                       </>
                     }
                     onOpen={canEdit ? () => setOpen({ kind: "room", id: room.id }) : undefined}
+                    action={
+                      canEdit && (
+                        <ArchiveButton
+                          active={room.is_active}
+                          toggle={() => (room.is_active ? archiveLocation(room.id) : restoreLocation(room.id))}
+                        />
+                      )
+                    }
                   />
                 ))}
               </div>
@@ -185,6 +236,14 @@ export function LocationsPage() {
                       </>
                     }
                     onOpen={canEdit ? () => setOpen({ kind: "truck", id: truck.id }) : undefined}
+                    action={
+                      canEdit && (
+                        <ArchiveButton
+                          active={truck.is_active}
+                          toggle={() => (truck.is_active ? archiveTruck(truck.id) : restoreTruck(truck.id))}
+                        />
+                      )
+                    }
                   />
                 ))}
               </div>

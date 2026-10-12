@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext as _
 
@@ -15,7 +16,7 @@ from apps.core.models import Organization
 from apps.documents import services as documents
 
 from . import selectors
-from .models import CreditNoteKind, CreditNoteStock, InvoiceStatus, QuoteStatus, SalePaymentMethod
+from .models import CreditNoteKind, CreditNoteStock, InvoiceStatus, QuoteStatus, SalePaymentMethod, SaleStatus
 from .payment_selectors import customer_payment_of
 
 
@@ -151,7 +152,35 @@ def receipt_printable(organization: Organization, payment_id: int) -> documents.
     )
 
 
+def delivery_note_printable(organization: Organization, sale_id: int) -> documents.Printable:
+    """The BL of a validated sale (D-095): what left, at what price, and what the customer owes for it."""
+    sale = selectors.sale_of(organization, sale_id)
+    if sale.confirmed_at is None:
+        # A draft (or a draft given up) has no BL number and moves nothing: validating the sale is what makes the BL.
+        raise ValidationError(_("Une vente en brouillon n'a pas de bon de livraison : validez-la d'abord."))
+    lines = list(sale.lines.all())
+    context: dict[str, Any] = {
+        "number": sale.number,
+        "seller": _seller_of(organization),
+        "sale": sale,
+        "sold_on": timezone.localtime(sale.sold_at).date(),
+        "customer": sale.customer,
+        "location": sale.location,
+        "lines": lines,
+        "has_discount": any(line.discount_rate for line in lines),
+        "total_kg": sum((line.quantity for line in lines), Decimal("0.000")),
+        "cancelled": sale.status == SaleStatus.CANCELLED,
+    }
+    return documents.Printable(
+        template="sales/pdf/delivery_note.html",
+        context=context,
+        version=sale.updated_at.isoformat(),
+        filename=_file_name("bl", sale.number),
+    )
+
+
 def register_printables() -> None:
+    documents.register(documents.DocumentKind.DELIVERY_NOTE, delivery_note_printable)
     documents.register(documents.DocumentKind.QUOTE, quote_printable)
     documents.register(documents.DocumentKind.INVOICE, invoice_printable)
     documents.register(documents.DocumentKind.CREDIT_NOTE, credit_note_printable)

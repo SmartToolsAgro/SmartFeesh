@@ -212,7 +212,7 @@ def test_ageing_buckets_follow_the_age_of_each_sale(organization, actor, custome
     assert balance.balance == D("252.000")
     # Terms are 30 days from the sale: the two older sales are past due.
     assert balance.overdue == D("210.000")
-    assert [row.number for row in balance.open_sales] == ["VE-0003", "VE-0002", "VE-0001"]
+    assert [row.number for row in balance.open_sales] == [f"BL-{now.year}-000{n}" for n in (3, 2, 1)]
 
 
 def test_history_runs_to_the_balance(organization, actor, customer, counter, stocked):

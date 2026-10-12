@@ -1159,6 +1159,50 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - **Not done:** receipts for the driver app (Phase 3: drivers get 403 here), PDFs by e-mail or WhatsApp, Arabic
   layout (right-to-left, with P0-T08), e-invoice (TTN) QR code (D-016).
 
+**D-090 · Driver app kept deliberately simple; first screen "Ma journée" (P3-T01, part)** · accepted · 2026-10-11
+The drivers are not used to phones: big text, one job per screen, almost no typing, prices filled in for them.
+`GET /api/v1/my-truck-day` (drivers only) returns the day's load of the driver's own truck (D-046) with the
+price per kg; the first screen shows the truck and that load. A driver
+with no truck sees the active trucks as big buttons (`GET /my-truck-choices`, those taken by another driver are
+greyed) and picks one with the existing `POST /truck-assignments`. `fleet.DriverDay` (truck, driver, date, opening
+cash; one per driver and day) is opened by `POST /my-day` and read by `GET /my-day`; asking twice keeps the first.
+
+**D-091 · Sale on the road, first version (P3-T02, P3-T03)** · accepted, provisional points marked · 2026-10-11
+Driver-only read endpoints: `GET /my-stock` (the truck's stock per product with today's daily price) and
+`GET /my-customers?search=` (name and city, walk-in last, 30 rows). The sale screen sends no price: the server
+prices the lines as for any sale (customer's list, else daily price) and the receipt shows its result; the screen's
+running total uses the daily price, so it may differ for a customer with their own price list (**provisional**,
+D-051 still open). The driver types the kg and what the customer pays; the rest is credit, and the server
+refuses above the credit limit (its message is shown). Payment is cash for now. A `client_uuid` per sale makes
+a retry safe. Receipt: on screen and the phone's share sheet. Not yet: recent customers first, creating a
+customer, other payment methods, offline (P3-T07).
+
+**D-092 · Expenses from the road (P3-T04)** · accepted · 2026-10-11
+A driver enters an expense with `POST /my-expenses` (multipart: category, amount, optional note, optional receipt
+photo, `client_uuid`), through `expenses.services.submit_road_expense`: cash, today, a cost of the driver's truck of
+the day (D-041), status "À approuver" until the office decides; the photo is joined in the same transaction. The
+driver picks among four categories only (fuel, transport, handling, miscellaneous: `ROAD_CATEGORY_CODES`), listed by
+`GET /my-expense-categories`; `GET /my-expenses` shows their own entries of today with the decision.
+
+**D-093 · Losses and returns from the road (P3-T05)** · accepted · 2026-10-11
+`POST /my-losses` (multipart: product, kg, reason, note, photo, `client_uuid`) records a loss on the driver's truck
+today through `inventory.services.report_road_loss`: the usual threshold applies (small ones leave the stock at once,
+heavy ones wait for the owner) and the photo is joined in the same transaction. `POST /my-return` brings **everything**
+left on the truck back to the cold room of its latest validated load (else the first active cold room) as one validated
+return transfer; partial returns stay possible from the admin transfer screen.
+
+**D-094 · End-of-day closing of a driver's day (P3-T06)** · accepted, provisional points marked · 2026-10-12
+New app `dayclose`, model `DayClosing` (one per `fleet.DriverDay`): expected cash, counted cash, difference,
+driver note, the day's summary kept as sent, and the office's decision. **Expected cash = cash at the start + cash
+sales − the day's road expenses** (rejected ones left out); other payment methods and credit are shown, not counted
+in the till. The summary (`dayclose.selectors.day_summary`) is computed from sales (confirmed, by this driver, from
+the truck, that day), road expenses, and per product loaded / sold / lost / returned / remaining. The driver sends
+once (`POST /my-day-closing`); the difference is shown without judgement. The office (owner, manager; the accountant
+reads) lists days at `/journees` and either approves (locks the day: a second send or review is refused) or asks for a
+justification, after which the driver sends again with a note. Status names: submitted, justification, approved.
+**Not done:** approving a day does not yet block further sales or expenses by that driver the same day (**provisional**);
+the day's customer payments collected by the driver ("other payments") wait for a driver collection screen.
+
 
 **D-073 · Month-end stock valuation and cost of goods sold (P6-T05)** · accepted · 2026-10-11
 
@@ -1197,3 +1241,109 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   closed month yet).
 - **API** (`/months`, `/months/<yyyy-mm>`, `review`, `approve`, `reopen`): the owner and the accountant read and
   review; only the owner approves and reopens; managers and drivers get 403. The current month cannot be closed.
+
+**D-072 · Partner statement PDF (P6-T04)** · accepted · 2026-10-11
+
+- **One statement per partnership lot**, kind `partner_statement`, id = the partnership's (`GET /documents/partner_statement/<id>/pdf`,
+  office roles). Provider in `closing/printing.py`, template `closing/pdf/partner_statement.html`; it reads the
+  frozen result of a closed lot, or the live "so far" result of an open one (the page then says so).
+- **Reads top to bottom, no accounting words:** the agreement (each side's capital, the two rates); what was
+  bought; every sale (date, customer, kg, price); losses; every cost line by group; the result step by step
+  (`+ sales − cost of the kg sold − losses − costs = net`), then one sentence ("le lot a rapporté X; vous recevez
+  40 % : Y"); the capital back and what is paid; the settlement with its payments, and the capital movements.
+- **Remade when a figure changes:** the file's version is a hash of the result, the capital and profit-share
+  ledgers and the settlement date, so settling a lot or booking a late adjustment gives a new file.
+- **Not done:** one statement covering several lots of a partner (the three balances over time) and sending
+  it by e-mail or WhatsApp; Arabic ("Haka bayek" in the partner's language) comes with P0-T08.
+
+**D-076 · Purchase orders (bon d'achat) and partial receipts (P1-T13)** · accepted · 2026-10-12
+Amends D-039 ("no `PurchaseOrder` yet"): the owner asked for a bon d'achat before the bon de réception (BR), with
+deliveries that can arrive in parts.
+- **`PurchaseOrder`** (`BA-0001`… per organization, same counter table as invoices) with lines (product, ordered kg,
+  agreed price per kg). It moves no stock and owes nothing: only receipts do. Saved = final: no edit; a mistake is
+  cancelled (before any delivery) and typed again.
+- **A receipt may point at an order** (`GoodsReceipt.purchase_order`, `GoodsReceiptLine.order_line`). It carries only
+  the products and weights that arrived: one order is received in as many BR as the supplier makes deliveries. Only
+  products of the order are accepted; the supplier must match. Typing a receipt without an order still works.
+- **Received = accepted kg** of the order's receipt lines; remaining = ordered − received, never below zero. More than
+  ordered is accepted (a delivery of 105 kg on 100 kg completes the line).
+- **Status follows the receipts** (`services.refresh_order_status`, under a row lock on the order): `open` → `partly_received`
+  → `received` when every line is in full. `close_order` (owner/manager) ends a partly received order whose rest will not
+  come (`closed`); `cancel_order` only when nothing was received (`cancelled`). Closed and cancelled orders take no receipt.
+- **Ordered kg on a linked receipt line stays empty:** the order carries what was asked for, so a partial delivery is not
+  flagged as a weight difference; invoiced vs accepted still is.
+- **The cost is still typed on every receipt line** (the real price of the day, D-020); the form starts from the order's
+  agreed price. Invoices (D-043) still charge receipts, not orders.
+- API: `listPurchaseOrders` (filters supplier, status incl. `pending`, search), `createPurchaseOrder`, `getPurchaseOrder`,
+  `cancelPurchaseOrder`, `closePurchaseOrder`; `createReceipt` takes `purchase_order`; `listReceipts` filters on it.
+  Same permissions as receipts (office reads, owner and manager write, D-032).
+- Screens: tab "Bons d'achat" in Achats (list, form, detail with ordered / received / remaining per line and its
+  receipts); "Recevoir" on the order opens the receipt form pre-filled with what remains; the receipt form also offers
+  the supplier's pending orders.
+- **Not done:** editing an order, a PDF of the bon d'achat (with P2-T08's PDF service), a supplier-facing copy.
+**D-095 · The Bon de livraison (BL) is the source of truth for sales (P2-T10)** · accepted · 2026-10-12
+- Asked by Mahmoud: every sale movement (stock and money) is tracked from the BL once validated or printed;
+  the invoice stays an optional document made afterwards.
+- **A validated `Sale` is the BL.** No new table. `confirm_sale` already takes stock (FIFO), fixes cost and
+  records the receivable; it now also **replaces the draft number (`VE-0001`) by the BL number
+  `BL-2026-0001`** (`Sale.number`, so lists, payments, invoices and lot reports all show it). The draft number
+  is kept in the audit line `sale.confirmed` (`draft_number`).
+- **Numbering rule for every document code: `PREFIX-YEAR-NNNN` (4 digits), restarting each year** (counter
+  series `BL-2026`, same helper as invoices `FA-` and credit notes `AV-`). Taken inside the validating
+  transaction: a refused validation leaves no gap. Quotes `DV-`, drafts `VE-`, payments, expenses and
+  purchasing codes still use the old `PREFIX-NNNN`; moving them to the yearly format is a later pass.
+- **Offline driver:** a driver cannot validate offline (a sale stays a draft on the phone). When the
+  connection is back the server validates and gives the next free BL number of the year, so no number is ever
+  reserved on a phone and no clash is possible.
+- **Printing validates:** screen "Valider et imprimer le BL" confirms a draft then opens the PDF. The PDF
+  (`delivery_note`, `GET /documents/delivery_note/<sale id>/pdf`) exists only for a validated sale; shows kg,
+  prices, total, paid/due and a signature box.
+- **Walk-in customers also get a BL** (Mahmoud, 2026-10-12).
+- Sales validated before this change were renumbered by migration `0007` in validation order.
+- **Next (P2-T10 part 2):** one invoice for several BLs of the same customer (replaces
+  `one_live_invoice_per_sale`; an invoice line points to its BL line; a BL is invoiced at most once).
+**D-096 · Offline, first step: a hand-written service worker, no library (P3-T07a)** · accepted · 2026-10-12
+`apps/truck/public/sw.js` (about 80 lines) plus a web manifest and icons: the app opens without signal after its
+first visit and can be put on the home screen. The app files answer from the cache and refresh in the background;
+API reads (not `/api/v1/auth/`) go network first and fall back to the last answer; writes are never touched. This keeps
+what the screens showed in the **Cache Storage** instead of IndexedDB: simpler, no new dependency (`vite-plugin-pwa`
+was not added: one more package to keep in step with Vite 8). IndexedDB comes with the write queue (P3-T07b), where
+it is needed. The truck app's queries use `networkMode: "offlineFirst"` so they ask even without signal and get the
+saved answer. Logging out deletes the saved API answers, so the next driver on the phone sees none of them. A banner
+says when there is no signal. Not yet shown: the time of the last update on each screen.
+
+**D-095 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** · accepted · 2026-10-12
+Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
+rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
+customers the driver sold to most recently first (up to 8), then the others by name, the walk-in customer last.
+
+**D-097 · Queue of unsent sales in IndexedDB (P3-T07b)** · accepted · 2026-10-12
+A sale made without connection (or when the request fails for network reasons) is kept in IndexedDB
+(`apps/truck/src/salesQueue.ts`, store `sales` keyed by the sale's `client_uuid`) and the driver sees a receipt marked
+"gardée sur le téléphone" with the screen's own figures. Sending (`syncSales.ts`) runs at start, on the `online` event,
+after each successful sale and every 30 s, oldest first, one at a time; the server's idempotency on `client_uuid` makes
+a repeat harmless. A **network error or a 401 stops the run and keeps everything**; any other server answer (400, 403...)
+marks that sale **refused** with the server's message: it stays in the queue and on screen, never dropped (the office
+side of this is P3-T07d). A line "N ventes attendent le réseau" is always visible while something waits. The stock
+shown on the sale screen is the truck's stock minus the kilos of waiting sales, and a sale above it is blocked, so an
+offline driver cannot promise more than the truck holds. Expenses, losses and the closing are not queued yet (T07c).
+Not covered by automated tests (the truck app has no unit-test setup and IndexedDB needs a browser): checked in the
+field test.
+
+**D-098 · Expenses and losses join the queue; the closing waits for it (P3-T07c)** · accepted · 2026-10-12
+`queue.ts` now holds three kinds (sale, expense, loss) in the same IndexedDB store, sent in the order they were made by
+`sync.ts`; the receipt photo is kept with the item (IndexedDB stores files). Screens use `sendOrKeep`: send now, or keep
+on the phone when there is no connection; a server refusal is shown at once and not kept. Waiting losses also count in
+the kilos "promised", so a loss cannot be reported above what the truck holds. The **closing is refused while anything
+waits or there is no connection** (the button is disabled with the reason), so the figures the office receives are
+complete. Returning the unsold stock (`my-return`) is not queued: it needs a connection.
+
+**D-099 · Refused sends are reported to the office (P3-T07d)** · accepted · 2026-10-12
+When the server refuses an item waiting on a phone (D-097, D-098), the phone keeps it (status "refused"), shows it to the
+driver with the server's reason and a "Compris" button, and reports it with `POST /my-sync-problems` (kind, what, reason,
+the item's `client_uuid`: the same item reported twice makes one `dayclose.SyncProblem`). The report is retried on later
+runs until it works. The office sees the open ones at the top of `/journees` ("Envois refusés") and marks them "Traité"
+(`GET /sync-problems`, `POST /sync-problems/<id>/resolve`, owner and manager; the accountant reads). The office never has
+to guess what is stuck on a phone, and nothing is dropped silently. **Not done:** a notice to the driver when the office
+moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
+still protects against overselling).

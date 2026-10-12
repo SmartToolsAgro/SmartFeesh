@@ -1,5 +1,6 @@
 """Customer payments, balances, ageing and withholding certificates (P2-T06, D-062, D-063)."""
 
+from decimal import Decimal
 from typing import Any
 
 from drf_spectacular.types import OpenApiTypes
@@ -28,6 +29,8 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
     # The part settling sales, and what is left as the customer's credit (0 when voided).
     allocated_total = serializers.SerializerMethodField()
     unallocated = serializers.SerializerMethodField()
+    # What is still left to pay on the sales this payment was allocated to.
+    remaining = serializers.SerializerMethodField()
     is_voided = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     voided_by = serializers.SerializerMethodField()
@@ -45,6 +48,7 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
             "notes",
             "allocated_total",
             "unallocated",
+            "remaining",
             "is_voided",
             "voided_at",
             "voided_by",
@@ -65,6 +69,19 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
         if payment.voided_at is not None:
             return "0.000"
         return str(payment.amount - (getattr(payment, "allocated_total", None) or 0))
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_remaining(self, payment: CustomerPayment) -> str:
+        """What customers still owe on the sales this payment settled (0 when voided or nothing is left)."""
+        from apps.sales import selectors
+
+        if payment.voided_at is not None:
+            return "0.000"
+        sale_ids = [allocation.sale_id for allocation in payment.allocations.all()]
+        if not sale_ids:
+            return "0.000"
+        left = selectors.outstanding_by_sale(payment.organization, sale_ids)
+        return str(sum(left.values(), Decimal("0.000")).quantize(Decimal("0.001")))
 
     def get_is_voided(self, payment: CustomerPayment) -> bool:
         return payment.voided_at is not None

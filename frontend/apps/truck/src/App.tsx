@@ -4,7 +4,18 @@ import { EmptyState, type IllustrationName, Sprite, Toaster, TruckShell, type Tr
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 
+import { ClosingPage } from "./ClosingPage";
+import { DayPage } from "./DayPage";
+import { ExpensePage } from "./ExpensePage";
+import { LossPage } from "./LossPage";
+import { forgetSavedData } from "./offline";
+import { OfflineBanner } from "./OfflineBanner";
+import { SyncStatus } from "./SyncStatus";
+import { SalePage } from "./SalePage";
+
 const queryClient = createQueryClient();
+// Without signal, ask anyway: the phone answers from what it saved (public/sw.js) instead of waiting forever.
+queryClient.setDefaultOptions({ queries: { networkMode: "offlineFirst" } });
 
 // Same four tabs as the approved prototype. Each one becomes a real screen in Phase 3.
 function useTabs(): (TruckTab & { illustration: IllustrationName })[] {
@@ -26,8 +37,13 @@ function Shell({ session }: { session: Session }) {
       tabs={tabs}
       eyebrow={session.truck?.name ?? session.organization.name}
       title={t("truck.hello", { name: session.user.first_name || session.user.username })}
-      onLogout={() => logout.mutate()}
+      onLogout={() => {
+        void forgetSavedData();
+        logout.mutate();
+      }}
     >
+      <OfflineBanner />
+      <SyncStatus />
       <Outlet />
     </TruckShell>
   );
@@ -55,13 +71,20 @@ function AppRoutes() {
           </RequireRole>
         }
       >
-        {tabs.map((tab) => (
-          <Route
-            key={tab.to}
-            path={tab.to}
-            element={<ComingSoon title={tab.label} illustration={tab.illustration} />}
-          />
-        ))}
+        <Route path="/" element={<DayPage />} />
+        <Route path="/vente" element={<SalePage />} />
+        <Route path="/cloture" element={<ClosingPage />} />
+        <Route path="/depense" element={<ExpensePage />} />
+        <Route path="/perte" element={<LossPage />} />
+        {tabs
+          .filter((tab) => tab.to !== "/" && tab.to !== "/vente" && tab.to !== "/cloture")
+          .map((tab) => (
+            <Route
+              key={tab.to}
+              path={tab.to}
+              element={<ComingSoon title={tab.label} illustration={tab.illustration} />}
+            />
+          ))}
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

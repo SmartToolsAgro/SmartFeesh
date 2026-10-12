@@ -1026,6 +1026,37 @@ def add_loss_photo(*, loss: StockLoss, actor: User | None, upload: "UploadedFile
     return loss
 
 
+@transaction.atomic
+def report_road_loss(
+    *,
+    organization: Organization,
+    actor: User,
+    location: StockLocation,
+    product: "Product",
+    quantity: Number,
+    reason: str,
+    note: str = "",
+    upload: "UploadedFile[bytes] | None" = None,
+    client_uuid: uuid.UUID | None = None,
+) -> StockLoss:
+    """A driver reports kilos lost on their truck today, with a photo as proof. Up to the threshold they leave
+    the stock at once; above it the loss waits for the owner (P3-T05)."""
+    loss = record_loss(
+        organization=organization,
+        actor=actor,
+        location=location,
+        product=product,
+        quantity=quantity,
+        reason=reason,
+        lost_on=timezone.localdate(),
+        note=note,
+        client_uuid=client_uuid,
+    )
+    if upload is not None and not loss.photo:
+        loss = add_loss_photo(loss=loss, actor=actor, upload=upload)
+    return loss
+
+
 # ---- Stock counts (P1-T10, D-045) ----
 
 COUNT_SERIES = "INV"

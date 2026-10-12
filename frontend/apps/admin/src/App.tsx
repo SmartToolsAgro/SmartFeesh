@@ -44,6 +44,9 @@ import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "./purchasing/SupplierInvoicesPage";
 import { SupplierPaymentFormPage } from "./purchasing/SupplierPaymentFormPage";
 import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
+import { PurchaseOrderDetailPage } from "./orders/PurchaseOrderDetailPage";
+import { PurchaseOrderFormPage } from "./orders/PurchaseOrderFormPage";
+import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
 import { ReceiptFormPage } from "./receipts/ReceiptFormPage";
 import { ReceiptsPage } from "./receipts/ReceiptsPage";
@@ -58,6 +61,7 @@ import { SupplierDetailPage } from "./suppliers/SupplierDetailPage";
 import { SuppliersPage } from "./suppliers/SuppliersPage";
 import { CountPage } from "./counts/CountPage";
 import { CountsPage } from "./counts/CountsPage";
+import { DayClosingsPage } from "./dayclose/DayClosingsPage";
 import { LossDetailPage } from "./losses/LossDetailPage";
 import { LossesPage } from "./losses/LossesPage";
 import { LossFormPage } from "./losses/LossFormPage";
@@ -88,6 +92,7 @@ function useNav(): AdminNavGroup[] {
       items: [
         { to: "/stock", label: t("admin.nav.stock"), icon: "box" },
         { to: "/camions", label: t("admin.nav.truckDay"), icon: "truck" },
+        { to: "/journees", label: t("admin.nav.dayClosings"), icon: "calcheck" },
         { to: "/produits", label: t("admin.nav.products"), icon: "snow" },
         { to: "/achats", label: t("admin.nav.purchases"), icon: "cart" },
         { to: "/fournisseurs", label: t("admin.nav.suppliers"), icon: "anchor" },
@@ -109,6 +114,7 @@ function useNav(): AdminNavGroup[] {
 const SCREENS: Record<string, ReactNode> = {
   "/stock": <LocationsPage />,
   "/camions": <TruckDayPage />,
+  "/journees": <DayClosingsPage />,
   "/produits": <ProductsPage />,
   "/achats": <ReceiptsPage />,
   "/fournisseurs": <SuppliersPage />,
@@ -204,6 +210,9 @@ function AppRoutes() {
         {/* Invoices and finance settings (P2-T05) */}
         <Route path="/factures/parametres" element={<FinanceSettingsPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
+        <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
+        <Route path="/achats/bons/nouveau" element={<PurchaseOrderFormPage />} />
+        <Route path="/achats/bons/:orderId" element={<PurchaseOrderDetailPage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         <Route path="/achats/factures" element={<SupplierInvoicesPage />} />

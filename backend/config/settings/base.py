@@ -44,6 +44,7 @@ LOCAL_APPS = [
     "apps.expenses",
     "apps.partnerships",
     "apps.closing",
+    "apps.dayclose",
     "apps.documents",
     "apps.demo",
 ]
@@ -144,6 +145,7 @@ SPECTACULAR_SETTINGS = {
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
         "SupplierInvoiceStatusEnum": "apps.purchasing.models.SupplierInvoiceStatus",
         "PaymentMethodEnum": "apps.purchasing.models.PaymentMethod",
+        "PurchaseOrderStatusEnum": "apps.purchasing.models.PurchaseOrderStatus",
         "StockLocationKindEnum": "apps.inventory.models.LocationKind",
         "TransferKindEnum": "apps.inventory.models.TransferKind",
         "TransferStatusEnum": "apps.inventory.models.TransferStatus",
@@ -175,6 +177,7 @@ SPECTACULAR_SETTINGS = {
         "PartnershipStatusEnum": "apps.partnerships.models.PartnershipStatus",
         "CapitalEntryKindEnum": "apps.partnerships.models.CapitalEntryKind",
         "LotResultStatusEnum": "apps.closing.models.LotResultStatus",
+        "DayClosingStatusEnum": "apps.dayclose.models.DayClosingStatus",
         "LotOutcomeEnum": "apps.closing.models.LotOutcome",
         "LotStateEnum": "apps.closing.models.LotState",
         # P6-T03 · settlement with the partner (its payment methods are `PaymentMethodEnum`)
