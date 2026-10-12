@@ -22,5 +22,7 @@ export interface InvoiceCreate {
   notes?: string;
   issue_now?: boolean;
   /** @minimum 1 */
-  sale: number;
+  sale?: number;
+  /** @items.minimum 1 */
+  sales?: number[];
 }

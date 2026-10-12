@@ -1360,3 +1360,20 @@ logical CSS (D-025); the one physical `text-right` was fixed. **Not done:** serv
 reasons of a refused sale) come back in French: Django has no Arabic catalogue yet (`backend/locale/`), which needs the
 `.po` translations and gettext tooling; the native-speaker review of every Arabic text; a visual right-to-left check on a
 real phone.
+
+**D-101 · One invoice for several BL of a customer (P2-T10 part 2)** · accepted · 2026-10-12
+- `Invoice.sale` is gone: an invoice has `sales` (through `InvoiceSale`, with `is_live`). Partial unique
+  `one_live_invoice_per_sale` moved to `InvoiceSale`: a BL is on one live invoice (draft or issued) at most;
+  a full credit note sets `is_live` false on all its BL, which may then be invoiced again. Migration `0008`/`0009`
+  copies the old one-to-one links.
+- `create_invoice(sales=[...])` (or `sale=` as before): confirmed BL of one named customer; lines follow the
+  BL in date order and keep their `sale_line` (the invoice PDF names the BL under each line). One fiscal
+  stamp and one withholding for the whole invoice. API: `POST /invoices` takes `sale` or `sales`; an invoice
+  reads `sales` (and `sale` = the first, for older screens); `GET /sales?uninvoiced=true` lists the BL left.
+- **Receivable per BL** (payments are allocated per BL): what the invoice asks (net to pay − credit notes ±
+  certificate) is **shared over its BL by the amount each holds on the invoice**, last BL takes the rounding
+  rest (`receivables.split`); the VAT of the invoice is shared the same way into each `Sale.tax_amount`. For
+  one BL nothing changes. **Provisional:** a partial credit note on one BL's line lowers the invoice as a
+  whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
+- A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
+- Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).

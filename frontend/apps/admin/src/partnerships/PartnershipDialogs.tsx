@@ -5,7 +5,7 @@ import {
   updatePartnership,
   useListSuppliers,
 } from "@frutti/api";
-import { parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   DialogContent,
@@ -52,13 +52,18 @@ export function PartnershipDialog({
   partnership,
   onDone,
 }: {
-  batch: { id: number; number: string };
+  batch: {
+    id: number;
+    number: string;
+    origin?: { supplier: string; quantity: string; unitCost: string; total: string };
+  };
   partnership?: LotPartnershipDetail;
   onDone: () => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
+  const origin = batch.origin;
   const suppliers = useListSuppliers({ status: "active" });
   const [partner, setPartner] = useState(partnership ? String(partnership.partner.id) : "");
   const [values, setValues] = useState<Record<Term, string>>({
@@ -112,6 +117,16 @@ export function PartnershipDialog({
     <DialogContent className="w-[min(560px,calc(100vw-2rem))]">
       <DialogTitle>{t(title, { number: batch.number })}</DialogTitle>
       <DialogDescription>{t("admin.partnerships.form.description")}</DialogDescription>
+      {origin && (
+        <p className="rounded-chip bg-sea-soft px-3 py-2 text-[0.88rem] text-ink-2">
+          {t("admin.partnerships.form.origin", {
+            supplier: origin.supplier,
+            quantity: formatQuantity(origin.quantity),
+            unitCost: formatMoney(origin.unitCost),
+            total: formatMoney(origin.total),
+          })}
+        </p>
+      )}
       <form id={formId} onSubmit={submit} noValidate className="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
         <Field
           label={t("admin.partnerships.form.partner")}

@@ -18,11 +18,14 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from apps.core.models import Organization
+from apps.core.money import money
 
 from .models import (
     CreditNote,
     CustomerPayment,
     Invoice,
+    InvoiceLine,
+    InvoiceSale,
     InvoiceStatus,
     PaymentAllocation,
     Sale,
@@ -87,6 +90,16 @@ class CustomerBalance:
     open_sales: list[SaleReceivable] = field(default_factory=list)
 
 
+def split(amount: Decimal, weights: list[Decimal]) -> list[Decimal]:
+    """`amount` shared over `weights` (each part rounded once, the last takes the rest, so the parts add up).
+    One weight gets all of it; weights that are all zero give everything to the last."""
+    total = sum(weights, ZERO)
+    if len(weights) == 1 or total == 0:
+        return [*([ZERO] * (len(weights) - 1)), amount]
+    parts = [money(amount * weight / total) for weight in weights[:-1]]
+    return [*parts, amount - sum(parts, ZERO)]
+
+
 def _sales_filter(organization: Organization, customer_id: int | None, sale_ids: list[int] | None) -> Q:
     query = Q(organization=organization, status=SaleStatus.CONFIRMED)
     if customer_id is not None:
@@ -118,10 +131,25 @@ def sale_receivables(
         return []
     ids = [sale.pk for sale in sales]
     invoices_by_sale: dict[int, list[Invoice]] = defaultdict(list)
-    invoices = Invoice.objects.filter(sale_id__in=ids, status__in=[InvoiceStatus.ISSUED, InvoiceStatus.CANCELLED])
-    for invoice in invoices.order_by("id"):
-        invoices_by_sale[invoice.sale_id].append(invoice)
-    invoice_ids = [invoice.pk for rows in invoices_by_sale.values() for invoice in rows]
+    invoice_ids = list(
+        InvoiceSale.objects.filter(sale_id__in=ids, invoice__status__in=[InvoiceStatus.ISSUED, InvoiceStatus.CANCELLED])
+        .values_list("invoice_id", flat=True)
+        .distinct()
+    )
+    invoices = {invoice.pk: invoice for invoice in Invoice.objects.filter(pk__in=invoice_ids)}
+    # An invoice may bill several BLs: what it asks is shared over them by what each BL holds on it.
+    held: dict[int, dict[int, Decimal]] = defaultdict(dict)
+    for row in (
+        InvoiceLine.objects.filter(invoice_id__in=invoice_ids)
+        .values("invoice_id", "sale_line__sale_id")
+        .annotate(total=Sum("amount"))
+    ):
+        held[row["invoice_id"]][row["sale_line__sale_id"]] = row["total"]
+    linked: dict[int, list[int]] = defaultdict(list)
+    for invoice_id, sale_id in InvoiceSale.objects.filter(invoice_id__in=invoice_ids).values_list(
+        "invoice_id", "sale_id"
+    ):
+        linked[invoice_id].append(sale_id)
     credited = {
         row["invoice_id"]: row["net"]
         for row in CreditNote.objects.filter(invoice_id__in=invoice_ids)
@@ -138,19 +166,26 @@ def sale_receivables(
         .values("sale_id")
         .annotate(total=Sum("amount"))
     }
+    shares: dict[tuple[int, int], Decimal] = {}
+    for invoice in invoices.values():
+        part = invoice.net_to_pay - credited.get(invoice.pk, ZERO)
+        if invoice.status == InvoiceStatus.ISSUED and invoice.pk in certified:
+            part += certified[invoice.pk] * -1 + invoice.withholding_amount
+        sale_ids_of_invoice = sorted(linked[invoice.pk])
+        parts = split(part, [held[invoice.pk].get(sale_id, ZERO) for sale_id in sale_ids_of_invoice])
+        for sale_id, share in zip(sale_ids_of_invoice, parts, strict=True):
+            shares[(invoice.pk, sale_id)] = share
+            invoices_by_sale[sale_id].append(invoice)
     rows: list[SaleReceivable] = []
     for sale in sales:
-        sale_invoices = invoices_by_sale.get(sale.pk, [])
+        sale_invoices = sorted(invoices_by_sale.get(sale.pk, []), key=lambda invoice: invoice.pk)
         owed = ZERO
         live: Invoice | None = None
         if sale_invoices:
             for invoice in sale_invoices:
-                part = invoice.net_to_pay - credited.get(invoice.pk, ZERO)
                 if invoice.status == InvoiceStatus.ISSUED:
                     live = invoice
-                    if invoice.pk in certified:
-                        part += certified[invoice.pk] * -1 + invoice.withholding_amount
-                owed += part
+                owed += shares[(invoice.pk, sale.pk)]
         else:
             owed = sale.total
         paid = sale.amount_paid + allocated.get(sale.pk, ZERO)
