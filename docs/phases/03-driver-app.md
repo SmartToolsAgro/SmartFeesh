@@ -48,11 +48,11 @@ Read: ARCHITECTURE §4 rule 7. Keep it invisible to the driver: the app just wor
 small line says how many things are waiting to be sent.
 
 #### P3-T07a · Installable app and cached screens · S
-- [ ] PWA with `vite-plugin-pwa`: service worker caches the app shell; "add to home screen" works on
+- [x] (hand-written service worker, D-096) PWA: service worker caches the app shell; "add to home screen" works on
       Android and iPhone; the app opens with no signal once it has been opened once.
-- [ ] Data read by the screens (stock, customers, today's prices, day summary) is kept in IndexedDB and
+- [x] (Cache Storage, no timestamp yet) Data read by the screens (stock, customers, today's prices, day summary) is kept in IndexedDB and
       shown while offline, with the time it was last updated.
-- [ ] A small banner shows "Hors ligne" when there is no connection.
+- [x] A small banner shows "Hors ligne" when there is no connection.
 
 #### P3-T07b · Queue for sales · M
 - [ ] Sales are written to an IndexedDB queue with their `client_uuid` and sent when the connection

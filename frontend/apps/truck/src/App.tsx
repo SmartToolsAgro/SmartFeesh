@@ -8,9 +8,12 @@ import { ClosingPage } from "./ClosingPage";
 import { DayPage } from "./DayPage";
 import { ExpensePage } from "./ExpensePage";
 import { LossPage } from "./LossPage";
+import { forgetSavedData, OfflineBanner } from "./offline";
 import { SalePage } from "./SalePage";
 
 const queryClient = createQueryClient();
+// Without signal, ask anyway: the phone answers from what it saved (public/sw.js) instead of waiting forever.
+queryClient.setDefaultOptions({ queries: { networkMode: "offlineFirst" } });
 
 // Same four tabs as the approved prototype. Each one becomes a real screen in Phase 3.
 function useTabs(): (TruckTab & { illustration: IllustrationName })[] {
@@ -32,8 +35,12 @@ function Shell({ session }: { session: Session }) {
       tabs={tabs}
       eyebrow={session.truck?.name ?? session.organization.name}
       title={t("truck.hello", { name: session.user.first_name || session.user.username })}
-      onLogout={() => logout.mutate()}
+      onLogout={() => {
+        void forgetSavedData();
+        logout.mutate();
+      }}
     >
+      <OfflineBanner />
       <Outlet />
     </TruckShell>
   );
