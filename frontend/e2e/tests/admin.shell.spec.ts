@@ -20,7 +20,6 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
 
   await expect(modules.getByRole("link")).toHaveText([
     "Tableau de bord",
-    "Documents",
     "Rapports",
     "Devis",
     "Ventes & factures",
@@ -34,6 +33,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Produits",
     "Achats",
     "Fournisseurs",
+    "Documents",
     "Charges",
     "Personnel & salaires",
     "Partage des bénéfices",

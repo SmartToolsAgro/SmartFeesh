@@ -83,7 +83,6 @@ function useNav(): AdminNavGroup[] {
       label: t("admin.groups.steering"),
       items: [
         { to: "/", label: t("admin.nav.dashboard"), icon: "grid" },
-        { to: "/documents", label: t("admin.nav.documents"), icon: "receipt" },
         { to: "/rapports", label: t("admin.nav.reports"), icon: "grid" },
       ],
     },
@@ -112,6 +111,7 @@ function useNav(): AdminNavGroup[] {
     {
       label: t("admin.groups.finance"),
       items: [
+        { to: "/documents", label: t("admin.nav.documents"), icon: "receipt" },
         { to: "/charges", label: t("admin.nav.expenses"), icon: "wallet" },
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
