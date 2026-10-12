@@ -47,6 +47,7 @@ LOCAL_APPS = [
     "apps.reports",
     "apps.dayclose",
     "apps.documents",
+    "apps.doclist",
     "apps.dataimport",
     "apps.demo",
 ]
@@ -211,5 +212,8 @@ SPECTACULAR_SETTINGS = {
         # P6-T06 · monthly closing
         "MonthlyClosingStatusEnum": "apps.closing.models.MonthlyClosingStatus",
         "MonthStateEnum": "apps.closing.models.MonthState",
+        "DocumentTypeEnum": "apps.core.documents.DOCUMENT_TYPE_CHOICES",
+        "DocumentToneEnum": "apps.core.documents.TONE_CHOICES",
+        "PartnerSideEnum": "apps.core.documents.PARTNER_SIDE_CHOICES",
     },
 }
