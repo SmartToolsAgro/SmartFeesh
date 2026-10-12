@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { fieldErrors } from "../lib/errors";
 import { SupplierBalanceCard } from "../purchasing/SupplierBalanceCard";
 import { canEditSuppliers, refreshSuppliers } from "./shared";
 import { SupplierDialog } from "./SupplierDialog";
@@ -36,6 +37,7 @@ export function SupplierDetailPage() {
       toast.success(t(saved.is_active ? "admin.suppliers.form.restoredDone" : "admin.suppliers.form.archivedDone"));
       await refreshSuppliers(queryClient);
     },
+    onError: (failure) => toast.error(fieldErrors(failure).detail ?? t("admin.suppliers.form.error")),
   });
 
   const back = (

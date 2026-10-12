@@ -374,3 +374,9 @@ def test_orders_of_another_organization_are_invisible(organization, actor, suppl
     stranger = api_client(OrganizationFactory.create())
     assert stranger.get(reverse("purchase-order-detail", args=[order.pk])).status_code == 404
     assert stranger.get(reverse("purchase-order-list")).json()["count"] == 0
+
+
+def test_an_order_line_amount_too_big_to_store_is_refused(organization, actor, supplier, dorade):
+    with pytest.raises(ValidationError) as failure:
+        make_order(organization, actor, supplier, [order_line(dorade, "900000", "900000")])
+    assert "lines.0.unit_cost" in failure.value.message_dict
