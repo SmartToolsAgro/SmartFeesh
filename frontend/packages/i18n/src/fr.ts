@@ -2599,7 +2599,7 @@ export const fr = {
         createTitle: "Mettre le lot {{number}} en partenariat",
         editTitle: "Modifier le partenariat du lot {{number}}",
         description: "Un seul partenaire par lot. Les deux taux peuvent être différents.",
-        origin: "Lot acheté chez {{supplier}} : {{quantity}} kg à {{unitCost}}/kg, soit {{total}} au total.",
+        origin: "Lot acheté chez {{supplier}} : {{quantity}} à {{unitCost}} / kg, soit {{total}} au total.",
         partner: "Fournisseur partenaire",
         choosePartner: "Choisir un fournisseur",
         ownerCapital: "Apport du propriétaire (DT)",
