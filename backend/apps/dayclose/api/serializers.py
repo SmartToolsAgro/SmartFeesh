@@ -23,6 +23,8 @@ class DaySummarySerializer(serializers.Serializer[Any]):
     sales_count = serializers.IntegerField(read_only=True)
     sales_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     cash_received = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Cash collected from customers on their old debts (D-111).
+    payments_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     other_payments = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     on_credit = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     expenses_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
@@ -107,7 +109,9 @@ class JustificationSerializer(serializers.Serializer[Any]):
 
 
 class SyncProblemWriteSerializer(serializers.Serializer[Any]):
-    kind = serializers.ChoiceField(choices=[("sale", "sale"), ("expense", "expense"), ("loss", "loss")])
+    kind = serializers.ChoiceField(
+        choices=[("sale", "sale"), ("expense", "expense"), ("loss", "loss"), ("payment", "payment")]
+    )
     # What the driver would call it: the customer, the category, the product.
     what = serializers.CharField(allow_blank=True, max_length=150)
     reason = serializers.CharField(allow_blank=True, max_length=500)

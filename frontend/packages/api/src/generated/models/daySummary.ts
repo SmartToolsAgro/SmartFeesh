@@ -18,6 +18,8 @@ export interface DaySummary {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly cash_received: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly payments_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly other_payments: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly on_credit: string;

@@ -16,6 +16,7 @@ from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, line_total
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
+from apps.partnerships import services as partnerships
 
 from . import selectors
 from .models import (
@@ -55,6 +56,8 @@ class ReceiptLineFields(TypedDict, total=False):
     accepted_quantity: Number
     unit_cost: Number
     use_by: dt.date | None
+    # The lot is bought together with this supplier (D-100); may be the receipt's own supplier.
+    partner: "Supplier | None"
 
 
 def line_error_key(index: int, field: str) -> str:
@@ -92,12 +95,19 @@ def _checked_line(
     organization: Organization, index: int, line: ReceiptLineFields, received_on: dt.date, errors: dict[str, str]
 ) -> dict[str, Any]:
     """The line's values once checked; every problem is added to `errors` under the line's own keys."""
-    checked: dict[str, Any] = {"product": line.get("product"), "use_by": line.get("use_by")}
+    checked: dict[str, Any] = {
+        "product": line.get("product"),
+        "use_by": line.get("use_by"),
+        "partner": line.get("partner"),
+    }
     product = checked["product"]
     if product is None or product.organization_id != organization.pk:
         errors[line_error_key(index, "product")] = _("Produit inconnu.")
     elif not product.is_active:
         errors[line_error_key(index, "product")] = _("Ce produit est archivé.")
+    partner = checked["partner"]
+    if partner is not None and (partner.organization_id != organization.pk or not partner.is_active):
+        errors[line_error_key(index, "partner")] = _("Ce fournisseur est inconnu ou archivé.")
     for field in ("invoiced_quantity", "accepted_quantity"):
         try:
             value: Any = line.get(field, "")
@@ -241,6 +251,11 @@ def create_receipt(
             source=line,
             occurred_at=occurred_at,
         )
+        if values["partner"] is not None:
+            # Capital and rates come later (D-100); the stock is in, so the lot is open.
+            partnerships.designate_partner(
+                organization=organization, actor=actor, batch=batch, partner=values["partner"]
+            )
         saved.append(line)
     if order:
         refresh_order_status(order)

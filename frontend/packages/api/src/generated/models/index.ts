@@ -354,6 +354,8 @@ export * from './roadExpense';
 export * from './roadExpenseWrite';
 export * from './roadLoss';
 export * from './roadLossWrite';
+export * from './roadPayment';
+export * from './roadPaymentWrite';
 export * from './roadReturn';
 export * from './roleEnum';
 export * from './salaryAdjustment';

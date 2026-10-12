@@ -96,3 +96,8 @@ Moved here from the Phase 8 backlog (Q13: printed and digital receipts, Android 
 - [ ] Receipt layout for the paper width; works offline; reprint from the sale screen.
 - [ ] The receipt is in French (Q13), whatever language the driver uses in the app.
 - [ ] If native: store accounts, builds, and getting the app onto the drivers' phones (human + agent).
+
+### P3-T11 · Collecting customer payments on the phone · S
+- [x] Driver picks a customer (with what they owe), types the cash received, saves; offline-safe (D-111).
+- [x] The payment is allocated to the customer's oldest open sales (the P2-T06 service) and counted in the day's expected cash.
+

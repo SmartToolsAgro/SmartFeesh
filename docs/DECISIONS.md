@@ -1348,6 +1348,11 @@ to guess what is stuck on a phone, and nothing is dropped silently. **Not done:*
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
 
+**D-100 · A partner named at the goods receipt, capital and rates filled in later (P6)** · accepted, provisional points marked · 2026-10-12
+- On a receipt line the owner may pick a **partner** (the receipt's own supplier is allowed: the same person can be supplier and partner). The lot gets a `LotPartnership` with `terms_pending = true`, capital 0 and rates 0, created in the receipt's transaction by `partnerships.services.designate_partner` (no capital ledger entry yet). Only the owner may do it (400 on `lines.N.partner` for others).
+- The owner completes it with the usual edit (`update_partnership`); sending both rates clears `terms_pending`, and the capital becomes the first ledger entry. **While pending, the terms may be filled in even after sales** (the shares are only computed at closing); once filled, the usual rule applies (fixed after the first sale).
+- `close_lot` is refused while the terms are pending. **Provisional:** sales are not blocked meanwhile. Screens: partner select per receipt line, "À compléter" pill on the lot and its partnership section, "Partenaire" badge and filter on the suppliers list and page.
+
 **D-103 · Arabic for the driver app, provisional (P3-T09)** · accepted, **texts to be reviewed by a native speaker** · 2026-10-12
 The language switch (`LanguageSwitch` in `@frutti/auth`: "Français | العربية", each name written in its own language)
 is on the driver login screen and above the screens of the driver app. Logged out it changes the page and the choice is
@@ -1396,6 +1401,18 @@ Type and status filters run in the browser so the chips can count every type of 
 the server. `/achats/factures/nouvelle?reception=<id>` now ticks that receipt. **Not done:** one devis in several BL
 (P2-T11 part 2, agreed with Mahmoud), supplier return RF (no supplier credit note yet, and `RF-` numbers supplier
 payments).
+
+**D-111 · The driver collects customer payments on the phone (P3-T11)** · accepted · 2026-10-12
+`POST /my-payments` (driver only) calls `sales.services.record_customer_payment` (D-062): today's date, cash by
+default, allocated to the customer's oldest open sales. `CustomerPayment.client_uuid` (sales migration 0010, unique per
+organization when set) makes a retry from the phone record it once. `GET /my-payments` lists the driver's own payments of
+the day. `GET /my-customers` now also returns `owes` (what each customer owes, from the receivables), and the phone shows
+it on the "Encaisser" screen. Payments join the offline queue as a fourth kind (D-098) and a refused one is reported to the
+office like the others (kind `payment`, D-099). **In the day's cash:** expected cash = opening cash + cash sales + cash
+payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
+driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
+later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
+
 
 **D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
 `GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current

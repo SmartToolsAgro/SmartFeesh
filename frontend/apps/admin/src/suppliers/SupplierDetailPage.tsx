@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { usePartnerSuppliers } from "../partnerships/usePartnerSuppliers";
 import { SupplierBalanceCard } from "../purchasing/SupplierBalanceCard";
 import { canEditSuppliers, refreshSuppliers } from "./shared";
 import { SupplierDialog } from "./SupplierDialog";
@@ -28,6 +29,7 @@ export function SupplierDetailPage() {
   const id = Number(supplierId);
   const validId = Number.isInteger(id) && id > 0;
   const supplier = useGetSupplier(id, { query: { enabled: validId, retry: false } });
+  const partnerLots = usePartnerSuppliers(session);
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -67,6 +69,12 @@ export function SupplierDetailPage() {
     <>
       {back}
       <PageHeader eyebrow={data.reference} title={data.name}>
+        {partnerLots?.has(data.id) && (
+          <Pill tone="good">
+            {t("admin.suppliers.partner")} · {t("admin.suppliers.partnerLots", { count: partnerLots.get(data.id) })}
+          </Pill>
+        )}
+        {partnerLots && !partnerLots.has(data.id) && <Pill tone="neutral">{t("admin.suppliers.notPartnerShort")}</Pill>}
         {!data.is_active && <Pill tone="neutral">{t("admin.suppliers.archived")}</Pill>}
         {canEdit && (
           <>
