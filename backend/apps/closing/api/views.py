@@ -4,7 +4,8 @@ from typing import Any
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -20,6 +21,7 @@ from apps.partnerships import selectors as partnerships
 
 from .serializers import (
     CloseLotSerializer,
+    LotFigureSerializer,
     LotResultViewSerializer,
     LotSettlementViewSerializer,
     MonthRowSerializer,
@@ -263,6 +265,35 @@ class PartnerBalancesView(LotResultBaseView):
         return Response(
             PartnerBalancesSerializer(partner_balances_payload(self.organization, partner.pk, partner.name)).data
         )
+
+
+class LotFiguresView(LotResultBaseView):
+    @extend_schema(
+        operation_id="listLotFigures",
+        parameters=[OpenApiParameter("batch_ids", str, description="Lot ids, comma-separated (at most 200).")],
+        responses=LotFigureSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """The frozen figures (sales, costs, net result, partner share) of the closed lots among `batch_ids`.
+        An open lot has no row: its result is live and read lot by lot."""
+        try:
+            batch_ids = [int(part) for part in request.query_params.get("batch_ids", "").split(",") if part][:200]
+        except ValueError:
+            raise ValidationError({"batch_ids": "Liste d'identifiants invalide."}) from None
+        results = selectors.results_of(self.organization).filter(status=LotResultStatus.CLOSED, batch_id__in=batch_ids)
+        rows = [
+            {
+                "batch_id": result.batch_id,
+                "outcome": engine.outcome_of(result.net_result),
+                "revenue": result.revenue,
+                "costs_total": result.costs_total,
+                "net_result": result.net_result,
+                "partner_share": result.partner_share,
+                "capital_to_return": result.capital_to_return,
+            }
+            for result in results
+        ]
+        return Response(LotFigureSerializer(rows, many=True).data)
 
 
 class ReopenLotView(LotResultBaseView):

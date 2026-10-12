@@ -2563,7 +2563,10 @@ export const fr = {
         capital: "Capital du partenaire",
         rates: "Bénéfice / perte",
         status: "Statut",
+        net: "Résultat du lot",
+        share: "Part du partenaire",
       },
+      notClosed: "Pas encore clôturé",
       rates: "{{profit}} % / {{loss}} %",
       section: {
         title: "Partenariat",
@@ -2676,6 +2679,14 @@ export const fr = {
         count_correction: "Écart d'inventaire",
         adjustment: "Ajustement",
         lossDetail: "{{quantity}} à {{cost}}",
+        cogsDetail: "{{quantity}} vendus au coût d'achat du lot",
+      },
+      summary: {
+        revenue: "Ventes",
+        costs: "Coûts du lot (hors marchandise)",
+        net: "Résultat net",
+        partnerShare: "Part de {{name}}",
+        ownerShare: "Part du propriétaire",
       },
       checks: {
         title: "Pour clôturer le lot",

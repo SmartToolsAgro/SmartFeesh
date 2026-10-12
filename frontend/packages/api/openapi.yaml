@@ -2786,6 +2786,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotCosts'
           description: ''
+  /api/v1/lot-figures:
+    get:
+      operationId: listLotFigures
+      description: |-
+        The frozen figures (sales, costs, net result, partner share) of the closed lots among `batch_ids`.
+        An open lot has no row: its result is live and read lot by lot.
+      parameters:
+      - in: query
+        name: batch_ids
+        schema:
+          type: string
+        description: Lot ids, comma-separated (at most 200).
+      tags:
+      - lot-figures
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LotFigure'
+          description: ''
   /api/v1/lot-work-days:
     get:
       operationId: listLotWorkDays
@@ -11214,6 +11239,51 @@ components:
       - batch_id
       - lines
       - total
+    LotFigure:
+      type: object
+      description: The main figures of one closed lot, for the list of partnership
+        lots.
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/LotOutcomeEnum'
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        costs_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        partner_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital_to_return:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - capital_to_return
+      - costs_total
+      - net_result
+      - outcome
+      - partner_share
+      - revenue
     LotOutcomeEnum:
       enum:
       - profit
