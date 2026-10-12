@@ -102,7 +102,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
   const queryClient = useQueryClient();
   const formId = useId();
 
-  const locations = useListLocations({ status: "active" });
+  // Archived places too: a draft may name one archived since (it shows, and the server refuses it on save).
+  const locations = useListLocations({ status: "all" });
   const products = useListProducts({ status: "active" });
 
   const [from, setFrom] = useState(draft ? String(draft.from_location.id) : "");
@@ -248,7 +249,12 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       </Select>
     </Field>
   );
-  const placeOptions = places.map((place) => ({ value: String(place.id), label: place.name }));
+  const placeOptions = places
+    .filter((place) => place.is_active || String(place.id) === from || String(place.id) === to)
+    .map((place) => ({
+      value: String(place.id),
+      label: place.is_active ? place.name : t("admin.transfers.form.archivedPlace", { name: place.name }),
+    }));
   const back = draft ? `/stock/transferts/${draft.id}` : "/stock/transferts";
 
   return (

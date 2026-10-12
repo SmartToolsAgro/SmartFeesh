@@ -3,6 +3,8 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.catalog.tests.factories import ProductFactory
@@ -398,3 +400,14 @@ def test_a_weight_change_does_not_touch_a_bill_already_approved(organization, ac
         services.set_cold_room_weight(organization=organization, actor=actor, location=room_two, weight="0")
     with pytest.raises(ValidationError):
         services.set_cold_room_weight(organization=organization, actor=actor, location=room_two, weight="1.2345")
+
+
+def test_creating_a_bill_locks_the_organization_so_two_at_once_get_the_clean_message(organization, actor):
+    _m0, _m1, last_month, _current = months()
+    with CaptureQueriesContext(connection) as queries:
+        bill(organization, actor, last_month, "300.000")
+
+    assert any("FOR UPDATE" in query["sql"] and "core_organization" in query["sql"] for query in queries)
+    with pytest.raises(ValidationError) as error:
+        bill(organization, actor, last_month, "310.000")
+    assert "month" in error.value.message_dict

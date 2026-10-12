@@ -87,7 +87,7 @@ disallow_incomplete_defs = false
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
-module = ["environ.*", "openpyxl.*", "grimp.*", "importlinter.*", "weasyprint.*", "celery.*"]
+module = ["environ.*", "grimp.*", "importlinter.*", "weasyprint.*", "celery.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -1,0 +1,116 @@
+"""The Excel templates of the data import (P4-T01, D-112): one sheet per kind of data, one column per field.
+
+The first row of the sheet holds the French column titles (a star marks a required one). A second sheet,
+"Aide", explains each column. Titles are matched without case, accents' case or the star, so a template
+typed by hand still reads.
+"""
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Column:
+    key: str
+    title: str
+    # text | decimal | integer | date
+    kind: str = "text"
+    required: bool = False
+    help: str = ""
+    example: str = ""
+
+
+@dataclass(frozen=True)
+class ImportKind:
+    key: str
+    title: str
+    columns: tuple[Column, ...]
+
+
+CUSTOMER_KINDS = (
+    ("restaurant", "Restaurant"),
+    ("hotel", "Hôtel"),
+    ("fish_shop", "Poissonnerie"),
+    ("supermarket", "Supermarché"),
+    ("wholesaler", "Grossiste"),
+    ("caterer", "Traiteur"),
+    ("individual", "Particulier"),
+)
+
+REFERENCE_HELP = "Laissez vide pour que le système en donne une. Une référence déjà connue est ignorée."
+
+PRODUCTS = ImportKind(
+    "products",
+    "Produits",
+    (
+        Column("reference", "Référence", help=REFERENCE_HELP, example="CR-001"),
+        Column("name", "Nom", required=True, example="Crevette Royale"),
+        Column("name_ar", "Nom en arabe"),
+        Column(
+            "category", "Catégorie", required=True, help="Le nom d'une catégorie qui existe déjà.", example="Crustacés"
+        ),
+        Column("sale_price", "Prix de vente (DT/kg)", "decimal", True, "Prix du jour au départ, en dinars.", "42,000"),
+        Column("min_stock", "Stock minimum (kg)", "decimal", help="Alerte quand le stock passe dessous."),
+        Column("vat_rate", "TVA (%)", "decimal", help="Vide : le taux de la société. 0 : exonéré."),
+        Column("storage_temp_min", "Température min (°C)", "decimal"),
+        Column("storage_temp_max", "Température max (°C)", "decimal"),
+    ),
+)
+
+SUPPLIERS = ImportKind(
+    "suppliers",
+    "Fournisseurs",
+    (
+        Column("reference", "Référence", help=REFERENCE_HELP, example="F-001"),
+        Column("name", "Nom", required=True, example="Pêcherie du Golfe"),
+        Column("tax_id", "Matricule fiscal", help="Par exemple 1234567A/A/M/000.", example="1234567A/A/M/000"),
+        Column("phone", "Téléphone"),
+        Column("email", "E-mail"),
+        Column("address", "Adresse"),
+        Column("city", "Ville", example="Sfax"),
+        Column("notes", "Remarques"),
+    ),
+)
+
+CUSTOMERS = ImportKind(
+    "customers",
+    "Clients",
+    (
+        Column("reference", "Référence", help=REFERENCE_HELP, example="C-001"),
+        Column("name", "Nom", required=True, example="Restaurant Le Corail"),
+        Column(
+            "kind",
+            "Type",
+            required=True,
+            help="Un de : " + ", ".join(label for _code, label in CUSTOMER_KINDS) + ".",
+            example="Restaurant",
+        ),
+        Column("tax_id", "Matricule fiscal"),
+        Column("phone", "Téléphone"),
+        Column("email", "E-mail"),
+        Column("address", "Adresse"),
+        Column("city", "Ville", example="Sfax"),
+        Column(
+            "credit_limit", "Limite de crédit (DT)", "decimal", help="0 ou vide : pas de crédit.", example="500,000"
+        ),
+        Column("payment_terms_days", "Délai de paiement (jours)", "integer", example="30"),
+        Column("notes", "Remarques"),
+    ),
+)
+
+EMPLOYEES = ImportKind(
+    "employees",
+    "Employés",
+    (
+        Column("reference", "Référence", help=REFERENCE_HELP, example="E-001"),
+        Column("name", "Nom", required=True, example="Ali Ben Salah"),
+        Column("position", "Poste", example="Manutentionnaire"),
+        Column("phone", "Téléphone"),
+        Column("hire_date", "Date d'embauche", "date", help="JJ/MM/AAAA.", example="01/03/2024"),
+        Column("monthly_salary", "Salaire mensuel (DT)", "decimal", example="1200,000"),
+        Column("cnss_number", "Numéro CNSS"),
+        Column("cnss_rate", "Taux CNSS patronal (%)", "decimal", help="Vide : 17,07 %."),
+        Column("notes", "Remarques"),
+    ),
+)
+
+KINDS: dict[str, ImportKind] = {kind.key: kind for kind in (PRODUCTS, SUPPLIERS, CUSTOMERS, EMPLOYEES)}

@@ -14,7 +14,7 @@ from django.utils.translation import gettext as _
 
 from apps.core import audit
 from apps.core.models import Membership, Organization, User
-from apps.core.money import Number, checked_amount, money
+from apps.core.money import MAX_AMOUNT, Number, checked_amount, money
 
 from . import selectors
 from .models import (
@@ -392,7 +392,7 @@ def add_adjustment(*, record: SalaryRecord, actor: User | None, amount: Number, 
     value = ZERO
     try:
         value = Decimal(amount)
-        if value != value.quantize(Decimal("0.001")) or value == 0:
+        if value != value.quantize(Decimal("0.001")) or value == 0 or abs(value) > MAX_AMOUNT:
             raise ValueError
     except (ValueError, TypeError, InvalidOperation):
         errors["amount"] = _("Indiquez un montant en DT, au millime près, différent de zéro.")
@@ -400,9 +400,10 @@ def add_adjustment(*, record: SalaryRecord, actor: User | None, amount: Number, 
     if not reason:
         errors["reason"] = _("Le motif est obligatoire.")
     if not errors:
-        due = selectors.due_amount(record) + value
-        if due < 0:
+        if selectors.due_amount(record) + value < 0:
             errors["amount"] = _("L'ajustement ferait passer le salaire sous zéro.")
+        elif _remaining(record) + value < 0:
+            errors["amount"] = _("L'ajustement ferait passer le salaire sous ce qui est déjà payé.")
     if errors:
         raise ValidationError(errors)
     adjustment = SalaryAdjustment.objects.create(

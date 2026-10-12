@@ -1348,6 +1348,11 @@ to guess what is stuck on a phone, and nothing is dropped silently. **Not done:*
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
 
+**D-100 · A partner named at the goods receipt, capital and rates filled in later (P6)** · accepted, provisional points marked · 2026-10-12
+- On a receipt line the owner may pick a **partner** (the receipt's own supplier is allowed: the same person can be supplier and partner). The lot gets a `LotPartnership` with `terms_pending = true`, capital 0 and rates 0, created in the receipt's transaction by `partnerships.services.designate_partner` (no capital ledger entry yet). Only the owner may do it (400 on `lines.N.partner` for others).
+- The owner completes it with the usual edit (`update_partnership`); sending both rates clears `terms_pending`, and the capital becomes the first ledger entry. **While pending, the terms may be filled in even after sales** (the shares are only computed at closing); once filled, the usual rule applies (fixed after the first sale).
+- `close_lot` is refused while the terms are pending. **Provisional:** sales are not blocked meanwhile. Screens: partner select per receipt line, "À compléter" pill on the lot and its partnership section, "Partenaire" badge and filter on the suppliers list and page.
+
 **D-103 · Arabic for the driver app, provisional (P3-T09)** · accepted, **texts to be reviewed by a native speaker** · 2026-10-12
 The language switch (`LanguageSwitch` in `@frutti/auth`: "Français | العربية", each name written in its own language)
 is on the driver login screen and above the screens of the driver app. Logged out it changes the page and the choice is
@@ -1389,3 +1394,53 @@ lots** (no movement for N days, default 30, longest idle first); **losses and we
 period, at the lot's cost per kg. Excel files (`openpyxl`, amounts kept as exact numbers with three decimals, a totals
 row) are plain downloads next to each table. **Not done:** sales by supplier and by payment method (listed in P7-T02),
 a driver/period comparison chart, and the Arabic texts (the page is French, like the rest of the admin app).
+
+**D-106 · Stock cannot leave before it arrived (review, round 2)** · accepted · 2026-10-12
+- `post_fifo_movements` and `selectors.allocate_fifo` (new `day` argument, given by `record_loss`) only take batches
+  with `received_on` on or before the document's day (the local day of `occurred_at`; today when none). A transfer,
+  loss or sale typed for an earlier day can no longer take a batch received afterwards, which made the daily replay of
+  the ledger (`kg_by_batch_by_day`, month-end valuation) show negative balances.
+- A document of today is unaffected (a batch is never received in the future). When only later batches exist for
+  that day, the document is refused with the usual "Stock insuffisant" message.
+- Tests that sell on past days must create their batch with an older `received_on`
+  (`sales/tests/test_payments.py::stocked` now does; it was the only test relying on the old behaviour).
+- Also: a product still in stock cannot be archived (PR #59); a receipt whose supplier delivery-note number is already
+  on another receipt of the same supplier shows a non-blocking warning in the form (a note can cover two deliveries).
+
+**D-111 · The driver collects customer payments on the phone (P3-T11)** · accepted · 2026-10-12
+`POST /my-payments` (driver only) calls `sales.services.record_customer_payment` (D-062): today's date, cash by
+default, allocated to the customer's oldest open sales. `CustomerPayment.client_uuid` (sales migration 0010, unique per
+organization when set) makes a retry from the phone record it once. `GET /my-payments` lists the driver's own payments of
+the day. `GET /my-customers` now also returns `owes` (what each customer owes, from the receivables), and the phone shows
+it on the "Encaisser" screen. Payments join the offline queue as a fourth kind (D-098) and a refused one is reported to the
+office like the others (kind `payment`, D-099). **In the day's cash:** expected cash = opening cash + cash sales + cash
+payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
+driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
+later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
+
+
+**D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
+`GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
+month up to today. **Profit and cash are two separate groups.** Profit: sales, gross margin and net operating result come
+straight from `closing.monthly.month_report` (nothing is recomputed), plus last month's sales for the % change. Cash: money
+collected this month (what customers paid on the spot at a confirmed sale plus their later payments, voided ones left out:
+`sales.selectors.cash_collected`), what customers still owe and the overdue part (the ageing page's "customers who owe",
+`sales.selectors.receivables_overview`), and the stock value at cost (the month-end valuation, which for the current month is
+today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
+(`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
+**Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
+
+**D-112 · Data import from Excel and opening balances (P4-T01)** · accepted · 2026-10-12
+- New app `dataimport` (owner only, `openpyxl`). One Excel template per kind (products, suppliers, customers,
+  employees), downloaded from **Import de données** (`GET /imports/<kind>/template`): French titles on row 1
+  (a star marks a required column; titles are matched without case, accents or star), an "Aide" sheet explains
+  each column.
+- `POST /imports/<kind>` (multipart `file`, `dry_run` default true) returns a report row by row: created, skipped
+  (reference already known: the same file may be sent again) or error with **column and reason**. It runs the real
+  services (`create_product`, `create_supplier`, `create_customer`, `create_employee`) in one transaction, so every
+  screen rule applies and each row is audited. A dry run, or any error, rolls everything back: **all or nothing**.
+  The screen offers "Importer" only after a clean check.
+- Products need an existing category (a typo is an error, not a new category) and a price above 0; customers take
+  their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
+- Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
+  same task.

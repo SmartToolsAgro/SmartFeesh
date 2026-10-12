@@ -8,10 +8,10 @@
 
 ### P4-T01 · Data import · M
 Today everything is in paper notebooks (Q15), so there is no file to convert.
-- [ ] Excel templates for products, suppliers, customers, employees. The client's team types the
+- [x] (D-112, slice 1) Excel templates for products, suppliers, customers, employees. The client's team types the
       notebooks into them (human: plan the time), then import scripts load them.
 - [ ] Opening balances: customer debts, supplier debts, opening stock per location and batch.
-- [ ] Dry-run mode with a report; the owner signs off the opening numbers.
+- [x] (D-112, slice 1) Dry-run mode with a report; the owner signs off the opening numbers.
 - [ ] The stand-in data of `docs/spec/sample/` never reaches production.
 
 ### P4-T02 · Production environment · M
@@ -30,4 +30,6 @@ Today everything is in paper notebooks (Q15), so there is no file to convert.
 
 ### P4-T06 · Training and support · human · S
 - [ ] Short guides with screenshots: French for the owner, French and Arabic for drivers (Q14).
+      (Text guides in French written: `docs/guides/guide-proprietaire.md`, `docs/guides/guide-chauffeur.md`. Still to do: screenshots,
+      the Arabic driver guide, and a walk-through with the owner and a driver.)
       Support contact and process.

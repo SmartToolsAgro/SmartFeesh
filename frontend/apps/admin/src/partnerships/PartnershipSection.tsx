@@ -37,7 +37,9 @@ export function PartnershipSection({
   const detail = useGetPartnership(summary?.id ?? 0, { query: { enabled: summary !== undefined } });
   const partnership = summary ? detail.data : undefined;
   const canWrite = canWriteResults(session);
-  const editable = partnership !== undefined && partnership.status === "open" && !partnership.has_sold;
+  // Terms are fixed at the lot's first sale, unless they were never filled in (partner named at the receipt, D-100).
+  const editable =
+    partnership !== undefined && partnership.status === "open" && (!partnership.has_sold || partnership.terms_pending);
 
   return (
     <section aria-labelledby="lot-partnership" className="flex flex-col gap-2">
@@ -77,6 +79,7 @@ export function PartnershipSection({
                 <Pill tone={STATUS_TONE[partnership.status]}>
                   {t(`admin.partnerships.statuses.${partnership.status}`)}
                 </Pill>
+                {partnership.terms_pending && <Pill tone="warn">{t("admin.partnerships.section.pending")}</Pill>}
               </Detail>
               <Detail label={t("admin.partnerships.section.ownerCapital")}>
                 {formatMoney(partnership.owner_capital)}
@@ -90,8 +93,13 @@ export function PartnershipSection({
               <Detail label={t("admin.partnerships.section.lossRate")}>{formatRate(partnership.loss_rate)} %</Detail>
               <Detail label={t("admin.partnerships.section.capitalNow")}>{formatMoney(partnership.capital)}</Detail>
             </dl>
+            {partnership.terms_pending && (
+              <p role="status" className="rounded-chip bg-warn-soft px-3 py-2 text-[0.88rem] font-semibold text-warn">
+                {t("admin.partnerships.section.pendingHint")}
+              </p>
+            )}
             {partnership.notes && <p className="text-ink-2">{partnership.notes}</p>}
-            {partnership.status === "open" && partnership.has_sold && (
+            {partnership.status === "open" && partnership.has_sold && !partnership.terms_pending && (
               <p className="text-[0.85rem] text-ink-2">{t("admin.partnerships.section.fixed")}</p>
             )}
             <div className="flex flex-col gap-1">

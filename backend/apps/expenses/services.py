@@ -812,6 +812,7 @@ def _bill_snapshot(bill: ElectricityBill) -> dict[str, Any]:
 
 def _checked_bill_month(organization: Organization, month: dt.date) -> None:
     _month(month, "month")
+    Organization.objects.select_for_update().filter(pk=organization.pk).first()  # one bill per month at a time
     if month >= first_of_month(timezone.localdate()):
         raise ValidationError({"month": _("La facture se saisit une fois le mois terminé.")})
     existing = ElectricityBill.objects.for_organization(organization).filter(month=month).select_related("expense")
@@ -1162,15 +1163,24 @@ def generate_recurring_costs(
 ) -> list[GeneralCostPeriod]:
     """Generate the month's expense of every active template that applies to it and has none yet (safe to
     run again). The expense is dated the first of the month, a draft unless `approve`. Not for a future
-    month."""
+    month. A template whose category was archived is skipped (named in the audit log); one whose expense was
+    refused is generated again."""
     _month(month, "month")
     if month > timezone.localdate():
         raise ValidationError({"month": _("Ce mois n'a pas commencé.")})
+    Organization.objects.select_for_update().filter(pk=organization.pk).first()  # one generation at a time
     created: list[GeneralCostPeriod] = []
+    skipped: list[str] = []
     for cost in cost_selectors.recurring_costs_of(organization, active_only=True):
         if cost.start_month > month or (cost.end_month is not None and cost.end_month < month):
             continue
-        if GeneralCostPeriod.objects.filter(recurring=cost, first_month=month).exists():
+        done = GeneralCostPeriod.objects.filter(recurring=cost, first_month=month).select_related("expense").first()
+        if done is not None:
+            if done.expense.status != ExpenseStatus.REJECTED:
+                continue
+            done.delete()  # the refused expense stays as a trace; the month can be generated again
+        if not cost.category.is_active:
+            skipped.append(cost.name)
             continue
         period = _general_expense(
             organization=organization,
@@ -1190,6 +1200,13 @@ def generate_recurring_costs(
             approve_expense(expense=period.expense, actor=actor)
             period.expense.refresh_from_db()
         created.append(period)
+    if skipped:
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="recurring_cost.skipped",
+            after={"month": month.isoformat(), "archived_category": skipped},
+        )
     return created
 
 
