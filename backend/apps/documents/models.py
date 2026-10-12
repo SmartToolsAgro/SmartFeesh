@@ -12,6 +12,7 @@ class DocumentKind(models.TextChoices):
     CREDIT_NOTE = "credit_note", _("Avoir")
     RECEIPT = "receipt", _("Reçu de règlement")
     PARTNER_STATEMENT = "partner_statement", _("Relevé du partenaire")
+    DELIVERY_NOTE = "delivery_note", _("Bon de livraison")
 
 
 def document_path(document: "GeneratedDocument", filename: str) -> str:

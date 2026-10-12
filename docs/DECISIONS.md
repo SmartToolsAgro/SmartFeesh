@@ -1281,3 +1281,38 @@ deliveries that can arrive in parts.
   receipts); "Recevoir" on the order opens the receipt form pre-filled with what remains; the receipt form also offers
   the supplier's pending orders.
 - **Not done:** editing an order, a PDF of the bon d'achat (with P2-T08's PDF service), a supplier-facing copy.
+**D-095 · The Bon de livraison (BL) is the source of truth for sales (P2-T10)** · accepted · 2026-10-12
+- Asked by Mahmoud: every sale movement (stock and money) is tracked from the BL once validated or printed;
+  the invoice stays an optional document made afterwards.
+- **A validated `Sale` is the BL.** No new table. `confirm_sale` already takes stock (FIFO), fixes cost and
+  records the receivable; it now also **replaces the draft number (`VE-0001`) by the BL number
+  `BL-2026-0001`** (`Sale.number`, so lists, payments, invoices and lot reports all show it). The draft number
+  is kept in the audit line `sale.confirmed` (`draft_number`).
+- **Numbering rule for every document code: `PREFIX-YEAR-NNNN` (4 digits), restarting each year** (counter
+  series `BL-2026`, same helper as invoices `FA-` and credit notes `AV-`). Taken inside the validating
+  transaction: a refused validation leaves no gap. Quotes `DV-`, drafts `VE-`, payments, expenses and
+  purchasing codes still use the old `PREFIX-NNNN`; moving them to the yearly format is a later pass.
+- **Offline driver:** a driver cannot validate offline (a sale stays a draft on the phone). When the
+  connection is back the server validates and gives the next free BL number of the year, so no number is ever
+  reserved on a phone and no clash is possible.
+- **Printing validates:** screen "Valider et imprimer le BL" confirms a draft then opens the PDF. The PDF
+  (`delivery_note`, `GET /documents/delivery_note/<sale id>/pdf`) exists only for a validated sale; shows kg,
+  prices, total, paid/due and a signature box.
+- **Walk-in customers also get a BL** (Mahmoud, 2026-10-12).
+- Sales validated before this change were renumbered by migration `0007` in validation order.
+- **Next (P2-T10 part 2):** one invoice for several BLs of the same customer (replaces
+  `one_live_invoice_per_sale`; an invoice line points to its BL line; a BL is invoiced at most once).
+**D-096 · Offline, first step: a hand-written service worker, no library (P3-T07a)** · accepted · 2026-10-12
+`apps/truck/public/sw.js` (about 80 lines) plus a web manifest and icons: the app opens without signal after its
+first visit and can be put on the home screen. The app files answer from the cache and refresh in the background;
+API reads (not `/api/v1/auth/`) go network first and fall back to the last answer; writes are never touched. This keeps
+what the screens showed in the **Cache Storage** instead of IndexedDB: simpler, no new dependency (`vite-plugin-pwa`
+was not added: one more package to keep in step with Vite 8). IndexedDB comes with the write queue (P3-T07b), where
+it is needed. The truck app's queries use `networkMode: "offlineFirst"` so they ask even without signal and get the
+saved answer. Logging out deletes the saved API answers, so the next driver on the phone sees none of them. A banner
+says when there is no signal. Not yet shown: the time of the last update on each screen.
+
+**D-095 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** · accepted · 2026-10-12
+Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
+rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
+customers the driver sold to most recently first (up to 8), then the others by name, the walk-in customer last.

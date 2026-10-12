@@ -10300,8 +10300,8 @@ export const getListMyCustomersUrl = (params?: ListMyCustomersParams,) => {
 }
 
 /**
- * Active customers for a driver to sell to (name and city only), the walk-in customer last. Filter
- * with `search`. At most 30 rows.
+ * Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
+ * the walk-in customer last. Filter with `search`. At most 30 rows.
  */
 export const listMyCustomers = async (params?: ListMyCustomersParams, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerChoice[]> => {
 

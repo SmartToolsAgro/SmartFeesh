@@ -19,6 +19,7 @@ from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
 from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, Transfer
@@ -390,6 +391,7 @@ class MyLossesView(APIView):
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
+        dayclose.refuse_if_day_approved(membership)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})
@@ -423,6 +425,7 @@ class MyReturnView(APIView):
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
+        dayclose.refuse_if_day_approved(membership)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})

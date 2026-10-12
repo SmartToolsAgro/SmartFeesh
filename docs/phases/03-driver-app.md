@@ -43,14 +43,34 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [x] Driver enters counted cash → difference shown neutrally; driver can add a note.
 - [x] (approved day locks its closing, D-094) Admin review screen: approve or ask for a justification. Approved day is locked.
 
-### P3-T07 · Offline mode · L → split before starting
-Read: ARCHITECTURE §4 rule 7.
-- [ ] Service worker caches the app; truck stock, customers and prices cached in IndexedDB.
-- [ ] Writes go to an IndexedDB queue with `client_uuid`; sync when online; idempotent server endpoints.
-- [ ] Sync status always visible ("3 sales waiting to send"). Conflicts (e.g. stock changed by admin)
-      are shown to the admin, never silently dropped.
+### P3-T07 · Offline mode · L → split into T07a to T07d, in this order
+Read: ARCHITECTURE §4 rule 7. Keep it invisible to the driver: the app just works with weak signal, and one
+small line says how many things are waiting to be sent.
+
+#### P3-T07a · Installable app and cached screens · S
+- [x] (hand-written service worker, D-096) PWA: service worker caches the app shell; "add to home screen" works on
+      Android and iPhone; the app opens with no signal once it has been opened once.
+- [x] (Cache Storage, no timestamp yet) Data read by the screens (stock, customers, today's prices, day summary) is kept in IndexedDB and
+      shown while offline, with the time it was last updated.
+- [x] A small banner shows "Hors ligne" when there is no connection.
+
+#### P3-T07b · Queue for sales · M
+- [ ] Sales are written to an IndexedDB queue with their `client_uuid` and sent when the connection
+      returns, in order; the server already ignores a `client_uuid` it has seen (D-091).
+- [ ] The queue count is always visible ("3 ventes en attente"); a sale shows as "en attente" on the
+      receipt until sent.
+- [ ] Offline, the sale screen uses the last downloaded stock and customers; stock of the truck is
+      reduced locally per queued sale so the driver cannot sell more than the truck holds.
+
+#### P3-T07c · Queue for expenses, losses and closing · S
+- [ ] Same queue for expenses (with the photo kept locally), losses and the day closing.
+- [ ] The closing is refused offline with a clear message until everything queued is sent.
+
+#### P3-T07d · Conflicts · S
+- [ ] A queued write the server refuses (stock changed by the office, credit limit) is kept, shown to
+      the driver in plain words and to the office on `/journees`; never silently dropped.
 - [ ] Offline sales can only use the stock of the driver's truck of the day, which only that driver
-      changes that day.
+      changes that day (office transfers to that truck during the day show as a notice).
 
 ### P3-T08 · Field test · human · M
 Runs last, after P3-T09 and P3-T10.
