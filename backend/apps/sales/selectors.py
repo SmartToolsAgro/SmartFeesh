@@ -517,3 +517,20 @@ def draft_sales_count(organization: Organization, *, date_from: dt.date, date_to
         .filter(status=SaleStatus.DRAFT, sold_at__gte=start, sold_at__lt=end)
         .count()
     )
+
+
+def recent_customer_ids(organization: Organization, *, user_id: int, limit: int = 8) -> list[int]:
+    """The customers this person sold to most recently, most recent first (the walk-in customer included)."""
+    seen: list[int] = []
+    rows = (
+        Sale.objects.for_organization(organization)
+        .filter(created_by_id=user_id, status="confirmed")
+        .order_by("-sold_at", "-id")
+        .values_list("customer_id", flat=True)[:200]
+    )
+    for customer_id in rows:
+        if customer_id not in seen:
+            seen.append(customer_id)
+        if len(seen) == limit:
+            break
+    return seen
