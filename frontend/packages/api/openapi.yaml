@@ -5034,6 +5034,113 @@ paths:
                 items:
                   $ref: '#/components/schemas/GeneralCost'
           description: ''
+  /api/v1/reports/cash-flow:
+    get:
+      operationId: getCashFlowReport
+      description: |-
+        Money in (paid at sales, customer payments) against money out (supplier payments, salaries paid, approved
+        expenses) by day, week or month.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      - in: query
+        name: group_by
+        schema:
+          type: string
+          enum:
+          - day
+          - month
+          - week
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashFlow'
+          description: ''
+  /api/v1/reports/cash-flow/export:
+    get:
+      operationId: exportCashFlowReport
+      description: The cash flow as an Excel file.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      - in: query
+        name: group_by
+        schema:
+          type: string
+          enum:
+          - day
+          - month
+          - week
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/customer-balances:
+    get:
+      operationId: getCustomerBalancesReport
+      description: Customers who owe, biggest first, with the part overdue and the
+        ageing (0-30, 31-60, 61+ days).
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerBalances'
+          description: ''
+  /api/v1/reports/customer-balances/export:
+    get:
+      operationId: exportCustomerBalancesReport
+      description: What customers owe, as an Excel file.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/reports/losses:
     get:
       operationId: getLossesReport
@@ -5081,6 +5188,53 @@ paths:
           type: string
           format: date
         description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/month-result:
+    get:
+      operationId: getMonthResultReport
+      description: |-
+        The month's result exactly as the monthly closing computes it (sales, cost of goods, spoilage, expenses
+        by category, personnel, net result).
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+        description: 'Any day of the month (default: now).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthResult'
+          description: ''
+  /api/v1/reports/month-result/export:
+    get:
+      operationId: exportMonthResultReport
+      description: The month's result and its expenses by category as an Excel file.
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+        description: 'Any day of the month (default: now).'
       tags:
       - reports
       security:
@@ -5242,6 +5396,70 @@ paths:
     get:
       operationId: exportStockValueReport
       description: The stock value report as an Excel file.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/supplier-balances:
+    get:
+      operationId: getSupplierBalancesReport
+      description: |-
+        What the company owes suppliers for goods (invoices minus payments), with what is overdue and what is
+        received but not invoiced yet.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBalances'
+          description: ''
+  /api/v1/reports/supplier-balances/export:
+    get:
+      operationId: exportSupplierBalancesReport
+      description: What is owed to suppliers, as an Excel file.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/unpaid-salaries:
+    get:
+      operationId: getUnpaidSalariesReport
+      description: What is still to pay on approved salaries, per employee.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnpaidSalaries'
+          description: ''
+  /api/v1/reports/unpaid-salaries/export:
+    get:
+      operationId: exportUnpaidSalariesReport
+      description: Unpaid salaries as an Excel file.
       tags:
       - reports
       security:
@@ -7543,6 +7761,79 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+    CashFlow:
+      type: object
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        group_by:
+          $ref: '#/components/schemas/CashFlowGroupByEnum'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashLine'
+        total_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - date_from
+      - date_to
+      - group_by
+      - net
+      - rows
+      - total_in
+      - total_out
+    CashFlowGroupByEnum:
+      enum:
+      - day
+      - week
+      - month
+      type: string
+      description: |-
+        * `day` - day
+        * `week` - week
+        * `month` - month
+    CashLine:
+      type: object
+      properties:
+        key:
+          type: string
+        cash_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - cash_in
+      - cash_out
+      - key
+      - net
     Category:
       type: object
       properties:
@@ -7555,6 +7846,22 @@ components:
       required:
       - id
       - name
+    CategoryLine:
+      type: object
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - count
+      - name
+      - total
     CategoryRef:
       type: object
       properties:
@@ -8389,6 +8696,45 @@ components:
       - open_sales
       - open_total
       - overdue
+    CustomerBalances:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerLine'
+        total_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d0_30:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d31_60:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d60_plus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - d0_30
+      - d31_60
+      - d60_plus
+      - rows
+      - total_balance
+      - total_overdue
     CustomerChoice:
       type: object
       description: The little a driver needs to pick a customer.
@@ -8458,6 +8804,52 @@ components:
         * `wholesaler` - Grossiste
         * `caterer` - Traiteur
         * `individual` - Particulier
+    CustomerLine:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+        name:
+          type: string
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d0_30:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d31_60:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d60_plus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - balance
+      - credit
+      - customer_id
+      - d0_30
+      - d31_60
+      - d60_plus
+      - name
+      - overdue
     CustomerPayment:
       type: object
       properties:
@@ -10247,24 +10639,6 @@ components:
       - created
       - month
       - records
-    GroupByEnum:
-      enum:
-      - customer
-      - product
-      - truck
-      - driver
-      - day
-      - week
-      - month
-      type: string
-      description: |-
-        * `customer` - customer
-        * `product` - product
-        * `truck` - truck
-        * `driver` - driver
-        * `day` - day
-        * `week` - week
-        * `month` - month
     Health:
       type: object
       properties:
@@ -12415,6 +12789,70 @@ components:
       - sales
       - spoilage
       - stock
+    MonthResult:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+        sales_count:
+          type: integer
+        quantity_sold:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cogs:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        gross_margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        spoilage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expenses_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        personnel:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryLine'
+      required:
+      - categories
+      - cogs
+      - expenses_total
+      - gross_margin
+      - month
+      - net_result
+      - personnel
+      - quantity_sold
+      - revenue
+      - sales_count
+      - spoilage
     MonthRow:
       type: object
       properties:
@@ -15981,6 +16419,22 @@ components:
       required:
       - amount
       - salary_record
+    SalaryLine:
+      type: object
+      properties:
+        employee_id:
+          type: integer
+        name:
+          type: string
+        unpaid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - employee_id
+      - name
+      - unpaid
     SalaryPayment:
       type: object
       properties:
@@ -16983,7 +17437,7 @@ components:
       type: object
       properties:
         group_by:
-          $ref: '#/components/schemas/GroupByEnum'
+          $ref: '#/components/schemas/SalesReportGroupByEnum'
         date_from:
           type: string
           format: date
@@ -17002,6 +17456,24 @@ components:
       - group_by
       - rows
       - totals
+    SalesReportGroupByEnum:
+      enum:
+      - customer
+      - product
+      - truck
+      - driver
+      - day
+      - week
+      - month
+      type: string
+      description: |-
+        * `customer` - customer
+        * `product` - product
+        * `truck` - truck
+        * `driver` - driver
+        * `day` - day
+        * `week` - week
+        * `month` - month
     Session:
       type: object
       description: 'Who is logged in and what they may do: the answer of `/me` and
@@ -17659,6 +18131,33 @@ components:
       - unallocated
       - uninvoiced_receipts
       - uninvoiced_total
+    SupplierBalances:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierLine'
+        total_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_uninvoiced:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - rows
+      - total_balance
+      - total_overdue
+      - total_uninvoiced
     SupplierContact:
       type: object
       properties:
@@ -17849,6 +18348,52 @@ components:
       - invoice_date
       - receipts
       - supplier
+    SupplierLine:
+      type: object
+      properties:
+        supplier_id:
+          type: integer
+        name:
+          type: string
+        invoiced:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        uninvoiced:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - balance
+      - invoiced
+      - name
+      - outstanding
+      - overdue
+      - paid
+      - supplier_id
+      - uninvoiced
     SupplierPayment:
       type: object
       properties:
@@ -18602,6 +19147,21 @@ components:
       required:
       - name
       - plate
+    UnpaidSalaries:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryLine'
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - rows
+      - total
     User:
       type: object
       properties:

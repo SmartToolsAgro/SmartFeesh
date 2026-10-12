@@ -739,3 +739,37 @@ def cash_collected(organization: Organization, *, date_from: dt.date, date_to: d
         .aggregate(total=Sum("amount"))["total"]
     )
     return (on_the_spot or zero) + (later or zero)
+
+
+def cash_in_by_day(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> dict[dt.date, Decimal]:
+    """Money received per day from customers: what was paid on the spot at confirmed sales (by the day of the
+    sale) plus the customer payments recorded since (by the day received, voided ones left out)."""
+    from django.db.models.functions import TruncDate
+
+    result: dict[dt.date, Decimal] = {}
+    on_the_spot = (
+        Sale.objects.for_organization(organization)
+        .filter(confirmed_at__isnull=False, amount_paid__gt=0)
+        .annotate(day=TruncDate("sold_at"))
+        .filter(day__gte=date_from, day__lte=date_to)
+        .values("day")
+        .annotate(total=Sum("amount_paid"))
+    )
+    for spot in on_the_spot:
+        result[spot["day"]] = result.get(spot["day"], Decimal("0.000")) + spot["total"]
+    later = (
+        CustomerPayment.objects.for_organization(organization)
+        .filter(voided_at__isnull=True, received_on__gte=date_from, received_on__lte=date_to)
+        .values("received_on")
+        .annotate(total=Sum("amount"))
+    )
+    for row in later:
+        result[row["received_on"]] = result.get(row["received_on"], Decimal("0.000")) + row["total"]
+    return result
+
+
+def receivable_balances(organization: Organization) -> dict[int, Any]:
+    """Every customer's balance, credit and ageing (`receivables.CustomerBalance`), keyed by customer id."""
+    from . import receivables
+
+    return dict(receivables.customer_balances(organization))

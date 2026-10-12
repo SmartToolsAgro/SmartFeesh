@@ -4,11 +4,11 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
-import type { GroupByEnum } from './groupByEnum';
 import type { SalesLine } from './salesLine';
+import type { SalesReportGroupByEnum } from './salesReportGroupByEnum';
 
 export interface SalesReport {
-  group_by: GroupByEnum;
+  group_by: SalesReportGroupByEnum;
   date_from: string;
   date_to: string;
   rows: SalesLine[];

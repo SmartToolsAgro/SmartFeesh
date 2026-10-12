@@ -1444,3 +1444,17 @@ today's stock). Alerts: the five biggest overdue customers (and how many more), 
   their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
 - Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
   same task.
+
+**D-116 · Financial reports (P7-T04)** · accepted · 2026-10-12
+Five reports on the **Finances** tab of Rapports, **owner and accountant only** (the manager and drivers get 403: this is
+the company's money), each with a date or month filter where it makes sense and an Excel file. Everything is read from the
+selector that owns the number, nothing is recomputed: **month result** = `closing.selectors.month_result` (the monthly
+closing's own report: revenue, cost of goods, spoilage, expenses by category, personnel, net result); **customers who
+owe** = the receivables of D-062 (balance, overdue, ageing 0-30 / 31-60 / 61+; customers whose credit we hold are left
+out); **suppliers owed** = `purchasing.supplier_balance` per supplier (posted invoices minus payments, overdue, and goods
+received but not invoiced, which are not owed yet; partner capital and profit shares stay out, D-040); **unpaid
+salaries** = `hr.unpaid_by_employee`. **Cash flow** by day, week (Monday) or month: in = paid on the spot at confirmed
+sales (by sale day) + customer payments (by received day, voided left out); out = supplier payments + salary payments +
+approved expenses (an approved expense is taken as paid on its date, whatever its payment method: provisional). It is a
+movement report, not a bank reconciliation: there is no opening balance. Payroll accruals are not cash and appear in the
+month result only.
