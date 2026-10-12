@@ -87,7 +87,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
               <li key={line.product_id} className="flex items-center justify-between gap-3 py-3">
                 <span className="text-lg font-semibold">{line.product_name}</span>
                 <span className="text-right">
-                  <span className="block text-xl font-bold">{formatQuantity(line.loaded)} kg</span>
+                  <span className="block text-xl font-bold">{formatQuantity(line.loaded)}</span>
                   {line.unit_price === null ? null : (
                     <span className="text-sm text-ink-2">{formatMoney(line.unit_price)} / kg</span>
                   )}
