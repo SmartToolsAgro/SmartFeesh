@@ -27,6 +27,7 @@ import { InvoicePage } from "./invoices/InvoicePage";
 import { InvoicesPage } from "./invoices/InvoicesPage";
 
 import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
+import { ImportPage } from "./imports/ImportPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { TruckDayPage } from "./locations/TruckDayPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
@@ -104,6 +105,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
+        { to: "/import", label: t("admin.nav.imports"), icon: "box" },
       ],
     },
   ];
@@ -126,6 +128,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/salaires": <PayrollPage />,
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,
+  "/import": <ImportPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};

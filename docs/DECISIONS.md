@@ -1364,3 +1364,18 @@ still protects against overselling).
   whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
+
+**D-112 · Data import from Excel and opening balances (P4-T01)** · accepted · 2026-10-12
+- New app `dataimport` (owner only, `openpyxl`). One Excel template per kind (products, suppliers, customers,
+  employees), downloaded from **Import de données** (`GET /imports/<kind>/template`): French titles on row 1
+  (a star marks a required column; titles are matched without case, accents or star), an "Aide" sheet explains
+  each column.
+- `POST /imports/<kind>` (multipart `file`, `dry_run` default true) returns a report row by row: created, skipped
+  (reference already known: the same file may be sent again) or error with **column and reason**. It runs the real
+  services (`create_product`, `create_supplier`, `create_customer`, `create_employee`) in one transaction, so every
+  screen rule applies and each row is audited. A dry run, or any error, rolls everything back: **all or nothing**.
+  The screen offers "Importer" only after a clean check.
+- Products need an existing category (a typo is an error, not a new category) and a price above 0; customers take
+  their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
+- Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
+  same task.

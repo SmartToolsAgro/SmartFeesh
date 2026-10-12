@@ -2113,6 +2113,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
           description: ''
+  /api/v1/imports/{kind}:
+    post:
+      operationId: runImport
+      description: |-
+        Check a filled Excel template (`dry_run`, the default: nothing is written) or import it for real.
+        The report lists every row: created, skipped (reference already known) or in error with its column.
+        A real import is all or nothing: one error anywhere and nothing is saved (`committed` false). Owner only.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportUpload'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportReport'
+          description: ''
+        '400':
+          description: Not a readable template
   /api/v1/invoices:
     get:
       operationId: listInvoices
@@ -9927,6 +9959,113 @@ components:
         * `octopus` - Poulpe
         * `mussel` - Coquillage
         * `mix` - Mélange
+    ImportColumnError:
+      type: object
+      properties:
+        column:
+          type: string
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+      required:
+      - column
+      - message
+    ImportReport:
+      type: object
+      properties:
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/ImportReportKindEnum'
+          readOnly: true
+        dry_run:
+          type: boolean
+          readOnly: true
+        committed:
+          type: boolean
+          readOnly: true
+        created:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        error_count:
+          type: integer
+          readOnly: true
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRow'
+          readOnly: true
+      required:
+      - committed
+      - created
+      - dry_run
+      - error_count
+      - kind
+      - rows
+      - skipped
+    ImportReportKindEnum:
+      enum:
+      - products
+      - suppliers
+      - customers
+      - employees
+      type: string
+      description: |-
+        * `products` - products
+        * `suppliers` - suppliers
+        * `customers` - customers
+        * `employees` - employees
+    ImportRow:
+      type: object
+      properties:
+        row:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ImportRowStatusEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportColumnError'
+          readOnly: true
+      required:
+      - errors
+      - name
+      - reference
+      - row
+      - status
+    ImportRowStatusEnum:
+      enum:
+      - created
+      - skipped
+      - error
+      type: string
+      description: |-
+        * `created` - created
+        * `skipped` - skipped
+        * `error` - error
+    ImportUpload:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        dry_run:
+          type: boolean
+          default: true
+      required:
+      - file
     Invoice:
       type: object
       properties:
