@@ -405,6 +405,7 @@ function LinesTable({ invoice }: { invoice: InvoiceDetail }) {
               <div className="num text-[0.78rem] text-ink-2">
                 {line.product_reference}
                 {line.lots ? ` · ${line.lots}` : ""}
+                {invoice.sales.length > 1 ? ` · ${line.sale_number}` : ""}
               </div>
             </Td>
             <Td numeric className="whitespace-nowrap">
@@ -624,7 +625,8 @@ export function InvoicePage() {
               </span>
             )}
             <span>
-              {t("admin.invoices.document.sale")} <span className="num font-semibold">{invoice.sale.number}</span>
+              {t("admin.invoices.document.sale")}{" "}
+              <span className="num font-semibold">{invoice.sales.map((sale) => sale.number).join(", ")}</span>
             </span>
           </div>
           <LinesTable invoice={invoice} />
@@ -653,9 +655,15 @@ export function InvoicePage() {
                 </Link>
               </Detail>
               <Detail label={t("admin.invoices.detail.sale")}>
-                <Link to={`/ventes/${invoice.sale.id}`} className="num font-semibold text-sea hover:underline">
-                  {invoice.sale.number}
-                </Link>
+                {invoice.sales.map((sale) => (
+                  <Link
+                    key={sale.id}
+                    to={`/ventes/${sale.id}`}
+                    className="num me-2 font-semibold text-sea hover:underline"
+                  >
+                    {sale.number}
+                  </Link>
+                ))}
               </Detail>
               <Detail label={t("admin.invoices.detail.vatMode")}>
                 {invoice.apply_vat

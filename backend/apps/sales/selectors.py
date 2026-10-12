@@ -11,6 +11,7 @@ from django.db.models import (
     CharField,
     Count,
     DecimalField,
+    Exists,
     F,
     OuterRef,
     Prefetch,
@@ -33,6 +34,7 @@ from .models import (
     FinanceSettings,
     Invoice,
     InvoiceLine,
+    InvoiceSale,
     InvoiceStatus,
     InvoiceVatLine,
     Quote,
@@ -132,10 +134,12 @@ def sales_of(
     date_from: dt.date | None = None,
     date_to: dt.date | None = None,
     search: str = "",
+    uninvoiced: bool = False,
 ) -> QuerySet[Sale]:
     """Sales newest first, each with `line_count`, its customer, place, quote and lines (product, batches).
     Days are those of `sold_at` in local time, both included; `search` matches the number and the
-    customer's name or reference."""
+    customer's name or reference. `uninvoiced`: the BL still to invoice (confirmed, of a named customer,
+    on no live invoice)."""
     lines = (
         SaleLine.objects.select_related("product")
         .prefetch_related(Prefetch("batches", queryset=SaleLineBatch.objects.select_related("batch").order_by("id")))
@@ -169,6 +173,10 @@ def sales_of(
         sales = sales.filter(sold_at__date__gte=date_from)
     if date_to is not None:
         sales = sales.filter(sold_at__date__lte=date_to)
+    if uninvoiced:
+        sales = sales.filter(status=SaleStatus.CONFIRMED, customer__is_walk_in=False).exclude(
+            Exists(InvoiceSale.objects.filter(sale=OuterRef("pk"), is_live=True))
+        )
     if search := search.strip():
         sales = sales.filter(
             Q(number__icontains=search) | Q(customer__name__icontains=search) | Q(customer__reference__icontains=search)
@@ -345,8 +353,11 @@ def invoices_of(
     )
     invoices = (
         Invoice.objects.for_organization(organization)
-        .select_related("organization", "sale", "customer", "settings_version", "created_by", "issued_by")
-        .prefetch_related(Prefetch("lines", queryset=InvoiceLine.objects.select_related("product").order_by("id")))
+        .select_related("organization", "customer", "settings_version", "created_by", "issued_by")
+        .prefetch_related(Prefetch("sales", queryset=Sale.objects.order_by("sold_at", "id")))
+        .prefetch_related(
+            Prefetch("lines", queryset=InvoiceLine.objects.select_related("product", "sale_line__sale").order_by("id"))
+        )
         .prefetch_related(Prefetch("vat_lines", queryset=InvoiceVatLine.objects.order_by("-rate")))
         .prefetch_related(Prefetch("credit_notes", queryset=credit_notes))
         .prefetch_related("certificates")
@@ -370,7 +381,7 @@ def invoices_of(
     if customer_id is not None:
         invoices = invoices.filter(customer_id=customer_id)
     if sale_id is not None:
-        invoices = invoices.filter(sale_id=sale_id)
+        invoices = invoices.filter(Exists(InvoiceSale.objects.filter(invoice=OuterRef("pk"), sale_id=sale_id)))
     if date_from is not None:
         invoices = invoices.filter(issued_on__gte=date_from)
     if date_to is not None:
@@ -378,7 +389,7 @@ def invoices_of(
     if search := search.strip():
         invoices = invoices.filter(
             Q(number__icontains=search)
-            | Q(sale__number__icontains=search)
+            | Exists(InvoiceSale.objects.filter(invoice=OuterRef("pk"), sale__number__icontains=search))
             | Q(customer__name__icontains=search)
             | Q(customer__reference__icontains=search)
         )
@@ -426,7 +437,7 @@ def credit_notes_of(
     """Credit notes, newest first, each with its invoice (and customer) and lines."""
     notes = (
         CreditNote.objects.for_organization(organization)
-        .select_related("invoice", "invoice__customer", "invoice__sale", "created_by")
+        .select_related("invoice", "invoice__customer", "created_by")
         .prefetch_related(Prefetch("lines", queryset=CreditNoteLine.objects.select_related("invoice_line")))
         .order_by("-issued_on", "-id")
     )

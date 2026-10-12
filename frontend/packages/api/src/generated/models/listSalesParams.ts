@@ -36,4 +36,5 @@ search?: string;
  * @minLength 1
  */
 status?: ListSalesStatus;
+uninvoiced?: boolean;
 };

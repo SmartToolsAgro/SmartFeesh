@@ -616,3 +616,74 @@ def test_lists_and_live_invoice(organization, sale, actor):
     assert selectors.invoices_of(organization, status="draft").count() == 0
     assert selectors.live_invoice_of(selectors.sale_of(organization, sale.pk)) == invoice
     assert selectors.credit_notes_of(organization).count() == 1
+
+
+# ---- one invoice for several BL (D-096) ----
+
+
+def second_sale(organization, actor, customer, counter, crevette):
+    return confirmed_sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "2"}])
+
+
+def test_one_invoice_bills_several_delivery_notes_of_the_same_customer(
+    organization, actor, customer, counter, crevette, sale
+):
+    other = second_sale(organization, actor, customer, counter, crevette)
+
+    invoice = services.create_invoice(sales=[other, sale], actor=actor, issue=True)
+
+    # 455.000 + 2 × 42.000 = 539.000 without VAT, one stamp for the whole invoice.
+    assert [row.number for row in invoice.sales.order_by("sold_at", "id")] == [sale.number, other.number]
+    assert (invoice.total_excl_tax, invoice.vat_total, invoice.fiscal_stamp) == (D("539.000"), D("102.410"), D("1.000"))
+    assert invoice.lines.count() == 3
+    assert {row.sale_line.sale_id for row in invoice.lines.all()} == {sale.pk, other.pk}
+    sale.refresh_from_db()
+    other.refresh_from_db()
+    # The VAT and what is owed are shared over the BLs by what each one holds on the invoice.
+    assert sale.tax_amount + other.tax_amount == invoice.vat_total
+    assert sale.amount_due + other.amount_due == invoice.net_to_pay
+    assert sale.amount_due > other.amount_due > 0
+
+
+def test_a_delivery_note_is_on_one_live_invoice_only(organization, actor, customer, counter, crevette, sale):
+    other = second_sale(organization, actor, customer, counter, crevette)
+    services.create_invoice(sale=sale, actor=actor)
+
+    with pytest.raises(ValidationError, match="déjà sa facture"):
+        services.create_invoice(sales=[other, sale], actor=actor)
+
+    assert Invoice.objects.count() == 1
+
+
+def test_an_invoice_does_not_mix_customers(organization, actor, customer, counter, crevette, sale):
+    stranger = CustomerFactory.create(organization=organization, name="Poissonnerie El Bahr")
+    other = confirmed_sale(organization, actor, stranger, counter, [{"product": crevette, "quantity": "1"}])
+
+    with pytest.raises(ValidationError, match="même client"):
+        services.create_invoice(sales=[sale, other], actor=actor)
+
+
+def test_a_full_credit_note_frees_every_delivery_note_of_the_invoice(
+    organization, actor, customer, counter, crevette, sale
+):
+    other = second_sale(organization, actor, customer, counter, crevette)
+    invoice = services.create_invoice(sales=[sale, other], actor=actor, issue=True)
+
+    services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Erreur")
+
+    sale.refresh_from_db()
+    other.refresh_from_db()
+    assert (sale.tax_amount, other.tax_amount) == (None, None)
+    # Credited in full: the cancelled invoice and its credit note cancel each other, as for a single BL.
+    assert (sale.amount_due, other.amount_due) == (D("0.000"), D("0.000"))
+    again = services.create_invoice(sales=[sale, other], actor=actor)
+    assert again.status == InvoiceStatus.DRAFT
+
+
+def test_the_delivery_notes_still_to_invoice_are_listed(organization, actor, customer, counter, crevette, sale):
+    other = second_sale(organization, actor, customer, counter, crevette)
+    services.create_invoice(sale=sale, actor=actor)
+
+    open_ones = selectors.sales_of(organization, uninvoiced=True)
+
+    assert list(open_ones) == [other]
