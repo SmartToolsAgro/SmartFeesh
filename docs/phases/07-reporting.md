@@ -22,7 +22,8 @@ _Coarse plan: detail each task when the phase starts._
 - [x] (D-116) Monthly result, expenses by category, cash flow, customer and supplier balances, unpaid salaries.
 
 ### P7-T05 · Partnership reports · S
-- [ ] Capital invested/recovered/outstanding, shares allocated/paid/due per partner over time.
+- [x] (D-117) Capital invested/recovered/outstanding, shares allocated/paid/due per partner over a period.
+- [ ] Per-lot breakdown under each partner.
 
 ### P7-T06 · Exports · S
 - [ ] Every report exports to Excel and PDF (Celery job for large ones).

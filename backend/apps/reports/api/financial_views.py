@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 
 from apps.core.models import Role
-from apps.reports import exports, financial
+from apps.reports import exports, financial, partners
 
 from .financial_serializers import (
     CashFlowSerializer,
@@ -18,6 +18,7 @@ from .financial_serializers import (
     CustomerBalancesSerializer,
     MonthQuerySerializer,
     MonthResultSerializer,
+    PartnerReportSerializer,
     SupplierBalancesSerializer,
     UnpaidSalariesSerializer,
 )
@@ -177,3 +178,80 @@ class UnpaidSalariesExportView(FinancialView):
             totals=["Total", report.total],
         )
         return _xlsx("salaires-a-payer", content)
+
+
+# ---- Partners (P7-T05, D-117) ----
+
+PERIOD_PARAMS = [
+    OpenApiParameter("date_from", OpenApiTypes.DATE, description="First day (default: first of this month)."),
+    OpenApiParameter("date_to", OpenApiTypes.DATE, description="Last day, inclusive (default: today)."),
+]
+
+
+class PartnerReportView(FinancialView):
+    query_serializer = PeriodQuerySerializer
+
+    def report(self, request: Request) -> partners.PartnerReport:
+        query = self.query(request)
+        return partners.partner_report(self.organization, date_from=query["date_from"], date_to=query["date_to"])
+
+    @extend_schema(operation_id="getPartnerReport", parameters=PERIOD_PARAMS, responses=PartnerReportSerializer)
+    def get(self, request: Request) -> Response:
+        """Per partner over a period: capital put in, loss share taken from it and capital returned, the capital
+        still in the company now; profit share earned, uncovered losses, late adjustments and paid, and the share
+        still due now. The balances are those of the partner screens."""
+        return Response(PartnerReportSerializer(self.report(request)).data)
+
+
+class PartnerReportExportView(PartnerReportView):
+    @extend_schema(operation_id="exportPartnerReport", parameters=PERIOD_PARAMS, responses=OpenApiTypes.BINARY)
+    def get(self, request: Request) -> HttpResponse:  # type: ignore[override]
+        """The partner report as an Excel file."""
+        report = self.report(request)
+        totals = report.totals
+        content = exports.workbook_bytes(
+            title="Partenaires",
+            headers=[
+                "Partenaire",
+                "Lots",
+                "Apports",
+                "Perte déduite du capital",
+                "Capital rendu",
+                "Capital encore engagé",
+                "Parts de bénéfice",
+                "Pertes non couvertes",
+                "Régularisations",
+                "Parts payées",
+                "Part encore due",
+            ],
+            rows=[
+                [
+                    r.name,
+                    r.lots,
+                    r.contributed,
+                    r.loss_deducted,
+                    r.returned,
+                    r.capital_outstanding,
+                    r.share,
+                    r.uncovered_loss,
+                    r.late_adjustments,
+                    r.paid,
+                    r.share_due,
+                ]
+                for r in report.rows
+            ],
+            totals=[
+                "Total",
+                totals.lots,
+                totals.contributed,
+                totals.loss_deducted,
+                totals.returned,
+                totals.capital_outstanding,
+                totals.share,
+                totals.uncovered_loss,
+                totals.late_adjustments,
+                totals.paid,
+                totals.share_due,
+            ],
+        )
+        return _xlsx(f"partenaires-{report.date_from}-{report.date_to}", content)
