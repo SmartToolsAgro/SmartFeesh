@@ -775,6 +775,7 @@ export const ListCustomerPaymentsQueryParams = zod.object({
 export const listCustomerPaymentsResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listCustomerPaymentsResponseResultsItemAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listCustomerPaymentsResponseResultsItemUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCustomerPaymentsResponseResultsItemRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListCustomerPaymentsResponse = zod.object({
@@ -799,6 +800,7 @@ export const ListCustomerPaymentsResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -837,6 +839,7 @@ export const CreateCustomerPaymentBody = zod.object({
 export const createCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -858,6 +861,7 @@ export const CreateCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', createCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', createCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', createCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -886,6 +890,7 @@ export const GetCustomerPaymentParams = zod.object({
 export const getCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -907,6 +912,7 @@ export const GetCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', getCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', getCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', getCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -946,6 +952,7 @@ export const AllocateCustomerPaymentBody = zod.object({
 export const allocateCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const allocateCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const allocateCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const allocateCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const allocateCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -967,6 +974,7 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', allocateCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', allocateCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', allocateCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -1004,6 +1012,7 @@ export const VoidCustomerPaymentBody = zod.object({
 export const voidCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidCustomerPaymentResponseAllocatedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidCustomerPaymentResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidCustomerPaymentResponseRemainingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidCustomerPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -1025,6 +1034,7 @@ export const VoidCustomerPaymentResponse = zod.object({
   "notes": zod.string(),
   "allocated_total": zod.stringFormat('decimal', voidCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', voidCustomerPaymentResponseUnallocatedRegExp),
+  "remaining": zod.stringFormat('decimal', voidCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
@@ -5785,6 +5795,548 @@ export const ListMembersResponseItem = zod.object({
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * The last twelve months, newest first, with where each stands (open, reviewed, approved) and its
+ * net result once reviewed. The current month is listed but cannot be closed before its last day.
+ */
+export const listMonthsResponseNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMonthsResponseItem = zod.object({
+  "month": zod.iso.date(),
+  "state": zod.enum(['open', 'reviewed', 'approved']).describe('* `open` - Ouvert\n* `reviewed` - Vérifié\n* `approved` - Approuvé'),
+  "is_over": zod.boolean(),
+  "net_result": zod.stringFormat('decimal', listMonthsResponseNetResultRegExp).nullable()
+})
+export const ListMonthsResponse = zod.array(ListMonthsResponseItem)
+
+
+/**
+ * The month's figures: sales, cost of goods sold (from sale snapshots, never purchases), spoilage,
+ * expenses by category, payroll, net result, the stock valued at month-end with its roll-forward, and
+ * the checks before closing. Live until approved, then frozen.
+ */
+export const GetMonthParams = zod.object({
+  "month": zod.string()
+})
+
+export const getMonthResponseReportOneSalesOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneSalesOneRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneGrossMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneSpoilageOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneSpoilageOneValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneRoundingDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneLedgerItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneLedgerItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneRowsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneStockOneRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneChecksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOneChecksItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseClosingOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseLiveNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseHistoryItemNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMonthResponse = zod.object({
+  "month": zod.iso.date(),
+  "state": zod.enum(['open', 'reviewed', 'approved']).describe('* `open` - Ouvert\n* `reviewed` - Vérifié\n* `approved` - Approuvé'),
+  "is_over": zod.boolean(),
+  "report": zod.object({
+  "month": zod.iso.date(),
+  "sales": zod.object({
+  "count": zod.int(),
+  "quantity": zod.stringFormat('decimal', getMonthResponseReportOneSalesOneQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', getMonthResponseReportOneSalesOneRevenueRegExp)
+}),
+  "cogs": zod.stringFormat('decimal', getMonthResponseReportOneCogsRegExp),
+  "gross_margin": zod.stringFormat('decimal', getMonthResponseReportOneGrossMarginRegExp),
+  "spoilage": zod.object({
+  "quantity": zod.stringFormat('decimal', getMonthResponseReportOneSpoilageOneQuantityRegExp),
+  "value": zod.stringFormat('decimal', getMonthResponseReportOneSpoilageOneValueRegExp)
+}),
+  "expenses": zod.object({
+  "categories": zod.array(zod.object({
+  "category_id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', getMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp)
+})),
+  "total": zod.stringFormat('decimal', getMonthResponseReportOneExpensesOneTotalRegExp)
+}),
+  "personnel": zod.stringFormat('decimal', getMonthResponseReportOnePersonnelRegExp),
+  "operating_costs": zod.stringFormat('decimal', getMonthResponseReportOneOperatingCostsRegExp),
+  "net_result": zod.stringFormat('decimal', getMonthResponseReportOneNetResultRegExp),
+  "stock": zod.object({
+  "opening_value": zod.stringFormat('decimal', getMonthResponseReportOneStockOneOpeningValueRegExp),
+  "purchases": zod.stringFormat('decimal', getMonthResponseReportOneStockOnePurchasesRegExp),
+  "closing_value": zod.stringFormat('decimal', getMonthResponseReportOneStockOneClosingValueRegExp),
+  "rounding_difference": zod.stringFormat('decimal', getMonthResponseReportOneStockOneRoundingDifferenceRegExp),
+  "ledger": zod.array(zod.object({
+  "kind": zod.string(),
+  "quantity": zod.stringFormat('decimal', getMonthResponseReportOneStockOneLedgerItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', getMonthResponseReportOneStockOneLedgerItemValueRegExp)
+})),
+  "rows": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', getMonthResponseReportOneStockOneRowsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', getMonthResponseReportOneStockOneRowsItemUnitCostRegExp),
+  "value": zod.stringFormat('decimal', getMonthResponseReportOneStockOneRowsItemValueRegExp)
+}))
+}),
+  "checks": zod.array(zod.object({
+  "code": zod.string(),
+  "ok": zod.boolean(),
+  "blocking": zod.boolean(),
+  "quantity": zod.stringFormat('decimal', getMonthResponseReportOneChecksItemQuantityRegExp).nullable(),
+  "count": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', getMonthResponseReportOneChecksItemAmountRegExp).nullable()
+}))
+}),
+  "can_review": zod.boolean(),
+  "can_approve": zod.boolean(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', getMonthResponseClosingOneNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}),zod.null()]),
+  "live_net_result": zod.stringFormat('decimal', getMonthResponseLiveNetResultRegExp).nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', getMonthResponseHistoryItemNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}))
+})
+
+
+/**
+ * Approve a reviewed month (owner only): lock it and freeze its figures. Refused when the figures
+ * moved since the accountant's review.
+ */
+export const ApproveMonthParams = zod.object({
+  "month": zod.string()
+})
+
+export const approveMonthResponseReportOneSalesOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneSalesOneRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneGrossMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneSpoilageOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneSpoilageOneValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneRoundingDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneLedgerItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneLedgerItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneRowsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneStockOneRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneChecksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOneChecksItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseClosingOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseLiveNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseHistoryItemNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveMonthResponse = zod.object({
+  "month": zod.iso.date(),
+  "state": zod.enum(['open', 'reviewed', 'approved']).describe('* `open` - Ouvert\n* `reviewed` - Vérifié\n* `approved` - Approuvé'),
+  "is_over": zod.boolean(),
+  "report": zod.object({
+  "month": zod.iso.date(),
+  "sales": zod.object({
+  "count": zod.int(),
+  "quantity": zod.stringFormat('decimal', approveMonthResponseReportOneSalesOneQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', approveMonthResponseReportOneSalesOneRevenueRegExp)
+}),
+  "cogs": zod.stringFormat('decimal', approveMonthResponseReportOneCogsRegExp),
+  "gross_margin": zod.stringFormat('decimal', approveMonthResponseReportOneGrossMarginRegExp),
+  "spoilage": zod.object({
+  "quantity": zod.stringFormat('decimal', approveMonthResponseReportOneSpoilageOneQuantityRegExp),
+  "value": zod.stringFormat('decimal', approveMonthResponseReportOneSpoilageOneValueRegExp)
+}),
+  "expenses": zod.object({
+  "categories": zod.array(zod.object({
+  "category_id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', approveMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp)
+})),
+  "total": zod.stringFormat('decimal', approveMonthResponseReportOneExpensesOneTotalRegExp)
+}),
+  "personnel": zod.stringFormat('decimal', approveMonthResponseReportOnePersonnelRegExp),
+  "operating_costs": zod.stringFormat('decimal', approveMonthResponseReportOneOperatingCostsRegExp),
+  "net_result": zod.stringFormat('decimal', approveMonthResponseReportOneNetResultRegExp),
+  "stock": zod.object({
+  "opening_value": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneOpeningValueRegExp),
+  "purchases": zod.stringFormat('decimal', approveMonthResponseReportOneStockOnePurchasesRegExp),
+  "closing_value": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneClosingValueRegExp),
+  "rounding_difference": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneRoundingDifferenceRegExp),
+  "ledger": zod.array(zod.object({
+  "kind": zod.string(),
+  "quantity": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneLedgerItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneLedgerItemValueRegExp)
+})),
+  "rows": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneRowsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneRowsItemUnitCostRegExp),
+  "value": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneRowsItemValueRegExp)
+}))
+}),
+  "checks": zod.array(zod.object({
+  "code": zod.string(),
+  "ok": zod.boolean(),
+  "blocking": zod.boolean(),
+  "quantity": zod.stringFormat('decimal', approveMonthResponseReportOneChecksItemQuantityRegExp).nullable(),
+  "count": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', approveMonthResponseReportOneChecksItemAmountRegExp).nullable()
+}))
+}),
+  "can_review": zod.boolean(),
+  "can_approve": zod.boolean(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', approveMonthResponseClosingOneNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}),zod.null()]),
+  "live_net_result": zod.stringFormat('decimal', approveMonthResponseLiveNetResultRegExp).nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', approveMonthResponseHistoryItemNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}))
+})
+
+
+/**
+ * Reopen a reviewed or approved month (owner only, reason required, audited). The frozen figures
+ * stay as history.
+ */
+export const ReopenMonthParams = zod.object({
+  "month": zod.string()
+})
+
+export const reopenMonthBodyReasonMax = 300;
+
+
+
+export const ReopenMonthBody = zod.object({
+  "reason": zod.string().max(reopenMonthBodyReasonMax)
+})
+
+export const reopenMonthResponseReportOneSalesOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneSalesOneRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneGrossMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneSpoilageOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneSpoilageOneValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneRoundingDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneLedgerItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneLedgerItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneRowsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneStockOneRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneChecksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOneChecksItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseClosingOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseLiveNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseHistoryItemNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ReopenMonthResponse = zod.object({
+  "month": zod.iso.date(),
+  "state": zod.enum(['open', 'reviewed', 'approved']).describe('* `open` - Ouvert\n* `reviewed` - Vérifié\n* `approved` - Approuvé'),
+  "is_over": zod.boolean(),
+  "report": zod.object({
+  "month": zod.iso.date(),
+  "sales": zod.object({
+  "count": zod.int(),
+  "quantity": zod.stringFormat('decimal', reopenMonthResponseReportOneSalesOneQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', reopenMonthResponseReportOneSalesOneRevenueRegExp)
+}),
+  "cogs": zod.stringFormat('decimal', reopenMonthResponseReportOneCogsRegExp),
+  "gross_margin": zod.stringFormat('decimal', reopenMonthResponseReportOneGrossMarginRegExp),
+  "spoilage": zod.object({
+  "quantity": zod.stringFormat('decimal', reopenMonthResponseReportOneSpoilageOneQuantityRegExp),
+  "value": zod.stringFormat('decimal', reopenMonthResponseReportOneSpoilageOneValueRegExp)
+}),
+  "expenses": zod.object({
+  "categories": zod.array(zod.object({
+  "category_id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', reopenMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp)
+})),
+  "total": zod.stringFormat('decimal', reopenMonthResponseReportOneExpensesOneTotalRegExp)
+}),
+  "personnel": zod.stringFormat('decimal', reopenMonthResponseReportOnePersonnelRegExp),
+  "operating_costs": zod.stringFormat('decimal', reopenMonthResponseReportOneOperatingCostsRegExp),
+  "net_result": zod.stringFormat('decimal', reopenMonthResponseReportOneNetResultRegExp),
+  "stock": zod.object({
+  "opening_value": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneOpeningValueRegExp),
+  "purchases": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOnePurchasesRegExp),
+  "closing_value": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneClosingValueRegExp),
+  "rounding_difference": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneRoundingDifferenceRegExp),
+  "ledger": zod.array(zod.object({
+  "kind": zod.string(),
+  "quantity": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneLedgerItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneLedgerItemValueRegExp)
+})),
+  "rows": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneRowsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneRowsItemUnitCostRegExp),
+  "value": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneRowsItemValueRegExp)
+}))
+}),
+  "checks": zod.array(zod.object({
+  "code": zod.string(),
+  "ok": zod.boolean(),
+  "blocking": zod.boolean(),
+  "quantity": zod.stringFormat('decimal', reopenMonthResponseReportOneChecksItemQuantityRegExp).nullable(),
+  "count": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', reopenMonthResponseReportOneChecksItemAmountRegExp).nullable()
+}))
+}),
+  "can_review": zod.boolean(),
+  "can_approve": zod.boolean(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', reopenMonthResponseClosingOneNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}),zod.null()]),
+  "live_net_result": zod.stringFormat('decimal', reopenMonthResponseLiveNetResultRegExp).nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', reopenMonthResponseHistoryItemNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}))
+})
+
+
+/**
+ * The accountant (or the owner) checks the month. Refused while expenses, salaries or losses of the
+ * month wait for a decision, or before the month is over.
+ */
+export const ReviewMonthParams = zod.object({
+  "month": zod.string()
+})
+
+export const reviewMonthBodyNotesDefault = ``;
+export const reviewMonthBodyNotesMax = 300;
+
+
+
+export const ReviewMonthBody = zod.object({
+  "notes": zod.string().max(reviewMonthBodyNotesMax).default(reviewMonthBodyNotesDefault)
+})
+
+export const reviewMonthResponseReportOneSalesOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneSalesOneRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneGrossMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneSpoilageOneQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneSpoilageOneValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneRoundingDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneLedgerItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneLedgerItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneRowsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneRowsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneStockOneRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneChecksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOneChecksItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseClosingOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseLiveNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseHistoryItemNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ReviewMonthResponse = zod.object({
+  "month": zod.iso.date(),
+  "state": zod.enum(['open', 'reviewed', 'approved']).describe('* `open` - Ouvert\n* `reviewed` - Vérifié\n* `approved` - Approuvé'),
+  "is_over": zod.boolean(),
+  "report": zod.object({
+  "month": zod.iso.date(),
+  "sales": zod.object({
+  "count": zod.int(),
+  "quantity": zod.stringFormat('decimal', reviewMonthResponseReportOneSalesOneQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', reviewMonthResponseReportOneSalesOneRevenueRegExp)
+}),
+  "cogs": zod.stringFormat('decimal', reviewMonthResponseReportOneCogsRegExp),
+  "gross_margin": zod.stringFormat('decimal', reviewMonthResponseReportOneGrossMarginRegExp),
+  "spoilage": zod.object({
+  "quantity": zod.stringFormat('decimal', reviewMonthResponseReportOneSpoilageOneQuantityRegExp),
+  "value": zod.stringFormat('decimal', reviewMonthResponseReportOneSpoilageOneValueRegExp)
+}),
+  "expenses": zod.object({
+  "categories": zod.array(zod.object({
+  "category_id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', reviewMonthResponseReportOneExpensesOneCategoriesItemTotalRegExp)
+})),
+  "total": zod.stringFormat('decimal', reviewMonthResponseReportOneExpensesOneTotalRegExp)
+}),
+  "personnel": zod.stringFormat('decimal', reviewMonthResponseReportOnePersonnelRegExp),
+  "operating_costs": zod.stringFormat('decimal', reviewMonthResponseReportOneOperatingCostsRegExp),
+  "net_result": zod.stringFormat('decimal', reviewMonthResponseReportOneNetResultRegExp),
+  "stock": zod.object({
+  "opening_value": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneOpeningValueRegExp),
+  "purchases": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOnePurchasesRegExp),
+  "closing_value": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneClosingValueRegExp),
+  "rounding_difference": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneRoundingDifferenceRegExp),
+  "ledger": zod.array(zod.object({
+  "kind": zod.string(),
+  "quantity": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneLedgerItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneLedgerItemValueRegExp)
+})),
+  "rows": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneRowsItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneRowsItemUnitCostRegExp),
+  "value": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneRowsItemValueRegExp)
+}))
+}),
+  "checks": zod.array(zod.object({
+  "code": zod.string(),
+  "ok": zod.boolean(),
+  "blocking": zod.boolean(),
+  "quantity": zod.stringFormat('decimal', reviewMonthResponseReportOneChecksItemQuantityRegExp).nullable(),
+  "count": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', reviewMonthResponseReportOneChecksItemAmountRegExp).nullable()
+}))
+}),
+  "can_review": zod.boolean(),
+  "can_approve": zod.boolean(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', reviewMonthResponseClosingOneNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}),zod.null()]),
+  "live_net_result": zod.stringFormat('decimal', reviewMonthResponseLiveNetResultRegExp).nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['reviewed', 'approved', 'reopened']).describe('* `reviewed` - Vérifié\n* `approved` - Approuvé\n* `reopened` - Rouvert'),
+  "net_result": zod.stringFormat('decimal', reviewMonthResponseHistoryItemNetResultRegExp),
+  "reviewed_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "review_notes": zod.string(),
+  "approved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "approved_by_name": zod.string(),
+  "reopened_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_by_name": zod.string(),
+  "reopen_reason": zod.string()
+}))
+})
 
 
 /**

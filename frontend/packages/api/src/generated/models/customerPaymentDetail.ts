@@ -22,6 +22,8 @@ export interface CustomerPaymentDetail {
   readonly allocated_total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly unallocated: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly remaining: string;
   readonly is_voided: boolean;
   /** @nullable */
   readonly voided_at: string | null;

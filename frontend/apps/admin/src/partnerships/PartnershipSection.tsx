@@ -4,6 +4,7 @@ import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import { Button, Card, Dialog, Pill, Table, Td, Th } from "@frutti/ui";
 import { type ReactNode, useState } from "react";
 
+import { PdfButton } from "../lib/PdfButton";
 import { CancelPartnershipDialog, PartnershipDialog } from "./PartnershipDialogs";
 import { canWriteResults, formatRate, STATUS_TONE } from "./shared";
 
@@ -34,6 +35,9 @@ export function PartnershipSection({ batch, session }: { batch: { id: number; nu
         <h2 id="lot-partnership" className="me-auto">
           {t("admin.partnerships.section.title")}
         </h2>
+        {partnership && partnership.status !== "cancelled" && (
+          <PdfButton kind="partner_statement" id={partnership.id} label={t("admin.documents.statement")} />
+        )}
         {canWrite && listed.data && !summary && (
           <Button onClick={() => setDialog("create")}>{t("admin.partnerships.section.add")}</Button>
         )}

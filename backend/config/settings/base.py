@@ -182,5 +182,8 @@ SPECTACULAR_SETTINGS = {
         # P6-T03 · settlement with the partner (its payment methods are `PaymentMethodEnum`)
         "ProfitShareKindEnum": "apps.partnerships.models.ProfitShareKind",
         "SettlementStateEnum": "apps.closing.models.SettlementState",
+        # P6-T06 · monthly closing
+        "MonthlyClosingStatusEnum": "apps.closing.models.MonthlyClosingStatus",
+        "MonthStateEnum": "apps.closing.models.MonthState",
     },
 }

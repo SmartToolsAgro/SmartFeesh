@@ -843,3 +843,86 @@ def return_destination(organization: Organization, *, truck_location_id: int) ->
         .order_by("name", "id")
         .first()
     )
+
+
+# ---- Month-end valuation (P6-T05, D-073) ----
+
+
+@dataclass(frozen=True)
+class BatchValue:
+    """What the company holds of one lot at the end of a day, at the lot's cost per kg."""
+
+    batch_id: int
+    batch_number: str
+    product_name: str
+    supplier_name: str
+    received_on: dt.date
+    quantity: Decimal
+    unit_cost: Decimal
+    value: Decimal
+
+
+def stock_valuation(organization: Organization, *, day: dt.date) -> list[BatchValue]:
+    """The stock the company holds, in all places, at the **end of `day`**, lot by lot, at the lot's cost
+    per kg: unsold stock stays an asset, valued at what it cost (D-073). Replays the ledger by date, so a
+    past month-end gives the same answer later. Lots with nothing left are left out; oldest lot first."""
+    held = kg_by_batch_by_day(organization, date_from=day, date_to=day)[EVERYWHERE][day]
+    batches = (
+        Batch.objects.for_organization(organization)
+        .filter(pk__in=list(held))
+        .select_related("product", "supplier")
+        .order_by("received_on", "id")
+    )
+    return [
+        BatchValue(
+            batch_id=batch.pk,
+            batch_number=batch.number,
+            product_name=batch.product.name,
+            supplier_name=batch.supplier.name,
+            received_on=batch.received_on,
+            quantity=held[batch.pk],
+            unit_cost=batch.unit_cost,
+            value=line_total(held[batch.pk], batch.unit_cost),
+        )
+        for batch in batches
+    ]
+
+
+@dataclass(frozen=True)
+class LedgerKind:
+    """What one kind of movement did to the company's stock over a period: kg and value at the lot's cost.
+    Signed: + more stock (a receipt, a customer return, a surplus), − less."""
+
+    kind: str
+    quantity: Decimal
+    value: Decimal
+
+
+def ledger_by_kind(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> list[LedgerKind]:
+    """The period's movements that change what the company holds (transfers between places cancel out),
+    added up per kind, each movement valued once (kg × the cost it carries) and rounded to the millime."""
+    start = timezone.make_aware(dt.datetime.combine(date_from, dt.time.min))
+    end = timezone.make_aware(dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min))
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(occurred_at__gte=start, occurred_at__lt=end)
+        .order_by("id")
+        .values_list("kind", "from_location_id", "to_location_id", "quantity", "unit_cost")
+    )
+    zero = Decimal("0.000")
+    kilos: dict[str, Decimal] = {}
+    values: dict[str, Decimal] = {}
+    for kind, from_id, to_id, kg, cost in rows:
+        if (from_id is None) == (to_id is None):
+            continue  # a transfer between two places (or a malformed row) changes nothing company-wide
+        sign = 1 if to_id is not None else -1
+        kilos[kind] = kilos.get(kind, zero) + sign * kg
+        values[kind] = values.get(kind, zero) + sign * line_total(kg, cost)
+    return [LedgerKind(kind=kind, quantity=kilos[kind], value=values[kind]) for kind in sorted(kilos)]
+
+
+def pending_losses(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> QuerySet[StockLoss]:
+    """Losses dated in the period still waiting for the owner: nothing has left the stock for them yet."""
+    return StockLoss.objects.for_organization(organization).filter(
+        status="pending", lost_on__gte=date_from, lost_on__lte=date_to
+    )

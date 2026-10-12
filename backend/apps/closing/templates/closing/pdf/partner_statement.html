@@ -1,0 +1,180 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% block title %}Relevé du lot {{ number }}{% endblock %}
+{% block style %}
+  .section { margin-top: 7mm; page-break-inside: auto; }
+  .section h2 { border-bottom: 0.3mm solid var(--line); padding-bottom: 1mm; margin-bottom: 2mm; }
+  .facts { display: flex; gap: 4mm; margin-bottom: 2mm; }
+  .facts > div { flex: 1; background: var(--soft); border-radius: 2mm; padding: 2.5mm 3.5mm; }
+  .facts b { display: block; font-size: 11pt; }
+  .sum td { font-weight: 700; border-top: 0.4mm solid var(--ink); }
+  .group td { background: var(--soft); font-weight: 700; font-size: 8.5pt; }
+  .verdict { margin-top: 3mm; padding: 4mm 5mm; border-radius: 2mm; background: var(--soft); border-left: 1.2mm solid var(--sea); font-size: 11pt; page-break-inside: avoid; }
+  .verdict.loss { border-left-color: var(--bad); }
+  .verdict b { font-size: 13pt; }
+  .sentence { margin-bottom: 2mm; }
+{% endblock %}
+{% block heading %}Relevé du lot{% endblock %}
+{% block subtitle %}
+  <p class="muted">{{ batch.product_name }} · lot {{ batch.batch_number }}</p>
+  {% if closed %}<p class="muted small num">Lot clôturé le {{ closed_at|date:"d/m/Y" }}</p>
+  {% else %}<p class="banner">LOT EN COURS : CHIFFRES À CE JOUR</p>{% endif %}
+{% endblock %}
+{% block body %}
+<div class="parties">
+  <div>
+    <h2>Partenaire</h2>
+    <p><b>{{ partner_name }}</b></p>
+    <p class="small muted">Fournisseur du lot, associé au partage du résultat.</p>
+  </div>
+  <div>
+    <h2>Notre accord sur ce lot</h2>
+    <p>Mise de {{ partner_name }} : <b class="num">{{ partnership.partner_capital|money }} DT</b></p>
+    <p>Mise de {{ seller.name }} : <b class="num">{{ partnership.owner_capital|money }} DT</b></p>
+    <p class="small muted">Bénéfice partagé à {{ partnership.profit_rate|percent }} pour {{ partner_name }} ;
+      en cas de perte, {{ partnership.loss_rate|percent }} de la perte est à sa charge, prise sur sa mise.</p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>1 · Ce que nous avons acheté</h2>
+  <div class="facts">
+    <div>Reçu le {{ batch.received_on|isodate }}<b class="num">{{ batch.received_quantity|kilos }}</b></div>
+    <div>Prix d'achat<b class="num">{{ batch.unit_cost|money }} DT/kg</b></div>
+    <div>Coût d'achat total<b class="num">{{ data.purchase_cost|money }} DT</b></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>2 · Ce que nous avons vendu</h2>
+  {% if data.sales %}
+  <table class="lines">
+    <thead><tr><th>Date</th><th>Vente</th><th>Client</th><th class="r">Kg</th><th class="r">Prix/kg</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+      {% for sale in data.sales %}
+      <tr>
+        <td class="num">{{ sale.sold_on|isodate }}</td>
+        <td class="num">{{ sale.sale_number }}</td>
+        <td>{{ sale.customer }}</td>
+        <td class="r num">{{ sale.quantity|kilos }}</td>
+        <td class="r num">{{ sale.unit_price|money }}</td>
+        <td class="r num">{{ sale.revenue|money }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="sum"><td colspan="3">Total vendu</td><td class="r num">{{ data.quantity_sold|kilos }}</td><td></td><td class="r num">{{ data.revenue|money }}</td></tr>
+    </tbody>
+  </table>
+  {% else %}<p class="muted">Rien n'est encore vendu sur ce lot.</p>{% endif %}
+  {% if data.stock_value != "0.000" and data.stock_value != "0" %}
+  <p class="small muted">Reste en stock : {{ batch.on_hand_quantity|kilos }}, soit {{ data.stock_value|money }} DT au coût d'achat. Ce n'est pas une charge : le stock n'entre pas dans le résultat tant qu'il n'est pas vendu.</p>
+  {% endif %}
+</div>
+
+{% if data.stock_rows %}
+<div class="section">
+  <h2>3 · Pertes et avaries</h2>
+  <table class="lines">
+    <thead><tr><th>Date</th><th>Motif</th><th class="r">Kg</th><th class="r">Valeur (coût d'achat)</th></tr></thead>
+    <tbody>
+      {% for row in data.stock_rows %}
+      <tr><td class="num">{{ row.occurred_on|isodate }}</td><td>{{ row.reason|default:row.kind }}</td><td class="r num">{{ row.quantity|kilos }}</td><td class="r num">{{ row.value|money }}</td></tr>
+      {% endfor %}
+      <tr class="sum"><td colspan="3">Total des pertes</td><td class="r num">{{ data.spoilage|money }}</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="section">
+  <h2>4 · Les frais du lot</h2>
+  {% if groups %}
+  <table class="lines">
+    <thead><tr><th>Date</th><th>Frais</th><th>Détail</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+      {% for group in groups %}
+      <tr class="group"><td colspan="3">{{ group.label }}</td><td class="r num">{{ group.total|money }}</td></tr>
+      {% for line in group.lines %}
+      <tr><td class="num">{{ line.on|isodate }}</td><td>{{ line.title }}{% if line.description %}<br><span class="muted small">{{ line.description }}</span>{% endif %}</td><td class="small muted">{{ line.detail }}</td><td class="r num">{{ line.amount|money }}</td></tr>
+      {% endfor %}
+      {% endfor %}
+      <tr class="sum"><td colspan="3">Total des frais</td><td class="r num">{{ data.costs_total|money }}</td></tr>
+    </tbody>
+  </table>
+  {% else %}<p class="muted">Aucun frais n'est rattaché à ce lot.</p>{% endif %}
+</div>
+
+<div class="section" style="page-break-inside: avoid">
+  <h2>5 · Le résultat du lot</h2>
+  <table class="lines">
+    <tbody>
+      <tr><td>Ventes du lot</td><td class="r num">{{ data.revenue|money }}</td></tr>
+      <tr><td>− Coût d'achat des kilos vendus</td><td class="r num">{{ data.cogs|money }}</td></tr>
+      {% if data.spoilage != "0.000" %}<tr><td>− Pertes et avaries</td><td class="r num">{{ data.spoilage|money }}</td></tr>{% endif %}
+      <tr><td>− Frais du lot</td><td class="r num">{{ data.costs_total|money }}</td></tr>
+      <tr class="sum"><td>= {% if outcome == "loss" %}Perte{% elif outcome == "profit" %}Bénéfice{% else %}Résultat{% endif %} net du lot</td><td class="r num">{{ data.net_result|money }} DT</td></tr>
+    </tbody>
+  </table>
+  {% if partner %}
+  <div class="verdict {% if outcome == 'loss' %}loss{% endif %}">
+    {% if outcome == "profit" %}
+      <p class="sentence">Le lot a rapporté <b class="num">{{ data.net_result|money }} DT</b>. {{ partner_name }} reçoit {{ partner.rate|percent }} de ce bénéfice :</p>
+      <p><b class="num">{{ partner.share|money }} DT</b></p>
+    {% elif outcome == "loss" %}
+      <p class="sentence">Le lot a perdu <b class="num">{{ data.net_result|money }} DT</b>. {{ partner_name }} supporte {{ partner.rate|percent }} de cette perte, prise sur sa mise :</p>
+      <p><b class="num">{{ partner.share|money }} DT</b></p>
+      {% if partner.uncovered_loss != "0.000" %}<p class="small">Sa mise ne suffit pas : il reste {{ partner.uncovered_loss|money }} DT à sa charge, reportés sur son prochain règlement.</p>{% endif %}
+    {% else %}
+      <p class="sentence">Le lot ne dégage ni bénéfice ni perte : chacun reprend sa mise.</p>
+    {% endif %}
+  </div>
+  <table class="lines" style="margin-top: 3mm">
+    <tbody>
+      <tr><td>Mise de {{ partner_name }}</td><td class="r num">{{ partner.partner_capital|money }}</td></tr>
+      {% if partner.capital_deducted != "0.000" %}<tr><td>− Part de la perte prise sur la mise</td><td class="r num">{{ partner.capital_deducted|money }}</td></tr>{% endif %}
+      <tr><td>= Mise à rendre à {{ partner_name }}</td><td class="r num">{{ partner.capital_to_return|money }}</td></tr>
+      {% if outcome == "profit" %}<tr><td>+ Part de bénéfice</td><td class="r num">{{ partner.share|money }}</td></tr>{% endif %}
+      <tr class="sum"><td>À verser à {{ partner_name }} au règlement</td><td class="r num">{{ partner.payable_to_partner|money }} DT</td></tr>
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h2>6 · Règlement</h2>
+  {% if settlement %}
+  <p class="sentence">Réglé le <b class="num">{{ settlement.settled_on|day }}</b>.</p>
+  <table class="lines">
+    <tbody>
+      <tr><td>Mise rendue</td><td class="r num">{{ settlement.capital_returned|money }}</td></tr>
+      <tr><td>Part du lot</td><td class="r num">{{ settlement.lot_share|money }}</td></tr>
+      {% if settlement.carried_in %}<tr><td>Reporté des lots précédents</td><td class="r num">{{ settlement.carried_in|money }}</td></tr>{% endif %}
+      <tr class="sum"><td>Total payé</td><td class="r num">{{ settlement.amount_paid|money }} DT</td></tr>
+      {% if settlement.carried_out %}<tr><td>Reste à votre charge, reporté</td><td class="r num">{{ settlement.carried_out|money }}</td></tr>{% endif %}
+    </tbody>
+  </table>
+  {% if payments %}
+  <h2 style="margin-top: 4mm">Paiements</h2>
+  <table class="lines">
+    <thead><tr><th>Date</th><th>Moyen</th><th>Référence</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+      {% for payment in payments %}<tr><td class="num">{{ payment.paid_on|day }}</td><td>{{ payment.get_method_display }}</td><td class="num">{{ payment.reference }}</td><td class="r num">{{ payment.amount|money }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% elif closed %}
+  <p class="muted">Le lot est clôturé ; le règlement n'est pas encore fait.</p>
+  {% else %}
+  <p class="muted">Le règlement a lieu quand le lot est vendu, que ses frais sont rentrés et que les clients ont payé.</p>
+  {% endif %}
+  {% if capital_entries %}
+  <h2 style="margin-top: 4mm">Mouvements de la mise</h2>
+  <table class="lines">
+    <thead><tr><th>Date</th><th>Mouvement</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+      {% for entry in capital_entries %}<tr><td class="num">{{ entry.entry_date|day }}</td><td>{{ entry.get_kind_display }}{% if entry.note %} · {{ entry.note }}{% endif %}</td><td class="r num">{{ entry.amount|money }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<p class="legal">Montants en dinars tunisiens (DT). Document établi par {{ seller.name }}{% if closed %} d'après le résultat clôturé du lot{% else %} d'après la situation du lot à ce jour ; il peut encore changer{% endif %}.</p>
+{% endblock %}
