@@ -915,6 +915,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/dashboard:
+    get:
+      operationId: getDashboard
+      description: |-
+        The owner's home page: this month's sales, margin and net result (profit), the cash collected and
+        what customers still owe (cash), the stock value, and a short list of what needs a look. Owner and
+        accountant only.
+      tags:
+      - dashboard
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+          description: ''
   /api/v1/day-closings:
     get:
       operationId: listDayClosings
@@ -8472,6 +8490,81 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    Dashboard:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        sales:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        previous_sales:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        gross_margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_collected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        receivables:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        receivables_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        stock_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue_customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverdueCustomer'
+          readOnly: true
+        overdue_customer_count:
+          type: integer
+          readOnly: true
+        days_waiting:
+          type: integer
+          readOnly: true
+        expenses_waiting:
+          type: integer
+          readOnly: true
+      required:
+      - cash_collected
+      - days_waiting
+      - expenses_waiting
+      - gross_margin
+      - month
+      - net_result
+      - overdue_customer_count
+      - overdue_customers
+      - previous_sales
+      - receivables
+      - receivables_overdue
+      - sales
+      - stock_value
     DayClosingDetail:
       type: object
       properties:
@@ -12451,6 +12544,24 @@ components:
       required:
       - id
       - name
+    OverdueCustomer:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - customer_id
+      - name
+      - overdue
     PaginatedBatchList:
       type: object
       required:

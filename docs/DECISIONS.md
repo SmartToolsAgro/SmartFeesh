@@ -1388,3 +1388,15 @@ office like the others (kind `payment`, D-099). **In the day's cash:** expected 
 payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
 driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
 later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
+
+
+**D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
+`GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
+month up to today. **Profit and cash are two separate groups.** Profit: sales, gross margin and net operating result come
+straight from `closing.monthly.month_report` (nothing is recomputed), plus last month's sales for the % change. Cash: money
+collected this month (what customers paid on the spot at a confirmed sale plus their later payments, voided ones left out:
+`sales.selectors.cash_collected`), what customers still owe and the overdue part (the ageing page's "customers who owe",
+`sales.selectors.receivables_overview`), and the stock value at cost (the month-end valuation, which for the current month is
+today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
+(`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
+**Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).

@@ -136,3 +136,8 @@ def sync_problems_of(organization: Organization, *, open_only: bool = True) -> Q
 
 def sync_problem_by_id(organization: Organization, problem_id: int) -> SyncProblem:
     return sync_problems_of(organization, open_only=False).get(pk=problem_id)
+
+
+def waiting_for_office(organization: Organization) -> int:
+    """Driver days sent by the driver (or sent again with a note) and not approved yet."""
+    return closings_of(organization).exclude(status=DayClosingStatus.APPROVED).count()
