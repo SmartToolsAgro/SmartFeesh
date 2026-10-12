@@ -1,3 +1,4 @@
+/* global self, caches, fetch, Response, URL */
 // Service worker of the driver app (P3-T07a, D-096). No library: it keeps what the app already showed so the
 // screens still open without signal.
 //  - The app itself (pages, scripts, styles, icons): answered from the cache when it is there, refreshed in
