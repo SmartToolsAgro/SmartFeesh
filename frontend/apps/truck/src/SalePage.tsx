@@ -3,7 +3,7 @@ import {
   type CustomerChoice,
   type MyStockLine,
   type SaleDetail,
-  useCreateSale,
+  createSale,
   useListMyCustomers,
   useListMyStock,
 } from "@frutti/api";
@@ -12,6 +12,9 @@ import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "
 import { Button, Card, EmptyState, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { enqueueSale, pendingKilos, type QueuedSale, useQueue } from "./salesQueue";
+import { sendWaitingSales } from "./syncSales";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -35,21 +38,20 @@ export function SalePage() {
   const [kilos, setKilos] = useState<Record<number, string>>({});
   const [paid, setPaid] = useState<string | null>(null);
   const [step, setStep] = useState<"goods" | "pay">("goods");
-  const [receipt, setReceipt] = useState<SaleDetail | null>(null);
+  const queue = useQueue();
+  const [receipt, setReceipt] = useState<SaleDetail | QueuedSale | null>(null);
+  const [sending, setSending] = useState(false);
   const [uuid, setUuid] = useState(() => crypto.randomUUID());
   const [error, setError] = useState("");
-  const create = useCreateSale({
-    mutation: {
-      onSuccess: (sale) => {
-        setReceipt(sale);
-        void queryClient.invalidateQueries();
-      },
-      onError: (failure) => {
-        const texts = failure instanceof ApiError ? messagesOf(failure.body) : [];
-        setError(texts.join(" ") || t("truck.sale.failed"));
-      },
-    },
-  });
+  const startNew = () => {
+    setReceipt(null);
+    setCustomer(null);
+    setKilos({});
+    setPaid(null);
+    setStep("goods");
+    setError("");
+    setUuid(crypto.randomUUID());
+  };
 
   if (truck === null) {
     return (
@@ -59,24 +61,16 @@ export function SalePage() {
     );
   }
   if (receipt !== null) {
-    return (
-      <Receipt
-        sale={receipt}
-        onNew={() => {
-          setReceipt(null);
-          setCustomer(null);
-          setKilos({});
-          setPaid(null);
-          setStep("goods");
-          setError("");
-          setUuid(crypto.randomUUID());
-        }}
-      />
-    );
+    if ("uuid" in receipt) return <QueuedReceipt sale={receipt} onNew={startNew} />;
+    return <Receipt sale={receipt} onNew={startNew} />;
   }
   if (customer === null) return <PickCustomer onPick={setCustomer} />;
 
+  // What the truck holds, less the sales still waiting to be sent: those kilos are already promised.
+  const promised = pendingKilos(queue);
+  const available = (line: MyStockLine) => Math.max(Number(line.quantity) - (promised[line.product_id] ?? 0), 0);
   const lines = (stock.data ?? []).filter((line) => Number(kilos[line.product_id] ?? 0) > 0);
+  const overstock = lines.some((line) => Number(kilos[line.product_id] ?? 0) > available(line) + 0.0005);
   const lineMillimes = (line: MyStockLine) =>
     Math.round(Number(kilos[line.product_id] ?? 0) * millimes(line.unit_price ?? "0"));
   const totalMillimes = lines.reduce((sum, line) => sum + lineMillimes(line), 0);
@@ -86,20 +80,58 @@ export function SalePage() {
   const tooMuch = paidValue !== null && millimes(paidValue) > totalMillimes;
   const owedMillimes = paidValue === null ? 0 : Math.max(totalMillimes - millimes(paidValue), 0);
 
-  const confirm = () => {
-    if (paidValue === null || tooMuch) return;
+  const confirm = async () => {
+    if (paidValue === null || tooMuch || overstock) return;
     setError("");
-    create.mutate({
-      data: {
-        customer: customer.is_walk_in ? null : customer.id,
-        location: truck.location_id,
-        confirm_now: true,
-        client_uuid: uuid,
-        amount_paid: paidValue,
-        payment_method: "cash",
-        lines: lines.map((line) => ({ product: line.product_id, quantity: kilos[line.product_id] ?? "" })),
+    const data = {
+      customer: customer.is_walk_in ? null : customer.id,
+      location: truck.location_id,
+      confirm_now: true,
+      client_uuid: uuid,
+      amount_paid: paidValue,
+      payment_method: "cash" as const,
+      lines: lines.map((line) => ({ product: line.product_id, quantity: kilos[line.product_id] ?? "" })),
+    };
+    const waiting = (): QueuedSale => ({
+      uuid,
+      createdAt: new Date().toISOString(),
+      customerName: customer.name,
+      data,
+      estimate: {
+        lines: lines.map((line) => ({
+          name: line.product_name,
+          kilos: kilos[line.product_id] ?? "",
+          amount: (lineMillimes(line) / 1000).toFixed(3),
+        })),
+        total: totalText,
+        paid: paidValue,
       },
+      status: "pending",
+      error: "",
     });
+    setSending(true);
+    try {
+      if (!navigator.onLine) throw new TypeError("offline");
+      const sale = await createSale(data);
+      setReceipt(sale);
+      void queryClient.invalidateQueries();
+      void sendWaitingSales(queryClient);
+    } catch (failure) {
+      if (failure instanceof ApiError) {
+        setError(messagesOf(failure.body).join(" ") || t("truck.sale.failed"));
+      } else {
+        // No connection: keep the sale on the phone, it is sent as soon as the network is back.
+        const kept = waiting();
+        try {
+          await enqueueSale(kept);
+          setReceipt(kept);
+        } catch {
+          setError(t("truck.sale.failed"));
+        }
+      }
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -126,7 +158,7 @@ export function SalePage() {
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="text-lg font-semibold">{line.product_name}</span>
                       <span className="text-sm text-ink-2">
-                        {t("truck.sale.left", { kg: formatQuantity(line.quantity) })}
+                        {t("truck.sale.left", { kg: formatQuantity(available(line).toFixed(3)) })}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -157,11 +189,12 @@ export function SalePage() {
               size="lg"
               variant="primary"
               className="py-4 text-lg"
-              disabled={lines.length === 0}
+              disabled={lines.length === 0 || overstock}
               onClick={() => setStep("pay")}
             >
               {t("truck.sale.next")}
             </Button>
+            {overstock ? <p className="text-bad">{t("truck.sale.notEnough")}</p> : null}
           </Card>
         </>
       ) : (
@@ -194,8 +227,8 @@ export function SalePage() {
             size="lg"
             variant="primary"
             className="py-4 text-lg"
-            disabled={paidValue === null || tooMuch || create.isPending}
-            onClick={confirm}
+            disabled={paidValue === null || tooMuch || sending}
+            onClick={() => void confirm()}
           >
             {t("truck.sale.confirm")}
           </Button>
@@ -286,6 +319,40 @@ function Receipt({ sale, onNew }: { sale: SaleDetail; onNew: () => void }) {
           {t("truck.sale.share")}
         </Button>
       ) : null}
+      <Button size="lg" variant="primary" className="py-4 text-lg" onClick={onNew}>
+        {t("truck.sale.newSale")}
+      </Button>
+    </div>
+  );
+}
+
+function QueuedReceipt({ sale, onNew }: { sale: QueuedSale; onNew: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-4">
+      <Card className="space-y-3">
+        <p className="text-xl font-bold">{t("truck.sale.keptOnPhone")}</p>
+        <p className="text-ink-2">{t("truck.sale.keptOnPhoneBody")}</p>
+        <p className="text-ink-2">{sale.customerName}</p>
+        <ul className="divide-y divide-line">
+          {sale.estimate.lines.map((line) => (
+            <li key={line.name} className="flex items-baseline justify-between gap-3 py-2">
+              <span>
+                {line.name} · {formatQuantity(line.kilos)} kg
+              </span>
+              <span className="font-semibold">{formatMoney(line.amount)}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="flex justify-between text-xl font-bold">
+          <span>{t("truck.sale.total")}</span>
+          <span>{formatMoney(sale.estimate.total)}</span>
+        </p>
+        <p className="flex justify-between">
+          <span>{t("truck.sale.paid")}</span>
+          <span>{formatMoney(sale.estimate.paid)}</span>
+        </p>
+      </Card>
       <Button size="lg" variant="primary" className="py-4 text-lg" onClick={onNew}>
         {t("truck.sale.newSale")}
       </Button>

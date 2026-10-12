@@ -55,11 +55,11 @@ small line says how many things are waiting to be sent.
 - [x] A small banner shows "Hors ligne" when there is no connection.
 
 #### P3-T07b · Queue for sales · M
-- [ ] Sales are written to an IndexedDB queue with their `client_uuid` and sent when the connection
+- [x] Sales are written to an IndexedDB queue with their `client_uuid` and sent when the connection
       returns, in order; the server already ignores a `client_uuid` it has seen (D-091).
-- [ ] The queue count is always visible ("3 ventes en attente"); a sale shows as "en attente" on the
+- [x] The queue count is always visible ("3 ventes en attente"); a sale shows as "en attente" on the
       receipt until sent.
-- [ ] Offline, the sale screen uses the last downloaded stock and customers; stock of the truck is
+- [x] Offline, the sale screen uses the last downloaded stock and customers; stock of the truck is
       reduced locally per queued sale so the driver cannot sell more than the truck holds.
 
 #### P3-T07c · Queue for expenses, losses and closing · S

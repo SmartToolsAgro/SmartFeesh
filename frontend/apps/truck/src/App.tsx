@@ -10,6 +10,7 @@ import { ExpensePage } from "./ExpensePage";
 import { LossPage } from "./LossPage";
 import { forgetSavedData } from "./offline";
 import { OfflineBanner } from "./OfflineBanner";
+import { SyncStatus } from "./SyncStatus";
 import { SalePage } from "./SalePage";
 
 const queryClient = createQueryClient();
@@ -42,6 +43,7 @@ function Shell({ session }: { session: Session }) {
       }}
     >
       <OfflineBanner />
+      <SyncStatus />
       <Outlet />
     </TruckShell>
   );
