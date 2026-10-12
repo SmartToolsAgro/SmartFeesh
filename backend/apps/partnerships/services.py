@@ -60,6 +60,7 @@ def _snapshot(partnership: LotPartnership) -> dict[str, Any]:
         "profit_rate": str(partnership.profit_rate),
         "loss_rate": str(partnership.loss_rate),
         "status": partnership.status,
+        "terms_pending": partnership.terms_pending,
     }
 
 
@@ -84,7 +85,7 @@ def _terms(
     values: dict[str, Any] = {}
     if batch.organization_id != organization.pk:
         errors["batch"] = _("Lot inconnu.")
-    elif has_sold(organization, batch_id=batch.pk):
+    elif has_sold(organization, batch_id=batch.pk) and not (current is not None and current.terms_pending):
         errors["batch"] = _("Ce lot a déjà été vendu en partie : un partenariat se fixe avant la première vente.")
     elif current is None and inventory.quantity_on_hand(organization, batch_id=batch.pk) <= 0:
         errors["batch"] = _("Ce lot n'a plus de stock : un partenariat se fixe sur un lot ouvert.")
@@ -132,6 +133,29 @@ def _post_entry(
 
 
 @transaction.atomic
+def designate_partner(
+    *, organization: Organization, actor: User | None, batch: "Batch", partner: "Supplier"
+) -> LotPartnership:
+    """Name the partner of a lot at its goods receipt, before capital and rates are known (D-100).
+
+    The supplier of the receipt may be the partner too. Capital and rates are zero and `terms_pending`
+    is set: the owner fills them in later (`update_partnership`), even after sales, because the shares
+    are only computed when the lot closes, which a pending partnership blocks.
+    """
+    return create_partnership(
+        organization=organization,
+        actor=actor,
+        batch=batch,
+        partner=partner,
+        owner_capital=ZERO,
+        partner_capital=ZERO,
+        profit_rate=ZERO,
+        loss_rate=ZERO,
+        terms_pending=True,
+    )
+
+
+@transaction.atomic
 def create_partnership(
     *,
     organization: Organization,
@@ -143,6 +167,7 @@ def create_partnership(
     profit_rate: Any,
     loss_rate: Any,
     notes: str = "",
+    terms_pending: bool = False,
 ) -> LotPartnership:
     """Put a lot in partnership with one supplier: at receipt time or on an open lot before its first sale.
 
@@ -161,7 +186,13 @@ def create_partnership(
         loss_rate=loss_rate,
     )
     partnership = LotPartnership.objects.create(
-        organization=organization, batch=batch, partner=partner, notes=notes.strip(), created_by=actor, **values
+        organization=organization,
+        batch=batch,
+        partner=partner,
+        notes=notes.strip(),
+        created_by=actor,
+        terms_pending=terms_pending,
+        **values,
     )
     if partnership.partner_capital > 0:
         _post_entry(partnership, actor=actor, kind=CapitalEntryKind.CONTRIBUTION, amount=partnership.partner_capital)
@@ -216,6 +247,8 @@ def update_partnership(
     )
     for field, value in values.items():
         setattr(partnership, field, value)
+    if partnership.terms_pending and profit_rate is not None and loss_rate is not None:
+        partnership.terms_pending = False
     if partner is not None:
         partnership.partner = partner
     if notes is not None:

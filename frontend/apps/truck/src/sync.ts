@@ -1,4 +1,4 @@
-import { addMyExpense, ApiError, createSale, reportMyLoss, reportSyncProblem } from "@frutti/api";
+import { addMyExpense, ApiError, collectMyPayment, createSale, reportMyLoss, reportSyncProblem } from "@frutti/api";
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
@@ -27,6 +27,7 @@ async function tellOffice(item: QueuedItem): Promise<void> {
 function sendItem(item: QueuedItem): Promise<unknown> {
   if (item.kind === "sale") return createSale(item.data);
   if (item.kind === "expense") return addMyExpense(item.data);
+  if (item.kind === "payment") return collectMyPayment(item.data);
   return reportMyLoss(item.data);
 }
 

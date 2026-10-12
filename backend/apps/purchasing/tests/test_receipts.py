@@ -15,6 +15,7 @@ from apps.inventory import selectors as inventory
 from apps.inventory.models import Batch, LocationKind, StockMovement
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import SupplierFactory
+from apps.partnerships.models import LotPartnership
 from apps.purchasing import selectors, services
 from apps.purchasing.models import GoodsReceipt
 
@@ -287,6 +288,25 @@ def test_the_owner_records_a_receipt_and_reads_it_back():
     assert client.get(reverse("receipt-detail", args=[body["id"]])).json() == body
     listed = client.get(reverse("receipt-list"), {"differences": "true"}).json()
     assert (listed["count"], listed["results"][0]["id"]) == (1, body["id"])
+
+
+@pytest.mark.parametrize(("role", "status", "partnerships"), [(Role.OWNER, 201, 1), (Role.MANAGER, 400, 0)])
+def test_only_the_owner_names_a_partner_on_a_receipt_line(role, status, partnerships):
+    client, member = client_for(role)
+    organization = member.organization
+    supplier = SupplierFactory.create(organization=organization)
+    room = StockLocationFactory.create(organization=organization)
+    product = ProductFactory.create(organization=organization)
+
+    # The supplier of the receipt is its own partner here; capital and rates come later (D-100).
+    response = client.post(
+        reverse("receipt-list"), payload(supplier, room, product, partner=supplier.pk), format="json"
+    )
+
+    assert response.status_code == status
+    assert LotPartnership.objects.count() == partnerships
+    if status == 400:
+        assert "lines.0.partner" in response.json()
 
 
 def test_line_errors_come_back_on_their_own_keys():

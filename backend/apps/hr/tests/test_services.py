@@ -169,6 +169,38 @@ def test_an_adjustment_needs_an_approved_salary_a_reason_and_a_sensible_amount()
     assert "amount" in error.value.message_dict
 
 
+def test_an_adjustment_cannot_take_a_salary_below_what_was_already_paid():
+    record = services.approve_salary_record(record=draft_record(), actor=None)
+    employee = record.employee
+    services.record_payment(
+        organization=record.organization,
+        actor=None,
+        employee=employee,
+        paid_on=THIS_MONTH,
+        amount="800.000",
+        method="cash",
+        allocations=[{"salary_record": record, "amount": "800.000"}],
+    )
+
+    with pytest.raises(ValidationError) as error:
+        services.add_adjustment(record=record, actor=None, amount="-300.000", reason="Retenue")
+    assert "payé" in error.value.message_dict["amount"][0]
+
+    # Down to exactly what was paid is fine: nothing is left to pay, nothing overpaid.
+    services.add_adjustment(record=record, actor=None, amount="-200.000", reason="Retenue")
+    fresh = selectors.salary_record_of(record.organization, record.pk)
+    assert selectors.outstanding_amount(fresh) == Decimal("0.000")
+
+
+def test_an_adjustment_amount_has_an_upper_bound_instead_of_a_database_error():
+    record = services.approve_salary_record(record=draft_record(), actor=None)
+
+    for amount in ("100000000000.000", "-100000000000.000"):
+        with pytest.raises(ValidationError) as error:
+            services.add_adjustment(record=record, actor=None, amount=amount, reason="Trop")
+        assert "amount" in error.value.message_dict
+
+
 def test_a_draft_can_be_deleted_and_regenerated():
     record = draft_record()
 

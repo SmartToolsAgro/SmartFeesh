@@ -3,8 +3,11 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
+from apps.core.models import AuditLog
 from apps.expenses import cost_selectors, selectors, services
 from apps.expenses.costing import (
     add_months,
@@ -102,6 +105,48 @@ def test_a_template_generates_the_months_expense_once(organization, actor):
     assert stopped.monthly_amount == D("1400.000")
     with pytest.raises(ValidationError):
         services.generate_recurring_costs(organization=organization, actor=actor, month=add_months(current_month(), 1))
+
+
+def recurring(organization, actor, rent, **fields):
+    values = {"name": "Loyer", "category": rent, "monthly_amount": "1300.000", "start_month": current_month()}
+    return services.create_recurring_cost(organization=organization, actor=actor, **{**values, **fields})
+
+
+def test_a_template_with_an_archived_category_is_skipped_and_reported_not_a_failure(organization, actor):
+    own = services.create_category(organization=organization, actor=actor, name="Gardiennage")
+    recurring(organization, actor, own, name="Gardien")
+    recurring(organization, actor, category(organization, "rent"))
+    services.update_category(category=own, actor=actor, is_active=False)
+
+    created = services.generate_recurring_costs(organization=organization, actor=actor, month=current_month())
+
+    assert [period.expense.description for period in created] == ["Loyer"]
+    skipped = AuditLog.objects.get(action="recurring_cost.skipped")
+    assert skipped.after is not None
+    assert skipped.after["archived_category"] == ["Gardien"]
+
+
+def test_a_refused_month_of_a_template_is_generated_again(organization, actor):
+    recurring(organization, actor, category(organization, "rent"))
+    [first] = services.generate_recurring_costs(organization=organization, actor=actor, month=current_month())
+    services.reject_expense(expense=first.expense, actor=actor, reason="Erreur de saisie")
+
+    [second] = services.generate_recurring_costs(organization=organization, actor=actor, month=current_month())
+
+    assert second.expense_id != first.expense_id
+    assert second.expense.status == ExpenseStatus.DRAFT
+    first.expense.refresh_from_db()
+    assert first.expense.status == ExpenseStatus.REJECTED  # the refusal stays as a trace
+    assert services.generate_recurring_costs(organization=organization, actor=actor, month=current_month()) == []
+
+
+def test_generating_locks_the_organization_so_two_runs_cannot_both_create_a_month(organization, actor):
+    recurring(organization, actor, category(organization, "rent"))
+
+    with CaptureQueriesContext(connection) as queries:
+        services.generate_recurring_costs(organization=organization, actor=actor, month=current_month())
+
+    assert any("FOR UPDATE" in query["sql"] and "core_organization" in query["sql"] for query in queries)
 
 
 def test_a_template_respects_its_first_and_last_month(organization, actor):

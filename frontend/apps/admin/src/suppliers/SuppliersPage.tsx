@@ -1,15 +1,18 @@
 import { useListSuppliers } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
-import { Button, Card, Dialog, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import { Button, Card, cn, Dialog, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { type Status, StatusFilter } from "../lib/StatusFilter";
+import { usePartnerSuppliers } from "../partnerships/usePartnerSuppliers";
 import { useDebounced } from "../lib/useDebounced";
 import { canEditSuppliers } from "./shared";
 import { SupplierDialog } from "./SupplierDialog";
+
+const KINDS = ["all", "partner", "other"] as const;
 
 export function SuppliersPage() {
   const { t } = useTranslation();
@@ -25,8 +28,12 @@ export function SuppliersPage() {
     { status, ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
-  const list = suppliers.data ?? [];
-  const filtering = query !== "" || status !== "active";
+  const partnerLots = usePartnerSuppliers(session);
+  const [kind, setKind] = useState<(typeof KINDS)[number]>("all");
+  const list = (suppliers.data ?? []).filter(
+    (supplier) => kind === "all" || !partnerLots || partnerLots.has(supplier.id) === (kind === "partner"),
+  );
+  const filtering = query !== "" || status !== "active" || kind !== "all";
 
   return (
     <>
@@ -60,6 +67,28 @@ export function SuppliersPage() {
             all: t("admin.suppliers.status.all"),
           }}
         />
+        {partnerLots && (
+          <div
+            role="group"
+            aria-label={t("admin.suppliers.kind.label")}
+            className="flex rounded-control bg-surface-2 p-1"
+          >
+            {KINDS.map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                aria-pressed={kind === choice}
+                onClick={() => setKind(choice)}
+                className={cn(
+                  "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
+                  kind === choice && "bg-surface text-ink shadow-card",
+                )}
+              >
+                {t(`admin.suppliers.kind.${choice}`)}
+              </button>
+            ))}
+          </div>
+        )}
         <span className="ms-auto text-[0.85rem] text-ink-2" aria-live="polite">
           {suppliers.data && t("admin.suppliers.count", { count: list.length })}
         </span>
@@ -111,6 +140,11 @@ export function SuppliersPage() {
                     {!supplier.is_active && (
                       <Pill className="ms-2" tone="neutral">
                         {t("admin.suppliers.archived")}
+                      </Pill>
+                    )}
+                    {partnerLots?.has(supplier.id) && (
+                      <Pill className="ms-2" tone="good">
+                        {t("admin.suppliers.partner")}
                       </Pill>
                     )}
                     {supplier.city && <div className="text-[0.8rem] text-ink-2">{supplier.city}</div>}

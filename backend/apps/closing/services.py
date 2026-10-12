@@ -67,6 +67,11 @@ def close_lot(
     lock_lot(batch_id)
     if selectors.closed_result_of(organization, batch_id=batch_id) is not None:
         raise ValidationError(_("Ce lot est déjà clôturé."))
+    pending = partnerships.live_partnership_of_batch(organization, batch_id=batch_id)
+    if pending is not None and pending.terms_pending:
+        raise ValidationError(
+            _("Le partenariat de ce lot n'a pas encore de capital ni de pourcentages : complétez-le d'abord.")
+        )
     computed = selectors.live_result(organization, batch_id=batch_id)
     checks = selectors.closing_checks(organization, computed)
     refusals = _refusals(checks)
