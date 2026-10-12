@@ -4,10 +4,11 @@ import { Brand, Button, Card, Field, Input, ThemeToggle } from "@frutti/ui";
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation } from "react-router";
 
+import { LanguageSwitch } from "./LanguageSwitch";
 import { useLogin, useSession } from "./session";
 
-/** Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"). */
-export function LoginPage({ title }: { title: string }) {
+/** Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"); `withLanguage` offers French or Arabic. */
+export function LoginPage({ title, withLanguage = false }: { title: string; withLanguage?: boolean }) {
   const { t } = useTranslation();
   const session = useSession();
   const login = useLogin();
@@ -41,6 +42,7 @@ export function LoginPage({ title }: { title: string }) {
           <Brand />
           <ThemeToggle />
         </div>
+        {withLanguage && <LanguageSwitch className="self-start" />}
         <div>
           <span className="eyebrow">{title}</span>
           <h1 className="text-[1.4rem]">{t("auth.title")}</h1>

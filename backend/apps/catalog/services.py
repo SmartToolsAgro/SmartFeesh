@@ -15,6 +15,7 @@ from apps.core import audit
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_quantity, money
+from apps.inventory import selectors as inventory_selectors
 from apps.partners import selectors as partner_selectors
 
 from . import selectors
@@ -169,8 +170,19 @@ def update_product(*, product: Product, actor: User | None, **fields: Unpack[Pro
 
 @transaction.atomic
 def set_product_active(*, product: Product, actor: User | None, is_active: bool) -> Product:
-    """Archive a product (it keeps its history but is no longer bought or sold), or bring it back."""
+    """Archive a product (it keeps its history but is no longer bought or sold), or bring it back.
+
+    A product still in stock cannot be archived: transfers, driver returns and sales refuse archived
+    products, so its stock would be stuck. Sell it, move it out or write it off first (like a location).
+    """
     product = Product.objects.select_for_update().get(pk=product.pk)
+    if not is_active and product.is_active:
+        held = inventory_selectors.quantity_on_hand(product.organization, product_id=product.pk)
+        if held > 0:
+            raise ValidationError(
+                _("« %(name)s » est encore en stock (%(quantity)s kg) : écoulez-le avant de l'archiver.")
+                % {"name": product.name, "quantity": held}
+            )
     if product.is_active != is_active:
         product.is_active = is_active
         product.save(update_fields=["is_active", "updated_at"])

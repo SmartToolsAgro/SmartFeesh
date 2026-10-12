@@ -65,6 +65,7 @@ _Coarse plan: detail each task when the phase starts._
       partner shares, which are settled per lot. _D-074._
 
 ### P6-T07 · Screens · M
-- [ ] Lot page: sales, costs, result, partner share, with drill-down to every record behind a number.
-- [ ] Prototype's "Partage des bénéfices" page reworked as a list of partnership lots (open, closed,
-      settled); "Clôture mensuelle" for the accountant.
+- [x] Lot page: sales, costs, result, partner share, with drill-down to every record behind a number.
+      _Already built with P6-T02/T03 (`LotResultCard`, `SettlementCard`); the partner statement PDF is on the lot (P6-T04)._
+- [x] Prototype's "Partage des bénéfices" page reworked as a list of partnership lots (open, closed,
+      settled); "Clôture mensuelle" for the accountant. _List: P6-T01 (`/partenariats`); month: `/cloture` (D-074)._

@@ -1,4 +1,4 @@
-import { createQueryClient, LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
+import { createQueryClient, LanguageSwitch, LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import { EmptyState, type IllustrationName, Sprite, Toaster, TruckShell, type TruckTab } from "@frutti/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -43,6 +43,7 @@ function Shell({ session }: { session: Session }) {
         logout.mutate();
       }}
     >
+      <LanguageSwitch className="mb-3 self-end" />
       <OfflineBanner />
       <SyncStatus />
       <Outlet />
@@ -64,7 +65,7 @@ function AppRoutes() {
   const tabs = useTabs();
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage title={t("truck.appName")} />} />
+      <Route path="/login" element={<LoginPage title={t("truck.appName")} withLanguage />} />
       <Route
         element={
           <RequireRole allow={["driver"]} wrongAppMessage={t("truck.wrongApp")}>
