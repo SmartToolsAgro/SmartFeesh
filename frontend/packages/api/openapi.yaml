@@ -5247,6 +5247,66 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/reports/partners:
+    get:
+      operationId: getPartnerReport
+      description: |-
+        Per partner over a period: capital put in, loss share taken from it and capital returned, the capital
+        still in the company now; profit share earned, uncovered losses, late adjustments and paid, and the share
+        still due now. The balances are those of the partner screens.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerReport'
+          description: ''
+  /api/v1/reports/partners/export:
+    get:
+      operationId: exportPartnerReport
+      description: The partner report as an Excel file.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/reports/sales:
     get:
       operationId: getSalesReport
@@ -13841,6 +13901,93 @@ components:
       - partner_name
       - profit_share
       - trade_payable
+    PartnerLine:
+      type: object
+      properties:
+        partner_id:
+          type: integer
+        name:
+          type: string
+        lots:
+          type: integer
+        contributed:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        loss_deducted:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital_outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        uncovered_loss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        late_adjustments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        share_due:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - capital_outstanding
+      - contributed
+      - late_adjustments
+      - loss_deducted
+      - lots
+      - name
+      - paid
+      - partner_id
+      - returned
+      - share
+      - share_due
+      - uncovered_loss
+    PartnerReport:
+      type: object
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerLine'
+        totals:
+          $ref: '#/components/schemas/PartnerLine'
+      required:
+      - date_from
+      - date_to
+      - rows
+      - totals
     PartnershipBatch:
       type: object
       properties:

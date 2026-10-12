@@ -6,8 +6,9 @@ import { useId, useState } from "react";
 import { useOutletContext } from "react-router";
 
 import { FinancialReports } from "./FinancialReports";
+import { PartnerReports } from "./PartnerReports";
 
-const TABS = ["sales", "stockValue", "slow", "losses", "financial"] as const;
+const TABS = ["sales", "stockValue", "slow", "losses", "financial", "partners"] as const;
 type Tab = (typeof TABS)[number];
 const GROUPS = ["customer", "product", "truck", "driver", "day", "week", "month"] as const;
 type Group = (typeof GROUPS)[number];
@@ -338,7 +339,8 @@ export function ReportsPage() {
   const session = useOutletContext<Session>();
   // The company's money is for the owner and the accountant (the server refuses the others too).
   const tabs = TABS.filter(
-    (value) => value !== "financial" || session.role === "owner" || session.role === "accountant",
+    (value) =>
+      (value !== "financial" && value !== "partners") || session.role === "owner" || session.role === "accountant",
   );
   const [tab, setTab] = useState<Tab>("sales");
   return (
@@ -370,6 +372,7 @@ export function ReportsPage() {
       {tab === "slow" && <SlowReport />}
       {tab === "losses" && <LossesReport />}
       {tab === "financial" && <FinancialReports />}
+      {tab === "partners" && <PartnerReports />}
     </>
   );
 }

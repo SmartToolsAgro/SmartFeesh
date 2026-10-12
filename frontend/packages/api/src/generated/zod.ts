@@ -9639,6 +9639,81 @@ export const ExportMonthResultReportResponse = zod.unknown()
 
 
 /**
+ * Per partner over a period: capital put in, loss share taken from it and capital returned, the capital
+ * still in the company now; profit share earned, uncovered losses, late adjustments and paid, and the share
+ * still due now. The balances are those of the partner screens.
+ */
+export const GetPartnerReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const getPartnerReportResponseRowsItemContributedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemLossDeductedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemReturnedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemCapitalOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemLateAdjustmentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemShareDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsContributedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsLossDeductedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsReturnedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsCapitalOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsLateAdjustmentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsShareDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPartnerReportResponse = zod.object({
+  "date_from": zod.iso.date(),
+  "date_to": zod.iso.date(),
+  "rows": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "name": zod.string(),
+  "lots": zod.int(),
+  "contributed": zod.stringFormat('decimal', getPartnerReportResponseRowsItemContributedRegExp),
+  "loss_deducted": zod.stringFormat('decimal', getPartnerReportResponseRowsItemLossDeductedRegExp),
+  "returned": zod.stringFormat('decimal', getPartnerReportResponseRowsItemReturnedRegExp),
+  "capital_outstanding": zod.stringFormat('decimal', getPartnerReportResponseRowsItemCapitalOutstandingRegExp),
+  "share": zod.stringFormat('decimal', getPartnerReportResponseRowsItemShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', getPartnerReportResponseRowsItemUncoveredLossRegExp),
+  "late_adjustments": zod.stringFormat('decimal', getPartnerReportResponseRowsItemLateAdjustmentsRegExp),
+  "paid": zod.stringFormat('decimal', getPartnerReportResponseRowsItemPaidRegExp),
+  "share_due": zod.stringFormat('decimal', getPartnerReportResponseRowsItemShareDueRegExp)
+})),
+  "totals": zod.object({
+  "partner_id": zod.int(),
+  "name": zod.string(),
+  "lots": zod.int(),
+  "contributed": zod.stringFormat('decimal', getPartnerReportResponseTotalsContributedRegExp),
+  "loss_deducted": zod.stringFormat('decimal', getPartnerReportResponseTotalsLossDeductedRegExp),
+  "returned": zod.stringFormat('decimal', getPartnerReportResponseTotalsReturnedRegExp),
+  "capital_outstanding": zod.stringFormat('decimal', getPartnerReportResponseTotalsCapitalOutstandingRegExp),
+  "share": zod.stringFormat('decimal', getPartnerReportResponseTotalsShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', getPartnerReportResponseTotalsUncoveredLossRegExp),
+  "late_adjustments": zod.stringFormat('decimal', getPartnerReportResponseTotalsLateAdjustmentsRegExp),
+  "paid": zod.stringFormat('decimal', getPartnerReportResponseTotalsPaidRegExp),
+  "share_due": zod.stringFormat('decimal', getPartnerReportResponseTotalsShareDueRegExp)
+})
+})
+
+
+/**
+ * The partner report as an Excel file.
+ */
+export const ExportPartnerReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const ExportPartnerReportResponse = zod.unknown()
+
+
+/**
  * Confirmed sales (BL) by customer, product, truck, driver, day, week or month: kilos, revenue without
  * VAT, cost of goods sold and margin, net of the credit notes issued in the period. The same rows as the
  * monthly closing, so the totals always agree with it.

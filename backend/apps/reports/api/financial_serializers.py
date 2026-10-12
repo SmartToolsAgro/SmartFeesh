@@ -111,3 +111,25 @@ class SalaryLineSerializer(serializers.Serializer):  # type: ignore[type-arg]
 class UnpaidSalariesSerializer(serializers.Serializer):  # type: ignore[type-arg]
     rows = SalaryLineSerializer(many=True)
     total = serializers.DecimalField(**MONEY)
+
+
+class PartnerLineSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    partner_id = serializers.IntegerField()
+    name = serializers.CharField()
+    lots = serializers.IntegerField()
+    contributed = serializers.DecimalField(**MONEY)
+    loss_deducted = serializers.DecimalField(**MONEY)
+    returned = serializers.DecimalField(**MONEY)
+    capital_outstanding = serializers.DecimalField(**MONEY)
+    share = serializers.DecimalField(**MONEY)
+    uncovered_loss = serializers.DecimalField(**MONEY)
+    late_adjustments = serializers.DecimalField(**MONEY)
+    paid = serializers.DecimalField(**MONEY)
+    share_due = serializers.DecimalField(**MONEY)
+
+
+class PartnerReportSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    date_from = serializers.DateField()
+    date_to = serializers.DateField()
+    rows = PartnerLineSerializer(many=True)
+    totals = PartnerLineSerializer()

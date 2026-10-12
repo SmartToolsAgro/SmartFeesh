@@ -1458,3 +1458,14 @@ sales (by sale day) + customer payments (by received day, voided left out); out 
 approved expenses (an approved expense is taken as paid on its date, whatever its payment method: provisional). It is a
 movement report, not a bank reconciliation: there is no opening balance. Payroll accruals are not cash and appear in the
 month result only.
+
+**D-117 · Partnership report (P7-T05)** · accepted · 2026-10-12
+Tab **Partenaires** on Rapports (owner and accountant only), one row per partner and a totals row, with a date range and an
+Excel file. **Over the period** (by entry date, straight from the two partner ledgers, `partnerships.partner_flows`): capital
+put in, loss share deducted from the capital (net of reversals), capital returned; profit share earned, losses beyond the
+capital (owed by the partner), late adjustments (signed) and shares paid out. **Today** (the same selectors as the partner
+screens, `capital_by_partner` and `profit_share_balance_of_partner`, so the report never disagrees with them): capital still
+in the company and the share still due (negative: the partner owes it). The three balances (capital, profit share, trade
+payable) stay separate (D-031, D-040); the supplier payable is in the Finances tab, not here. A lot's settlement
+appears as its capital return and its share payment. **Not done:** a per-lot breakdown under each partner (the lot screens
+have it), and Arabic texts.

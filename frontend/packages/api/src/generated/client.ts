@@ -71,6 +71,7 @@ import type {
   ExportCashFlowReportParams,
   ExportLossesReportParams,
   ExportMonthResultReportParams,
+  ExportPartnerReportParams,
   ExportSalesReportParams,
   ExportSlowMovingReportParams,
   FinanceSettingsOverview,
@@ -86,6 +87,7 @@ import type {
   GetLossesReportParams,
   GetLotCostsParams,
   GetMonthResultReportParams,
+  GetPartnerReportParams,
   GetPayrollSummaryParams,
   GetSalesReportParams,
   GetSlowMovingReportParams,
@@ -177,6 +179,7 @@ import type {
   PaginatedSupplierPaymentList,
   PaginatedTransferList,
   PartnerBalances,
+  PartnerReport,
   PatchedCategory,
   PatchedCustomerWrite,
   PatchedEmployeeWrite,
@@ -16923,6 +16926,218 @@ export function useExportMonthResultReport<TData = Awaited<ReturnType<typeof exp
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExportMonthResultReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPartnerReportUrl = (params?: GetPartnerReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/reports/partners?${stringifiedParams}` : `/api/v1/reports/partners`
+}
+
+/**
+ * Per partner over a period: capital put in, loss share taken from it and capital returned, the capital
+ * still in the company now; profit share earned, uncovered losses, late adjustments and paid, and the share
+ * still due now. The balances are those of the partner screens.
+ */
+export const getPartnerReport = async (params?: GetPartnerReportParams, options?: Parameters<typeof apiFetch>[1]): Promise<PartnerReport> => {
+
+  return apiFetch<PartnerReport>(getGetPartnerReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerReportQueryKey = (params?: GetPartnerReportParams,) => {
+    return [
+    `/api/v1/reports/partners`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPartnerReportQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerReport>>, TError = unknown>(params?: GetPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerReport>>> = ({ signal }) => getPartnerReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerReport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPartnerReportQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerReport>>>
+export type GetPartnerReportQueryError = unknown
+
+
+export function useGetPartnerReport<TData = Awaited<ReturnType<typeof getPartnerReport>>, TError = unknown>(
+ params: undefined |  GetPartnerReportParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerReport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartnerReport>>,
+          TError,
+          Awaited<ReturnType<typeof getPartnerReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartnerReport<TData = Awaited<ReturnType<typeof getPartnerReport>>, TError = unknown>(
+ params?: GetPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerReport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartnerReport>>,
+          TError,
+          Awaited<ReturnType<typeof getPartnerReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartnerReport<TData = Awaited<ReturnType<typeof getPartnerReport>>, TError = unknown>(
+ params?: GetPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetPartnerReport<TData = Awaited<ReturnType<typeof getPartnerReport>>, TError = unknown>(
+ params?: GetPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartnerReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPartnerReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportPartnerReportUrl = (params?: ExportPartnerReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/reports/partners/export?${stringifiedParams}` : `/api/v1/reports/partners/export`
+}
+
+/**
+ * The partner report as an Excel file.
+ */
+export const exportPartnerReport = async (params?: ExportPartnerReportParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportPartnerReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportPartnerReportQueryKey = (params?: ExportPartnerReportParams,) => {
+    return [
+    `/api/v1/reports/partners/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportPartnerReportQueryOptions = <TData = Awaited<ReturnType<typeof exportPartnerReport>>, TError = unknown>(params?: ExportPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPartnerReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportPartnerReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportPartnerReport>>> = ({ signal }) => exportPartnerReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportPartnerReport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportPartnerReportQueryResult = NonNullable<Awaited<ReturnType<typeof exportPartnerReport>>>
+export type ExportPartnerReportQueryError = unknown
+
+
+export function useExportPartnerReport<TData = Awaited<ReturnType<typeof exportPartnerReport>>, TError = unknown>(
+ params: undefined |  ExportPartnerReportParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPartnerReport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportPartnerReport>>,
+          TError,
+          Awaited<ReturnType<typeof exportPartnerReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportPartnerReport<TData = Awaited<ReturnType<typeof exportPartnerReport>>, TError = unknown>(
+ params?: ExportPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPartnerReport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportPartnerReport>>,
+          TError,
+          Awaited<ReturnType<typeof exportPartnerReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportPartnerReport<TData = Awaited<ReturnType<typeof exportPartnerReport>>, TError = unknown>(
+ params?: ExportPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPartnerReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportPartnerReport<TData = Awaited<ReturnType<typeof exportPartnerReport>>, TError = unknown>(
+ params?: ExportPartnerReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPartnerReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportPartnerReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

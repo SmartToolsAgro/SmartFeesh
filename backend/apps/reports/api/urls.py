@@ -35,4 +35,6 @@ urlpatterns = [
         fin.UnpaidSalariesExportView.as_view(),
         name="report-unpaid-salaries-export",
     ),
+    path("reports/partners", fin.PartnerReportView.as_view(), name="report-partners"),
+    path("reports/partners/export", fin.PartnerReportExportView.as_view(), name="report-partners-export"),
 ]
