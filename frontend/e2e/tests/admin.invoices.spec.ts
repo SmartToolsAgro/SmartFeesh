@@ -101,8 +101,10 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
     await line.getByLabel("Poids (kg)").fill("1");
     await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
     await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
-    await expect(page.getByText(/BL-\d{4}-\d+ validé/)).toBeVisible();
-    numbers.push((await page.getByRole("heading", { level: 1 }).textContent()) ?? "");
+    // The page shows the draft number until the sale is read again: wait for the BL number.
+    const title = page.getByRole("heading", { level: 1 });
+    await expect(title).toHaveText(/^BL-\d{4}-\d+$/);
+    numbers.push((await title.textContent()) ?? "");
   }
 
   await page.goto("/ventes");
