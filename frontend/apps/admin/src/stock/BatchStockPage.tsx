@@ -10,6 +10,7 @@ import { SettlementCard } from "../closing/SettlementCard";
 import { LotCostsCard } from "../expenses/LotCostsCard";
 
 import { StockTabs } from "../lib/StockTabs";
+import { LotPartnerPill } from "../partnerships/LotPartnerPill";
 import { PartnershipSection } from "../partnerships/PartnershipSection";
 import { canReadResults } from "../partnerships/shared";
 import { BatchSalesSection } from "../sales/BatchSalesSection";
@@ -61,7 +62,9 @@ export function BatchStockPage() {
   return (
     <>
       {back(data.product.id)}
-      <PageHeader eyebrow={data.product.name} title={t("admin.stock.batch.title", { number: data.number })} />
+      <PageHeader eyebrow={data.product.name} title={t("admin.stock.batch.title", { number: data.number })}>
+        {canReadResults(session) && <LotPartnerPill batchId={batchId} />}
+      </PageHeader>
       <StockTabs />
 
       <Card className="p-4">

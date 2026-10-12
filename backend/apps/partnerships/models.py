@@ -40,6 +40,9 @@ class LotPartnership(OrganizationScopedModel, TimeStampedModel):
     profit_rate = models.DecimalField(max_digits=5, decimal_places=2)
     loss_rate = models.DecimalField(max_digits=5, decimal_places=2)
     status = models.CharField(max_length=20, choices=PartnershipStatus.choices, default=PartnershipStatus.OPEN)
+    # The partner was named at the goods receipt, before anyone agreed on capital and rates (D-100): the amounts
+    # and rates above are placeholders (zero) until the owner fills them in. The lot cannot close meanwhile.
+    terms_pending = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

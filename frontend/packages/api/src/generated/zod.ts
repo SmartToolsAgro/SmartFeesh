@@ -6773,6 +6773,7 @@ export const ListPartnershipsResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', listPartnershipsResponseResultsItemProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', listPartnershipsResponseResultsItemLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', listPartnershipsResponseResultsItemCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -6829,6 +6830,7 @@ export const CreatePartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', createPartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', createPartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', createPartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -6884,6 +6886,7 @@ export const GetPartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', getPartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', getPartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', getPartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -6952,6 +6955,7 @@ export const UpdatePartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', updatePartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', updatePartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', updatePartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -7016,6 +7020,7 @@ export const CancelPartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', cancelPartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', cancelPartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', cancelPartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -8856,6 +8861,7 @@ export const createReceiptBodySupplierReferenceMax = 50;
 export const createReceiptBodyNotesDefault = ``;
 
 
+
 export const CreateReceiptBody = zod.object({
   "supplier": zod.int().min(1),
   "location": zod.int().min(1),
@@ -8869,7 +8875,8 @@ export const CreateReceiptBody = zod.object({
   "invoiced_quantity": zod.string(),
   "accepted_quantity": zod.string(),
   "unit_cost": zod.string(),
-  "use_by": zod.iso.date().nullish()
+  "use_by": zod.iso.date().nullish(),
+  "partner": zod.int().min(1).nullish()
 }))
 })
 
