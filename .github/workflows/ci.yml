@@ -121,11 +121,56 @@ jobs:
       - name: Fail if the committed client differs (run `make gen-api` and commit)
         run: git diff --exit-code -- frontend/packages/api
 
+  e2e:
+    name: End-to-end (login in both apps)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: frutti
+          POSTGRES_PASSWORD: frutti
+          POSTGRES_DB: frutti
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U frutti -d frutti"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://frutti:frutti@localhost:5432/frutti
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install backend dependencies
+        run: uv sync --frozen
+        working-directory: backend
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - name: Install the test browser
+        run: pnpm --filter @frutti/e2e exec playwright install --with-deps chromium
+        working-directory: frontend
+      # Playwright starts the backend (migrate + seed_dev) and both apps itself.
+      - name: End-to-end tests
+        run: pnpm e2e
+        working-directory: frontend
+
   deploy-staging:
     name: Deploy to staging
     # Only after every check passed, only for main. Stays skipped until the secrets below exist.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend, api-contract]
+    needs: [backend, frontend, api-contract, e2e]
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-staging
