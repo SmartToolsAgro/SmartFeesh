@@ -4,6 +4,9 @@ import { Button, Card, EmptyState, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useQueue } from "./queue";
+import { useOnline } from "./offline";
+
 const millimes = (value: string) => Math.round(Number(value) * 1000);
 
 function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
@@ -20,6 +23,9 @@ export function ClosingPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const day = useGetMyDaySummary({ query: { retry: false } });
+  const queue = useQueue();
+  const online = useOnline();
+  const waiting = queue.filter((item) => item.status === "pending").length;
   const [counted, setCounted] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -125,11 +131,16 @@ export function ClosingPage() {
             <Input id="closing-note" value={note} onChange={(event) => setNote(event.target.value)} />
           </div>
           {error === "" ? null : <p className="text-bad">{error}</p>}
+          {waiting > 0 ? (
+            <p className="text-warn">{t("truck.closing.sendFirst", { count: waiting })}</p>
+          ) : !online ? (
+            <p className="text-warn">{t("truck.closing.needNetwork")}</p>
+          ) : null}
           <Button
             size="lg"
             variant="primary"
             className="py-4 text-lg"
-            disabled={countedValue === null || send.isPending}
+            disabled={countedValue === null || send.isPending || !online || waiting > 0}
             onClick={() => countedValue !== null && send.mutate({ data: { counted_cash: countedValue, note } })}
           >
             {t("truck.closing.send")}

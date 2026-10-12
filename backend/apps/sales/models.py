@@ -481,7 +481,7 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     # "FA-2026-0001"..., per organization and year; empty while a draft (taken only when issued: no gaps).
     number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT)
-    # The delivery notes (BL) this invoice bills, all of its customer (D-098): usually one, several for a
+    # The delivery notes (BL) this invoice bills, all of its customer (D-101): usually one, several for a
     # "facture récapitulative". Each line points to its own sale line.
     sales = models.ManyToManyField(Sale, through="InvoiceSale", related_name="invoices")
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="invoices")

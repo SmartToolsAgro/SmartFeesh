@@ -6662,6 +6662,34 @@ export const ListMyStockResponse = zod.array(ListMyStockResponseItem)
 
 
 /**
+ * The phone tells the office that the server refused something it tried to send (kept on the phone
+ * until then). The same item reported twice makes one problem.
+ */
+export const reportSyncProblemBodyWhatMax = 150;
+
+export const reportSyncProblemBodyReasonMax = 500;
+
+
+
+export const ReportSyncProblemBody = zod.object({
+  "kind": zod.enum(['sale', 'expense', 'loss']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss'),
+  "what": zod.string().max(reportSyncProblemBodyWhatMax),
+  "reason": zod.string().max(reportSyncProblemBodyReasonMax),
+  "client_uuid": zod.uuid()
+})
+
+export const ReportSyncProblemResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "reason": zod.string(),
+  "driver_name": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "resolved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
  * The active trucks a driver may take today, each marked if another driver already has it.
  */
 export const ListMyTruckChoicesResponseItem = zod.object({
@@ -11792,6 +11820,39 @@ export const RestoreSupplierResponse = zod.object({
 })),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Sends the server refused, reported by the drivers' phones and not dealt with yet.
+ */
+export const ListSyncProblemsResponseItem = zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "reason": zod.string(),
+  "driver_name": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "resolved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+export const ListSyncProblemsResponse = zod.array(ListSyncProblemsResponseItem)
+
+
+/**
+ * Mark a refused send as dealt with (owner or manager).
+ */
+export const ResolveSyncProblemParams = zod.object({
+  "problem_id": zod.int()
+})
+
+export const ResolveSyncProblemResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "reason": zod.string(),
+  "driver_name": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "resolved_at": zod.iso.datetime({"offset":true}).nullable()
 })
 
 

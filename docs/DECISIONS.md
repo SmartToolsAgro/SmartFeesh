@@ -1330,8 +1330,25 @@ offline driver cannot promise more than the truck holds. Expenses, losses and th
 Not covered by automated tests (the truck app has no unit-test setup and IndexedDB needs a browser): checked in the
 field test.
 
+**D-098 · Expenses and losses join the queue; the closing waits for it (P3-T07c)** · accepted · 2026-10-12
+`queue.ts` now holds three kinds (sale, expense, loss) in the same IndexedDB store, sent in the order they were made by
+`sync.ts`; the receipt photo is kept with the item (IndexedDB stores files). Screens use `sendOrKeep`: send now, or keep
+on the phone when there is no connection; a server refusal is shown at once and not kept. Waiting losses also count in
+the kilos "promised", so a loss cannot be reported above what the truck holds. The **closing is refused while anything
+waits or there is no connection** (the button is disabled with the reason), so the figures the office receives are
+complete. Returning the unsold stock (`my-return`) is not queued: it needs a connection.
 
-**D-098 · One invoice for several BL of a customer (P2-T10 part 2)** · accepted · 2026-10-12
+**D-099 · Refused sends are reported to the office (P3-T07d)** · accepted · 2026-10-12
+When the server refuses an item waiting on a phone (D-097, D-098), the phone keeps it (status "refused"), shows it to the
+driver with the server's reason and a "Compris" button, and reports it with `POST /my-sync-problems` (kind, what, reason,
+the item's `client_uuid`: the same item reported twice makes one `dayclose.SyncProblem`). The report is retried on later
+runs until it works. The office sees the open ones at the top of `/journees` ("Envois refusés") and marks them "Traité"
+(`GET /sync-problems`, `POST /sync-problems/<id>/resolve`, owner and manager; the accountant reads). The office never has
+to guess what is stuck on a phone, and nothing is dropped silently. **Not done:** a notice to the driver when the office
+moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
+still protects against overselling).
+
+**D-101 · One invoice for several BL of a customer (P2-T10 part 2)** · accepted · 2026-10-12
 - `Invoice.sale` is gone: an invoice has `sales` (through `InvoiceSale`, with `is_live`). Partial unique
   `one_live_invoice_per_sale` moved to `InvoiceSale`: a BL is on one live invoice (draft or issued) at most;
   a full credit note sets `is_live` false on all its BL, which may then be invoiced again. Migration `0008`/`0009`

@@ -1505,7 +1505,7 @@ def create_invoice(
     and withholding are proposed from the finance settings in force and each product's own rate; `choices`
     may leave VAT out or type a rate, an amount of VAT, the stamp or the withholding rate. A BL is on one live
     invoice at most; the walk-in customer is not invoiced (provisional, D-057). Several BLs make a "facture
-    récapitulative" (D-098).
+    récapitulative" (D-101).
     """
     wanted = {chosen.pk: chosen for chosen in (*sales, *([sale] if sale is not None else []))}
     if not wanted:

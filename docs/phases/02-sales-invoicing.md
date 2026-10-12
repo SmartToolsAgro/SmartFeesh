@@ -91,7 +91,7 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 - [x] BL number `BL-2026-0001`, yearly restart, given at validation (replaces the draft number); walk-in sales get one too.
 - [x] BL PDF; "Valider et imprimer le BL" validates a draft first. UI says "BL" on the sale page.
 - [x] Offline driver: no offline validation; the server gives the next free number on reconnect.
-- [x] Part 2 (D-098): invoice from one or several BLs of a customer (N:1), BL invoiced at most once; "À facturer" filter and grouped invoicing on the sales list.
+- [x] Part 2 (D-101): invoice from one or several BLs of a customer (N:1), BL invoiced at most once; "À facturer" filter and grouped invoicing on the sales list.
 - [ ] Part 3: driver app shows the BL number; other codes (DV, payments, expenses...) to `PREFIX-YEAR-NNNN`.
 
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice

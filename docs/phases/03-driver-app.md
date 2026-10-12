@@ -63,13 +63,13 @@ small line says how many things are waiting to be sent.
       reduced locally per queued sale so the driver cannot sell more than the truck holds.
 
 #### P3-T07c · Queue for expenses, losses and closing · S
-- [ ] Same queue for expenses (with the photo kept locally), losses and the day closing.
-- [ ] The closing is refused offline with a clear message until everything queued is sent.
+- [x] (returning the unsold stock still needs signal) Same queue for expenses (with the photo kept locally), losses and the day closing.
+- [x] The closing is refused offline with a clear message until everything queued is sent.
 
 #### P3-T07d · Conflicts · S
-- [ ] A queued write the server refuses (stock changed by the office, credit limit) is kept, shown to
+- [x] A queued write the server refuses (stock changed by the office, credit limit) is kept, shown to
       the driver in plain words and to the office on `/journees`; never silently dropped.
-- [ ] Offline sales can only use the stock of the driver's truck of the day, which only that driver
+- [x] (the notice to the driver is not built yet, D-099) Offline sales can only use the stock of the driver's truck of the day, which only that driver
       changes that day (office transfers to that truck during the day show as a notice).
 
 ### P3-T08 · Field test · human · M

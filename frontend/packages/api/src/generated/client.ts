@@ -226,6 +226,8 @@ import type {
   SupplierPayment,
   SupplierPaymentWrite,
   SupplierWrite,
+  SyncProblem,
+  SyncProblemWrite,
   TransferDetail,
   TransferWrite,
   Truck,
@@ -11292,6 +11294,92 @@ export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, 
 
 
 
+export const getReportSyncProblemUrl = () => {
+
+
+
+
+  return `/api/v1/my-sync-problems`
+}
+
+/**
+ * The phone tells the office that the server refused something it tried to send (kept on the phone
+ * until then). The same item reported twice makes one problem.
+ */
+export const reportSyncProblem = async (syncProblemWrite: SyncProblemWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SyncProblem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SyncProblem>(getReportSyncProblemUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(syncProblemWrite)
+  }
+);}
+
+
+
+
+
+export const getReportSyncProblemMutationKey = () => ['reportSyncProblem'] as const;
+
+export const getReportSyncProblemMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportSyncProblem>>, TError,ReportSyncProblemMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportSyncProblem>>, TError,ReportSyncProblemMutationVariables, TContext> => {
+
+const mutationKey = getReportSyncProblemMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportSyncProblem>>, ReportSyncProblemMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportSyncProblem(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportSyncProblemMutationResult = NonNullable<Awaited<ReturnType<typeof reportSyncProblem>>>
+    export type ReportSyncProblemMutationBody = SyncProblemWrite
+    export type ReportSyncProblemMutationError = unknown
+    export type ReportSyncProblemMutationVariables = {data: SyncProblemWrite}
+
+    export const useReportSyncProblem = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportSyncProblem>>, TError,ReportSyncProblemMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reportSyncProblem>>,
+        TError,
+        ReportSyncProblemMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReportSyncProblemMutationOptions(options), queryClient);
+    }
+
 export const getListMyTruckChoicesUrl = () => {
 
 
@@ -19234,6 +19322,175 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRestoreSupplierMutationOptions(options), queryClient);
+    }
+
+export const getListSyncProblemsUrl = () => {
+
+
+
+
+  return `/api/v1/sync-problems`
+}
+
+/**
+ * Sends the server refused, reported by the drivers' phones and not dealt with yet.
+ */
+export const listSyncProblems = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SyncProblem[]> => {
+
+  return apiFetch<SyncProblem[]>(getListSyncProblemsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSyncProblemsQueryKey = () => {
+    return [
+    `/api/v1/sync-problems`
+    ] as const;
+    }
+
+
+export const getListSyncProblemsQueryOptions = <TData = Awaited<ReturnType<typeof listSyncProblems>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSyncProblems>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSyncProblemsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSyncProblems>>> = ({ signal }) => listSyncProblems({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSyncProblems>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSyncProblemsQueryResult = NonNullable<Awaited<ReturnType<typeof listSyncProblems>>>
+export type ListSyncProblemsQueryError = unknown
+
+
+export function useListSyncProblems<TData = Awaited<ReturnType<typeof listSyncProblems>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSyncProblems>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSyncProblems>>,
+          TError,
+          Awaited<ReturnType<typeof listSyncProblems>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSyncProblems<TData = Awaited<ReturnType<typeof listSyncProblems>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSyncProblems>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSyncProblems>>,
+          TError,
+          Awaited<ReturnType<typeof listSyncProblems>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSyncProblems<TData = Awaited<ReturnType<typeof listSyncProblems>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSyncProblems>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSyncProblems<TData = Awaited<ReturnType<typeof listSyncProblems>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSyncProblems>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSyncProblemsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolveSyncProblemUrl = (problemId: number,) => {
+
+
+
+
+  return `/api/v1/sync-problems/${problemId}/resolve`
+}
+
+/**
+ * Mark a refused send as dealt with (owner or manager).
+ */
+export const resolveSyncProblem = async (problemId: number, options?: Parameters<typeof apiFetch>[1]): Promise<SyncProblem> => {
+
+  return apiFetch<SyncProblem>(getResolveSyncProblemUrl(problemId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResolveSyncProblemMutationKey = () => ['resolveSyncProblem'] as const;
+
+export const getResolveSyncProblemMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveSyncProblem>>, TError,ResolveSyncProblemMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveSyncProblem>>, TError,ResolveSyncProblemMutationVariables, TContext> => {
+
+const mutationKey = getResolveSyncProblemMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveSyncProblem>>, ResolveSyncProblemMutationVariables> = (props) => {
+          const {problemId} = props ?? {};
+
+          return  resolveSyncProblem(problemId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveSyncProblemMutationResult = NonNullable<Awaited<ReturnType<typeof resolveSyncProblem>>>
+
+    export type ResolveSyncProblemMutationError = unknown
+    export type ResolveSyncProblemMutationVariables = {problemId: number}
+
+    export const useResolveSyncProblem = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveSyncProblem>>, TError,ResolveSyncProblemMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resolveSyncProblem>>,
+        TError,
+        ResolveSyncProblemMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveSyncProblemMutationOptions(options), queryClient);
     }
 
 export const getListTransfersUrl = (params?: ListTransfersParams,) => {

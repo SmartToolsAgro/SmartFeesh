@@ -45,3 +45,31 @@ class DayClosing(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.driver_day} · {self.get_status_display()}"
+
+
+class SyncProblem(OrganizationScopedModel, TimeStampedModel):
+    """Something a driver's phone could not send because the server refused it (P3-T07d, D-099): a sale above the
+    credit limit, stock the office moved meanwhile... The phone reports it so the office sees it; it is never
+    dropped silently."""
+
+    driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    # "sale", "expense" or "loss".
+    kind = models.CharField(max_length=20)
+    # What the driver would call it: the customer, the category, the product.
+    label = models.CharField(max_length=150)
+    reason = models.CharField(max_length=500)
+    # The `client_uuid` of the refused item: reporting twice makes one problem.
+    client_uuid = models.UUIDField()
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "client_uuid"], name="sync_problem_uuid_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.kind} · {self.label}"

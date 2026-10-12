@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from apps.core.models import Membership
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.dayclose import selectors, services
-from apps.dayclose.models import DayClosing
+from apps.dayclose.models import DayClosing, SyncProblem
 from apps.fleet import selectors as fleet
 
 from .serializers import (
@@ -19,6 +19,8 @@ from .serializers import (
     DayClosingWriteSerializer,
     JustificationSerializer,
     MyDaySummarySerializer,
+    SyncProblemSerializer,
+    SyncProblemWriteSerializer,
 )
 
 
@@ -130,3 +132,50 @@ class DayClosingJustificationView(DayClosingView):
             closing=self.closing(closing_id), actor=self.membership.user, reason=serializer.validated_data["reason"]
         )
         return self.answer(closing_id)
+
+
+class MySyncProblemsView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(
+        operation_id="reportSyncProblem", request=SyncProblemWriteSerializer, responses={201: SyncProblemSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """The phone tells the office that the server refused something it tried to send (kept on the phone
+        until then). The same item reported twice makes one problem."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = SyncProblemWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        problem = services.report_sync_problem(
+            organization=membership.organization,
+            actor=membership.user,
+            kind=data["kind"],
+            label=data["what"],
+            reason=data["reason"],
+            client_uuid=data["client_uuid"],
+        )
+        return Response(SyncProblemSerializer(problem).data, status=status.HTTP_201_CREATED)
+
+
+class SyncProblemListView(DayClosingView):
+    @extend_schema(operation_id="listSyncProblems", responses=SyncProblemSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """Sends the server refused, reported by the drivers' phones and not dealt with yet."""
+        rows = selectors.sync_problems_of(self.membership.organization)
+        return Response(SyncProblemSerializer(rows[:100], many=True).data)
+
+
+class SyncProblemResolveView(DayClosingView):
+    @extend_schema(operation_id="resolveSyncProblem", request=None, responses=SyncProblemSerializer)
+    def post(self, request: Request, problem_id: int) -> Response:
+        """Mark a refused send as dealt with (owner or manager)."""
+        try:
+            problem: SyncProblem = selectors.sync_problem_by_id(self.membership.organization, problem_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        services.resolve_sync_problem(problem=problem, actor=self.membership.user)
+        return Response(
+            SyncProblemSerializer(selectors.sync_problem_by_id(self.membership.organization, problem_id)).data
+        )

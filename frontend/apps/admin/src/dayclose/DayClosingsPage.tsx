@@ -3,6 +3,8 @@ import {
   useApproveDayClosing,
   useGetDayClosing,
   useListDayClosings,
+  useListSyncProblems,
+  useResolveSyncProblem,
   useRequestDayJustification,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
@@ -165,6 +167,59 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   );
 }
 
+function SyncProblems({ canDecide }: { canDecide: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const problems = useListSyncProblems();
+  const resolve = useResolveSyncProblem({
+    mutation: {
+      onSuccess: () => {
+        toast.success(t("admin.dayClosings.problems.handled"));
+        void queryClient.invalidateQueries();
+      },
+      onError: () => toast.error(t("admin.dayClosings.error")),
+    },
+  });
+  const list = problems.data ?? [];
+  if (list.length === 0) return null;
+  return (
+    <Card className="p-2">
+      <h2 className="px-3 pt-2">{t("admin.dayClosings.problems.title")}</h2>
+      <p className="px-3 pb-2 text-ink-2">{t("admin.dayClosings.problems.body")}</p>
+      <Table>
+        <thead>
+          <tr>
+            <Th>{t("admin.dayClosings.date")}</Th>
+            <Th>{t("admin.dayClosings.problems.driver")}</Th>
+            <Th>{t("admin.dayClosings.problems.what")}</Th>
+            <Th>{t("admin.dayClosings.problems.reason")}</Th>
+            {canDecide && <Th />}
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((problem) => (
+            <tr key={problem.id}>
+              <Td>{formatDate(problem.created_at)}</Td>
+              <Td>{problem.driver_name}</Td>
+              <Td>
+                {t(`admin.dayClosings.problems.kinds.${problem.kind as "sale" | "expense" | "loss"}`)} · {problem.label}
+              </Td>
+              <Td>{problem.reason}</Td>
+              {canDecide && (
+                <Td>
+                  <Button disabled={resolve.isPending} onClick={() => resolve.mutate({ problemId: problem.id })}>
+                    {t("admin.dayClosings.problems.done")}
+                  </Button>
+                </Td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </Card>
+  );
+}
+
 /** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06). */
 export function DayClosingsPage() {
   const { t } = useTranslation();
@@ -193,6 +248,7 @@ export function DayClosingsPage() {
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.goods")} title={t("admin.dayClosings.title")} />
+      <SyncProblems canDecide={canDecide} />
       <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <div
           role="group"
