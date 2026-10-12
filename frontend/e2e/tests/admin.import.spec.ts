@@ -12,7 +12,10 @@ test("the owner finds the Excel templates of the data import", async ({ page }) 
     "href",
     "/api/v1/imports/products/template",
   );
-  await page.getByRole("group", { name: "Données à importer" }).getByRole("button", { name: "Clients" }).click();
+  await page
+    .getByRole("group", { name: "Données à importer" })
+    .getByRole("button", { name: "Clients", exact: true })
+    .click();
   await expect(page.getByRole("link", { name: "Modèle Excel : Clients" })).toBeVisible();
   // Nothing to check until a file is chosen.
   await expect(page.getByRole("button", { name: "Vérifier le fichier" })).toBeDisabled();
