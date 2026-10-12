@@ -214,6 +214,39 @@ def test_an_accepted_quote_is_converted_and_points_to_its_sale(api, manager, org
     assert api.get(reverse("quote-list")).json()["results"][0]["sale"]["number"] == FIRST_BL
 
 
+def test_a_quote_is_converted_in_two_bl_and_shows_what_is_left(api, manager, organization, customer, counter, crevette):
+    receive(organization, crevette, counter, "10")
+    quote = services.create_quote(
+        organization=organization,
+        actor=manager.user,
+        customer=customer,
+        quoted_on=timezone.localdate(),
+        location=counter,
+        lines=[{"product": crevette, "quantity": "5"}],
+        send=True,
+    )
+    services.accept_quote(quote=quote, actor=manager.user)
+    line = quote.lines.get()
+    url = reverse("quote-convert", args=[quote.pk])
+
+    first = api.post(url, {"confirm_now": True, "lines": [{"quote_line": line.pk, "quantity": "3"}]}, format="json")
+
+    assert (first.status_code, first.json()["total"]) == (201, "126.000")
+    shown = api.get(reverse("quote-detail", args=[quote.pk])).json()
+    assert (shown["remaining_quantity"], [sale["number"] for sale in shown["sales"]]) == ("2.000", [FIRST_BL])
+    assert (shown["lines"][0]["delivered_quantity"], shown["lines"][0]["remaining_quantity"]) == ("3.000", "2.000")
+
+    too_much = api.post(url, {"lines": [{"quote_line": line.pk, "quantity": "2.001"}]}, format="json")
+    assert too_much.status_code == 400
+    assert "Il reste 2.000 kg" in too_much.json()["lines.0.quantity"][0]
+
+    second = api.post(url, {}, format="json")
+    assert (second.status_code, second.json()["lines"][0]["quantity"]) == (201, "2.000")
+    shown = api.get(reverse("quote-detail", args=[quote.pk])).json()
+    assert (shown["remaining_quantity"], len(shown["sales"])) == ("0.000", 2)
+    assert api.post(url, {}, format="json").status_code == 400
+
+
 # ---- permissions ----
 
 

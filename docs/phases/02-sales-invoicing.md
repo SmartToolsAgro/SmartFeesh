@@ -94,6 +94,20 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 - [x] Part 2 (D-101): invoice from one or several BLs of a customer (N:1), BL invoiced at most once; "À facturer" filter and grouped invoicing on the sales list.
 - [ ] Part 3: driver app shows the BL number; other codes (DV, payments, expenses...) to `PREFIX-YEAR-NNNN`.
 
+### P2-T11 · "Documents" page: every document as chains, with its actions (D-102) · M
+Asked by Mahmoud (2026-10-12) from a screenshot of another ERP. Devis = commande client and bon d'achat (BA) =
+commande fournisseur: no separate CC or CF document. Chains: DV → BL → FA → AV and BA → BR → FF.
+- [x] Part 1: `GET /document-index` (new app `doclist`, no table): rows from `sales.selectors.document_rows` and
+      `purchasing.selectors.document_rows`, with parents, tone, PDF kind and the actions allowed for the role.
+- [x] Part 1: `/documents` screen: type chips (Ventes / Achats), search, status and period, tree or list, the
+      actions run from the row (send, accept, refuse, → BL, valider, annuler, → facture, émettre, supprimer,
+      → BR, clôturer, valider FF) or open the right form (modifier, avoir, réception, facture fournisseur, payer);
+      "Nouveau document" (devis, BL direct, comptoir, bon d'achat, BR direct, facture fournisseur).
+- [x] Part 2 (D-115): one devis delivered in several BL: `one_live_sale_per_quote` dropped, kg delivered /
+      remaining per quote line (`selectors.quote_delivery`), "Convertir en vente" / "→ BL" proposes the kg left
+      and refuses more; the devis page shows what is left and all its BL.
+- [ ] Later: supplier return (RF) once a supplier credit note exists (`RF-` is already the supplier payment code).
+
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.

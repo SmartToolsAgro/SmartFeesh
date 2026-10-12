@@ -55,6 +55,7 @@ import type {
   DayLabourWrite,
   DayLabourer,
   DayLabourerWrite,
+  DocumentList,
   DriverDay,
   DriverDayOpen,
   ElectricityBill,
@@ -109,6 +110,7 @@ import type {
   ListDayClosingsParams,
   ListDayLabourParams,
   ListDayLabourersParams,
+  ListDocumentsParams,
   ListEmployeesParams,
   ListExpenseCategoriesParams,
   ListExpensesParams,
@@ -117,6 +119,7 @@ import type {
   ListLastPurchaseCostsParams,
   ListLocationsParams,
   ListLossesParams,
+  ListLotFiguresParams,
   ListLotWorkDaysParams,
   ListMovementsParams,
   ListMyCustomersParams,
@@ -145,6 +148,7 @@ import type {
   LossReport,
   LossWrite,
   LotCosts,
+  LotFigure,
   LotPartnershipCancel,
   LotPartnershipDetail,
   LotPartnershipWrite,
@@ -4296,6 +4300,114 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getUpdateDayLabourerMutationOptions(options), queryClient);
     }
+
+export const getListDocumentsUrl = (params?: ListDocumentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/document-index?${stringifiedParams}` : `/api/v1/document-index`
+}
+
+/**
+ * Quotes, BL, invoices, credit notes, purchase orders, receipts and supplier invoices of the organization,
+ * newest day first (at most 1000; `truncated` says when there were more). Each row names the documents it
+ * came from (`parents`) and the actions the person may take next (`actions`), so the page can draw the
+ * chain DV → BL → FA → AV and BA → BR → FF and offer only what would succeed.
+ */
+export const listDocuments = async (params?: ListDocumentsParams, options?: Parameters<typeof apiFetch>[1]): Promise<DocumentList> => {
+
+  return apiFetch<DocumentList>(getListDocumentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDocumentsQueryKey = (params?: ListDocumentsParams,) => {
+    return [
+    `/api/v1/document-index`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listDocuments>>, TError = unknown>(params?: ListDocumentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDocumentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDocuments>>> = ({ signal }) => listDocuments(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listDocuments>>>
+export type ListDocumentsQueryError = unknown
+
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = unknown>(
+ params: undefined |  ListDocumentsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = unknown>(
+ params?: ListDocumentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = unknown>(
+ params?: ListDocumentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = unknown>(
+ params?: ListDocumentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDocumentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetDocumentPdfUrl = (kind: string,
     objectId: number,
@@ -8959,6 +9071,112 @@ export function useGetLotCosts<TData = Awaited<ReturnType<typeof getLotCosts>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetLotCostsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListLotFiguresUrl = (params?: ListLotFiguresParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/lot-figures?${stringifiedParams}` : `/api/v1/lot-figures`
+}
+
+/**
+ * The frozen figures (sales, costs, net result, partner share) of the closed lots among `batch_ids`.
+ * An open lot has no row: its result is live and read lot by lot.
+ */
+export const listLotFigures = async (params?: ListLotFiguresParams, options?: Parameters<typeof apiFetch>[1]): Promise<LotFigure[]> => {
+
+  return apiFetch<LotFigure[]>(getListLotFiguresUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLotFiguresQueryKey = (params?: ListLotFiguresParams,) => {
+    return [
+    `/api/v1/lot-figures`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListLotFiguresQueryOptions = <TData = Awaited<ReturnType<typeof listLotFigures>>, TError = unknown>(params?: ListLotFiguresParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLotFigures>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLotFiguresQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLotFigures>>> = ({ signal }) => listLotFigures(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLotFigures>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListLotFiguresQueryResult = NonNullable<Awaited<ReturnType<typeof listLotFigures>>>
+export type ListLotFiguresQueryError = unknown
+
+
+export function useListLotFigures<TData = Awaited<ReturnType<typeof listLotFigures>>, TError = unknown>(
+ params: undefined |  ListLotFiguresParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLotFigures>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLotFigures>>,
+          TError,
+          Awaited<ReturnType<typeof listLotFigures>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLotFigures<TData = Awaited<ReturnType<typeof listLotFigures>>, TError = unknown>(
+ params?: ListLotFiguresParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLotFigures>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLotFigures>>,
+          TError,
+          Awaited<ReturnType<typeof listLotFigures>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLotFigures<TData = Awaited<ReturnType<typeof listLotFigures>>, TError = unknown>(
+ params?: ListLotFiguresParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLotFigures>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListLotFigures<TData = Awaited<ReturnType<typeof listLotFigures>>, TError = unknown>(
+ params?: ListLotFiguresParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLotFigures>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListLotFiguresQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -14910,8 +15128,9 @@ export const getConvertQuoteToSaleUrl = (quoteId: number,) => {
 
 /**
  * Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
- * customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
- * quote stays accepted and links to its sale.
+ * customer, products, prices and discounts, from the quote's place unless `location` is given. Without
+ * `lines` it takes every kilo not on a BL yet; with `lines`, the kg given per quote line, at most what is
+ * left (a quote may be delivered in several BL, D-115). The quote stays accepted and links to its sales.
  */
 export const convertQuoteToSale = async (quoteId: number,
     quoteConvert?: QuoteConvert, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {

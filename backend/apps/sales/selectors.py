@@ -25,10 +25,12 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from apps.core.documents import DocumentFilters, DocumentRow, DocumentType, Tone, document_key
 from apps.core.models import Organization
 
 from .models import (
     CreditNote,
+    CreditNoteKind,
     CreditNoteLine,
     CreditNoteLineBatch,
     CustomerPayment,
@@ -82,7 +84,7 @@ def quotes_of(
         .prefetch_related(
             Prefetch(
                 "sales",
-                queryset=Sale.objects.exclude(status=SaleStatus.CANCELLED).order_by("-id"),
+                queryset=Sale.objects.exclude(status=SaleStatus.CANCELLED).prefetch_related("lines").order_by("-id"),
                 to_attr="live_sales",
             )
         )
@@ -115,11 +117,50 @@ def quotes_to_expire(organization: Organization, *, today: dt.date) -> QuerySet[
 
 
 def live_sale_of(quote: Quote) -> "Sale | None":
-    """The sale an accepted quote became, unless it was cancelled (P2-T04, D-051)."""
+    """The last sale (BL) made from an accepted quote, cancelled ones left out (P2-T04, D-051). A quote may
+    be delivered in several (D-115): see `live_sales_of`."""
+    sales = live_sales_of(quote)
+    return sales[-1] if sales else None
+
+
+def live_sales_of(quote: Quote) -> list[Sale]:
+    """The sales (BL, drafts included) made from a quote, oldest first, cancelled ones left out (D-115)."""
     sales: list[Sale] | None = getattr(quote, "live_sales", None)  # prefetched by `quotes_of`
     if sales is None:
-        sales = list(quote.sales.exclude(status=SaleStatus.CANCELLED).order_by("-id"))
-    return sales[0] if sales else None
+        sales = list(quote.sales.exclude(status=SaleStatus.CANCELLED).prefetch_related("lines"))
+    return sorted(sales, key=lambda sale: sale.pk)
+
+
+@dataclass(frozen=True)
+class LineDelivery:
+    """How far one quote line went: kg already on a BL, and kg still to deliver."""
+
+    delivered: Decimal
+    remaining: Decimal
+
+
+def quote_delivery(quote: Quote) -> dict[int, LineDelivery]:
+    """Per quote line id, the kg already on the quote's BL and the kg left to deliver (D-115).
+
+    Every sale made from the quote counts, a draft too (its kilos are spoken for), except the cancelled
+    ones. Kilos are matched by product, so a BL whose lines were retyped still counts; when a quote names
+    a product twice, its first line fills first. Kilos beyond what was quoted are ignored.
+    """
+    taken: dict[int, Decimal] = {}
+    for sale in live_sales_of(quote):
+        for sale_line in sale.lines.all():
+            taken[sale_line.product_id] = taken.get(sale_line.product_id, Decimal("0.000")) + sale_line.quantity
+    delivery: dict[int, LineDelivery] = {}
+    for line in sorted(quote.lines.all(), key=lambda item: item.pk):
+        delivered = min(line.quantity, taken.get(line.product_id, Decimal("0.000")))
+        taken[line.product_id] = taken.get(line.product_id, Decimal("0.000")) - delivered
+        delivery[line.pk] = LineDelivery(delivered=delivered, remaining=line.quantity - delivered)
+    return delivery
+
+
+def quote_remaining(quote: Quote) -> Decimal:
+    """Kg of the quote not on any BL yet; zero once it is delivered in full."""
+    return sum((line.remaining for line in quote_delivery(quote).values()), Decimal("0.000"))
 
 
 # ---- Sales (P2-T04, D-051) ----
@@ -645,6 +686,199 @@ def draft_sales_count(organization: Organization, *, date_from: dt.date, date_to
         .filter(status=SaleStatus.DRAFT, sold_at__gte=start, sold_at__lt=end)
         .count()
     )
+
+
+# ---- The "Documents" page (P2-T11, D-102) ----
+
+_QUOTE_TONES: dict[str, Tone] = {
+    QuoteStatus.DRAFT: "draft",
+    QuoteStatus.SENT: "waiting",
+    QuoteStatus.ACCEPTED: "waiting",
+    QuoteStatus.REFUSED: "cancelled",
+    QuoteStatus.EXPIRED: "cancelled",
+}
+_SALE_TONES: dict[str, Tone] = {
+    SaleStatus.DRAFT: "draft",
+    SaleStatus.CONFIRMED: "done",
+    SaleStatus.CANCELLED: "cancelled",
+}
+_INVOICE_TONES: dict[str, Tone] = {
+    InvoiceStatus.DRAFT: "draft",
+    InvoiceStatus.ISSUED: "done",
+    InvoiceStatus.CANCELLED: "cancelled",
+}
+
+
+def _days(queryset: QuerySet[Any], field: str, filters: DocumentFilters) -> QuerySet[Any]:
+    if filters.date_from is not None:
+        queryset = queryset.filter(**{f"{field}__gte": filters.date_from})
+    if filters.date_to is not None:
+        queryset = queryset.filter(**{f"{field}__lte": filters.date_to})
+    return queryset
+
+
+def _search(queryset: QuerySet[Any], customer: str, filters: DocumentFilters) -> QuerySet[Any]:
+    if search := filters.search.strip():
+        queryset = queryset.filter(Q(number__icontains=search) | Q(**{f"{customer}__name__icontains": search}))
+    return queryset
+
+
+def _wanted(kind: DocumentType, filters: DocumentFilters) -> bool:
+    return not filters.types or kind in filters.types
+
+
+def document_rows(organization: Organization, filters: DocumentFilters, *, may_write: bool) -> list[DocumentRow]:
+    """Quotes (DV), BL (a sale, D-095), invoices (FA) and credit notes (AV) as rows of the "Documents" page.
+
+    `may_write` is whether the person may change sales documents (owner or manager): it decides `actions`,
+    which follow the same rules as the services so the page offers only what would succeed. The services
+    still check everything: an action offered here can be refused if the document changed meanwhile.
+    """
+    today = timezone.localdate()
+    rows: list[DocumentRow] = []
+
+    if _wanted("DV", filters):
+        quotes = (
+            Quote.objects.for_organization(organization)
+            .select_related("customer")
+            .prefetch_related("lines")
+            .prefetch_related(
+                Prefetch(
+                    "sales",
+                    queryset=Sale.objects.exclude(status=SaleStatus.CANCELLED).prefetch_related("lines"),
+                    to_attr="live_sales",
+                )
+            )
+            .annotate(current_status=current_quote_status(today))
+        )
+        for quote in _search(_days(quotes, "quoted_on", filters), "customer", filters):
+            status = QuoteStatus(quote.current_status)
+            # Delivered in full once every kilo is on a BL; until then another BL can take the rest (D-115).
+            delivered_in_full = status == QuoteStatus.ACCEPTED and quote_remaining(quote) == 0
+            actions: list[str] = []
+            if may_write:
+                if status == QuoteStatus.DRAFT:
+                    actions = ["edit", "send"]
+                elif status == QuoteStatus.SENT:
+                    actions = ["accept", "refuse"]
+                elif status == QuoteStatus.ACCEPTED and quote.valid_until >= today and not delivered_in_full:
+                    actions = ["to_sale"]
+            rows.append(
+                DocumentRow(
+                    type="DV",
+                    id=quote.pk,
+                    number=quote.number,
+                    partner_side="customer",
+                    partner_id=quote.customer_id,
+                    partner_name=quote.customer.name,
+                    date=quote.quoted_on,
+                    amount=quote.total,
+                    status=status.value,
+                    status_label=str(status.label),
+                    # An accepted quote wholly on its BL has done its job.
+                    tone="done" if delivered_in_full else _QUOTE_TONES[status],
+                    actions=actions,
+                    pdf="quote",
+                )
+            )
+
+    if _wanted("BL", filters):
+        sales = (
+            Sale.objects.for_organization(organization)
+            .select_related("customer")
+            .annotate(
+                live_invoices=Count("invoices", filter=~Q(invoices__status=InvoiceStatus.CANCELLED)),
+                issued_invoices=Count("invoices", filter=Q(invoices__status=InvoiceStatus.ISSUED)),
+            )
+        )
+        for sale in _search(_days(sales, "sold_at__date", filters), "customer", filters):
+            sale_status = SaleStatus(sale.status)
+            actions = []
+            if may_write:
+                if sale_status == SaleStatus.DRAFT:
+                    actions = ["edit", "confirm", "cancel"]
+                elif sale_status == SaleStatus.CONFIRMED:
+                    actions = [] if sale.live_invoices else ["to_invoice"]
+                    if not sale.issued_invoices:
+                        actions.append("cancel")
+            rows.append(
+                DocumentRow(
+                    type="BL",
+                    id=sale.pk,
+                    number=sale.number,
+                    partner_side="customer",
+                    partner_id=sale.customer_id,
+                    partner_name=sale.customer.name,
+                    date=timezone.localtime(sale.sold_at).date(),
+                    amount=sale.total,
+                    status=sale_status.value,
+                    status_label=str(sale_status.label),
+                    tone=_SALE_TONES[sale_status],
+                    parents=[document_key("DV", sale.quote_id)] if sale.quote_id else [],
+                    actions=actions,
+                    # A BL exists once the sale was validated, even if it was cancelled afterwards.
+                    pdf="delivery_note" if sale.confirmed_at is not None else "",
+                )
+            )
+
+    if _wanted("FA", filters):
+        invoices = (
+            Invoice.objects.for_organization(organization)
+            .select_related("customer")
+            .prefetch_related(Prefetch("sale_links", queryset=InvoiceSale.objects.order_by("sale__sold_at", "sale_id")))
+            .annotate(day=Coalesce("issued_on", "created_at__date"))
+        )
+        for invoice in _search(_days(invoices, "day", filters), "customer", filters):
+            invoice_status = InvoiceStatus(invoice.status)
+            actions = []
+            if may_write:
+                if invoice_status == InvoiceStatus.DRAFT:
+                    actions = ["edit", "issue", "delete"]
+                elif invoice_status == InvoiceStatus.ISSUED:
+                    actions = ["credit_note"]
+            rows.append(
+                DocumentRow(
+                    type="FA",
+                    id=invoice.pk,
+                    # A draft has no number yet (taken when issued): the page says "Brouillon".
+                    number=invoice.number,
+                    partner_side="customer",
+                    partner_id=invoice.customer_id,
+                    partner_name=invoice.customer.name,
+                    date=invoice.day,
+                    amount=invoice.net_to_pay,
+                    status=invoice_status.value,
+                    status_label=str(invoice_status.label),
+                    tone=_INVOICE_TONES[invoice_status],
+                    # One or several BL (D-101), oldest first.
+                    parents=[document_key("BL", link.sale_id) for link in invoice.sale_links.all()],
+                    actions=actions,
+                    pdf="" if invoice_status == InvoiceStatus.DRAFT else "invoice",
+                )
+            )
+
+    if _wanted("AV", filters):
+        notes = CreditNote.objects.for_organization(organization).select_related("invoice__customer")
+        for note in _search(_days(notes, "issued_on", filters), "invoice__customer", filters):
+            rows.append(
+                DocumentRow(
+                    type="AV",
+                    id=note.pk,
+                    number=note.number,
+                    partner_side="customer",
+                    partner_id=note.invoice.customer_id,
+                    partner_name=note.invoice.customer.name,
+                    date=note.issued_on,
+                    amount=note.net_amount,
+                    # A credit note has no status: it is final when made.
+                    status="issued",
+                    status_label=str(CreditNoteKind(note.kind).label),
+                    tone="done",
+                    parents=[document_key("FA", note.invoice_id)],
+                    pdf="credit_note",
+                )
+            )
+    return rows
 
 
 def recent_customer_ids(organization: Organization, *, user_id: int, limit: int = 8) -> list[int]:

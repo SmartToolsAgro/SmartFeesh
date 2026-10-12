@@ -127,6 +127,17 @@ class TruckAssignmentView(APIView):
         if self.is_driver and day < timezone.localdate():
             raise exceptions.ValidationError({"date": _("Un chauffeur ne peut pas modifier un jour passé.")})
 
+    def refuse_open_day(self, day: date, *, keeping: int | None = None) -> None:
+        # Once the driver has opened the day, its cash, sales and closing are counted on that truck: only the
+        # office may move it (D-108). Asking again for the same truck changes nothing, so it is allowed.
+        if not self.is_driver or selectors.driver_day_of(self.membership, day) is None:
+            return
+        current = selectors.truck_of_driver(self.membership, day)
+        if keeping is None or current is None or current.pk != keeping:
+            raise exceptions.ValidationError(
+                {"truck": _("Votre journée est ouverte : seul le bureau change le camion.")}
+            )
+
 
 class TruckAssignmentListView(TruckAssignmentView):
     @extend_schema(
@@ -156,6 +167,7 @@ class TruckAssignmentListView(TruckAssignmentView):
         data = serializer.validated_data
         day = data.get("date") or timezone.localdate()
         self.refuse_past_day(day)
+        self.refuse_open_day(day, keeping=data["truck"])
         driver = data.get("driver")
         if self.is_driver:
             if driver is not None and driver.pk != self.membership.user_id:
@@ -190,6 +202,7 @@ class TruckAssignmentDetailView(TruckAssignmentView):
         if self.is_driver and assignment.driver_id != self.membership.user_id:
             raise Http404  # another driver's day does not exist for them
         self.refuse_past_day(assignment.date)
+        self.refuse_open_day(assignment.date)
         services.unassign_truck(assignment=assignment, actor=self.membership.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 

@@ -539,11 +539,69 @@ def test_an_accepted_quote_becomes_a_sale_at_its_own_prices(
     assert selectors.live_sale_of(selectors.quote_of(organization, accepted.pk)) == converted
     assert AuditLog.objects.filter(action="quote.converted", target_id=str(accepted.pk)).exists()
 
-    with pytest.raises(ValidationError, match=f"déjà devenu la vente BL-{timezone.localdate().year}-0001"):
+    with pytest.raises(ValidationError, match=f"déjà livré en entier \\(BL-{timezone.localdate().year}-0001\\)"):
         services.create_sale_from_quote(quote=accepted, actor=actor)
     services.cancel_sale(sale=converted, actor=actor, reason="Erreur de saisie")
     again = services.create_sale_from_quote(quote=accepted, actor=actor)
     assert (again.number, again.quote, again.status) == ("VE-0002", accepted, SaleStatus.DRAFT)
+
+
+def test_a_quote_is_delivered_in_several_bl(organization, actor, counter, crevette, calamar, accepted):
+    """D-115: 5 kg crevette + 2 kg calamar quoted; a first BL takes 3 kg crevette, a second the rest."""
+    receive(organization, crevette, counter, "10")
+    receive(organization, calamar, counter, "10")
+    shrimp_line, squid_line = accepted.lines.order_by("id")
+
+    first = services.create_sale_from_quote(
+        quote=accepted,
+        actor=actor,
+        confirm=True,
+        lines=[{"quote_line": shrimp_line.pk, "quantity": "3"}, {"quote_line": squid_line.pk, "quantity": "0"}],
+    )
+
+    assert [(line.product, line.quantity, line.unit_price) for line in first.lines.all()] == [
+        (crevette, Decimal("3.000"), Decimal("42.000"))
+    ]
+    quote = selectors.quote_of(organization, accepted.pk)
+    delivery = selectors.quote_delivery(quote)
+    assert (delivery[shrimp_line.pk].delivered, delivery[shrimp_line.pk].remaining) == (
+        Decimal("3.000"),
+        Decimal("2.000"),
+    )
+    assert delivery[squid_line.pk].remaining == Decimal("2.000")
+    assert selectors.quote_remaining(quote) == Decimal("4.000")
+
+    # More than what is left on a line is refused, under that line.
+    with pytest.raises(ValidationError) as too_much:
+        services.create_sale_from_quote(
+            quote=accepted, actor=actor, lines=[{"quote_line": shrimp_line.pk, "quantity": "2.5"}]
+        )
+    assert "Il reste 2.000 kg" in errors_of(too_much)["lines.0.quantity"][0]
+    with pytest.raises(ValidationError, match="au moins un poids"):
+        services.create_sale_from_quote(
+            quote=accepted, actor=actor, lines=[{"quote_line": shrimp_line.pk, "quantity": "0"}]
+        )
+    with pytest.raises(ValidationError) as unknown:
+        services.create_sale_from_quote(quote=accepted, actor=actor, lines=[{"quote_line": 0, "quantity": "1"}])
+    assert set(errors_of(unknown)) == {"lines.0.quote_line"}
+
+    # Without lines, the next BL takes everything left: a draft's kilos are spoken for too.
+    second = services.create_sale_from_quote(quote=accepted, actor=actor)
+    assert second.status == SaleStatus.DRAFT
+    assert [(line.product, line.quantity, line.discount_rate) for line in second.lines.order_by("id")] == [
+        (crevette, Decimal("2.000"), Decimal("0.00")),
+        (calamar, Decimal("2.000"), Decimal("5.00")),
+    ]
+    quote = selectors.quote_of(organization, accepted.pk)
+    assert selectors.quote_remaining(quote) == Decimal("0.000")
+    assert selectors.live_sales_of(quote) == [first, second]
+    assert selectors.live_sale_of(quote) == second
+    with pytest.raises(ValidationError, match="déjà livré en entier"):
+        services.create_sale_from_quote(quote=accepted, actor=actor)
+
+    # Cancelling a BL frees its kilos for another one.
+    services.cancel_sale(sale=first, actor=actor, reason="Client absent")
+    assert selectors.quote_remaining(selectors.quote_of(organization, accepted.pk)) == Decimal("3.000")
 
 
 def test_only_an_accepted_quote_still_valid_becomes_a_sale(organization, actor, customer, counter, crevette, accepted):

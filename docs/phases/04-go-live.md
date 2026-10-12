@@ -27,6 +27,9 @@ Today everything is in paper notebooks (Q15), so there is no file to convert.
 
 ### P4-T05 · Security review · S
 - [ ] Run the `security-review` skill; check permissions per role, CSRF, rate limits, file upload limits.
+  - API review done (D-108): roles per route, tenancy, uploads, throttles, CSRF and cookies, with tests in
+    `apps/core/tests/test_api_security.py`. Still to run: the `security-review` skill on the front ends and the sales
+    and invoices views (after PR #55).
 
 ### P4-T06 · Training and support · human · S
 - [ ] Short guides with screenshots: French for the owner, French and Arabic for drivers (Q14).

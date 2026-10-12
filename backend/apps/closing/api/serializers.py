@@ -239,6 +239,18 @@ class LateAdjustmentSerializer(serializers.Serializer[Any]):
     pending_share = _money()
 
 
+class LotFigureSerializer(serializers.Serializer[Any]):
+    """The main figures of one closed lot, for the list of partnership lots."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    outcome = serializers.ChoiceField(choices=LotOutcome.choices, read_only=True)
+    revenue = _money()
+    costs_total = _money()
+    net_result = _money()
+    partner_share = _money()
+    capital_to_return = _money()
+
+
 class PartnerBalancesSerializer(serializers.Serializer[Any]):
     """The three balances of a partner, kept apart: never added together (D-031, D-040)."""
 
@@ -410,6 +422,36 @@ class OverdueCustomerSerializer(serializers.Serializer[Any]):
     overdue = _money()
 
 
+class LowStockSerializer(serializers.Serializer[Any]):
+    product_id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    min_stock = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class ExpiringBatchSerializer(serializers.Serializer[Any]):
+    batch_id = serializers.IntegerField(read_only=True)
+    batch_number = serializers.CharField(read_only=True)
+    product_name = serializers.CharField(read_only=True)
+    use_by = serializers.DateField(read_only=True)
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class CashDifferenceSerializer(serializers.Serializer[Any]):
+    closing_id = serializers.IntegerField(read_only=True)
+    day = serializers.DateField(read_only=True)
+    driver_name = serializers.CharField(read_only=True)
+    # Counted minus expected: negative means less cash than the records say.
+    difference = _money()
+
+
+class PendingTermsSerializer(serializers.Serializer[Any]):
+    partnership_id = serializers.IntegerField(read_only=True)
+    batch_id = serializers.IntegerField(read_only=True)
+    batch_number = serializers.CharField(read_only=True)
+    partner_name = serializers.CharField(read_only=True)
+
+
 class DashboardSerializer(serializers.Serializer[Any]):
     # The first day of the current month: every figure is this month up to today.
     month = serializers.DateField(read_only=True)
@@ -430,3 +472,14 @@ class DashboardSerializer(serializers.Serializer[Any]):
     overdue_customer_count = serializers.IntegerField(read_only=True)
     days_waiting = serializers.IntegerField(read_only=True)
     expenses_waiting = serializers.IntegerField(read_only=True)
+    # Products under their minimum stock, lots whose use-by date is within three days (or past) and still in
+    # stock, and driver days with a cash difference nobody explained: at most five of each, and the full count.
+    low_stock = LowStockSerializer(many=True, read_only=True)
+    low_stock_count = serializers.IntegerField(read_only=True)
+    expiring = ExpiringBatchSerializer(many=True, read_only=True)
+    expiring_count = serializers.IntegerField(read_only=True)
+    cash_differences = CashDifferenceSerializer(many=True, read_only=True)
+    cash_difference_count = serializers.IntegerField(read_only=True)
+    # Partner lots whose capital and rates are still to fill in (D-100): the lot cannot close before.
+    pending_terms = PendingTermsSerializer(many=True, read_only=True)
+    pending_terms_count = serializers.IntegerField(read_only=True)

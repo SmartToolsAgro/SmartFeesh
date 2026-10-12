@@ -65,7 +65,15 @@ def day():
     )
     api = client_for(driver)
     assert api.post(reverse("my-day"), {"opening_cash": "50"}, format="json").status_code == 201
-    return {"api": api, "office": client_for(office), "product": product, "truck": truck, "customer": customer}
+    owner = MembershipFactory.create(organization=organization, role=Role.OWNER)
+    return {
+        "api": api,
+        "office": client_for(office),
+        "owner": client_for(owner),
+        "product": product,
+        "truck": truck,
+        "customer": customer,
+    }
 
 
 def sell(day, kg, paid):
@@ -198,6 +206,30 @@ def test_a_refused_send_is_reported_once_and_the_office_marks_it_dealt_with(day)
     assert day["office"].get(reverse("sync-problem-list")).json() == []
     assert day["api"].get(reverse("sync-problem-list")).status_code == 403
     assert day["office"].post(reverse("my-sync-problems"), body, format="json").status_code == 403
+
+
+def test_a_cash_difference_nobody_explained_is_an_alert(day):
+    from apps.dayclose import selectors
+
+    sell(day, "5", "100.000")  # expected cash: 50 + 100 = 150
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "140.000"}, format="json")
+    organization = day["truck"].organization
+
+    rows = selectors.unexplained_cash_differences(organization)
+    assert [(row.difference, row.day) for row in rows] == [(Decimal("-10.000"), timezone.localdate())]
+    dashboard = day["owner"].get(reverse("dashboard")).json()
+    assert dashboard["cash_difference_count"] == 1
+    assert dashboard["cash_differences"][0]["difference"] == "-10.000"
+
+
+def test_an_explained_or_exact_day_is_not_an_alert(day):
+    from apps.dayclose import selectors
+
+    sell(day, "5", "100.000")
+    day["api"].post(
+        reverse("my-day-closing"), {"counted_cash": "140.000", "note": "Un billet de 10 manque"}, format="json"
+    )
+    assert selectors.unexplained_cash_differences(day["truck"].organization) == []
 
 
 def test_a_payment_collected_by_the_driver_counts_in_the_day_cash_and_is_recorded_once(day):

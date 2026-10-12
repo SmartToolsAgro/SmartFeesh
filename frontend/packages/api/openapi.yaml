@@ -1252,6 +1252,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayLabourer'
           description: ''
+  /api/v1/document-index:
+    get:
+      operationId: listDocuments
+      description: |-
+        Quotes, BL, invoices, credit notes, purchase orders, receipts and supplier invoices of the organization,
+        newest day first (at most 1000; `truncated` says when there were more). Each row names the documents it
+        came from (`parents`) and the actions the person may take next (`actions`), so the page can draw the
+        chain DV → BL → FA → AV and BA → BR → FF and offer only what would succeed.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: tone
+        schema:
+          enum:
+          - draft
+          - waiting
+          - done
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - draft
+          * `waiting` - waiting
+          * `done` - done
+          * `cancelled` - cancelled
+      - in: query
+        name: types
+        schema:
+          type: string
+          default: ''
+          maxLength: 50
+      tags:
+      - document-index
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentList'
+          description: ''
   /api/v1/documents/{kind}/{object_id}/pdf:
     get:
       operationId: getDocumentPdf
@@ -2834,6 +2891,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LotCosts'
+          description: ''
+  /api/v1/lot-figures:
+    get:
+      operationId: listLotFigures
+      description: |-
+        The frozen figures (sales, costs, net result, partner share) of the closed lots among `batch_ids`.
+        An open lot has no row: its result is live and read lot by lot.
+      parameters:
+      - in: query
+        name: batch_ids
+        schema:
+          type: string
+        description: Lot ids, comma-separated (at most 200).
+      tags:
+      - lot-figures
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LotFigure'
           description: ''
   /api/v1/lot-work-days:
     get:
@@ -4639,8 +4721,9 @@ paths:
       operationId: convertQuoteToSale
       description: |-
         Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
-        customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
-        quote stays accepted and links to its sale.
+        customer, products, prices and discounts, from the quote's place unless `location` is given. Without
+        `lines` it takes every kilo not on a BL yet; with `lines`, the kg given per quote line, at most what is
+        left (a quote may be delivered in several BL, D-115). The quote stays accepted and links to its sales.
       parameters:
       - in: path
         name: quote_id
@@ -7821,6 +7904,29 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+    CashDifference:
+      type: object
+      properties:
+        closing_id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - closing_id
+      - day
+      - difference
+      - driver_name
     CashFlow:
       type: object
       properties:
@@ -9255,15 +9361,55 @@ components:
         expenses_waiting:
           type: integer
           readOnly: true
+        low_stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/LowStock'
+          readOnly: true
+        low_stock_count:
+          type: integer
+          readOnly: true
+        expiring:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpiringBatch'
+          readOnly: true
+        expiring_count:
+          type: integer
+          readOnly: true
+        cash_differences:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashDifference'
+          readOnly: true
+        cash_difference_count:
+          type: integer
+          readOnly: true
+        pending_terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingTerms'
+          readOnly: true
+        pending_terms_count:
+          type: integer
+          readOnly: true
       required:
       - cash_collected
+      - cash_difference_count
+      - cash_differences
       - days_waiting
       - expenses_waiting
+      - expiring
+      - expiring_count
       - gross_margin
+      - low_stock
+      - low_stock_count
       - month
       - net_result
       - overdue_customer_count
       - overdue_customers
+      - pending_terms
+      - pending_terms_count
       - previous_sales
       - receivables
       - receivables_overdue
@@ -9782,6 +9928,107 @@ components:
       - product
       - receipt
       - unit_cost
+    DocumentList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRow'
+        total:
+          type: integer
+        truncated:
+          type: boolean
+      required:
+      - results
+      - total
+      - truncated
+    DocumentRow:
+      type: object
+      properties:
+        key:
+          type: string
+        type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        id:
+          type: integer
+        number:
+          type: string
+        partner_side:
+          $ref: '#/components/schemas/PartnerSideEnum'
+        partner_id:
+          type: integer
+        partner_name:
+          type: string
+        date:
+          type: string
+          format: date
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        status:
+          type: string
+        status_label:
+          type: string
+        tone:
+          $ref: '#/components/schemas/DocumentToneEnum'
+        parents:
+          type: array
+          items:
+            type: string
+        actions:
+          type: array
+          items:
+            type: string
+        pdf:
+          type: string
+      required:
+      - actions
+      - amount
+      - date
+      - id
+      - key
+      - number
+      - parents
+      - partner_id
+      - partner_name
+      - partner_side
+      - pdf
+      - status
+      - status_label
+      - tone
+      - type
+    DocumentToneEnum:
+      enum:
+      - draft
+      - waiting
+      - done
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - draft
+        * `waiting` - waiting
+        * `done` - done
+        * `cancelled` - cancelled
+    DocumentTypeEnum:
+      enum:
+      - DV
+      - BL
+      - FA
+      - AV
+      - BA
+      - BR
+      - FF
+      type: string
+      description: |-
+        * `DV` - DV
+        * `BL` - BL
+        * `FA` - FA
+        * `AV` - AV
+        * `BA` - BA
+        * `BR` - BR
+        * `FF` - FF
     DriverDay:
       type: object
       properties:
@@ -10435,6 +10682,33 @@ components:
       - amount
       - category
       - spent_on
+    ExpiringBatch:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - product_name
+      - quantity
+      - use_by
     FinanceSettings:
       type: object
       description: One version of the finance settings.
@@ -12233,6 +12507,51 @@ components:
       - batch_id
       - lines
       - total
+    LotFigure:
+      type: object
+      description: The main figures of one closed lot, for the list of partnership
+        lots.
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/LotOutcomeEnum'
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        costs_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        partner_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital_to_return:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - capital_to_return
+      - costs_total
+      - net_result
+      - outcome
+      - partner_share
+      - revenue
     LotOutcomeEnum:
       enum:
       - profit
@@ -12642,6 +12961,30 @@ components:
       - days
       - employee
       - work_date
+    LowStock:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - min_stock
+      - name
+      - product_id
+      - quantity
     Member:
       type: object
       properties:
@@ -13907,6 +14250,14 @@ components:
       - partner_name
       - profit_share
       - trade_payable
+    PartnerSideEnum:
+      enum:
+      - customer
+      - supplier
+      type: string
+      description: |-
+        * `customer` - customer
+        * `supplier` - supplier
     PartnerLine:
       type: object
       properties:
@@ -14501,6 +14852,26 @@ components:
       description: |-
         * `pending` - pending
         * `failed` - failed
+    PendingTerms:
+      type: object
+      properties:
+        partnership_id:
+          type: integer
+          readOnly: true
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        partner_name:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - partner_name
+      - partnership_id
     PhotoUpload:
       type: object
       properties:
@@ -15228,6 +15599,16 @@ components:
           - $ref: '#/components/schemas/SaleRef'
           nullable: true
           readOnly: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        remaining_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - answered_at
       - answered_by
@@ -15243,7 +15624,9 @@ components:
       - number
       - quoted_on
       - refusal_reason
+      - remaining_quantity
       - sale
+      - sales
       - sent_at
       - sent_by
       - status
@@ -15281,6 +15664,11 @@ components:
         confirm_now:
           type: boolean
           default: false
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuoteDeliveryLine'
+          nullable: true
     QuoteCustomer:
       type: object
       properties:
@@ -15309,6 +15697,18 @@ components:
       - name
       - reference
       - tax_id
+    QuoteDeliveryLine:
+      type: object
+      properties:
+        quote_line:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+          maxLength: 20
+      required:
+      - quantity
+      - quote_line
     QuoteDetail:
       type: object
       properties:
@@ -15407,6 +15807,16 @@ components:
           - $ref: '#/components/schemas/SaleRef'
           nullable: true
           readOnly: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        remaining_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
         lines:
           type: array
           items:
@@ -15428,7 +15838,9 @@ components:
       - number
       - quoted_on
       - refusal_reason
+      - remaining_quantity
       - sale
+      - sales
       - sent_at
       - sent_by
       - status
@@ -15477,14 +15889,26 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        delivered_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        remaining_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - amount
+      - delivered_quantity
       - discount_amount
       - discount_rate
       - gross_amount
       - id
       - product
       - quantity
+      - remaining_quantity
       - unit_price
     QuoteLineWrite:
       type: object
