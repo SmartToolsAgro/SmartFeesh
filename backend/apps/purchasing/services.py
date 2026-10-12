@@ -13,7 +13,7 @@ from django.utils.translation import gettext as _
 
 from apps.core import audit
 from apps.core.models import Organization, User
-from apps.core.money import Number, checked_amount, checked_quantity
+from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, line_total
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
 
@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from apps.inventory.models import StockLocation
     from apps.partners.models import Supplier
 
+ZERO = Decimal("0.000")
 RECEIPT_NUMBER_PREFIX = "BR-"
 INVOICE_NUMBER_PREFIX = "FF-"
 ORDER_NUMBER_PREFIX = "BA-"
@@ -115,6 +116,11 @@ def _checked_line(
         checked["unit_cost"] = checked_amount(cost)
     except (ValueError, TypeError):
         errors[line_error_key(index, "unit_cost")] = _("Indiquez un coût en DT par kg, au millime près.")
+    biggest = max(checked.get("invoiced_quantity", ZERO), checked.get("accepted_quantity", ZERO))
+    if "unit_cost" in checked and line_total(biggest, checked["unit_cost"]) > MAX_AMOUNT:
+        errors[line_error_key(index, "unit_cost")] = _(
+            "Le montant de cette ligne est trop grand : vérifiez le coût au kg."
+        )
     use_by = checked["use_by"]
     if use_by is not None and use_by < received_on:
         errors[line_error_key(index, "use_by")] = _("La date limite ne peut pas précéder la réception.")
@@ -334,6 +340,14 @@ def create_order(
             checked["unit_cost"] = checked_amount(cost)
         except (ValueError, TypeError):
             errors[line_error_key(index, "unit_cost")] = _("Indiquez un prix en DT par kg, au millime près.")
+        if (
+            "ordered_quantity" in checked
+            and "unit_cost" in checked
+            and line_total(checked["ordered_quantity"], checked["unit_cost"]) > MAX_AMOUNT
+        ):
+            errors[line_error_key(index, "unit_cost")] = _(
+                "Le montant de cette ligne est trop grand : vérifiez le prix au kg."
+            )
         checked_lines.append(checked)
     if errors:
         raise ValidationError(errors)

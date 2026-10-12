@@ -12,6 +12,9 @@ export const fr = {
   brand: {
     tagline: "Gestion & distribution",
   },
+  language: {
+    label: "Langue",
+  },
   theme: {
     label: "Thème d'affichage",
     light: "Thème clair",

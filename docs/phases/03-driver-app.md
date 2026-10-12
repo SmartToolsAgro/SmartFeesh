@@ -78,8 +78,9 @@ Runs last, after P3-T09 and P3-T10.
 
 ### P3-T09 · Arabic for the driver app · M
 Moved here from the Phase 8 backlog (Q14: each driver chooses French or Arabic).
-- [ ] Language choice on the login screen and in the driver's profile; remembered per user (P0-T08).
-- [ ] All truck-app strings translated to Arabic; translation reviewed by a native speaker (human).
+- [x] Language choice on the login screen and in the driver's profile; remembered per user (P0-T08).
+- [x] (provisional, D-103) All truck-app strings translated to Arabic.
+- [ ] Translation reviewed by a native speaker (human).
 - [ ] Right-to-left layout checked on every screen; weights and amounts stay readable.
 - [ ] Server messages (validation errors) come back in the driver's language.
 
