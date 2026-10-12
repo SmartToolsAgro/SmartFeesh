@@ -1563,3 +1563,22 @@ have it), and Arabic texts.
   organization (+ kind) + year.
 - **Still plain sequential** (not in this decision): draft sales `VE-`, customer payments `RG-`, supplier invoices
   `FF-`, transfers, losses, counts, goods receipts, purchase orders.
+
+**D-121 · Picking a lot by hand on a sale line (owner request, counter sale)** · accepted · 2026-10-12
+- FIFO (D-009) stays the default everywhere, but a sale line may now name the lot it wants kilos from first:
+  `SaleLine.requested_batch`, resolved and checked (same organization, same product as the line) in
+  `sales.services._checked_batches`. `inventory.services.post_fifo_movements` takes an optional
+  `prefer_batch_id`: that lot moves to the front of the FIFO order, the rest keeps oldest-first. Stock never
+  goes negative (`on_hand_never_negative`, D-006): a short lot is topped up from the other lots automatically,
+  same as a line with no lot named; the till warns before sending the sale when the typed weight is more than
+  the chosen lot holds, but does not block it.
+- New read endpoint `GET /inventory/locations/<id>/stock/<product_id>/batches` (`inventory.selectors.location_batches`)
+  lists a product's lots at one location, oldest first, each with its supplier and the location's name — a
+  hint for the till (which cold room, which supplier), **never printed on a devis or a BL**.
+- Built first for the counter sale screen (`CounterSalePage.tsx`); `SaleWriteSerializer` accepts `batch` on
+  every line (`SaleLineWriteSerializer`), so a regular sale or quote-to-BL screen can get the same picker
+  later without a backend change.
+- Considered and rejected: truly letting the chosen lot's on-hand go negative. It would mean relaxing
+  `on_hand_never_negative` for every module sharing `StockOnHand` (losses, transfers, counts) and teaching
+  `rebuild_on_hand` (D-038) to treat a negative ledger as a known state instead of corruption — too large a
+  change for what the owner actually needed (sell now, reconcile the lot later).

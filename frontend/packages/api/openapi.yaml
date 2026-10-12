@@ -2678,6 +2678,35 @@ paths:
                 items:
                   $ref: '#/components/schemas/LocationStock'
           description: ''
+  /api/v1/locations/{location_id}/stock/{product_id}/batches:
+    get:
+      operationId: listLocationBatches
+      description: 'The lots of one product at this location, oldest first: to pick
+        one by hand on a sale (D-121).'
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LocationBatch'
+          description: ''
   /api/v1/losses:
     get:
       operationId: listLosses
@@ -12009,6 +12038,45 @@ components:
       - drift
       - pending_basis
       - pending_share
+    LocationBatch:
+      type: object
+      description: |-
+        One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).
+
+        `location_name` is a hint for the till, never printed on a devis or a BL.
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        supplier_id:
+          type: integer
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        location_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - location_name
+      - quantity
+      - received_on
+      - supplier_id
+      - supplier_name
     LocationStock:
       type: object
       description: How many kg of one product a location holds, all batches together.
@@ -17855,6 +17923,27 @@ components:
       - quantity
       - revenue_amount
       - unit_cost
+    SaleLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+        unit_price:
+          type: string
+          nullable: true
+        discount_rate:
+          type: string
+          nullable: true
+        batch:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+      - product
+      - quantity
     SaleLocation:
       type: object
       properties:
@@ -17959,7 +18048,7 @@ components:
         lines:
           type: array
           items:
-            $ref: '#/components/schemas/QuoteLineWrite'
+            $ref: '#/components/schemas/SaleLineWrite'
         confirm_now:
           type: boolean
           default: false

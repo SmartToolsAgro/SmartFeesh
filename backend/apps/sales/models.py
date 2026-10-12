@@ -324,6 +324,12 @@ class SaleLine(OrganizationScopedModel):
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
     quantity = QuantityField()
+    # Picked by hand instead of FIFO (D-121); empty takes the oldest lot first, as always. Honoured at
+    # confirmation: this lot is taken from first; short, the rest still comes from the other lots oldest
+    # first (`batches` then lists more than one), stock never going negative.
+    requested_batch = models.ForeignKey(
+        "inventory.Batch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     unit_price = MoneyField()
     price_source = models.CharField(max_length=20, choices=PriceSource.choices)
     # The price was below the product's minimum when typed: a warning, never a block (D-049).

@@ -197,6 +197,11 @@ class QuoteLineWriteSerializer(serializers.Serializer[Any]):
     discount_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
 
 
+class SaleLineWriteSerializer(QuoteLineWriteSerializer):
+    # A lot picked by hand instead of FIFO (D-121). Empty: the oldest lot first, as always.
+    batch = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
+
+
 class QuoteWriteSerializer(serializers.Serializer[Any]):
     customer = serializers.IntegerField(min_value=1)
     # Where the goods would leave from; information only (its stock is shown while typing).
@@ -412,7 +417,7 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     # Empty: now. Drivers always sell now.
     sold_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
-    lines = QuoteLineWriteSerializer(many=True, allow_empty=True)
+    lines = SaleLineWriteSerializer(many=True, allow_empty=True)
     # Confirm at once (the stock leaves); otherwise it stays a draft.
     confirm_now = serializers.BooleanField(required=False, default=False)
     # Accept going above the customer's credit limit (owner or manager only, when the company asks for
