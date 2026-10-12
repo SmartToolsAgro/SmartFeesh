@@ -4,13 +4,16 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import QuerySet
+from django.utils import timezone
+from django.utils.translation import gettext as _
+from rest_framework.exceptions import PermissionDenied
 
-from apps.core.models import Organization
+from apps.core.models import Membership, Organization
 from apps.expenses import selectors as expenses
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
 
-from .models import DayClosing
+from .models import DayClosing, DayClosingStatus
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
@@ -108,3 +111,14 @@ def closings_of(organization: Organization, *, status: str | None = None) -> Que
 
 def closing_by_id(organization: Organization, closing_id: int) -> DayClosing:
     return closings_of(organization).get(pk=closing_id)
+
+
+def refuse_if_day_approved(membership: Membership) -> None:
+    """An approved day is locked (D-094): the driver can no longer sell, spend or report losses today."""
+    approved = DayClosing.objects.for_organization(membership.organization).filter(
+        driver_day__driver_id=membership.user_id,
+        driver_day__date=timezone.localdate(),
+        status=DayClosingStatus.APPROVED,
+    )
+    if approved.exists():
+        raise PermissionDenied(_("Votre journée est approuvée par le bureau : elle est fermée."))

@@ -144,3 +144,33 @@ def test_only_the_right_people_use_the_screens(day):
     assert day["office"].get(reverse("my-day-summary")).status_code == 403
     assert day["api"].get(reverse("day-closing-list")).status_code == 403
     assert client_for(MembershipFactory.create(role=Role.DRIVER)).get(reverse("my-day-summary")).status_code == 404
+
+
+def test_an_approved_day_is_closed_to_sales_expenses_and_losses(day):
+    sell(day, "1", "28.000")
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "78.000"}, format="json")
+    closing = day["office"].get(reverse("day-closing-list")).json()[0]
+
+    day["office"].post(reverse("day-closing-approve", args=[closing["id"]]))
+
+    assert sell(day, "1", "28.000").status_code == 403
+    expense = day["api"].post(reverse("my-expenses"), {"category": 1, "amount": "5"}, format="multipart")
+    loss = day["api"].post(
+        reverse("my-losses"),
+        {"product": day["product"].pk, "quantity": "1", "reason": "spoiled"},
+        format="multipart",
+    )
+    assert (expense.status_code, loss.status_code) == (403, 403)
+    assert day["api"].post(reverse("my-return")).status_code == 403
+
+
+def test_customers_sold_to_lately_come_first(day):
+    other = partners.create_customer(organization=day["customer"].organization, actor=None, name="Aaa Hôtel")
+
+    names = [c["name"] for c in day["api"].get(reverse("my-customers")).json()]
+    assert names == ["Aaa Hôtel", "Restaurant Le Port"]  # alphabetical before any sale
+
+    sell(day, "1", "28.000")
+    names = [c["name"] for c in day["api"].get(reverse("my-customers")).json()]
+    assert names == ["Restaurant Le Port", "Aaa Hôtel"]
+    assert other.pk

@@ -9,6 +9,7 @@ from apps.core.models import Membership, Organization
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.partners import selectors, services
 from apps.partners.models import Customer, Supplier
+from apps.sales import selectors as sales
 
 from .serializers import (
     CustomerChoiceSerializer,
@@ -193,11 +194,15 @@ class MyCustomersView(APIView):
         responses=CustomerChoiceSerializer(many=True),
     )
     def get(self, request: Request) -> Response:
-        """Active customers for a driver to sell to (name and city only), the walk-in customer last. Filter
-        with `search`. At most 30 rows."""
+        """Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
+        the walk-in customer last. Filter with `search`. At most 30 rows."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         filters = CustomerFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
-        customers = selectors.customers_of(membership.organization, search=filters.validated_data["search"])[:30]
-        return Response(CustomerChoiceSerializer(customers, many=True).data)
+        found = list(selectors.customers_of(membership.organization, search=filters.validated_data["search"]))
+        # The ones this driver sold to lately come first, then the others by name; the walk-in customer last.
+        recent = sales.recent_customer_ids(membership.organization, user_id=membership.user_id)
+        rank = {customer_id: position for position, customer_id in enumerate(recent)}
+        found.sort(key=lambda customer: (customer.is_walk_in, rank.get(customer.pk, len(rank)), customer.name))
+        return Response(CustomerChoiceSerializer(found[:30], many=True).data)
