@@ -30,6 +30,7 @@ import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { TruckDayPage } from "./locations/TruckDayPage";
 import { MonthClosingPage } from "./closing/MonthClosingPage";
+import { ReportsPage } from "./reports/ReportsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
@@ -75,7 +76,13 @@ const queryClient = createQueryClient();
 function useNav(): AdminNavGroup[] {
   const { t } = useTranslation();
   return [
-    { label: t("admin.groups.steering"), items: [{ to: "/", label: t("admin.nav.dashboard"), icon: "grid" }] },
+    {
+      label: t("admin.groups.steering"),
+      items: [
+        { to: "/", label: t("admin.nav.dashboard"), icon: "grid" },
+        { to: "/rapports", label: t("admin.nav.reports"), icon: "grid" },
+      ],
+    },
     {
       label: t("admin.groups.sales"),
       items: [
@@ -128,6 +135,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,
   "/cloture": <MonthClosingPage />,
+  "/rapports": <ReportsPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};
