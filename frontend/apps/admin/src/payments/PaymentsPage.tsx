@@ -238,6 +238,7 @@ export function PaymentsPage() {
                 <Th>{t("admin.payments.columns.customer")}</Th>
                 <Th>{t("admin.payments.columns.method")}</Th>
                 <Th numeric>{t("admin.payments.columns.amount")}</Th>
+                <Th numeric>{t("admin.payments.columns.remaining")}</Th>
                 <Th numeric>{t("admin.payments.columns.credit")}</Th>
                 <Th>{null}</Th>
               </tr>
@@ -266,6 +267,7 @@ export function PaymentsPage() {
                     )}
                   </Td>
                   <Td numeric>{formatMoney(payment.amount)}</Td>
+                  <Td numeric>{formatMoney(payment.remaining)}</Td>
                   <Td numeric>{formatMoney(payment.unallocated)}</Td>
                   <Td>
                     <div className="flex items-center justify-end gap-1">
