@@ -81,6 +81,8 @@ import type {
   GetTruckDayParams,
   GetWithholdingSummaryParams,
   Health,
+  ImportReport,
+  ImportUpload,
   InvoiceChoices,
   InvoiceCreate,
   InvoiceDetail,
@@ -7039,6 +7041,85 @@ export function useGetHealth<TData = Awaited<ReturnType<typeof getHealth>>, TErr
 
 
 
+
+export const getRunImportUrl = (kind: string,) => {
+
+
+
+
+  return `/api/v1/imports/${kind}`
+}
+
+/**
+ * Check a filled Excel template (`dry_run`, the default: nothing is written) or import it for real.
+ * The report lists every row: created, skipped (reference already known) or in error with its column.
+ * A real import is all or nothing: one error anywhere and nothing is saved (`committed` false). Owner only.
+ */
+export const runImport = async (kind: string,
+    importUpload: ImportUpload, options?: Parameters<typeof apiFetch>[1]): Promise<ImportReport> => {
+    const formData = new FormData();
+formData.append(`file`, importUpload.file);
+if(importUpload.dry_run !== undefined) {
+ formData.append(`dry_run`, importUpload.dry_run.toString())
+ }
+
+  return apiFetch<ImportReport>(getRunImportUrl(kind),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getRunImportMutationKey = () => ['runImport'] as const;
+
+export const getRunImportMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runImport>>, TError,RunImportMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runImport>>, TError,RunImportMutationVariables, TContext> => {
+
+const mutationKey = getRunImportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runImport>>, RunImportMutationVariables> = (props) => {
+          const {kind,data} = props ?? {};
+
+          return  runImport(kind,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunImportMutationResult = NonNullable<Awaited<ReturnType<typeof runImport>>>
+    export type RunImportMutationBody = ImportUpload
+    export type RunImportMutationError = void
+    export type RunImportMutationVariables = {kind: string;data: ImportUpload}
+
+    export const useRunImport = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runImport>>, TError,RunImportMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof runImport>>,
+        TError,
+        RunImportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRunImportMutationOptions(options), queryClient);
+    }
 
 export const getListInvoicesUrl = (params?: ListInvoicesParams,) => {
   const normalizedParams = new URLSearchParams();

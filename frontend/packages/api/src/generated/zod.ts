@@ -3347,6 +3347,42 @@ export const GetHealthResponse = zod.object({
 
 
 /**
+ * Check a filled Excel template (`dry_run`, the default: nothing is written) or import it for real.
+ * The report lists every row: created, skipped (reference already known) or in error with its column.
+ * A real import is all or nothing: one error anywhere and nothing is saved (`committed` false). Owner only.
+ */
+export const RunImportParams = zod.object({
+  "kind": zod.string()
+})
+
+export const runImportBodyDryRunDefault = true;
+
+export const RunImportBody = zod.object({
+  "file": zod.instanceof(Blob),
+  "dry_run": zod.boolean().default(runImportBodyDryRunDefault)
+})
+
+export const RunImportResponse = zod.object({
+  "kind": zod.enum(['products', 'suppliers', 'customers', 'employees']).describe('* `products` - products\n* `suppliers` - suppliers\n* `customers` - customers\n* `employees` - employees'),
+  "dry_run": zod.boolean(),
+  "committed": zod.boolean(),
+  "created": zod.int(),
+  "skipped": zod.int(),
+  "error_count": zod.int(),
+  "rows": zod.array(zod.object({
+  "row": zod.int(),
+  "status": zod.enum(['created', 'skipped', 'error']).describe('* `created` - created\n* `skipped` - skipped\n* `error` - error'),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "errors": zod.array(zod.object({
+  "column": zod.string(),
+  "message": zod.string()
+}))
+}))
+})
+
+
+/**
  * Invoices, drafts first then the newest issued, paginated (`limit`, `offset`). Filter by status,
  * customer, sale, issue days (inclusive) or `search` (number, sale number, customer). Office roles read.
  */
