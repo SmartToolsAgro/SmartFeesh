@@ -879,6 +879,15 @@ export const fr = {
       page: "{{from}}–{{to}} sur {{count}}",
       statusFilter: "Statut de la vente",
       allStatuses: "Toutes",
+      // Grouped invoice from several BL (D-096)
+      groupInvoice: {
+        filter: "À facturer",
+        select: "Choisir le bon de livraison {{number}}",
+        action: "Facturer la sélection ({{count}})",
+        mixed: "Une facture ne regroupe que les bons de livraison d'un même client.",
+        ready: "Brouillon de facture prêt pour {{count}} bons de livraison.",
+        failed: "La facture n'a pas pu être préparée.",
+      },
       statuses: {
         draft: "Brouillon",
         confirmed: "Confirmée",

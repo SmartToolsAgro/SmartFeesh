@@ -37,6 +37,7 @@ from .models import (
     FinanceSettings,
     Invoice,
     InvoiceLine,
+    InvoiceSale,
     InvoiceStatus,
     InvoiceVatLine,
     PaymentAllocation,
@@ -982,6 +983,10 @@ def cancel_sale(*, sale: Sale, actor: User | None, reason: str = "") -> Sale:
             _("Cette vente est facturée (%(number)s) : annulez d'abord la facture par un avoir.")
             % {"number": invoice.number}
         )
+    if invoice is not None and invoice.sale_links.count() > 1:
+        raise ValidationError(
+            _("Cette vente est sur un brouillon de facture groupée : supprimez d'abord ce brouillon.")
+        )
     if invoice is not None:
         delete_invoice(invoice=invoice, actor=actor)
     reason = reason.strip()[:255]
@@ -1440,7 +1445,7 @@ def _invoice_snapshot(invoice: Invoice) -> dict[str, Any]:
     return {
         "number": invoice.number,
         "status": invoice.status,
-        "sale": invoice.sale.number,
+        "sales": [sale.number for sale in invoice.sales.order_by("sold_at", "id")],
         "apply_vat": invoice.apply_vat,
         "prices_include_vat": invoice.prices_include_vat,
         "vat": [{"rate": str(row.rate), "base": str(row.base), "amount": str(row.amount)} for row in vat_lines],
@@ -1487,27 +1492,41 @@ def _checked_sale_to_invoice(sale: Sale) -> None:
 @transaction.atomic
 def create_invoice(
     *,
-    sale: Sale,
+    sale: Sale | None = None,
+    sales: Sequence[Sale] = (),
     actor: User | None,
     issue: bool = False,
     **choices: Unpack[InvoiceChoices],
 ) -> Invoice:
-    """Prepare the invoice of a confirmed sale (a draft, without number), or with `issue` issue it at once.
+    """Prepare the invoice of one or several confirmed sales (BL) of one customer (a draft, without number),
+    or with `issue` issue it at once.
 
-    The lines are the sale's, as charged (kg, prices, discounts). VAT, stamp and withholding are proposed from
-    the finance settings in force and each product's own rate; `choices` may leave VAT out or type a rate, an
-    amount of VAT, the stamp or the withholding rate. One live invoice per sale; the walk-in customer is not
-    invoiced (provisional, D-057).
+    The lines are the sales', as charged (kg, prices, discounts), BL after BL. VAT, stamp (one per invoice)
+    and withholding are proposed from the finance settings in force and each product's own rate; `choices`
+    may leave VAT out or type a rate, an amount of VAT, the stamp or the withholding rate. A BL is on one live
+    invoice at most; the walk-in customer is not invoiced (provisional, D-057). Several BLs make a "facture
+    récapitulative" (D-098).
     """
-    sale = _locked_sale(sale)
-    _checked_sale_to_invoice(sale)
-    sale_lines = list(sale.lines.select_related("product").order_by("id"))
+    wanted = {chosen.pk: chosen for chosen in (*sales, *([sale] if sale is not None else []))}
+    if not wanted:
+        raise ValidationError({"sales": _("Choisissez au moins un bon de livraison à facturer.")})
+    locked = sorted(
+        (_locked_sale(chosen) for _pk, chosen in sorted(wanted.items())), key=lambda row: (row.sold_at, row.pk)
+    )
+    if len({chosen.customer_id for chosen in locked}) > 1:
+        raise ValidationError({"sales": _("Une facture ne regroupe que les bons de livraison d'un même client.")})
+    for chosen in locked:
+        _checked_sale_to_invoice(chosen)
+    sale = locked[0]
+    sale_lines = [line for chosen in locked for line in chosen.lines.select_related("product").order_by("id")]
     overrides = _checked_choices(choices, len(sale_lines))
     invoice = Invoice.objects.create(
         organization=sale.organization,
-        sale=sale,
         customer=sale.customer,
         created_by=actor,
+    )
+    InvoiceSale.objects.bulk_create(
+        [InvoiceSale(organization_id=sale.organization_id, invoice=invoice, sale=chosen) for chosen in locked]
     )
     InvoiceLine.objects.bulk_create(
         [
@@ -1547,11 +1566,7 @@ def create_invoice(
 
 def _locked_invoice(invoice: Invoice) -> Invoice:
     """The invoice locked until commit, so it is never issued or credited twice at once."""
-    return (
-        Invoice.objects.select_for_update(of=("self",))
-        .select_related("organization", "sale", "customer")
-        .get(pk=invoice.pk)
-    )
+    return Invoice.objects.select_for_update(of=("self",)).select_related("organization", "customer").get(pk=invoice.pk)
 
 
 def _locked_draft_invoice(invoice: Invoice) -> Invoice:
@@ -1605,7 +1620,7 @@ def delete_invoice(*, invoice: Invoice, actor: User | None) -> None:
 def record_invoice_receivable(invoice: Invoice) -> None:
     """An issued invoice's `net_to_pay` (VAT and stamp in, withholding out) is what the customer owes for its
     sale from now on (D-062): the sale's outstanding amount is refreshed."""
-    refresh_sale_due(invoice.sale)
+    refresh_invoice_sales(invoice)
 
 
 @transaction.atomic
@@ -1618,8 +1633,8 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     invoice never changes: a credit note corrects it. The sale's `tax_amount` becomes the invoice's VAT.
     """
     invoice = _locked_draft_invoice(invoice)
-    sale = _locked_sale(invoice.sale)
-    if sale.status != SaleStatus.CONFIRMED:
+    sales = _locked_sales_of(invoice)
+    if any(sale.status != SaleStatus.CONFIRMED for sale in sales):
         raise ValidationError(_("Seule une vente confirmée se facture."))
     version = _settings_in_force(invoice.organization)
     _compute(invoice, version, _stored_overrides(invoice))
@@ -1643,13 +1658,19 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     invoice.status = InvoiceStatus.ISSUED
     invoice.number = _next_yearly_number(invoice.organization, INVOICE_PREFIX, today.year)
     invoice.save()
-    lines = list(invoice.lines.select_related("product"))
+    lines = list(invoice.lines.select_related("product", "sale_line"))
     for line in lines:
         line.product_reference = line.product.reference
         line.product_name = line.product.name
     InvoiceLine.objects.bulk_update(lines, ["product_reference", "product_name"])
-    sale.tax_amount = invoice.vat_total
-    sale.save(update_fields=["tax_amount", "updated_at"])
+    # The invoice's VAT is shared over its BLs by what each one holds (all of it for a single BL).
+    shares = receivables.split(
+        invoice.vat_total,
+        [sum((line.amount for line in lines if line.sale_line.sale_id == sale.pk), Decimal("0.000")) for sale in sales],
+    )
+    for sale, share in zip(sales, shares, strict=True):
+        sale.tax_amount = share
+        sale.save(update_fields=["tax_amount", "updated_at"])
     record_invoice_receivable(invoice)
     audit.record(
         organization=invoice.organization,
@@ -1893,7 +1914,7 @@ def create_credit_note(
         net_amount=total_excl + vat_total + stamp - withholding,
         created_by=actor,
     )
-    sale = _locked_sale(invoice.sale)
+    sales = {sale.pk: sale for sale in _locked_sales_of(invoice)}
     for index, part in enumerate(parts):
         credit_line = CreditNoteLine.objects.create(
             organization_id=invoice.organization_id,
@@ -1905,14 +1926,18 @@ def create_credit_note(
             vat_amount=part.vat,
             amount_incl_tax=part.excl + part.vat,
         )
+        sale = sales[part.invoice_line.sale_line.sale_id]
         _take_back(note=note, credit_line=credit_line, part=part, index=index, sale=sale, actor=actor)
     if kind == CreditNoteKind.FULL:
         invoice.status = InvoiceStatus.CANCELLED
         invoice.cancelled_at = timezone.now()
         invoice.save(update_fields=["status", "cancelled_at", "updated_at"])
-        sale.tax_amount = None
-        sale.save(update_fields=["tax_amount", "updated_at"])
-    refresh_sale_due(invoice.sale)
+        # Its BLs are free again: they may be invoiced anew.
+        InvoiceSale.objects.filter(invoice=invoice).update(is_live=False)
+        for sale in sales.values():
+            sale.tax_amount = None
+            sale.save(update_fields=["tax_amount", "updated_at"])
+    refresh_invoice_sales(invoice)
     audit.record(
         organization=invoice.organization,
         actor=actor,
@@ -1954,6 +1979,18 @@ def refresh_sale_due(sale: Sale) -> None:
     if rows and rows[0].outstanding != sale.amount_due:
         sale.amount_due = rows[0].outstanding
         sale.save(update_fields=["amount_due", "updated_at"])
+
+
+def _locked_sales_of(invoice: Invoice) -> list[Sale]:
+    """The invoice's BLs, locked in a fixed order (by id), then listed oldest first."""
+    ids = sorted(invoice.sale_links.values_list("sale_id", flat=True))
+    return sorted((_locked_sale(Sale(pk=pk)) for pk in ids), key=lambda row: (row.sold_at, row.pk))
+
+
+def refresh_invoice_sales(invoice: Invoice) -> None:
+    """Refresh the outstanding amount of every BL the invoice bills."""
+    for sale in _locked_sales_of(invoice):
+        refresh_sale_due(sale)
 
 
 def _payment_snapshot(payment: CustomerPayment) -> dict[str, Any]:
@@ -2249,7 +2286,7 @@ def record_withholding_certificate(
         if certificate.file.name:
             certificate.file.storage.delete(certificate.file.name)
         raise
-    refresh_sale_due(_locked_sale(invoice.sale))
+    refresh_invoice_sales(invoice)
     audit.record(
         organization=invoice.organization,
         actor=actor,
@@ -2312,7 +2349,7 @@ def void_withholding_certificate(
     certificate.voided_by = actor
     certificate.void_reason = reason
     certificate.save(update_fields=["voided_at", "voided_by", "void_reason", "updated_at"])
-    refresh_sale_due(_locked_sale(certificate.invoice.sale))
+    refresh_invoice_sales(certificate.invoice)
     audit.record(
         organization=certificate.organization,
         actor=actor,

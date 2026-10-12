@@ -88,3 +88,32 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await expect(page.getByText(/Avoir AV-\d{4}-\d{4} créé/)).toBeVisible();
   await expect(page.getByText("Annulée", { exact: true })).toBeVisible();
 });
+
+test("two delivery notes of one customer are invoiced together", async ({ page }) => {
+  test.slow();
+  const numbers: string[] = [];
+  for (let i = 0; i < 2; i++) {
+    await page.goto("/ventes/nouvelle");
+    await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
+    await choose(page, page, "Depuis", FRESH_ROOM);
+    const line = page.getByRole("group", { name: "Produit 1" });
+    await choose(page, line, "Produit", "Sardine · SA-010");
+    await line.getByLabel("Poids (kg)").fill("1");
+    await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
+    await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
+    await expect(page.getByText(/BL-\d{4}-\d+ validé/)).toBeVisible();
+    numbers.push((await page.getByRole("heading", { level: 1 }).textContent()) ?? "");
+  }
+
+  await page.goto("/ventes");
+  await page.getByRole("button", { name: "À facturer" }).click();
+  for (const number of numbers) {
+    await page.getByRole("checkbox", { name: `Choisir le bon de livraison ${number}` }).check();
+  }
+  await page.getByRole("button", { name: "Facturer la sélection (2)" }).click();
+
+  await expect(page.getByRole("heading", { name: "Facture (brouillon)", level: 1 })).toBeVisible();
+  for (const number of numbers) {
+    await expect(page.getByRole("link", { name: number })).toBeVisible();
+  }
+});

@@ -481,7 +481,9 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     # "FA-2026-0001"..., per organization and year; empty while a draft (taken only when issued: no gaps).
     number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT)
-    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="invoices")
+    # The delivery notes (BL) this invoice bills, all of its customer (D-098): usually one, several for a
+    # "facture récapitulative". Each line points to its own sale line.
+    sales = models.ManyToManyField(Sale, through="InvoiceSale", related_name="invoices")
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="invoices")
     # The finance settings version the values came from (the one in force when issued).
     settings_version = models.ForeignKey(
@@ -544,10 +546,6 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
                 condition=~models.Q(number=""),
                 name="sale_invoice_number_unique_per_organization",
             ),
-            # One live invoice (draft or issued) per sale; once cancelled by a credit note it may be redone.
-            models.UniqueConstraint(
-                fields=["sale"], condition=~models.Q(status="cancelled"), name="one_live_invoice_per_sale"
-            ),
             models.CheckConstraint(
                 condition=models.Q(status="draft") | ~models.Q(number=""), name="issued_invoice_has_number"
             ),
@@ -576,6 +574,26 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number or f"Brouillon {self.pk}"
+
+
+class InvoiceSale(OrganizationScopedModel):
+    """One delivery note (BL) billed by an invoice. A BL is on at most one live invoice (draft or issued);
+    once the invoice is cancelled by a credit note (`is_live` false) the BL may be invoiced again."""
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="sale_links")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="invoice_links")
+    is_live = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["invoice", "sale"], name="one_row_per_invoice_and_sale"),
+            models.UniqueConstraint(
+                fields=["sale"], condition=models.Q(is_live=True), name="one_live_invoice_per_sale"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.invoice} · {self.sale_id}"
 
 
 class InvoiceLine(OrganizationScopedModel):

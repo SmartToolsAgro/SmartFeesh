@@ -6945,7 +6945,7 @@ export const getCreateInvoiceUrl = () => {
  * `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
  * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`.
  */
-export const createInvoice = async (invoiceCreate: InvoiceCreate, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceDetail> => {
+export const createInvoice = async (invoiceCreate?: InvoiceCreate, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceDetail> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7004,9 +7004,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof createInvoice>>>
-    export type CreateInvoiceMutationBody = InvoiceCreate
+    export type CreateInvoiceMutationBody = InvoiceCreate | undefined
     export type CreateInvoiceMutationError = unknown
-    export type CreateInvoiceMutationVariables = {data: InvoiceCreate}
+    export type CreateInvoiceMutationVariables = {data?: InvoiceCreate}
 
     export const useCreateInvoice = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvoice>>, TError,CreateInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
