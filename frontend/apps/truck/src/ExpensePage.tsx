@@ -1,9 +1,12 @@
-import { ApiError, useAddMyExpense, useListMyExpenses, useListRoadCategories } from "@frutti/api";
+import { addMyExpense, ApiError, useListMyExpenses, useListRoadCategories } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { sendOrKeep } from "./sendOrKeep";
+import { sendWaiting } from "./sync";
 
 // "Dépense": what the driver paid on the road, in four taps and a photo of the receipt.
 export function ExpensePage() {
@@ -19,26 +22,7 @@ export function ExpensePage() {
   const [photo, setPhoto] = useState<File | undefined>(undefined);
   const [uuid, setUuid] = useState(() => crypto.randomUUID());
   const [error, setError] = useState("");
-  const add = useAddMyExpense({
-    mutation: {
-      onSuccess: () => {
-        toast.success(t("truck.expense.saved"));
-        setCategory(null);
-        setAmount("");
-        setDescription("");
-        setPhoto(undefined);
-        setError("");
-        setUuid(crypto.randomUUID());
-        void queryClient.invalidateQueries();
-      },
-      onError: (failure) => {
-        const body = failure instanceof ApiError ? JSON.stringify(failure.body ?? "") : "";
-        setError(
-          body === "" || body === '""' ? t("truck.expense.failed") : t("truck.expense.failedWith", { why: body }),
-        );
-      },
-    },
-  });
+  const [saving, setSaving] = useState(false);
 
   if (truck === null) {
     return (
@@ -49,6 +33,40 @@ export function ExpensePage() {
   }
   const amountValue = parseDecimalInput(amount.trim(), 3);
   const ready = category !== null && amountValue !== null && Number(amountValue) > 0;
+
+  const save = async () => {
+    if (category === null || amountValue === null) return;
+    setSaving(true);
+    setError("");
+    const data = { category, amount: amountValue, description, receipt: photo, client_uuid: uuid };
+    try {
+      const outcome = await sendOrKeep(
+        {
+          kind: "expense",
+          uuid,
+          createdAt: new Date().toISOString(),
+          label: (categories.data ?? []).find((item) => item.id === category)?.name ?? "",
+          data,
+          status: "pending",
+          error: "",
+        },
+        () => addMyExpense(data),
+      );
+      toast.success(t(outcome.kept ? "truck.expense.kept" : "truck.expense.saved"));
+      setCategory(null);
+      setAmount("");
+      setDescription("");
+      setPhoto(undefined);
+      setUuid(crypto.randomUUID());
+      void queryClient.invalidateQueries();
+      void sendWaiting(queryClient);
+    } catch (failure) {
+      const body = failure instanceof ApiError ? JSON.stringify(failure.body ?? "") : "";
+      setError(body === "" || body === '""' ? t("truck.expense.failed") : t("truck.expense.failedWith", { why: body }));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -103,13 +121,8 @@ export function ExpensePage() {
           size="lg"
           variant="primary"
           className="py-4 text-lg"
-          disabled={!ready || add.isPending}
-          onClick={() =>
-            ready &&
-            add.mutate({
-              data: { category, amount: amountValue, description, receipt: photo, client_uuid: uuid },
-            })
-          }
+          disabled={!ready || saving}
+          onClick={() => void save()}
         >
           {t("truck.expense.save")}
         </Button>

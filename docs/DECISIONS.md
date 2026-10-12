@@ -1329,3 +1329,11 @@ shown on the sale screen is the truck's stock minus the kilos of waiting sales, 
 offline driver cannot promise more than the truck holds. Expenses, losses and the closing are not queued yet (T07c).
 Not covered by automated tests (the truck app has no unit-test setup and IndexedDB needs a browser): checked in the
 field test.
+
+**D-098 · Expenses and losses join the queue; the closing waits for it (P3-T07c)** · accepted · 2026-10-12
+`queue.ts` now holds three kinds (sale, expense, loss) in the same IndexedDB store, sent in the order they were made by
+`sync.ts`; the receipt photo is kept with the item (IndexedDB stores files). Screens use `sendOrKeep`: send now, or keep
+on the phone when there is no connection; a server refusal is shown at once and not kept. Waiting losses also count in
+the kilos "promised", so a loss cannot be reported above what the truck holds. The **closing is refused while anything
+waits or there is no connection** (the button is disabled with the reason), so the figures the office receives are
+complete. Returning the unsold stock (`my-return`) is not queued: it needs a connection.

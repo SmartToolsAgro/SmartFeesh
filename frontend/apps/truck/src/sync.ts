@@ -1,8 +1,8 @@
-import { ApiError, createSale } from "@frutti/api";
+import { addMyExpense, ApiError, createSale, reportMyLoss } from "@frutti/api";
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { listQueue, markRefused, removeQueuedSale } from "./salesQueue";
+import { listQueue, markRefused, type QueuedItem, removeQueued } from "./queue";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -14,22 +14,28 @@ function messagesOf(body: unknown): string[] {
 
 let sending = false;
 
-/** Send the waiting sales one by one, oldest first. Stops at the first sign of no connection or no login. */
-export async function sendWaitingSales(queryClient: QueryClient): Promise<void> {
+function sendItem(item: QueuedItem): Promise<unknown> {
+  if (item.kind === "sale") return createSale(item.data);
+  if (item.kind === "expense") return addMyExpense(item.data);
+  return reportMyLoss(item.data);
+}
+
+/** Send what waits one by one, oldest first. Stops at the first sign of no connection or no login. */
+export async function sendWaiting(queryClient: QueryClient): Promise<void> {
   if (sending || !navigator.onLine) return;
   sending = true;
   let sent = false;
   try {
-    for (const sale of await listQueue()) {
-      if (sale.status !== "pending") continue;
+    for (const item of await listQueue()) {
+      if (item.status !== "pending") continue;
       try {
-        await createSale(sale.data);
-        await removeQueuedSale(sale.uuid);
+        await sendItem(item);
+        await removeQueued(item.uuid);
         sent = true;
       } catch (failure) {
         // The connection dropped or the session ended: keep everything and try again later.
         if (!(failure instanceof ApiError) || failure.status === 401) break;
-        await markRefused(sale, messagesOf(failure.body).join(" ") || failure.message);
+        await markRefused(item, messagesOf(failure.body).join(" ") || failure.message);
       }
     }
   } finally {
@@ -38,10 +44,10 @@ export async function sendWaitingSales(queryClient: QueryClient): Promise<void> 
   if (sent) await queryClient.invalidateQueries();
 }
 
-/** Tries to send at start, when the connection comes back, and every half minute while sales wait. */
+/** Tries to send at start, when the connection comes back, and every half minute while something waits. */
 export function useSalesSync(queryClient: QueryClient): void {
   useEffect(() => {
-    const run = () => void sendWaitingSales(queryClient);
+    const run = () => void sendWaiting(queryClient);
     run();
     window.addEventListener("online", run);
     const timer = window.setInterval(run, 30_000);
