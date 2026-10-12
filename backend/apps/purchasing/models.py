@@ -323,12 +323,14 @@ class DocumentCounter(OrganizationScopedModel):
     """The last number given to one kind of purchasing document in an organization, locked while taken."""
 
     kind = models.CharField(max_length=30, choices=DocumentKind.choices)
+    # 0 for a kind numbered without a year (FF-0001, order numbers); the year for a kind that restarts yearly (D-120).
+    year = models.PositiveIntegerField(default=0)
     last_number = models.PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["organization", "kind"], name="one_document_counter_per_kind"),
+            models.UniqueConstraint(fields=["organization", "kind", "year"], name="one_document_counter_per_kind_year"),
         ]
 
     def __str__(self) -> str:
-        return f"{self.organization} · {self.kind} · {self.last_number}"
+        return f"{self.organization} · {self.kind} · {self.year} · {self.last_number}"

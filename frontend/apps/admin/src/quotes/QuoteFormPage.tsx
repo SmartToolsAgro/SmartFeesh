@@ -79,7 +79,7 @@ export function QuoteFormPage() {
   return <QuoteForm />;
 }
 
-/** "Modifier DV-0003": a draft changed, or sent. */
+/** "Modifier DV-2026-0003": a draft changed, or sent. */
 export function QuoteEditPage() {
   const { t } = useTranslation();
   const { quoteId } = useParams();

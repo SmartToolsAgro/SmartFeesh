@@ -43,7 +43,7 @@ test("the demo invoice is partly paid and the supplier page shows what is still 
   await expect(page.getByRole("heading", { name: /^FF-\d+$/, level: 1 })).toBeVisible();
   await expect(page.getByText("Payée en partie").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "BR-0001" })).toBeVisible();
-  await expect(page.getByRole("row", { name: /RF-\d+/ })).toContainText(/Chèque · CH-0042117.*500,000\sDT/);
+  await expect(page.getByRole("row", { name: /RF-\d{4}-\d+/ })).toContainText(/Chèque · CH-0042117.*500,000\sDT/);
   await expect(page.getByText(/^971,500\sDT$/)).toBeVisible();
 
   await page.getByRole("link", { name: "Mareyeur Port de Sfax" }).click();
@@ -85,7 +85,7 @@ test("the owner invoices a receipt, posts it and pays it in full", async ({ page
   await page.getByRole("option", { name: "Espèces" }).click();
   await page.getByRole("button", { name: "Enregistrer le paiement" }).click();
 
-  await expect(page.getByText(/Paiement RF-\d+ enregistré/)).toBeVisible();
+  await expect(page.getByText(/Paiement RF-\d{4}-\d+ enregistré/)).toBeVisible();
   await expect(page.getByRole("heading", { name: /^FF-\d+$/, level: 1 })).toBeVisible();
   await expect(page.getByText("Payée", { exact: true })).toBeVisible();
 });

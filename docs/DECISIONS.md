@@ -1551,3 +1551,15 @@ have it), and Arabic texts.
   allocated to it, and it is never invoiced nor counted in sales counts or lot results. A supplier debt is a
   posted `SupplierInvoice` with `is_opening`, its amount typed and no receipts; payments settle it like any other.
   A re-sent file skips a debt already there (same party, amount, date). Cancelled with a reason if wrong.
+
+**D-120 · Yearly numbers for quotes, expenses, salary payments and supplier payments (P2-T10 follow-up)** · accepted · 2026-10-12
+- New documents of these four kinds are numbered `PREFIX-YEAR-NNNN` and restart every year, like BL, invoices and
+  credit notes: `DV-2026-0001` (quotes), `DP-2026-0001` (expenses), `PS-2026-0001` (salary payments),
+  `RF-2026-0001` (supplier payments). The year is the day the document is created.
+- **Existing records keep their old number** (`DV-0001`): history is not renamed. Both styles coexist; the old
+  counters stay as they were (provisional: a later pass may renumber if the accountant asks).
+- Counters: sales and expenses use one counter row per `PREFIX-YEAR` series; hr `PaymentCounter` and purchasing
+  `DocumentCounter` gained a `year` column (0 = the numbers without year), so the unique key is
+  organization (+ kind) + year.
+- **Still plain sequential** (not in this decision): draft sales `VE-`, customer payments `RG-`, supplier invoices
+  `FF-`, transfers, losses, counts, goods receipts, purchase orders.

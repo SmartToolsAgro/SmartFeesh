@@ -13,6 +13,8 @@ from .factories import EmployeeFactory
 
 pytestmark = pytest.mark.django_db
 
+YEAR = timezone.localdate().year
+
 MONTH = timezone.localdate().replace(day=1).isoformat()
 
 
@@ -171,7 +173,7 @@ def test_payroll_month_flow_generate_approve_adjust_pay(api):
         format="json",
     )
     assert payment.status_code == 201
-    assert payment.json()["number"] == "PS-0001"
+    assert payment.json()["number"] == f"PS-{YEAR}-0001"
     assert payment.json()["unallocated"] == "0.000"
 
     summary = api.get(reverse("payroll-summary"), {"month": MONTH}).json()

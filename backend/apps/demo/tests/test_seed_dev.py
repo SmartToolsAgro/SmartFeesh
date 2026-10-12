@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.utils import timezone
 
 from apps.catalog import selectors as catalog
 from apps.core.models import Membership, Organization, Role, User
@@ -13,6 +14,8 @@ from apps.partners import selectors as partners
 from apps.purchasing import selectors as purchasing
 
 pytestmark = pytest.mark.django_db
+
+YEAR = timezone.localdate().year
 
 
 def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_batches_and_stock(settings):
@@ -102,7 +105,7 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert (invoice.number, invoice.status, invoice.total) == ("FF-0001", "partly_paid", Decimal("1471.500"))
     assert [link.receipt for link in invoice.receipt_links.all()] == [receipt]
     (payment,) = purchasing.payments_of(organization)
-    assert (payment.number, payment.method, payment.amount) == ("RF-0001", "cheque", Decimal("500.000"))
+    assert (payment.number, payment.method, payment.amount) == (f"RF-{YEAR}-0001", "cheque", Decimal("500.000"))
     balance = purchasing.supplier_balance(organization, receipt.supplier_id)
     assert (balance.invoiced, balance.paid, balance.balance) == (
         Decimal("1471.500"),

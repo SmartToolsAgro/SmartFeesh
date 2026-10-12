@@ -15,17 +15,17 @@ test("the documents page lists the demo quote and filters by type", async ({ pag
   await page.getByRole("option", { name: "Tout", exact: true }).click();
   await page.getByRole("searchbox").fill("Corail");
 
-  const quote = page.getByRole("row", { name: /DV-0001/ });
+  const quote = page.getByRole("row", { name: /DV-\d{4}-0001/ });
   await expect(quote).toContainText("Restaurant Le Corail");
   await expect(quote).toContainText("Devis");
 
   await page.getByRole("button", { name: /^BA/ }).click();
-  await expect(page.getByRole("row", { name: /DV-0001/ })).toHaveCount(0);
+  await expect(page.getByRole("row", { name: /DV-\d{4}-0001/ })).toHaveCount(0);
   await page.getByRole("button", { name: /^DV/ }).click();
-  await expect(page.getByRole("row", { name: /DV-0001/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /DV-\d{4}-0001/ })).toBeVisible();
 
-  await page.getByRole("link", { name: "DV-0001" }).click();
-  await expect(page.getByRole("article", { name: "Devis DV-0001" })).toBeVisible();
+  await page.getByRole("link", { name: /^DV-\d{4}-0001$/ }).click();
+  await expect(page.getByRole("article", { name: /^Devis DV-\d{4}-0001$/ })).toBeVisible();
 });
 
 test("a new document starts from the documents page", async ({ page }) => {

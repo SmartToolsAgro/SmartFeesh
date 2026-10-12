@@ -129,9 +129,9 @@ test("an accepted quote is converted into a sale and the two link to each other"
   await line.getByLabel("Poids (kg)").fill("2");
   await line.getByLabel("Prix (DT/kg)").fill("30");
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
-  await expect(page.getByText(/Devis DV-\d+ enregistré et envoyé/)).toBeVisible();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
   await page.getByRole("button", { name: "Accepté par le client" }).click();
-  await expect(page.getByText(/Devis DV-\d+ accepté/)).toBeVisible();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 
   await page.getByRole("button", { name: "Convertir en vente" }).click();
@@ -160,9 +160,9 @@ test("a quote is delivered in two BL: the first one takes part of it", async ({ 
   await line.getByLabel("Poids (kg)").fill("2");
   await line.getByLabel("Prix (DT/kg)").fill("30");
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
-  await expect(page.getByText(/Devis DV-\d+ enregistré et envoyé/)).toBeVisible();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
   await page.getByRole("button", { name: "Accepté par le client" }).click();
-  await expect(page.getByText(/Devis DV-\d+ accepté/)).toBeVisible();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 
   // The dialog proposes the 2 kg; half a kilo goes on a first BL, kept as a draft.

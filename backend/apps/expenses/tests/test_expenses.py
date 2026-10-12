@@ -13,6 +13,8 @@ from .conftest import category, days_ago, load, receive
 
 pytestmark = pytest.mark.django_db
 
+YEAR = timezone.localdate().year
+
 
 def spend(organization, actor, cat, amount, **fields):
     fields.setdefault("spent_on", timezone.localdate())
@@ -59,11 +61,15 @@ def test_a_default_category_is_renamed_but_never_archived(organization, actor, f
 def test_an_expense_is_a_draft_with_a_number_until_approved(organization, actor, fuel):
     expense = spend(organization, actor, fuel, "45.500", description=" Gasoil ", payee="Station Agil")
 
-    assert (expense.number, expense.status, expense.amount) == ("DP-0001", ExpenseStatus.DRAFT, Decimal("45.500"))
+    assert (expense.number, expense.status, expense.amount) == (
+        f"DP-{YEAR}-0001",
+        ExpenseStatus.DRAFT,
+        Decimal("45.500"),
+    )
     assert (expense.description, expense.entered_by) == ("Gasoil", actor)
     approved = services.approve_expense(expense=expense, actor=actor)
     assert (approved.status, approved.decided_by) == (ExpenseStatus.APPROVED, actor)
-    assert spend(organization, actor, fuel, "1").number == "DP-0002"
+    assert spend(organization, actor, fuel, "1").number == f"DP-{YEAR}-0002"
     assert list(AuditLog.objects.filter(target_id=str(expense.pk)).values_list("action", flat=True).order_by("id")) == [
         "expense.created",
         "expense.approved",
