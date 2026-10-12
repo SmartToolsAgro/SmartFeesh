@@ -197,7 +197,7 @@ def test_employees_take_a_hire_date_typed_in_french_and_a_salary(organization, o
                 "hire_date": "01/03/2024",
                 "monthly_salary": "1200,000",
             },
-            {"name": "Sami", "hire_date": dt.datetime(2025, 1, 15, tzinfo=dt.UTC), "monthly_salary": 900},
+            {"name": "Sami", "hire_date": dt.date(2025, 1, 15), "monthly_salary": 900},
         ],
     )
 
