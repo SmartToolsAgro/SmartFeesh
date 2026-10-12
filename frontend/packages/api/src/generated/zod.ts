@@ -9460,6 +9460,179 @@ export const GenerateRecurringCostsResponse = zod.array(GenerateRecurringCostsRe
 
 
 /**
+ * Per product: kilos written off as losses, and the net weight differences found by counts and
+ * adjustments, at the lot's cost per kg.
+ */
+export const GetLossesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const getLossesReportResponseRowsItemLostQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseRowsItemLostValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseRowsItemDifferenceQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseRowsItemDifferenceValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseTotalLostQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseTotalLostValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetLossesReportResponse = zod.object({
+  "date_from": zod.iso.date(),
+  "date_to": zod.iso.date(),
+  "rows": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "lost_quantity": zod.stringFormat('decimal', getLossesReportResponseRowsItemLostQuantityRegExp),
+  "lost_value": zod.stringFormat('decimal', getLossesReportResponseRowsItemLostValueRegExp),
+  "difference_quantity": zod.stringFormat('decimal', getLossesReportResponseRowsItemDifferenceQuantityRegExp),
+  "difference_value": zod.stringFormat('decimal', getLossesReportResponseRowsItemDifferenceValueRegExp)
+})),
+  "total_lost_quantity": zod.stringFormat('decimal', getLossesReportResponseTotalLostQuantityRegExp),
+  "total_lost_value": zod.stringFormat('decimal', getLossesReportResponseTotalLostValueRegExp)
+})
+
+
+/**
+ * The losses and differences report as an Excel file.
+ */
+export const ExportLossesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const ExportLossesReportResponse = zod.unknown()
+
+
+/**
+ * Confirmed sales (BL) by customer, product, truck, driver, day, week or month: kilos, revenue without
+ * VAT, cost of goods sold and margin, net of the credit notes issued in the period. The same rows as the
+ * monthly closing, so the totals always agree with it.
+ */
+export const GetSalesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).'),
+  "group_by": zod.enum(['customer', 'day', 'driver', 'month', 'product', 'truck', 'week']).optional()
+})
+
+export const getSalesReportResponseRowsItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseRowsItemRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseRowsItemCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseRowsItemMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSalesReportResponse = zod.object({
+  "group_by": zod.enum(['customer', 'product', 'truck', 'driver', 'day', 'week', 'month']).describe('* `customer` - customer\n* `product` - product\n* `truck` - truck\n* `driver` - driver\n* `day` - day\n* `week` - week\n* `month` - month'),
+  "date_from": zod.iso.date(),
+  "date_to": zod.iso.date(),
+  "rows": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "sales": zod.int(),
+  "quantity": zod.stringFormat('decimal', getSalesReportResponseRowsItemQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', getSalesReportResponseRowsItemRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', getSalesReportResponseRowsItemCogsRegExp),
+  "margin": zod.stringFormat('decimal', getSalesReportResponseRowsItemMarginRegExp)
+})),
+  "totals": zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "sales": zod.int(),
+  "quantity": zod.stringFormat('decimal', getSalesReportResponseTotalsQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', getSalesReportResponseTotalsRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', getSalesReportResponseTotalsCogsRegExp),
+  "margin": zod.stringFormat('decimal', getSalesReportResponseTotalsMarginRegExp)
+})
+})
+
+
+/**
+ * The sales report as an Excel file.
+ */
+export const ExportSalesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).'),
+  "group_by": zod.enum(['customer', 'day', 'driver', 'month', 'product', 'truck', 'week']).optional()
+})
+
+export const ExportSalesReportResponse = zod.unknown()
+
+
+/**
+ * Lots still on hand that nothing has touched for `days` days or more, longest idle first.
+ */
+export const GetSlowMovingReportQueryParams = zod.object({
+  "days": zod.int().optional().describe('Days without movement (default 30).')
+})
+
+export const getSlowMovingReportResponseRowsItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSlowMovingReportResponseRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSlowMovingReportResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSlowMovingReportResponseTotalValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSlowMovingReportResponse = zod.object({
+  "days": zod.int(),
+  "rows": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "last_movement_on": zod.iso.date(),
+  "days_idle": zod.int(),
+  "quantity": zod.stringFormat('decimal', getSlowMovingReportResponseRowsItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', getSlowMovingReportResponseRowsItemValueRegExp)
+})),
+  "total_quantity": zod.stringFormat('decimal', getSlowMovingReportResponseTotalQuantityRegExp),
+  "total_value": zod.stringFormat('decimal', getSlowMovingReportResponseTotalValueRegExp)
+})
+
+
+/**
+ * The slow-moving lots as an Excel file.
+ */
+export const ExportSlowMovingReportQueryParams = zod.object({
+  "days": zod.int().optional().describe('Days without movement (default 30).')
+})
+
+export const ExportSlowMovingReportResponse = zod.unknown()
+
+
+/**
+ * What each place (cold rooms and trucks) holds now, per product, valued at the purchase cost of
+ * each lot. Unsold stock is an asset, not a cost.
+ */
+export const getStockValueReportResponseRowsItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockValueReportResponseRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockValueReportResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockValueReportResponseTotalValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetStockValueReportResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getStockValueReportResponseRowsItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', getStockValueReportResponseRowsItemValueRegExp)
+})),
+  "total_quantity": zod.stringFormat('decimal', getStockValueReportResponseTotalQuantityRegExp),
+  "total_value": zod.stringFormat('decimal', getStockValueReportResponseTotalValueRegExp)
+})
+
+
+/**
+ * The stock value report as an Excel file.
+ */
+export const ExportStockValueReportResponse = zod.unknown()
+
+
+/**
  * Salary payments, newest first, with the salaries each settled and the part not allocated.
  * Filter by `employee` or `search` (number, reference, name). Not paginated.
  */

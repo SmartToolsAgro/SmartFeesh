@@ -1383,6 +1383,18 @@ real phone.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
 
+**D-113 · Commercial and stock reports (P7-T02, P7-T03)** · accepted · 2026-10-12
+New app `reports` (read-only; owner, manager and accountant, never a driver) and the page **Rapports** (menu "Pilotage",
+four tabs, each with an Excel file). **Sales** by customer, product, truck, driver, day, week or month: number of
+sales, kg, revenue without VAT, cost of the goods sold and margin, net of the credit notes of the period. They are the
+rows of the monthly closing (`sales.report_rows`), so a report and the closing never differ by a dinar. The **driver** of
+a truck is the one who opened that truck's day on the phone (`fleet.drivers_by_truck_day`, D-090); a truck day nobody
+opened, or a counter sale, shows "—". **Stock value** by place and product at the purchase cost of each lot; **slow
+lots** (no movement for N days, default 30, longest idle first); **losses and weight differences** per product over a
+period, at the lot's cost per kg. Excel files (`openpyxl`, amounts kept as exact numbers with three decimals, a totals
+row) are plain downloads next to each table. **Not done:** sales by supplier and by payment method (listed in P7-T02),
+a driver/period comparison chart, and the Arabic texts (the page is French, like the rest of the admin app).
+
 **D-106 · Stock cannot leave before it arrived (review, round 2)** · accepted · 2026-10-12
 - `post_fifo_movements` and `selectors.allocate_fifo` (new `day` argument, given by `record_loss`) only take batches
   with `received_on` on or before the document's day (the local day of `occurred_at`; today when none). A transfer,
