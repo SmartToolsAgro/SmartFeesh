@@ -1159,6 +1159,50 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - **Not done:** receipts for the driver app (Phase 3: drivers get 403 here), PDFs by e-mail or WhatsApp, Arabic
   layout (right-to-left, with P0-T08), e-invoice (TTN) QR code (D-016).
 
+**D-090 · Driver app kept deliberately simple; first screen "Ma journée" (P3-T01, part)** · accepted · 2026-10-11
+The drivers are not used to phones: big text, one job per screen, almost no typing, prices filled in for them.
+`GET /api/v1/my-truck-day` (drivers only) returns the day's load of the driver's own truck (D-046) with the
+price per kg; the first screen shows the truck and that load. A driver
+with no truck sees the active trucks as big buttons (`GET /my-truck-choices`, those taken by another driver are
+greyed) and picks one with the existing `POST /truck-assignments`. `fleet.DriverDay` (truck, driver, date, opening
+cash; one per driver and day) is opened by `POST /my-day` and read by `GET /my-day`; asking twice keeps the first.
+
+**D-091 · Sale on the road, first version (P3-T02, P3-T03)** · accepted, provisional points marked · 2026-10-11
+Driver-only read endpoints: `GET /my-stock` (the truck's stock per product with today's daily price) and
+`GET /my-customers?search=` (name and city, walk-in last, 30 rows). The sale screen sends no price: the server
+prices the lines as for any sale (customer's list, else daily price) and the receipt shows its result; the screen's
+running total uses the daily price, so it may differ for a customer with their own price list (**provisional**,
+D-051 still open). The driver types the kg and what the customer pays; the rest is credit, and the server
+refuses above the credit limit (its message is shown). Payment is cash for now. A `client_uuid` per sale makes
+a retry safe. Receipt: on screen and the phone's share sheet. Not yet: recent customers first, creating a
+customer, other payment methods, offline (P3-T07).
+
+**D-092 · Expenses from the road (P3-T04)** · accepted · 2026-10-11
+A driver enters an expense with `POST /my-expenses` (multipart: category, amount, optional note, optional receipt
+photo, `client_uuid`), through `expenses.services.submit_road_expense`: cash, today, a cost of the driver's truck of
+the day (D-041), status "À approuver" until the office decides; the photo is joined in the same transaction. The
+driver picks among four categories only (fuel, transport, handling, miscellaneous: `ROAD_CATEGORY_CODES`), listed by
+`GET /my-expense-categories`; `GET /my-expenses` shows their own entries of today with the decision.
+
+**D-093 · Losses and returns from the road (P3-T05)** · accepted · 2026-10-11
+`POST /my-losses` (multipart: product, kg, reason, note, photo, `client_uuid`) records a loss on the driver's truck
+today through `inventory.services.report_road_loss`: the usual threshold applies (small ones leave the stock at once,
+heavy ones wait for the owner) and the photo is joined in the same transaction. `POST /my-return` brings **everything**
+left on the truck back to the cold room of its latest validated load (else the first active cold room) as one validated
+return transfer; partial returns stay possible from the admin transfer screen.
+
+**D-094 · End-of-day closing of a driver's day (P3-T06)** · accepted, provisional points marked · 2026-10-12
+New app `dayclose`, model `DayClosing` (one per `fleet.DriverDay`): expected cash, counted cash, difference,
+driver note, the day's summary kept as sent, and the office's decision. **Expected cash = cash at the start + cash
+sales − the day's road expenses** (rejected ones left out); other payment methods and credit are shown, not counted
+in the till. The summary (`dayclose.selectors.day_summary`) is computed from sales (confirmed, by this driver, from
+the truck, that day), road expenses, and per product loaded / sold / lost / returned / remaining. The driver sends
+once (`POST /my-day-closing`); the difference is shown without judgement. The office (owner, manager; the accountant
+reads) lists days at `/journees` and either approves (locks the day: a second send or review is refused) or asks for a
+justification, after which the driver sends again with a note. Status names: submitted, justification, approved.
+**Not done:** approving a day does not yet block further sales or expenses by that driver the same day (**provisional**);
+the day's customer payments collected by the driver ("other payments") wait for a driver collection screen.
+
 
 **D-073 · Month-end stock valuation and cost of goods sold (P6-T05)** · accepted · 2026-10-11
 
@@ -1197,6 +1241,7 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   closed month yet).
 - **API** (`/months`, `/months/<yyyy-mm>`, `review`, `approve`, `reopen`): the owner and the accountant read and
   review; only the owner approves and reopens; managers and drivers get 403. The current month cannot be closed.
+
 **D-072 · Partner statement PDF (P6-T04)** · accepted · 2026-10-11
 
 - **One statement per partnership lot**, kind `partner_statement`, id = the partnership's (`GET /documents/partner_statement/<id>/pdf`,

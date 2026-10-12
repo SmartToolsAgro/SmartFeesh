@@ -1,0 +1,140 @@
+import { ApiError, useAddMyExpense, useListMyExpenses, useListRoadCategories } from "@frutti/api";
+import { useSession } from "@frutti/auth";
+import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { Button, Card, EmptyState, Input, toast } from "@frutti/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+// "Dépense": what the driver paid on the road, in four taps and a photo of the receipt.
+export function ExpensePage() {
+  const { t } = useTranslation();
+  const session = useSession();
+  const queryClient = useQueryClient();
+  const truck = session.data?.truck ?? null;
+  const categories = useListRoadCategories();
+  const expenses = useListMyExpenses();
+  const [category, setCategory] = useState<number | null>(null);
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [photo, setPhoto] = useState<File | undefined>(undefined);
+  const [uuid, setUuid] = useState(() => crypto.randomUUID());
+  const [error, setError] = useState("");
+  const add = useAddMyExpense({
+    mutation: {
+      onSuccess: () => {
+        toast.success(t("truck.expense.saved"));
+        setCategory(null);
+        setAmount("");
+        setDescription("");
+        setPhoto(undefined);
+        setError("");
+        setUuid(crypto.randomUUID());
+        void queryClient.invalidateQueries();
+      },
+      onError: (failure) => {
+        const body = failure instanceof ApiError ? JSON.stringify(failure.body ?? "") : "";
+        setError(
+          body === "" || body === '""' ? t("truck.expense.failed") : t("truck.expense.failedWith", { why: body }),
+        );
+      },
+    },
+  });
+
+  if (truck === null) {
+    return (
+      <EmptyState illustration="truck" title={t("truck.day.noTruck")}>
+        {t("truck.sale.needTruck")}
+      </EmptyState>
+    );
+  }
+  const amountValue = parseDecimalInput(amount.trim(), 3);
+  const ready = category !== null && amountValue !== null && Number(amountValue) > 0;
+
+  return (
+    <div className="space-y-4">
+      <Card className="space-y-4">
+        <h2>{t("truck.expense.what")}</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {(categories.data ?? []).map((item) => (
+            <Button
+              key={item.id}
+              size="lg"
+              variant={category === item.id ? "primary" : "secondary"}
+              className="py-4 text-lg"
+              onClick={() => setCategory(item.id)}
+            >
+              {item.name}
+            </Button>
+          ))}
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="expense-amount" className="font-semibold">
+            {t("truck.expense.amount")}
+          </label>
+          <Input
+            id="expense-amount"
+            inputMode="decimal"
+            placeholder="0"
+            className="text-2xl"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="expense-note" className="font-semibold">
+            {t("truck.expense.note")}
+          </label>
+          <Input id="expense-note" value={description} onChange={(event) => setDescription(event.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="expense-photo" className="font-semibold">
+            {t("truck.expense.photo")}
+          </label>
+          <input
+            id="expense-photo"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(event) => setPhoto(event.target.files?.[0])}
+          />
+        </div>
+        {error === "" ? null : <p className="text-bad">{error}</p>}
+        <Button
+          size="lg"
+          variant="primary"
+          className="py-4 text-lg"
+          disabled={!ready || add.isPending}
+          onClick={() =>
+            ready &&
+            add.mutate({
+              data: { category, amount: amountValue, description, receipt: photo, client_uuid: uuid },
+            })
+          }
+        >
+          {t("truck.expense.save")}
+        </Button>
+      </Card>
+      {(expenses.data ?? []).length === 0 ? null : (
+        <Card>
+          <h2 className="mb-3">{t("truck.expense.today")}</h2>
+          <ul className="divide-y divide-line">
+            {(expenses.data ?? []).map((expense) => (
+              <li key={expense.id} className="py-3">
+                <p className="flex items-baseline justify-between gap-3">
+                  <span className="text-lg font-semibold">{expense.category_name}</span>
+                  <span className="text-lg font-bold">{formatMoney(expense.amount)}</span>
+                </p>
+                <p className="text-sm text-ink-2">
+                  {t(`truck.expense.status.${expense.status}`)}
+                  {expense.status === "rejected" && expense.rejection_reason !== ""
+                    ? ` : ${expense.rejection_reason}`
+                    : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}

@@ -41,13 +41,19 @@ import type {
   CreditNoteWrite,
   Customer,
   CustomerBalance,
+  CustomerChoice,
   CustomerPaymentDetail,
   CustomerPaymentWrite,
   CustomerWrite,
+  DayClosingDetail,
+  DayClosingRow,
+  DayClosingWrite,
   DayLabourEntry,
   DayLabourWrite,
   DayLabourer,
   DayLabourerWrite,
+  DriverDay,
+  DriverDayOpen,
   ElectricityBill,
   ElectricityBillWrite,
   Employee,
@@ -76,12 +82,14 @@ import type {
   InvoiceChoices,
   InvoiceCreate,
   InvoiceDetail,
+  Justification,
   LastCost,
   ListBatchesParams,
   ListCountsParams,
   ListCreditNotesParams,
   ListCustomerPaymentsParams,
   ListCustomersParams,
+  ListDayClosingsParams,
   ListDayLabourParams,
   ListDayLabourersParams,
   ListEmployeesParams,
@@ -94,6 +102,7 @@ import type {
   ListLossesParams,
   ListLotWorkDaysParams,
   ListMovementsParams,
+  ListMyCustomersParams,
   ListPartnershipsParams,
   ListPriceListsParams,
   ListProductsParams,
@@ -128,6 +137,8 @@ import type {
   Month,
   MonthRow,
   MonthView,
+  MyDaySummary,
+  MyStockLine,
   PaginatedBatchList,
   PaginatedCountList,
   PaginatedCreditNoteList,
@@ -179,6 +190,12 @@ import type {
   ReopenLot,
   ReopenMonth,
   ReviewMonth,
+  RoadCategory,
+  RoadExpense,
+  RoadExpenseWrite,
+  RoadLoss,
+  RoadLossWrite,
+  RoadReturn,
   SalaryAdjustment,
   SalaryPayment,
   SalaryPaymentAllocate,
@@ -210,6 +227,7 @@ import type {
   Truck,
   TruckAssignment,
   TruckAssignmentWrite,
+  TruckChoice,
   TruckDay,
   TruckWrite,
   VoidWrite,
@@ -3158,6 +3176,366 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRestoreCustomerMutationOptions(options), queryClient);
+    }
+
+export const getListDayClosingsUrl = (params?: ListDayClosingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/day-closings?${stringifiedParams}` : `/api/v1/day-closings`
+}
+
+/**
+ * Days sent by the drivers, newest first. Filter by status.
+ */
+export const listDayClosings = async (params?: ListDayClosingsParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingRow[]> => {
+
+  return apiFetch<DayClosingRow[]>(getListDayClosingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDayClosingsQueryKey = (params?: ListDayClosingsParams,) => {
+    return [
+    `/api/v1/day-closings`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDayClosingsQueryOptions = <TData = Awaited<ReturnType<typeof listDayClosings>>, TError = unknown>(params?: ListDayClosingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayClosings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDayClosingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDayClosings>>> = ({ signal }) => listDayClosings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDayClosings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDayClosingsQueryResult = NonNullable<Awaited<ReturnType<typeof listDayClosings>>>
+export type ListDayClosingsQueryError = unknown
+
+
+export function useListDayClosings<TData = Awaited<ReturnType<typeof listDayClosings>>, TError = unknown>(
+ params: undefined |  ListDayClosingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayClosings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayClosings>>,
+          TError,
+          Awaited<ReturnType<typeof listDayClosings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayClosings<TData = Awaited<ReturnType<typeof listDayClosings>>, TError = unknown>(
+ params?: ListDayClosingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayClosings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayClosings>>,
+          TError,
+          Awaited<ReturnType<typeof listDayClosings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayClosings<TData = Awaited<ReturnType<typeof listDayClosings>>, TError = unknown>(
+ params?: ListDayClosingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayClosings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDayClosings<TData = Awaited<ReturnType<typeof listDayClosings>>, TError = unknown>(
+ params?: ListDayClosingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayClosings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDayClosingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDayClosingUrl = (closingId: number,) => {
+
+
+
+
+  return `/api/v1/day-closings/${closingId}`
+}
+
+/**
+ * One day with its figures as the driver sent them.
+ */
+export const getDayClosing = async (closingId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
+
+  return apiFetch<DayClosingDetail>(getGetDayClosingUrl(closingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDayClosingQueryKey = (closingId: number,) => {
+    return [
+    `/api/v1/day-closings/${closingId}`
+    ] as const;
+    }
+
+
+export const getGetDayClosingQueryOptions = <TData = Awaited<ReturnType<typeof getDayClosing>>, TError = unknown>(closingId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayClosing>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDayClosingQueryKey(closingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDayClosing>>> = ({ signal }) => getDayClosing(closingId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: closingId !== null && closingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDayClosing>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDayClosingQueryResult = NonNullable<Awaited<ReturnType<typeof getDayClosing>>>
+export type GetDayClosingQueryError = unknown
+
+
+export function useGetDayClosing<TData = Awaited<ReturnType<typeof getDayClosing>>, TError = unknown>(
+ closingId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayClosing>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayClosing>>,
+          TError,
+          Awaited<ReturnType<typeof getDayClosing>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayClosing<TData = Awaited<ReturnType<typeof getDayClosing>>, TError = unknown>(
+ closingId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayClosing>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayClosing>>,
+          TError,
+          Awaited<ReturnType<typeof getDayClosing>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayClosing<TData = Awaited<ReturnType<typeof getDayClosing>>, TError = unknown>(
+ closingId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayClosing>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDayClosing<TData = Awaited<ReturnType<typeof getDayClosing>>, TError = unknown>(
+ closingId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayClosing>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDayClosingQueryOptions(closingId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveDayClosingUrl = (closingId: number,) => {
+
+
+
+
+  return `/api/v1/day-closings/${closingId}/approve`
+}
+
+/**
+ * Approve the day (owner or manager): it is locked.
+ */
+export const approveDayClosing = async (closingId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
+
+  return apiFetch<DayClosingDetail>(getApproveDayClosingUrl(closingId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveDayClosingMutationKey = () => ['approveDayClosing'] as const;
+
+export const getApproveDayClosingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveDayClosing>>, TError,ApproveDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveDayClosing>>, TError,ApproveDayClosingMutationVariables, TContext> => {
+
+const mutationKey = getApproveDayClosingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveDayClosing>>, ApproveDayClosingMutationVariables> = (props) => {
+          const {closingId} = props ?? {};
+
+          return  approveDayClosing(closingId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveDayClosingMutationResult = NonNullable<Awaited<ReturnType<typeof approveDayClosing>>>
+
+    export type ApproveDayClosingMutationError = unknown
+    export type ApproveDayClosingMutationVariables = {closingId: number}
+
+    export const useApproveDayClosing = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveDayClosing>>, TError,ApproveDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveDayClosing>>,
+        TError,
+        ApproveDayClosingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveDayClosingMutationOptions(options), queryClient);
+    }
+
+export const getRequestDayJustificationUrl = (closingId: number,) => {
+
+
+
+
+  return `/api/v1/day-closings/${closingId}/request-justification`
+}
+
+/**
+ * Ask the driver to explain, saying what; they send the day again with a note.
+ */
+export const requestDayJustification = async (closingId: number,
+    justification: Justification, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayClosingDetail>(getRequestDayJustificationUrl(closingId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(justification)
+  }
+);}
+
+
+
+
+
+export const getRequestDayJustificationMutationKey = () => ['requestDayJustification'] as const;
+
+export const getRequestDayJustificationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDayJustification>>, TError,RequestDayJustificationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestDayJustification>>, TError,RequestDayJustificationMutationVariables, TContext> => {
+
+const mutationKey = getRequestDayJustificationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestDayJustification>>, RequestDayJustificationMutationVariables> = (props) => {
+          const {closingId,data} = props ?? {};
+
+          return  requestDayJustification(closingId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestDayJustificationMutationResult = NonNullable<Awaited<ReturnType<typeof requestDayJustification>>>
+    export type RequestDayJustificationMutationBody = Justification
+    export type RequestDayJustificationMutationError = unknown
+    export type RequestDayJustificationMutationVariables = {closingId: number;data: Justification}
+
+    export const useRequestDayJustification = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDayJustification>>, TError,RequestDayJustificationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof requestDayJustification>>,
+        TError,
+        RequestDayJustificationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestDayJustificationMutationOptions(options), queryClient);
     }
 
 export const getListDayLabourUrl = (params?: ListDayLabourParams,) => {
@@ -9901,6 +10279,1210 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getReviewMonthMutationOptions(options), queryClient);
     }
+
+export const getListMyCustomersUrl = (params?: ListMyCustomersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/my-customers?${stringifiedParams}` : `/api/v1/my-customers`
+}
+
+/**
+ * Active customers for a driver to sell to (name and city only), the walk-in customer last. Filter
+ * with `search`. At most 30 rows.
+ */
+export const listMyCustomers = async (params?: ListMyCustomersParams, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerChoice[]> => {
+
+  return apiFetch<CustomerChoice[]>(getListMyCustomersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyCustomersQueryKey = (params?: ListMyCustomersParams,) => {
+    return [
+    `/api/v1/my-customers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMyCustomersQueryOptions = <TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyCustomersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyCustomers>>> = ({ signal }) => listMyCustomers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyCustomersQueryResult = NonNullable<Awaited<ReturnType<typeof listMyCustomers>>>
+export type ListMyCustomersQueryError = unknown
+
+
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params: undefined |  ListMyCustomersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof listMyCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof listMyCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCustomers>>, TError = unknown>(
+ params?: ListMyCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyCustomers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-day`
+}
+
+/**
+ * The day the driver opened today. 404 when they have not started yet.
+ */
+export const getMyDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
+
+  return apiFetch<DriverDay>(getGetMyDayUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyDayQueryKey = () => {
+    return [
+    `/api/v1/my-day`
+    ] as const;
+    }
+
+
+export const getGetMyDayQueryOptions = <TData = Awaited<ReturnType<typeof getMyDay>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyDayQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyDay>>> = ({ signal }) => getMyDay({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyDay>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyDayQueryResult = NonNullable<Awaited<ReturnType<typeof getMyDay>>>
+export type GetMyDayQueryError = unknown
+
+
+export function useGetMyDay<TData = Awaited<ReturnType<typeof getMyDay>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDay>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyDay<TData = Awaited<ReturnType<typeof getMyDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDay>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyDay<TData = Awaited<ReturnType<typeof getMyDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyDay<TData = Awaited<ReturnType<typeof getMyDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyDayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getOpenMyDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-day`
+}
+
+/**
+ * Start the day on the driver's truck of the day, with the cash they start with.
+ */
+export const openMyDay = async (driverDayOpen: DriverDayOpen, options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DriverDay>(getOpenMyDayUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(driverDayOpen)
+  }
+);}
+
+
+
+
+
+export const getOpenMyDayMutationKey = () => ['openMyDay'] as const;
+
+export const getOpenMyDayMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openMyDay>>, TError,OpenMyDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openMyDay>>, TError,OpenMyDayMutationVariables, TContext> => {
+
+const mutationKey = getOpenMyDayMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openMyDay>>, OpenMyDayMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  openMyDay(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenMyDayMutationResult = NonNullable<Awaited<ReturnType<typeof openMyDay>>>
+    export type OpenMyDayMutationBody = DriverDayOpen
+    export type OpenMyDayMutationError = unknown
+    export type OpenMyDayMutationVariables = {data: DriverDayOpen}
+
+    export const useOpenMyDay = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openMyDay>>, TError,OpenMyDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof openMyDay>>,
+        TError,
+        OpenMyDayMutationVariables,
+        TContext
+      > => {
+      return useMutation(getOpenMyDayMutationOptions(options), queryClient);
+    }
+
+export const getCloseMyDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-day-closing`
+}
+
+/**
+ * Send the end of the day with the cash counted and an optional note. Sent again only after the office
+ * asked for a justification.
+ */
+export const closeMyDay = async (dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MyDaySummary>(getCloseMyDayUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayClosingWrite)
+  }
+);}
+
+
+
+
+
+export const getCloseMyDayMutationKey = () => ['closeMyDay'] as const;
+
+export const getCloseMyDayMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyDay>>, TError,CloseMyDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeMyDay>>, TError,CloseMyDayMutationVariables, TContext> => {
+
+const mutationKey = getCloseMyDayMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeMyDay>>, CloseMyDayMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  closeMyDay(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseMyDayMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyDay>>>
+    export type CloseMyDayMutationBody = DayClosingWrite
+    export type CloseMyDayMutationError = unknown
+    export type CloseMyDayMutationVariables = {data: DayClosingWrite}
+
+    export const useCloseMyDay = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyDay>>, TError,CloseMyDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof closeMyDay>>,
+        TError,
+        CloseMyDayMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCloseMyDayMutationOptions(options), queryClient);
+    }
+
+export const getGetMyDaySummaryUrl = () => {
+
+
+
+
+  return `/api/v1/my-day-summary`
+}
+
+/**
+ * The driver's day so far: sales, cash, expenses and the stock per product, and the closing if sent.
+ * 404 until the day is started.
+ */
+export const getMyDaySummary = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+
+  return apiFetch<MyDaySummary>(getGetMyDaySummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyDaySummaryQueryKey = () => {
+    return [
+    `/api/v1/my-day-summary`
+    ] as const;
+    }
+
+
+export const getGetMyDaySummaryQueryOptions = <TData = Awaited<ReturnType<typeof getMyDaySummary>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDaySummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyDaySummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyDaySummary>>> = ({ signal }) => getMyDaySummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyDaySummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyDaySummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getMyDaySummary>>>
+export type GetMyDaySummaryQueryError = unknown
+
+
+export function useGetMyDaySummary<TData = Awaited<ReturnType<typeof getMyDaySummary>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDaySummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyDaySummary>>,
+          TError,
+          Awaited<ReturnType<typeof getMyDaySummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyDaySummary<TData = Awaited<ReturnType<typeof getMyDaySummary>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDaySummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyDaySummary>>,
+          TError,
+          Awaited<ReturnType<typeof getMyDaySummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyDaySummary<TData = Awaited<ReturnType<typeof getMyDaySummary>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDaySummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyDaySummary<TData = Awaited<ReturnType<typeof getMyDaySummary>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyDaySummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyDaySummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListRoadCategoriesUrl = () => {
+
+
+
+
+  return `/api/v1/my-expense-categories`
+}
+
+/**
+ * The few categories a driver can spend on from the road: fuel, transport, handling, other.
+ */
+export const listRoadCategories = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RoadCategory[]> => {
+
+  return apiFetch<RoadCategory[]>(getListRoadCategoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRoadCategoriesQueryKey = () => {
+    return [
+    `/api/v1/my-expense-categories`
+    ] as const;
+    }
+
+
+export const getListRoadCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRoadCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoadCategories>>> = ({ signal }) => listRoadCategories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRoadCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listRoadCategories>>>
+export type ListRoadCategoriesQueryError = unknown
+
+
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRoadCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listRoadCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRoadCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listRoadCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListRoadCategories<TData = Awaited<ReturnType<typeof listRoadCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoadCategories>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRoadCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMyExpensesUrl = () => {
+
+
+
+
+  return `/api/v1/my-expenses`
+}
+
+/**
+ * What the driver entered today, newest first.
+ */
+export const listMyExpenses = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RoadExpense[]> => {
+
+  return apiFetch<RoadExpense[]>(getListMyExpensesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyExpensesQueryKey = () => {
+    return [
+    `/api/v1/my-expenses`
+    ] as const;
+    }
+
+
+export const getListMyExpensesQueryOptions = <TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyExpensesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyExpenses>>> = ({ signal }) => listMyExpenses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyExpensesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyExpenses>>>
+export type ListMyExpensesQueryError = unknown
+
+
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof listMyExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof listMyExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyExpenses<TData = Awaited<ReturnType<typeof listMyExpenses>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyExpensesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddMyExpenseUrl = () => {
+
+
+
+
+  return `/api/v1/my-expenses`
+}
+
+/**
+ * Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
+ * of the day and waits for the office to approve it.
+ */
+export const addMyExpense = async (roadExpenseWrite: RoadExpenseWrite, options?: Parameters<typeof apiFetch>[1]): Promise<RoadExpense> => {
+    const formData = new FormData();
+formData.append(`category`, roadExpenseWrite.category.toString())
+formData.append(`amount`, roadExpenseWrite.amount);
+if(roadExpenseWrite.description !== undefined) {
+ formData.append(`description`, roadExpenseWrite.description);
+ }
+if(roadExpenseWrite.receipt !== undefined) {
+ formData.append(`receipt`, roadExpenseWrite.receipt);
+ }
+if(roadExpenseWrite.client_uuid !== undefined && roadExpenseWrite.client_uuid !== null) {
+ formData.append(`client_uuid`, roadExpenseWrite.client_uuid);
+ }
+
+  return apiFetch<RoadExpense>(getAddMyExpenseUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAddMyExpenseMutationKey = () => ['addMyExpense'] as const;
+
+export const getAddMyExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyExpense>>, TError,AddMyExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMyExpense>>, TError,AddMyExpenseMutationVariables, TContext> => {
+
+const mutationKey = getAddMyExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMyExpense>>, AddMyExpenseMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addMyExpense(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMyExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof addMyExpense>>>
+    export type AddMyExpenseMutationBody = RoadExpenseWrite
+    export type AddMyExpenseMutationError = unknown
+    export type AddMyExpenseMutationVariables = {data: RoadExpenseWrite}
+
+    export const useAddMyExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyExpense>>, TError,AddMyExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addMyExpense>>,
+        TError,
+        AddMyExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMyExpenseMutationOptions(options), queryClient);
+    }
+
+export const getReportMyLossUrl = () => {
+
+
+
+
+  return `/api/v1/my-losses`
+}
+
+/**
+ * Report kilos lost on the driver's truck today, with a photo. Small losses leave the stock at once;
+ * a heavy one waits for the owner.
+ */
+export const reportMyLoss = async (roadLossWrite: RoadLossWrite, options?: Parameters<typeof apiFetch>[1]): Promise<RoadLoss> => {
+    const formData = new FormData();
+formData.append(`product`, roadLossWrite.product.toString())
+formData.append(`quantity`, roadLossWrite.quantity);
+formData.append(`reason`, roadLossWrite.reason);
+if(roadLossWrite.note !== undefined) {
+ formData.append(`note`, roadLossWrite.note);
+ }
+if(roadLossWrite.photo !== undefined) {
+ formData.append(`photo`, roadLossWrite.photo);
+ }
+if(roadLossWrite.client_uuid !== undefined && roadLossWrite.client_uuid !== null) {
+ formData.append(`client_uuid`, roadLossWrite.client_uuid);
+ }
+
+  return apiFetch<RoadLoss>(getReportMyLossUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getReportMyLossMutationKey = () => ['reportMyLoss'] as const;
+
+export const getReportMyLossMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportMyLoss>>, TError,ReportMyLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportMyLoss>>, TError,ReportMyLossMutationVariables, TContext> => {
+
+const mutationKey = getReportMyLossMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportMyLoss>>, ReportMyLossMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportMyLoss(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportMyLossMutationResult = NonNullable<Awaited<ReturnType<typeof reportMyLoss>>>
+    export type ReportMyLossMutationBody = RoadLossWrite
+    export type ReportMyLossMutationError = unknown
+    export type ReportMyLossMutationVariables = {data: RoadLossWrite}
+
+    export const useReportMyLoss = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportMyLoss>>, TError,ReportMyLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reportMyLoss>>,
+        TError,
+        ReportMyLossMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReportMyLossMutationOptions(options), queryClient);
+    }
+
+export const getReturnMyStockUrl = () => {
+
+
+
+
+  return `/api/v1/my-return`
+}
+
+/**
+ * Bring everything left on the driver's truck back to the cold room it was loaded from.
+ */
+export const returnMyStock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RoadReturn> => {
+
+  return apiFetch<RoadReturn>(getReturnMyStockUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReturnMyStockMutationKey = () => ['returnMyStock'] as const;
+
+export const getReturnMyStockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnMyStock>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof returnMyStock>>, TError,void, TContext> => {
+
+const mutationKey = getReturnMyStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnMyStock>>, void> = () => {
+
+
+          return  returnMyStock(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReturnMyStockMutationResult = NonNullable<Awaited<ReturnType<typeof returnMyStock>>>
+
+    export type ReturnMyStockMutationError = unknown
+
+
+    export const useReturnMyStock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnMyStock>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof returnMyStock>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getReturnMyStockMutationOptions(options), queryClient);
+    }
+
+export const getListMyStockUrl = () => {
+
+
+
+
+  return `/api/v1/my-stock`
+}
+
+/**
+ * What the driver's truck holds now per product, with today's price per kg. 404 without a truck.
+ */
+export const listMyStock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyStockLine[]> => {
+
+  return apiFetch<MyStockLine[]>(getListMyStockUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyStockQueryKey = () => {
+    return [
+    `/api/v1/my-stock`
+    ] as const;
+    }
+
+
+export const getListMyStockQueryOptions = <TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyStockQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyStock>>> = ({ signal }) => listMyStock({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyStockQueryResult = NonNullable<Awaited<ReturnType<typeof listMyStock>>>
+export type ListMyStockQueryError = unknown
+
+
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyStock>>,
+          TError,
+          Awaited<ReturnType<typeof listMyStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyStock>>,
+          TError,
+          Awaited<ReturnType<typeof listMyStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyStockQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMyTruckChoicesUrl = () => {
+
+
+
+
+  return `/api/v1/my-truck-choices`
+}
+
+/**
+ * The active trucks a driver may take today, each marked if another driver already has it.
+ */
+export const listMyTruckChoices = async ( options?: Parameters<typeof apiFetch>[1]): Promise<TruckChoice[]> => {
+
+  return apiFetch<TruckChoice[]>(getListMyTruckChoicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyTruckChoicesQueryKey = () => {
+    return [
+    `/api/v1/my-truck-choices`
+    ] as const;
+    }
+
+
+export const getListMyTruckChoicesQueryOptions = <TData = Awaited<ReturnType<typeof listMyTruckChoices>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTruckChoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyTruckChoicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyTruckChoices>>> = ({ signal }) => listMyTruckChoices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyTruckChoices>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyTruckChoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyTruckChoices>>>
+export type ListMyTruckChoicesQueryError = unknown
+
+
+export function useListMyTruckChoices<TData = Awaited<ReturnType<typeof listMyTruckChoices>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTruckChoices>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyTruckChoices>>,
+          TError,
+          Awaited<ReturnType<typeof listMyTruckChoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyTruckChoices<TData = Awaited<ReturnType<typeof listMyTruckChoices>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTruckChoices>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyTruckChoices>>,
+          TError,
+          Awaited<ReturnType<typeof listMyTruckChoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyTruckChoices<TData = Awaited<ReturnType<typeof listMyTruckChoices>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTruckChoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyTruckChoices<TData = Awaited<ReturnType<typeof listMyTruckChoices>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTruckChoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyTruckChoicesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyTruckDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-truck-day`
+}
+
+/**
+ * The signed-in driver's truck today: what was loaded, with the price per kg. 404 without a truck.
+ */
+export const getMyTruckDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<TruckDay> => {
+
+  return apiFetch<TruckDay>(getGetMyTruckDayUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyTruckDayQueryKey = () => {
+    return [
+    `/api/v1/my-truck-day`
+    ] as const;
+    }
+
+
+export const getGetMyTruckDayQueryOptions = <TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyTruckDayQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyTruckDay>>> = ({ signal }) => getMyTruckDay({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyTruckDayQueryResult = NonNullable<Awaited<ReturnType<typeof getMyTruckDay>>>
+export type GetMyTruckDayQueryError = unknown
+
+
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyTruckDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyTruckDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyTruckDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyTruckDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyTruckDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyTruckDayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetPartnerBalancesUrl = (partnerId: number,) => {
 

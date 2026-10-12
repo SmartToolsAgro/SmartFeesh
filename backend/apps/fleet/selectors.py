@@ -9,7 +9,7 @@ from django.utils import timezone
 from apps.core.models import Membership, Organization, Role
 from apps.core.session import TruckRef
 
-from .models import Truck, TruckAssignment
+from .models import DriverDay, Truck, TruckAssignment
 
 type TruckStatus = Literal["active", "archived", "all"]
 
@@ -97,3 +97,18 @@ def truck_ref_of_driver(membership: Membership) -> TruckRef | None:
     if truck is None:
         return None
     return {"id": truck.pk, "name": truck.location.name, "plate": truck.plate, "location_id": truck.location_id}
+
+
+def driver_day_of(membership: Membership, on: date_type | None = None) -> DriverDay | None:
+    """The day this driver has opened (today by default), if any."""
+    return (
+        DriverDay.objects.for_organization(membership.organization)
+        .select_related("truck__location")
+        .filter(driver_id=membership.user_id, date=on or timezone.localdate())
+        .first()
+    )
+
+
+def locked_driver_day(driver_day: DriverDay) -> DriverDay:
+    """The same day read again with its row locked (inside a transaction), with truck and driver."""
+    return DriverDay.objects.select_for_update().select_related("truck__location", "driver").get(pk=driver_day.pk)

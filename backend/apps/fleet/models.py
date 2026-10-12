@@ -50,3 +50,25 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.date} · {self.truck.location.name} · {self.driver.username}"
+
+
+class DriverDay(OrganizationScopedModel, TimeStampedModel):
+    """A driver's working day on a truck, opened from the phone with the cash float in hand (P3-T01)."""
+
+    truck = models.ForeignKey(Truck, on_delete=models.PROTECT, related_name="driver_days")
+    driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="driver_days")
+    date = models.DateField()
+    # Cash the driver starts the day with (millimes).
+    opening_cash = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+
+    class Meta:
+        ordering = ["-date", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "driver", "date"], name="one_driver_day_per_driver_per_day"
+            ),
+            models.CheckConstraint(condition=models.Q(opening_cash__gte=0), name="driver_day_cash_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.date} · {self.truck.location.name} · {self.driver.username}"

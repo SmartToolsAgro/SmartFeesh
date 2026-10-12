@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@frutti/api": "workspace:*",
     "@frutti/auth": "workspace:*",
     "@frutti/i18n": "workspace:*",
     "@frutti/ui": "workspace:*",

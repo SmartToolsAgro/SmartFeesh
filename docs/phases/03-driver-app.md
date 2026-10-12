@@ -11,37 +11,37 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 ---
 
 ### P3-T01 · Start of day · S
-- [ ] Driver picks the truck of the day if the office has not (D-042, P1-T12); any truck, not a fixed one.
-- [ ] Driver confirms the loaded stock with its price per kg (from the P1-T09 transfer) and the
+- [x] Driver picks the truck of the day if the office has not (D-042, P1-T12); any truck, not a fixed one.
+- [x] (shown read-only, D-090) Driver confirms the loaded stock with its price per kg (from the P1-T09 transfer) and the
       starting cash float.
-- [ ] Opens a `DriverDay` (truck, driver, date, status).
+- [x] Opens a `DriverDay` (truck, driver, date, status).
 
 ### P3-T02 · My stock · S
-- [ ] Truck stock list with product pictures, kg, today's price; read-only.
+- [x] (kg and price, no pictures yet) Truck stock list with product pictures, kg, today's price; read-only.
 - [ ] Prices are downloaded at the start of day and refreshed whenever the phone is online; a price
       changed during the day reaches the driver at the next refresh, with a visible notice.
       Offline, the driver sells at the last prices received, and the screen shows their date and time.
       The server keeps the price the driver charged; it never recalculates an offline sale.
 
 ### P3-T03 · Sale on the road · M
-- [ ] Choose customer (search, recent first; create if allowed), products, weight, payment amount and
+- [x] (search only, D-091) Choose customer (search, recent first; create if allowed), products, weight, payment amount and
       method → calls the same `confirm_sale` service as the admin app.
-- [ ] Partial payment → remainder on customer credit, up to the customer's credit limit (Q16). Offline,
+- [x] (online only) Partial payment → remainder on customer credit, up to the customer's credit limit (Q16). Offline,
       the limit is checked against the last synced balance and checked again by the server at sync.
       Above the limit the app follows the company setting from P2-T06 (block, approval, or warn).
-- [ ] Receipt: on screen + share. Printing is P3-T10.
+- [x] Receipt: on screen + share. Printing is P3-T10.
 
 ### P3-T04 · Expenses on the road · S
-- [ ] Fuel, tolls, ice… with a photo of the receipt; status "waiting for approval"; paid from the cash box.
+- [x] Fuel, tolls, ice… with a photo of the receipt; status "waiting for approval"; paid from the cash box.
 
 ### P3-T05 · Losses and returns · S
-- [ ] Report damaged/spoiled product with reason and photo; return unsold stock to the cold room.
+- [x] Report damaged/spoiled product with reason and photo; return unsold stock to the cold room.
 
 ### P3-T06 · End-of-day closing · M
-- [ ] Summary: sales, cash, other payments, credit sales, expenses, remaining stock; per product,
+- [x] Summary: sales, cash, other payments, credit sales, expenses, remaining stock; per product,
       loaded vs sold vs returned (client meeting 2026-10-11).
-- [ ] Driver enters counted cash → difference shown neutrally; driver can add a note.
-- [ ] Admin review screen: approve or ask for a justification. Approved day is locked.
+- [x] Driver enters counted cash → difference shown neutrally; driver can add a note.
+- [x] (approved day locks its closing, D-094) Admin review screen: approve or ask for a justification. Approved day is locked.
 
 ### P3-T07 · Offline mode · L → split before starting
 Read: ARCHITECTURE §4 rule 7.
