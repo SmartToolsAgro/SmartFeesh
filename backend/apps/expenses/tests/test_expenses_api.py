@@ -215,3 +215,35 @@ def test_a_driver_enters_a_road_expense_with_a_photo_and_it_waits_for_approval(o
     refused = api.post(reverse("my-expenses"), {"category": rent.pk, "amount": "10"}, format="multipart")
     assert refused.status_code == 400
     assert client_for(member(organization, Role.MANAGER)).get(reverse("my-expenses")).status_code == 403
+
+
+def test_a_road_expense_sent_again_with_its_photo_after_the_office_decided_it_answers_with_it(
+    organization, actor, truck
+):
+    driver = member(organization, Role.DRIVER)
+    fleet_services.assign_truck(
+        organization=organization, actor=actor, truck=truck, driver=driver.user, date=timezone.localdate()
+    )
+    api = client_for(driver)
+    fuel = next(c["id"] for c in api.get(reverse("my-expense-categories")).json() if c["name"] == "Carburant")
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 30), "red").save(buffer, format="JPEG")
+
+    def body():
+        photo = SimpleUploadedFile("ticket.jpg", buffer.getvalue(), content_type="image/jpeg")
+        return {
+            "category": fuel,
+            "amount": "45.500",
+            "receipt": photo,
+            "client_uuid": "6f0e9c4e-2d57-4f3a-9d2b-5f0f4c1a7a10",
+        }
+
+    created = api.post(reverse("my-expenses"), body(), format="multipart")
+    office = client_for(member(organization, Role.MANAGER))
+    assert office.post(reverse("expense-approve", args=[created.json()["id"]])).status_code == 200
+
+    again = api.post(reverse("my-expenses"), body(), format="multipart")
+
+    assert again.status_code == 201
+    assert again.json()["id"] == created.json()["id"]
+    assert again.json()["status"] == "approved"

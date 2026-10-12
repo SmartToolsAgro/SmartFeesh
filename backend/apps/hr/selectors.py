@@ -135,7 +135,7 @@ class PayrollSummary:
     gross: Decimal
     employer_cnss: Decimal
     net: Decimal
-    # The month's personnel expense: approved records only (gross + employer contribution).
+    # The month's personnel expense: approved records only (gross + employer contribution + adjustments).
     expense: Decimal
     paid: Decimal
     outstanding: Decimal
@@ -157,7 +157,7 @@ def payroll_summary(organization: Organization, *, month: dt.date) -> PayrollSum
         gross=sum((record.gross for record in records), ZERO),
         employer_cnss=sum((record.employer_cnss for record in records), ZERO),
         net=sum((due_amount(record) for record in records), ZERO),
-        expense=sum((record.expense_amount for record in approved), ZERO),
+        expense=sum((record.expense_amount + adjustments_total(record) for record in approved), ZERO),
         paid=sum((paid_amount(record) for record in approved), ZERO),
         outstanding=sum((outstanding_amount(record) for record in approved), ZERO),
         unpaid_total=sum(unpaid, ZERO),

@@ -358,3 +358,24 @@ def test_another_organization_receipts_are_invisible():
 
     assert client.get(reverse("receipt-list")).json()["count"] == 0
     assert client.get(reverse("receipt-detail", args=[receipt.pk])).status_code == 404
+
+
+def test_a_line_amount_too_big_to_store_is_refused_on_its_cost(organization, actor, supplier, cold_room, dorade):
+    with pytest.raises(ValidationError) as failure:
+        receive(
+            organization,
+            actor,
+            supplier,
+            cold_room,
+            [
+                line(
+                    dorade,
+                    ordered_quantity=None,
+                    invoiced_quantity="900000",
+                    accepted_quantity="900000",
+                    unit_cost="900000",
+                )
+            ],
+        )
+    assert "lines.0.unit_cost" in failure.value.message_dict
+    assert not GoodsReceipt.objects.exists()

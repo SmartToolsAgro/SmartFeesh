@@ -11,6 +11,7 @@ export interface InvoiceLine {
   readonly product: QuoteProduct;
   readonly product_reference: string;
   readonly product_name: string;
+  readonly sale_number: string;
   readonly lots: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly quantity: string;

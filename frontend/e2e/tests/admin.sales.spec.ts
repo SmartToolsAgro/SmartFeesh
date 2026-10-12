@@ -78,9 +78,9 @@ test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a r
 
   // Validating the draft makes it the delivery note: VE-0007 becomes BL-2026-0007 (D-095).
   await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
-  await expect(page.getByText(/BL-\d{4}-\d+ validé/)).toBeVisible();
+  // The page shows the draft number until the sale is read again: wait for the BL number.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^BL-\d{4}-\d+$/);
   const number = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
-  expect(number).toMatch(/^BL-\d{4}-\d+$/);
   await expect(page.getByRole("region", { name: /^Vente BL-/ })).toContainText(/Reste dû\s*30,000\sDT/);
 
   // Drill down to the lot the kilos came from: its sales list this one.

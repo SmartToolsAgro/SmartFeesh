@@ -92,7 +92,18 @@ export function BatchStockPage() {
       </Card>
 
       {/* P6-T01 / P6-T02: the owner's and accountant's view of the lot's partner and result */}
-      {canReadResults(session) && <PartnershipSection batch={{ id: batchId, number: data.number }} session={session} />}
+      {canReadResults(session) && (
+        <PartnershipSection
+          batch={{
+            id: batchId,
+            number: data.number,
+            origin: held
+              ? { supplier: data.supplier.name, quantity: held.quantity, unitCost: data.unit_cost, total: held.value }
+              : undefined,
+          }}
+          session={session}
+        />
+      )}
       {canReadResults(session) && <LotResultCard batchId={batchId} session={session} />}
       {/* P6-T03: settlement with the partner (capital back ± share), late costs, the three balances */}
       {canReadResults(session) && <SettlementCard batchId={batchId} number={data.number} session={session} />}

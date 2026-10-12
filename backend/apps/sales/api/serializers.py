@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from drf_spectacular.utils import extend_schema_field
@@ -406,6 +407,8 @@ class SaleFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=SaleStatus.choices, required=False)
     customer = serializers.IntegerField(required=False, min_value=1)
     location = serializers.IntegerField(required=False, min_value=1)
+    # True: only the BL still to invoice (confirmed, named customer, on no live invoice).
+    uninvoiced = serializers.BooleanField(required=False, default=False)
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
@@ -520,6 +523,8 @@ class PartySerializer(serializers.Serializer[Any]):
 
 class InvoiceLineSerializer(serializers.ModelSerializer[InvoiceLine]):
     product = QuoteProductSerializer(read_only=True)
+    # The BL the line comes from.
+    sale_number = serializers.CharField(source="sale_line.sale.number", read_only=True)
     # The rate the line takes when none is typed: the product's own, else the settings'.
     default_vat_rate = serializers.SerializerMethodField()
     # What credit notes already gave back on this line.
@@ -533,6 +538,7 @@ class InvoiceLineSerializer(serializers.ModelSerializer[InvoiceLine]):
             "product",
             "product_reference",
             "product_name",
+            "sale_number",
             "lots",
             "quantity",
             "unit_price",
@@ -648,7 +654,9 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
 class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
     status = serializers.ChoiceField(choices=InvoiceStatus.choices, read_only=True)
     einvoice_status = serializers.ChoiceField(choices=EInvoiceStatus.choices, read_only=True)
-    sale = SaleRefSerializer(read_only=True)
+    # The delivery notes (BL) it bills, oldest first; `sale` is the first one.
+    sales = SaleRefSerializer(many=True, read_only=True)
+    sale = serializers.SerializerMethodField()
     customer = QuoteCustomerSerializer(read_only=True)
     line_count = serializers.IntegerField(read_only=True)
     # What its credit notes gave back (net), and what remains to collect.
@@ -664,6 +672,7 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
             "number",
             "status",
             "sale",
+            "sales",
             "customer",
             "issued_on",
             "due_on",
@@ -696,10 +705,15 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
     def get_remaining_to_pay(self, invoice: Invoice) -> str:
         # An issued invoice: what its sale still owes (payments, credit notes, certificate taken off, D-062).
         if invoice.status == InvoiceStatus.ISSUED:
-            return str(invoice.sale.amount_due)
+            return str(sum((sale.amount_due for sale in invoice.sales.all()), Decimal("0.000")))
         if invoice.status == InvoiceStatus.CANCELLED:
             return "0.000"
         return str(invoice.net_to_pay)
+
+    @extend_schema_field(SaleRefSerializer)
+    def get_sale(self, invoice: Invoice) -> dict[str, Any]:
+        first = invoice.sales.all()[0]
+        return {"id": first.pk, "number": first.number, "status": first.status}
 
     def get_created_by(self, invoice: Invoice) -> str:
         return person_name(invoice.created_by)
@@ -869,8 +883,9 @@ class InvoiceChoicesSerializer(serializers.Serializer[Any]):
 
 
 class InvoiceCreateSerializer(InvoiceChoicesSerializer):
-    # The confirmed sale to invoice.
-    sale = serializers.IntegerField(min_value=1)
+    # The confirmed sale (BL) to invoice, or several BLs of one customer for a grouped invoice (D-096).
+    sale = serializers.IntegerField(min_value=1, required=False)
+    sales = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, allow_empty=False)
 
 
 class InvoiceFilterSerializer(serializers.Serializer[Any]):

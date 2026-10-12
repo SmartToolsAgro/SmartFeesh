@@ -34,8 +34,25 @@ export function currentLanguage(): Language {
   return isLanguage(i18n.language) ? i18n.language : "fr";
 }
 
+const DEVICE_KEY = "frutti-language";
+
+/** The language last shown on this device, for screens that appear before anyone is logged in. */
+export function deviceLanguage(): Language | null {
+  try {
+    const stored = localStorage.getItem(DEVICE_KEY);
+    return isLanguage(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Switches the texts and the reading direction of the whole page. */
 export function applyLanguage(language: Language): void {
+  try {
+    localStorage.setItem(DEVICE_KEY, language);
+  } catch {
+    // Private mode or blocked storage: the language still switches, it is just not remembered.
+  }
   void i18n.changeLanguage(language);
   document.documentElement.lang = language;
   document.documentElement.dir = RIGHT_TO_LEFT.has(language) ? "rtl" : "ltr";
