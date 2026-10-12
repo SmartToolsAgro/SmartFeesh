@@ -7904,6 +7904,29 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+    CashDifference:
+      type: object
+      properties:
+        closing_id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - closing_id
+      - day
+      - difference
+      - driver_name
     CashFlow:
       type: object
       properties:
@@ -9338,15 +9361,55 @@ components:
         expenses_waiting:
           type: integer
           readOnly: true
+        low_stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/LowStock'
+          readOnly: true
+        low_stock_count:
+          type: integer
+          readOnly: true
+        expiring:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpiringBatch'
+          readOnly: true
+        expiring_count:
+          type: integer
+          readOnly: true
+        cash_differences:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashDifference'
+          readOnly: true
+        cash_difference_count:
+          type: integer
+          readOnly: true
+        pending_terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingTerms'
+          readOnly: true
+        pending_terms_count:
+          type: integer
+          readOnly: true
       required:
       - cash_collected
+      - cash_difference_count
+      - cash_differences
       - days_waiting
       - expenses_waiting
+      - expiring
+      - expiring_count
       - gross_margin
+      - low_stock
+      - low_stock_count
       - month
       - net_result
       - overdue_customer_count
       - overdue_customers
+      - pending_terms
+      - pending_terms_count
       - previous_sales
       - receivables
       - receivables_overdue
@@ -10619,6 +10682,33 @@ components:
       - amount
       - category
       - spent_on
+    ExpiringBatch:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - product_name
+      - quantity
+      - use_by
     FinanceSettings:
       type: object
       description: One version of the finance settings.
@@ -12867,6 +12957,30 @@ components:
       - days
       - employee
       - work_date
+    LowStock:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        min_stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - min_stock
+      - name
+      - product_id
+      - quantity
     Member:
       type: object
       properties:
@@ -14734,6 +14848,26 @@ components:
       description: |-
         * `pending` - pending
         * `failed` - failed
+    PendingTerms:
+      type: object
+      properties:
+        partnership_id:
+          type: integer
+          readOnly: true
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        partner_name:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - partner_name
+      - partnership_id
     PhotoUpload:
       type: object
       properties:

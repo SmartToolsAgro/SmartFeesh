@@ -1476,6 +1476,14 @@ today's stock). Alerts: the five biggest overdue customers (and how many more), 
 (`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
 **Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
 
+**D-114 · In-app alerts on the dashboard (P7-T07)** · accepted · 2026-10-12
+The dashboard's alerts card (D-104) gains three alerts, each from a read-only selector in the app that owns the data, each
+showing at most five items and a count of all: **low stock** (`inventory.low_stock_products`: active products under their
+`min_stock`, emptiest first), **lots expiring** (`inventory.expiring_batches`: kilos still in stock, `use_by` within 3 days or
+already past; the 3 days is `closing.dashboard.EXPIRY_ALERT_DAYS`, provisional, to confirm with the client) and **unexplained
+cash differences** (`dayclose.selectors.unexplained_cash_differences`: driver days not approved with counted cash different
+from expected, where the driver left no note or the office asked for a justification and has not got it). **Fourth alert:** partner lots whose terms are still to fill in (D-100, `partnerships.selectors.pending_terms`, links to the lot). **Not done:** SMS/WhatsApp (Phase 8); no per-user read/dismiss state.
+
 **D-112 · Data import from Excel and opening balances (P4-T01)** · accepted · 2026-10-12
 - New app `dataimport` (owner only, `openpyxl`). One Excel template per kind (products, suppliers, customers,
   employees), downloaded from **Import de données** (`GET /imports/<kind>/template`): French titles on row 1

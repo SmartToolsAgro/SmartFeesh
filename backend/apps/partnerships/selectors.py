@@ -273,3 +273,14 @@ def partner_flows(organization: Organization, *, date_from: dt.date, date_to: dt
         elif kind == ProfitShareKind.PAYMENT:
             add(partner_id, "paid", -total)
     return {partner_id: PartnerFlows(partner_id, **values) for partner_id, values in flows.items()}
+
+
+def pending_terms(organization: Organization) -> QuerySet[LotPartnership]:
+    """Open partnerships named at the goods receipt whose capital and rates are still to fill in (D-100):
+    the lot cannot close until they are. Oldest first."""
+    return (
+        LotPartnership.objects.for_organization(organization)
+        .filter(status=PartnershipStatus.OPEN, terms_pending=True)
+        .select_related("batch", "partner")
+        .order_by("created_at", "id")
+    )
