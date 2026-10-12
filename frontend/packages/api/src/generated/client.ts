@@ -140,6 +140,7 @@ import type {
   ListTransfersParams,
   ListTruckAssignmentsParams,
   ListTrucksParams,
+  LocationBatch,
   LocationStock,
   Login,
   LossDetail,
@@ -8443,6 +8444,112 @@ export function useListLocationStock<TData = Awaited<ReturnType<typeof listLocat
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListLocationStockQueryOptions(locationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListLocationBatchesUrl = (locationId: number,
+    productId: number,) => {
+
+
+
+
+  return `/api/v1/locations/${locationId}/stock/${productId}/batches`
+}
+
+/**
+ * The lots of one product at this location, oldest first: to pick one by hand on a sale (D-121).
+ */
+export const listLocationBatches = async (locationId: number,
+    productId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LocationBatch[]> => {
+
+  return apiFetch<LocationBatch[]>(getListLocationBatchesUrl(locationId,productId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLocationBatchesQueryKey = (locationId: number,
+    productId: number,) => {
+    return [
+    `/api/v1/locations/${locationId}/stock/${productId}/batches`
+    ] as const;
+    }
+
+
+export const getListLocationBatchesQueryOptions = <TData = Awaited<ReturnType<typeof listLocationBatches>>, TError = unknown>(locationId: number,
+    productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLocationBatchesQueryKey(locationId,productId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLocationBatches>>> = ({ signal }) => listLocationBatches(locationId,productId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: locationId !== null && locationId !== undefined && productId !== null && productId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLocationBatches>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListLocationBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listLocationBatches>>>
+export type ListLocationBatchesQueryError = unknown
+
+
+export function useListLocationBatches<TData = Awaited<ReturnType<typeof listLocationBatches>>, TError = unknown>(
+ locationId: number,
+    productId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationBatches>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLocationBatches>>,
+          TError,
+          Awaited<ReturnType<typeof listLocationBatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLocationBatches<TData = Awaited<ReturnType<typeof listLocationBatches>>, TError = unknown>(
+ locationId: number,
+    productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationBatches>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listLocationBatches>>,
+          TError,
+          Awaited<ReturnType<typeof listLocationBatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListLocationBatches<TData = Awaited<ReturnType<typeof listLocationBatches>>, TError = unknown>(
+ locationId: number,
+    productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListLocationBatches<TData = Awaited<ReturnType<typeof listLocationBatches>>, TError = unknown>(
+ locationId: number,
+    productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLocationBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListLocationBatchesQueryOptions(locationId,productId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

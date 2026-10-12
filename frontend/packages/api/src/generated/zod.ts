@@ -4663,6 +4663,29 @@ export const ListLocationStockResponse = zod.array(ListLocationStockResponseItem
 
 
 /**
+ * The lots of one product at this location, oldest first: to pick one by hand on a sale (D-121).
+ */
+export const ListLocationBatchesParams = zod.object({
+  "location_id": zod.int(),
+  "product_id": zod.int()
+})
+
+export const listLocationBatchesResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ListLocationBatchesResponseItem = zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_id": zod.int(),
+  "supplier_name": zod.string(),
+  "location_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', listLocationBatchesResponseQuantityRegExp)
+}).describe('One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).\n\n`location_name` is a hint for the till, never printed on a devis or a BL.')
+export const ListLocationBatchesResponse = zod.array(ListLocationBatchesResponseItem)
+
+
+/**
  * Losses, newest day first, paginated (`limit`, `offset`). Filter by status, location or `search`
  * (number, product, location).
  */
@@ -10814,6 +10837,7 @@ export const createSaleBodyPaymentReferenceMax = 50;
 
 
 export const createSaleBodyNotesDefault = ``;
+
 export const createSaleBodyConfirmNowDefault = false;
 export const createSaleBodyApproveCreditDefault = false;
 
@@ -10830,7 +10854,8 @@ export const CreateSaleBody = zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
-  "discount_rate": zod.string().nullish()
+  "discount_rate": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish()
 })),
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(createSaleBodyApproveCreditDefault),
@@ -11073,6 +11098,7 @@ export const updateSaleBodyPaymentReferenceMax = 50;
 
 
 export const updateSaleBodyNotesDefault = ``;
+
 export const updateSaleBodyConfirmNowDefault = false;
 export const updateSaleBodyApproveCreditDefault = false;
 
@@ -11089,7 +11115,8 @@ export const UpdateSaleBody = zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
-  "discount_rate": zod.string().nullish()
+  "discount_rate": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish()
 })),
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(updateSaleBodyApproveCreditDefault),

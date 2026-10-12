@@ -201,8 +201,19 @@ def holdings_oldest_first(organization: Organization, *, product_id: int, locati
     return (
         StockOnHand.objects.for_organization(organization)
         .filter(product_id=product_id, location_id=location_id, quantity__gt=0)
-        .select_related("batch")
+        .select_related("batch", "batch__supplier")
         .order_by(*(f"batch__{field}" for field in FIFO_ORDER))
+    )
+
+
+def location_batches(organization: Organization, *, product_id: int, location_id: int) -> QuerySet[StockOnHand]:
+    """The lots of one product sitting at one location, oldest first (the FIFO order): for picking a lot by
+    hand on a sale (overriding FIFO). Each row carries its batch (with the supplier) and the location.
+
+    Shown as a hint only (which cold room, which supplier): never printed on a devis or a BL.
+    """
+    return holdings_oldest_first(organization, product_id=product_id, location_id=location_id).select_related(
+        "location"
     )
 
 

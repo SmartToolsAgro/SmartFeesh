@@ -89,6 +89,11 @@ a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` an
 
 ## Recently done
 
+- 2026-10-12 · D-121 (owner request, not a phase-file task): a sale line can pick a lot by hand instead of
+  FIFO. Built on the counter sale screen first; backend (`requested_batch`, `prefer_batch_id`, the new
+  `locations/<id>/stock/<product_id>/batches` endpoint) works for any sale line, so the regular sale screen
+  can get the same picker later with no backend change. Migration `sales.0013`. A short lot tops up from the
+  other lots automatically (warned, never negative — D-006 stays). Not yet committed/pushed.
 - 2026-10-12 · Driver app fixes: "Mon stock" tab built (was a placeholder); "Ma journée" shows the kilos
   still in the truck when nothing was loaded today; a screen that crashes shows a message instead of a blank page.
 - 2026-10-12 · P2-T11 part 1: "Documents" page `/documents` (every DV, BL, FA, AV, BA, BR, FF as chains with their

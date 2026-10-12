@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
 
     from apps.catalog.models import Product
-    from apps.inventory.models import StockLocation
+    from apps.inventory.models import Batch, StockLocation
     from apps.partners.models import Customer
 
 # ---- Quotes (P2-T03, D-050) ----
@@ -498,6 +498,8 @@ class SaleLineFields(TypedDict, total=False):
     unit_price: Number | None
     # Percent with at most 2 decimals; empty means none.
     discount_rate: Number | None
+    # Picked by hand instead of FIFO (D-121); empty takes the oldest lot first, as always.
+    batch: "Batch | None"
 
 
 class QuoteDeliveryFields(TypedDict):
@@ -563,6 +565,30 @@ def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, s
     return {"amount_paid": paid, "payment_method": method, "payment_reference": reference}
 
 
+def _checked_batches(
+    organization: Organization,
+    lines: Sequence[SaleLineFields],
+    checked_lines: list[dict[str, Any]],
+    errors: dict[str, str],
+) -> None:
+    """Resolve each line's lot picked by hand (D-121): must be of that organization and the line's product.
+
+    Mutates `checked_lines` in place, adding `requested_batch` (None keeps FIFO, the default).
+    """
+    for index, (line, checked) in enumerate(zip(lines, checked_lines, strict=True)):
+        batch = line.get("batch")
+        checked["requested_batch"] = None
+        if batch is None:
+            continue
+        product = checked.get("product")
+        if batch.organization_id != organization.pk:
+            errors[line_error_key(index, "batch")] = _("Lot inconnu.")
+        elif product is not None and batch.product_id != product.pk:
+            errors[line_error_key(index, "batch")] = _("Ce lot ne correspond pas au produit de la ligne.")
+        else:
+            checked["requested_batch"] = batch
+
+
 def _prepared_sale(
     organization: Organization,
     customer: "Customer",
@@ -577,6 +603,7 @@ def _prepared_sale(
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
     checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source)
+    _checked_batches(organization, lines, checked_lines, errors)
     total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
     paid = _checked_payment(total, payment, errors)
     if errors:
@@ -596,6 +623,7 @@ def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dic
                 unit_price=values["unit_price"],
                 price_source=values["price_source"],
                 below_minimum=values["below_minimum"],
+                requested_batch=values.get("requested_batch"),
                 discount_rate=values["discount_rate"],
                 gross_amount=values["gross_amount"],
                 discount_amount=values["discount_amount"],
@@ -909,7 +937,12 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
 
 
 def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
-    """Take the line's kilos out of the sale's place, oldest batch first, and keep which batches went."""
+    """Take the line's kilos out of the sale's place and keep which batches went.
+
+    Oldest batch first (FIFO, the default) unless a lot was picked by hand (D-121): that lot is then taken
+    from first and, if it is not enough, the rest still comes from the other lots, oldest first — stock
+    never goes negative. The till warns beforehand when the picked lot looks short.
+    """
     movements = inventory.post_fifo_movements(
         organization=sale.organization,
         actor=actor,
@@ -920,6 +953,7 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
         reason=sale.number,
         source=line,
         occurred_at=sale.sold_at,
+        prefer_batch_id=line.requested_batch_id,
     )
     revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
     rows = [

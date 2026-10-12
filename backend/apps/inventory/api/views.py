@@ -31,6 +31,7 @@ from .serializers import (
     CountFilterSerializer,
     CountSerializer,
     CountWriteSerializer,
+    LocationBatchSerializer,
     LocationStockSerializer,
     LossDetailSerializer,
     LossFilterSerializer,
@@ -198,6 +199,15 @@ class LocationStockView(LocationView):
         location = self.location(location_id)
         rows = selectors.location_stock(self.organization, location_id=location.pk)
         return Response(LocationStockSerializer(rows, many=True).data)
+
+
+class LocationBatchesView(LocationView):
+    @extend_schema(operation_id="listLocationBatches", responses=LocationBatchSerializer(many=True))
+    def get(self, request: Request, location_id: int, product_id: int) -> Response:
+        """The lots of one product at this location, oldest first: to pick one by hand on a sale (D-121)."""
+        location = self.location(location_id)
+        rows = selectors.location_batches(self.organization, product_id=product_id, location_id=location.pk)
+        return Response(LocationBatchSerializer(rows, many=True).data)
 
 
 # ---- Transfers (P1-T09) ----

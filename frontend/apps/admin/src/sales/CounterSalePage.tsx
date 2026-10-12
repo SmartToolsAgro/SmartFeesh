@@ -4,6 +4,7 @@ import {
   type SalePaymentMethodEnum,
   type SaleWrite,
   useListCustomers,
+  useListLocationBatches,
   useListLocations,
   useListLocationStock,
   useListPriceLists,
@@ -38,10 +39,19 @@ import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
-type BasketLine = { key: number; product: string; name: string; quantity: string; unit_price: string };
+type BasketLine = {
+  key: number;
+  product: string;
+  name: string;
+  quantity: string;
+  unit_price: string;
+  batch: string;
+};
 
-// Radix Select has no empty choice: this value stands for the walk-in customer ("Client de passage").
+// Radix Select has no empty choice: this value stands for the walk-in customer ("Client de passage") and,
+// for a lot, the oldest one first (FIFO, the default a seller can override, D-121).
 const WALK_IN = "walk-in";
+const AUTO_LOT = "fifo";
 const BIG_INPUT = "num py-3 text-[1.6rem] font-semibold";
 
 let nextKey = 0;
@@ -69,6 +79,7 @@ export function CounterSalePage() {
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [priceTouched, setPriceTouched] = useState(false);
+  const [batchChoice, setBatchChoice] = useState(AUTO_LOT);
   const [method, setMethod] = useState<SalePaymentMethodEnum>("cash");
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -80,6 +91,12 @@ export function CounterSalePage() {
     for (const row of stock.data ?? []) byProduct.set(String(row.product_id), row.quantity);
     return byProduct;
   }, [stock.data]);
+  // Lots of the chosen product at this room, oldest first: a hint of where they sit and who supplied them,
+  // never printed on a devis or a BL (D-121). FIFO stays the default; picking one overrides it for the line.
+  const batches = useListLocationBatches(Number(room), Number(product), {
+    query: { enabled: room !== "" && product !== "" },
+  });
+  const chosenBatch = (batches.data ?? []).find((option) => String(option.batch_id) === batchChoice);
   const realCustomer = customer !== WALK_IN;
   const priceLists = useListPriceLists(
     { customer: Number(customer), status: "active" },
@@ -128,19 +145,22 @@ export function CounterSalePage() {
     setErrors(found);
     if (!productRow || !isPositive(kg) || !isPositive(perKg)) return;
     nextKey += 1;
-    // The same product weighed twice stays one line (one line per product): its kilos add up, at the last price.
+    const batch = batchChoice === AUTO_LOT ? "" : batchChoice;
+    // The same product weighed twice stays one line (one line per product): its kilos add up, at the last
+    // price and lot.
     setBasket((current) => {
       const same = current.find((line) => line.product === product);
       if (same) {
         const kilos = sum([same.quantity, kg]);
-        return current.map((line) => (line === same ? { ...line, quantity: kilos, unit_price: perKg } : line));
+        return current.map((line) => (line === same ? { ...line, quantity: kilos, unit_price: perKg, batch } : line));
       }
-      return [...current, { key: nextKey, product, name: productRow.name, quantity: kg, unit_price: perKg }];
+      return [...current, { key: nextKey, product, name: productRow.name, quantity: kg, unit_price: perKg, batch }];
     });
     setProduct("");
     setQuantity("");
     setPrice("");
     setPriceTouched(false);
+    setBatchChoice(AUTO_LOT);
   }
 
   function pay() {
@@ -152,6 +172,7 @@ export function CounterSalePage() {
         product: Number(line.product),
         quantity: line.quantity,
         unit_price: line.unit_price,
+        batch: line.batch ? Number(line.batch) : null,
       })),
       paid_in_full: true,
       payment_method: method,
@@ -237,6 +258,7 @@ export function CounterSalePage() {
                       setProduct(value);
                       setPriceTouched(false);
                       setPrice("");
+                      setBatchChoice(AUTO_LOT);
                     },
                     (products.data ?? []).map((option) => ({
                       value: String(option.id),
@@ -244,6 +266,29 @@ export function CounterSalePage() {
                     })),
                   )}
                 </div>
+                {product && (
+                  <div className="col-span-2 max-[700px]:col-span-2">
+                    {choose("batch", t("admin.sales.counterSale.lot"), batchChoice, setBatchChoice, [
+                      { value: AUTO_LOT, label: t("admin.sales.counterSale.lotAuto") },
+                      ...(batches.data ?? []).map((option) => ({
+                        value: String(option.batch_id),
+                        label: t("admin.sales.counterSale.lotChoice", {
+                          batch: option.batch_number,
+                          supplier: option.supplier_name,
+                          location: option.location_name,
+                          quantity: formatQuantity(option.quantity),
+                        }),
+                      })),
+                    ])}
+                    {chosenBatch &&
+                      isPositive(parseDecimalInput(quantity.trim(), 3)) &&
+                      Number(parseDecimalInput(quantity.trim(), 3)) > Number(chosenBatch.quantity) && (
+                        <p className="mt-1 text-[0.8rem] font-semibold text-bad">
+                          {t("admin.sales.counterSale.lotShort", { quantity: formatQuantity(chosenBatch.quantity) })}
+                        </p>
+                      )}
+                  </div>
+                )}
                 <Field label={t("admin.sales.counterSale.quantity")} htmlFor={id("quantity")} error={errors.quantity}>
                   <Input
                     id={id("quantity")}

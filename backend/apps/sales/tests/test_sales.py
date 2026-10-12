@@ -14,7 +14,7 @@ from apps.core.models import AuditLog
 from apps.core.tests.factories import OrganizationFactory, UserFactory
 from apps.inventory import selectors as inventory
 from apps.inventory import services as stock
-from apps.inventory.models import LocationKind, MovementKind, StockMovement
+from apps.inventory.models import LocationKind, MovementKind, StockMovement, StockOnHand
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import selectors, services
@@ -344,6 +344,73 @@ def test_a_lines_revenue_shared_over_its_batches_always_adds_up(organization, ac
     assert line.amount == Decimal("27.220")
     assert parts == [Decimal("7.777"), Decimal("7.777"), Decimal("11.666")]
     assert sum(parts) == line.amount
+
+
+def test_a_lot_picked_by_hand_overrides_fifo(organization, actor, customer, counter, crevette):
+    old = receive(organization, crevette, counter, "3", cost="20.000", days_ago=2)
+    new = receive(organization, crevette, counter, "10", cost="22.000")
+
+    confirmed = sale(
+        organization,
+        actor,
+        customer,
+        counter,
+        [{"product": crevette, "quantity": "2", "batch": new}],
+        confirm=True,
+    )
+
+    line = confirmed.lines.get()
+    assert line.requested_batch == new
+    assert [(row.batch, row.quantity) for row in line.batches.order_by("id")] == [(new, Decimal("2.000"))]
+    assert on_hand(organization, counter, crevette) == Decimal("11.000")
+    old_on_hand = StockOnHand.objects.get(location=counter, batch=old)
+    assert old_on_hand.quantity == Decimal("3.000")
+
+
+def test_a_short_lot_picked_by_hand_falls_back_to_the_other_lots_oldest_first(
+    organization, actor, customer, counter, crevette
+):
+    short = receive(organization, crevette, counter, "2", cost="20.000", days_ago=2)
+    other = receive(organization, crevette, counter, "10", cost="22.000")
+
+    confirmed = sale(
+        organization,
+        actor,
+        customer,
+        counter,
+        [{"product": crevette, "quantity": "5", "batch": short}],
+        confirm=True,
+    )
+
+    line = confirmed.lines.get()
+    assert [(row.batch, row.quantity) for row in line.batches.order_by("id")] == [
+        (short, Decimal("2.000")),
+        (other, Decimal("3.000")),
+    ]
+    assert on_hand(organization, counter, crevette) == Decimal("7.000")
+
+
+def test_a_lot_picked_by_hand_still_refuses_a_sale_short_of_stock_everywhere(
+    organization, actor, customer, counter, crevette
+):
+    short = receive(organization, crevette, counter, "2")
+    draft = sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "5", "batch": short}])
+
+    with pytest.raises(ValidationError) as refused:
+        services.confirm_sale(sale=draft, actor=actor)
+
+    assert "lines.0.quantity" in errors_of(refused)
+    assert on_hand(organization, counter, crevette) == Decimal("2.000")
+
+
+def test_a_batch_not_of_the_lines_product_is_refused(organization, actor, customer, counter, crevette, calamar):
+    other_product_batch = receive(organization, calamar, counter, "5")
+    draft_lines = [{"product": crevette, "quantity": "1", "batch": other_product_batch}]
+
+    with pytest.raises(ValidationError) as refused:
+        sale(organization, actor, customer, counter, draft_lines)
+
+    assert "lines.0.batch" in errors_of(refused)
 
 
 def test_a_sale_short_of_stock_is_refused_as_a_whole_on_each_line(
