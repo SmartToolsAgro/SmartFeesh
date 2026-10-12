@@ -1347,3 +1347,27 @@ runs until it works. The office sees the open ones at the top of `/journees` ("E
 to guess what is stuck on a phone, and nothing is dropped silently. **Not done:** a notice to the driver when the office
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
+
+**D-108 · Security review of the API: what was found and closed (P4-T05)** · accepted · 2026-10-12
+- `apps/core/tests/test_api_security.py` walks **every route** of the API: each has a role permission (none relies on
+  "any logged-in user"), a logged-out visitor gets 401 everywhere, and each role (owner, manager, accountant, driver)
+  gets 403 exactly where D-023, D-060 and D-091 say. A new view that forgets its permission class fails there. On a fully
+  seeded company, the owner of *another* company asks every route with the real ids: no row, no change, empty lists
+  (D-022). Approved expenses, bills, salaries, posted invoices and validated transfers refuse PUT/PATCH/DELETE (they
+  already did; the test now pins it). The views write nothing themselves, and the admin is read-only for business data.
+- **Holes found, each with a test, and closed:** (1) `/api/v1/schema` was readable by every logged-in user, a driver
+  included: now owner and manager only. (2) No limit on the size of a request: the 8 MB photo check ran after the whole
+  upload was on disk; `RequestSizeLimitMiddleware` answers 413 above `MAX_REQUEST_BYTES` (10 MB, as nginx) before reading.
+  (3) The login limits of D-023 lived in each gunicorn worker's memory (3 workers: 24 attempts a minute, not 8): the
+  cache is Redis when `DJANGO_CACHE_URL` is set, and **production refuses to start without it** (staging compose sets
+  it). (4) The Django admin login (`/django-admin/login/`) had no throttle at all: `AdminLoginThrottleMiddleware`, 8 a
+  minute per address. (5) A driver could swap or drop their truck assignment after opening the day, then sell from
+  another truck than the one the day's cash and closing are counted on: refused once the day is open (the office can
+  still move it); asking again for the same truck is still accepted.
+- Settings pinned by tests: cookies HttpOnly and SameSite=Lax, `X-Frame-Options: DENY`, production HTTPS-only with secure
+  cookies and HSTS by default, CSRF token required for a logged-in session to write.
+- **Not changed, on purpose:** no general rate limit on the rest of the API (the driver app replays queues of sales after
+  a lost connection: a limit would need tuning with real use; put `limit_req` on the reverse proxy if abuse appears).
+  A PDF receipt is checked by its `%PDF-` header and size only, then served as `application/pdf` (nosniff in production).
+  Sales and invoices views are reviewed in a follow-up after PR #55.
+

@@ -38,3 +38,9 @@ class LoginUsernameThrottle(SimpleRateThrottle):
         if not isinstance(username, str) or not username:
             return None
         return self.cache_format % {"scope": self.scope, "ident": username.strip().lower()}
+
+
+class AdminLoginThrottle(LoginIPThrottle):
+    """Limits password attempts on the Django admin's own login form, which has no throttle of its own (D-108)."""
+
+    scope = "admin_login"
