@@ -59,16 +59,19 @@ def day():
         lines=[{"product": product, "quantity": Decimal("12")}],
         validate=True,
     )
-    partners.ensure_walk_in_customer(organization=organization)
+    customer = partners.create_customer(
+        organization=organization, actor=actor, name="Restaurant Le Port", credit_limit=Decimal("500.000")
+    )
     api = client_for(driver)
     assert api.post(reverse("my-day"), {"opening_cash": "50"}, format="json").status_code == 201
-    return {"api": api, "office": client_for(office), "product": product, "truck": truck}
+    return {"api": api, "office": client_for(office), "product": product, "truck": truck, "customer": customer}
 
 
 def sell(day, kg, paid):
     return day["api"].post(
         reverse("sale-list"),
         {
+            "customer": day["customer"].pk,
             "location": day["truck"].location_id,
             "confirm_now": True,
             "amount_paid": paid,
