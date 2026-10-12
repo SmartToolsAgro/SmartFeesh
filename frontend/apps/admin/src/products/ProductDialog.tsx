@@ -157,6 +157,8 @@ export function ProductDialog({ product, onDone }: { product?: Product; onDone: 
       await refreshProducts(queryClient);
       onDone();
     },
+    // A product still in stock is refused by the server, with the reason.
+    onError: (failure) => toast.error(fieldErrors(failure).detail ?? t("admin.products.form.error")),
   });
 
   const dropPhoto = useMutation({
@@ -165,6 +167,7 @@ export function ProductDialog({ product, onDone }: { product?: Product; onDone: 
       toast.success(t("admin.products.form.photoRemoved"));
       await refreshProducts(queryClient);
     },
+    onError: () => toast.error(t("admin.products.form.error")),
   });
 
   /** The same checks as the server, so most mistakes show before sending. The server's answer still wins. */
