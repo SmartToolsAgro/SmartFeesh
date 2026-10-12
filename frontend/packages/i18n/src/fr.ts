@@ -1143,6 +1143,8 @@ export const fr = {
         location: "Reçu dans",
         date: "Date de réception",
         supplierReference: "N° du bon de livraison ou de la facture",
+        duplicateReference:
+          "Ce numéro est déjà sur la réception {{number}} de ce fournisseur : vérifiez qu'il ne s'agit pas d'un doublon.",
         notes: "Notes",
         lines: "Produits reçus",
         lineNumber: "Produit {{number}}",
@@ -1633,6 +1635,7 @@ export const fr = {
         money: "Prix en DT, 3 décimales au plus.",
         noLines: "Ajoutez au moins un produit.",
         samePlace: "Choisissez deux emplacements différents.",
+        archivedPlace: "{{name}} (archivé)",
         created: "Brouillon {{number}} enregistré : rien n'a encore bougé.",
         validated: "Transfert {{number}} validé : le stock a été déplacé.",
         error: "L'enregistrement a échoué. Vérifiez les champs puis réessayez.",
