@@ -92,7 +92,8 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
 - [x] BL PDF; "Valider et imprimer le BL" validates a draft first. UI says "BL" on the sale page.
 - [x] Offline driver: no offline validation; the server gives the next free number on reconnect.
 - [x] Part 2 (D-101): invoice from one or several BLs of a customer (N:1), BL invoiced at most once; "À facturer" filter and grouped invoicing on the sales list.
-- [ ] Part 3: driver app shows the BL number; other codes (DV, payments, expenses...) to `PREFIX-YEAR-NNNN`.
+- [x] Part 3a (D-120): quotes, expenses, salary and supplier payments to `PREFIX-YEAR-NNNN`.
+- [ ] Part 3b: driver app shows the BL number; the other codes (RG, FF, transfers, losses, counts...) yearly.
 
 ### P2-T11 · "Documents" page: every document as chains, with its actions (D-102) · M
 Asked by Mahmoud (2026-10-12) from a screenshot of another ERP. Devis = commande client and bon d'achat (BA) =

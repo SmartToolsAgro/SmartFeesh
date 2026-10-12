@@ -21,6 +21,8 @@ from apps.sales.models import Quote, QuoteStatus
 
 pytestmark = pytest.mark.django_db
 
+YEAR = timezone.localdate().year
+
 TODAY = timezone.localdate
 
 
@@ -76,8 +78,8 @@ def test_a_new_quote_is_a_numbered_draft_priced_at_the_price_in_force(organizati
         organization, actor, customer, [{"product": crevette, "quantity": "5"}, {"product": calamar, "quantity": "3"}]
     )
 
-    assert (first.number, first.status, first.created_by) == ("DV-0001", QuoteStatus.DRAFT, actor)
-    assert second.number == "DV-0002"
+    assert (first.number, first.status, first.created_by) == (f"DV-{YEAR}-0001", QuoteStatus.DRAFT, actor)
+    assert second.number == f"DV-{YEAR}-0002"
     assert [(line.unit_price, line.amount) for line in second.lines.order_by("id")] == [
         (Decimal("42.000"), Decimal("210.000")),
         (Decimal("29.000"), Decimal("87.000")),
@@ -103,7 +105,7 @@ def test_numbers_are_per_organization(organization, actor, customer, crevette):
         other, actor, CustomerFactory.create(organization=other), [{"product": other_product, "quantity": "1"}]
     )
 
-    assert elsewhere.number == "DV-0001"
+    assert elsewhere.number == f"DV-{YEAR}-0001"
 
 
 def test_a_typed_price_and_a_discount_are_kept_and_rounded_once_per_line(organization, actor, customer, crevette):
@@ -253,7 +255,7 @@ def test_a_draft_changes_as_a_whole_and_keeps_its_number(organization, actor, cu
     )
 
     assert (changed.number, changed.customer, changed.location, changed.notes) == (
-        "DV-0001",
+        f"DV-{YEAR}-0001",
         hotel,
         room,
         "Livraison mardi",
@@ -435,4 +437,4 @@ def test_quotes_saved_at_once_never_share_a_number():
         thread.join()
 
     assert failures == []
-    assert sorted(numbers) == ["DV-0001", "DV-0002", "DV-0003", "DV-0004"]
+    assert sorted(numbers) == [f"DV-{YEAR}-0001", f"DV-{YEAR}-0002", f"DV-{YEAR}-0003", f"DV-{YEAR}-0004"]

@@ -18,6 +18,8 @@ from apps.purchasing.models import SupplierInvoice, SupplierInvoiceStatus, Suppl
 
 pytestmark = pytest.mark.django_db
 
+YEAR = timezone.localdate().year
+
 TODAY = timezone.localdate
 
 
@@ -206,7 +208,7 @@ def test_payments_settle_invoices_and_move_their_status(organization, actor, sup
     invoice = invoice_for(organization, actor, supplier, [receive()], post=True)  # 1255.500
 
     first = pay(organization, actor, supplier, "500", [(invoice, "500")])
-    assert (first.number, refreshed(invoice).status) == ("RF-0001", "partly_paid")
+    assert (first.number, refreshed(invoice).status) == (f"RF-{YEAR}-0001", "partly_paid")
 
     pay(organization, actor, supplier, "755.500", [(invoice, "755.5")], method="cash", reference="")
     assert refreshed(invoice).status == "paid"
@@ -408,7 +410,7 @@ def test_the_owner_invoices_a_receipt_pays_it_and_reads_the_balance():
     assert paid.status_code == 201
     payment = paid.json()
     assert (payment["number"], payment["allocated_amount"], payment["unallocated_amount"]) == (
-        "RF-0001",
+        f"RF-{YEAR}-0001",
         "1255.500",
         "44.500",
     )
@@ -417,7 +419,7 @@ def test_the_owner_invoices_a_receipt_pays_it_and_reads_the_balance():
     assert (detail["status"], detail["paid_amount"], detail["payments"][0]["payment"]["number"]) == (
         "paid",
         "1255.500",
-        "RF-0001",
+        f"RF-{YEAR}-0001",
     )
 
     balance = client.get(reverse("supplier-balance", args=[supplier.pk])).json()

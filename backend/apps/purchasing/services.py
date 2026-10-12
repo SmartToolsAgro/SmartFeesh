@@ -498,13 +498,17 @@ def close_order(*, order: PurchaseOrder, actor: User | None) -> PurchaseOrder:
 # A trade payable only: a partner's capital and profit share are separate balances (D-040, Phase 6).
 
 
-def _next_document_number(organization: Organization, kind: DocumentKind, prefix: str) -> str:
-    """FF-0001 for invoices, RF-0001 for payments... per organization, taken under a row lock."""
-    DocumentCounter.objects.bulk_create([DocumentCounter(organization=organization, kind=kind)], ignore_conflicts=True)
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, kind=kind)
+def _next_document_number(organization: Organization, kind: DocumentKind, prefix: str, *, yearly: bool = False) -> str:
+    """FF-0001 for invoices... per organization, taken under a row lock. With `yearly` (supplier payments,
+    D-120) the number is RF-2026-0001 and restarts every year."""
+    year = timezone.localdate().year if yearly else 0
+    DocumentCounter.objects.bulk_create(
+        [DocumentCounter(organization=organization, kind=kind, year=year)], ignore_conflicts=True
+    )
+    counter = DocumentCounter.objects.select_for_update().get(organization=organization, kind=kind, year=year)
     counter.last_number += 1
     counter.save(update_fields=["last_number"])
-    return f"{prefix}{counter.last_number:04d}"
+    return f"{prefix}{year}-{counter.last_number:04d}" if yearly else f"{prefix}{counter.last_number:04d}"
 
 
 def _invoice_header_errors(
@@ -922,7 +926,7 @@ def record_payment(
     assert checked is not None  # an amount error would have been raised above
     payment = SupplierPayment.objects.create(
         organization=organization,
-        number=_next_document_number(organization, DocumentKind.SUPPLIER_PAYMENT, PAYMENT_NUMBER_PREFIX),
+        number=_next_document_number(organization, DocumentKind.SUPPLIER_PAYMENT, PAYMENT_NUMBER_PREFIX, yearly=True),
         supplier=supplier,
         paid_on=paid_on,
         amount=checked,

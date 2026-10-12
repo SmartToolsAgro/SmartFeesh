@@ -321,7 +321,7 @@ def create_quote(
     valid_until, checked_lines = _prepared(organization, customer, location, quoted_on, valid_until, lines)
     quote = Quote.objects.create(
         organization=organization,
-        number=_next_number(organization, QUOTE_SERIES),
+        number=_next_yearly_number(organization, QUOTE_SERIES, timezone.localdate().year),
         customer=customer,
         location=location,
         quoted_on=quoted_on,

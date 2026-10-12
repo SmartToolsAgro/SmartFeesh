@@ -2,11 +2,14 @@ from decimal import Decimal
 
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 
 from apps.core.models import Organization
 from apps.sales import selectors as sales
 
 pytestmark = pytest.mark.django_db
+
+YEAR = timezone.localdate().year
 
 
 def test_the_seed_gives_quotes_in_every_state_like_the_prototype(settings):
@@ -25,7 +28,7 @@ def test_the_seed_gives_quotes_in_every_state_like_the_prototype(settings):
         "Supermarché Ennour": "draft",
     }
     corail = quotes["Restaurant Le Corail"]
-    assert corail.number == "DV-0001"
+    assert corail.number == f"DV-{YEAR}-0001"
     # The prototype's quote: 210.000 + 87.000 + 82.500 at the prices in force.
     assert [(line.product.reference, line.amount) for line in corail.lines.all()] == [
         ("CR-001", Decimal("210.000")),
