@@ -1197,3 +1197,16 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   closed month yet).
 - **API** (`/months`, `/months/<yyyy-mm>`, `review`, `approve`, `reopen`): the owner and the accountant read and
   review; only the owner approves and reopens; managers and drivers get 403. The current month cannot be closed.
+**D-072 · Partner statement PDF (P6-T04)** · accepted · 2026-10-11
+
+- **One statement per partnership lot**, kind `partner_statement`, id = the partnership's (`GET /documents/partner_statement/<id>/pdf`,
+  office roles). Provider in `closing/printing.py`, template `closing/pdf/partner_statement.html`; it reads the
+  frozen result of a closed lot, or the live "so far" result of an open one (the page then says so).
+- **Reads top to bottom, no accounting words:** the agreement (each side's capital, the two rates); what was
+  bought; every sale (date, customer, kg, price); losses; every cost line by group; the result step by step
+  (`+ sales − cost of the kg sold − losses − costs = net`), then one sentence ("le lot a rapporté X; vous recevez
+  40 % : Y"); the capital back and what is paid; the settlement with its payments, and the capital movements.
+- **Remade when a figure changes:** the file's version is a hash of the result, the capital and profit-share
+  ledgers and the settlement date, so settling a lot or booking a late adjustment gives a new file.
+- **Not done:** one statement covering several lots of a partner (the three balances over time) and sending
+  it by e-mail or WhatsApp; Arabic ("Haka bayek" in the partner's language) comes with P0-T08.

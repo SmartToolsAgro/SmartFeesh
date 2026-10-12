@@ -40,10 +40,19 @@ class Printable:
 
 Provider = Callable[[Organization, int], Printable]
 _providers: dict[str, Provider] = {}
+# Who may read a kind of document, when it is narrower than the office (owner, manager, accountant).
+_roles: dict[str, frozenset[str]] = {}
 
 
-def register(kind: str, provider: Provider) -> None:
+def register(kind: str, provider: Provider, *, roles: frozenset[str] | None = None) -> None:
+    """`roles`: the roles allowed to read this kind (default: every office role)."""
     _providers[kind] = provider
+    if roles is not None:
+        _roles[kind] = roles
+
+
+def may_read(kind: str, role: str) -> bool:
+    return role in _roles.get(kind, frozenset({"owner", "manager", "accountant"}))
 
 
 def is_known(kind: str) -> bool:

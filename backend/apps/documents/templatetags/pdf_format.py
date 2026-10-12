@@ -50,3 +50,14 @@ def percent(value: Any) -> str:
 def day(value: Any) -> str:
     """A date as 09/10/2026."""
     return value.strftime("%d/%m/%Y") if isinstance(value, dt.date) else ""
+
+
+@register.filter
+def isodate(value: Any) -> str:
+    """A date kept as text in a frozen result (2026-10-09) as 09/10/2026."""
+    if isinstance(value, dt.date):
+        return value.strftime("%d/%m/%Y")
+    try:
+        return dt.date.fromisoformat(str(value)).strftime("%d/%m/%Y")
+    except ValueError:
+        return str(value)
