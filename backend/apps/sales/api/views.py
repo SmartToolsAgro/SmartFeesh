@@ -310,6 +310,7 @@ class SaleListView(SaleView, ListAPIView[Sale]):
             status=filters.validated_data.get("status"),
             customer_id=filters.validated_data.get("customer"),
             location_id=filters.validated_data.get("location"),
+            uninvoiced=filters.validated_data["uninvoiced"],
             created_by_id=self.membership.user_id if self.is_driver else None,
             date_from=filters.validated_data.get("date_from"),
             date_to=filters.validated_data.get("date_to"),
@@ -550,12 +551,15 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
         serializer = InvoiceCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        ids = list(dict.fromkeys([*([data["sale"]] if "sale" in data else []), *data.get("sales", [])]))
+        if not ids:
+            raise ValidationError({"sales": _("Choisissez au moins un bon de livraison à facturer.")})
         try:
-            sale = selectors.sale_of(self.organization, data["sale"])
+            sales = [selectors.sale_of(self.organization, sale_id) for sale_id in ids]
         except Sale.DoesNotExist:
-            raise ValidationError({"sale": _("Vente inconnue.")}) from None
+            raise ValidationError({"sales": _("Vente inconnue.")}) from None
         invoice = services.create_invoice(
-            sale=sale, actor=self.membership.user, issue=data["issue_now"], **_invoice_choices(data)
+            sales=sales, actor=self.membership.user, issue=data["issue_now"], **_invoice_choices(data)
         )
         return self.answer(invoice.pk, status_code=status.HTTP_201_CREATED)
 

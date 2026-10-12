@@ -19,7 +19,17 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 /** The lot's partnership (P6-T01): the partner, what each side put in, the two rates and the partner's
  * capital ledger in this lot. The owner sets it before the lot's first sale. */
-export function PartnershipSection({ batch, session }: { batch: { id: number; number: string }; session: Session }) {
+export function PartnershipSection({
+  batch,
+  session,
+}: {
+  batch: {
+    id: number;
+    number: string;
+    origin?: { supplier: string; quantity: string; unitCost: string; total: string };
+  };
+  session: Session;
+}) {
   const { t } = useTranslation();
   const [dialog, setDialog] = useState<"create" | "edit" | "cancel" | null>(null);
   const listed = useListPartnerships({ batch: batch.id });
