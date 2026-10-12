@@ -4721,8 +4721,9 @@ paths:
       operationId: convertQuoteToSale
       description: |-
         Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
-        customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
-        quote stays accepted and links to its sale.
+        customer, products, prices and discounts, from the quote's place unless `location` is given. Without
+        `lines` it takes every kilo not on a BL yet; with `lines`, the kg given per quote line, at most what is
+        left (a quote may be delivered in several BL, D-115). The quote stays accepted and links to its sales.
       parameters:
       - in: path
         name: quote_id
@@ -15460,6 +15461,16 @@ components:
           - $ref: '#/components/schemas/SaleRef'
           nullable: true
           readOnly: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        remaining_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - answered_at
       - answered_by
@@ -15475,7 +15486,9 @@ components:
       - number
       - quoted_on
       - refusal_reason
+      - remaining_quantity
       - sale
+      - sales
       - sent_at
       - sent_by
       - status
@@ -15513,6 +15526,11 @@ components:
         confirm_now:
           type: boolean
           default: false
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuoteDeliveryLine'
+          nullable: true
     QuoteCustomer:
       type: object
       properties:
@@ -15541,6 +15559,18 @@ components:
       - name
       - reference
       - tax_id
+    QuoteDeliveryLine:
+      type: object
+      properties:
+        quote_line:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+          maxLength: 20
+      required:
+      - quantity
+      - quote_line
     QuoteDetail:
       type: object
       properties:
@@ -15639,6 +15669,16 @@ components:
           - $ref: '#/components/schemas/SaleRef'
           nullable: true
           readOnly: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        remaining_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
         lines:
           type: array
           items:
@@ -15660,7 +15700,9 @@ components:
       - number
       - quoted_on
       - refusal_reason
+      - remaining_quantity
       - sale
+      - sales
       - sent_at
       - sent_by
       - status
@@ -15709,14 +15751,26 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        delivered_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        remaining_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - amount
+      - delivered_quantity
       - discount_amount
       - discount_rate
       - gross_amount
       - id
       - product
       - quantity
+      - remaining_quantity
       - unit_price
     QuoteLineWrite:
       type: object

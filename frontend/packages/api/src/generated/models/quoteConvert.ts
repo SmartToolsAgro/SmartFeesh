@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { QuoteConvertPaymentMethod } from './quoteConvertPaymentMethod';
+import type { QuoteDeliveryLine } from './quoteDeliveryLine';
 
 export interface QuoteConvert {
   /** @nullable */
@@ -21,4 +22,6 @@ export interface QuoteConvert {
   /** @nullable */
   sold_at?: string | null;
   confirm_now?: boolean;
+  /** @nullable */
+  lines?: QuoteDeliveryLine[] | null;
 }

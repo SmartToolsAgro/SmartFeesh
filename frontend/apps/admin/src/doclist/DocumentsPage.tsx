@@ -1,11 +1,4 @@
-import {
-  convertQuoteToSale,
-  type DocumentRow,
-  type DocumentToneEnum,
-  type DocumentTypeEnum,
-  useListDocuments,
-  useListLocations,
-} from "@frutti/api";
+import { type DocumentRow, type DocumentToneEnum, type DocumentTypeEnum, useListDocuments } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import {
@@ -41,6 +34,7 @@ import { fieldErrors } from "../lib/errors";
 import { openPdf, PdfError, type PdfKind } from "../lib/pdf";
 import { useDebounced } from "../lib/useDebounced";
 import { addDays } from "../purchasing/shared";
+import { DeliverDialog } from "../quotes/DeliverDialog";
 import { canWriteQuotes } from "../quotes/shared";
 import { todayInTunis } from "../receipts/shared";
 import { type DocumentAction, isDanger, isMain, planOf, type RunResult } from "./actions";
@@ -78,7 +72,6 @@ export function DocumentsPage() {
   const queryClient = useQueryClient();
   const canWrite = canWriteQuotes(session);
   const reasonId = useId();
-  const placeId = useId();
 
   const [type, setType] = useState<DocumentTypeEnum | "">("");
   const [tone, setTone] = useState<DocumentToneEnum | "">("");
@@ -92,8 +85,7 @@ export function DocumentsPage() {
   const [reason, setReason] = useState("");
   const [askError, setAskError] = useState("");
   const [converting, setConverting] = useState<DocumentRow | null>(null);
-  const [place, setPlace] = useState("");
-  const [convertError, setConvertError] = useState("");
+
   const [creating, setCreating] = useState(false);
 
   const start = periodStart(period);
@@ -120,8 +112,6 @@ export function DocumentsPage() {
     return map;
   }, [all, byKey]);
 
-  const locations = useListLocations({ status: "active" }, { query: { enabled: converting !== null } });
-
   const refresh = () => queryClient.invalidateQueries();
 
   const finished = async (action: DocumentAction, done: RunResult) => {
@@ -144,28 +134,12 @@ export function DocumentsPage() {
     },
   });
 
-  const convert = useMutation({
-    mutationFn: (row: DocumentRow) => convertQuoteToSale(row.id, { location: place ? Number(place) : null }),
-    onSuccess: async (sale) => {
-      setConverting(null);
-      toast.success(t("admin.docHub.done.to_sale", { number: sale.number }));
-      await refresh();
-      void navigate(`/ventes/${sale.id}`);
-    },
-    onError: (failure) => {
-      setConvertError(Object.values(fieldErrors(failure)).join(" ") || t("admin.docHub.failed"));
-    },
-  });
-
   const act = (row: DocumentRow, action: DocumentAction) => {
     const plan = planOf(row, action);
     if (plan === null) return;
     if (plan.kind === "page") void navigate(plan.to);
-    else if (plan.kind === "to_sale") {
-      setPlace("");
-      setConvertError("");
-      setConverting(row);
-    } else {
+    else if (plan.kind === "to_sale") setConverting(row);
+    else {
       setReason("");
       setAskError("");
       setAsking({ row, action, reason: plan.reason, run: plan.run });
@@ -519,39 +493,7 @@ export function DocumentsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={converting !== null} onOpenChange={(open) => !open && setConverting(null)}>
-        <DialogContent>
-          <DialogTitle>{converting && t("admin.docHub.toSaleTitle", { number: numberOf(converting) })}</DialogTitle>
-          <DialogDescription>{t("admin.docHub.toSaleBody")}</DialogDescription>
-          <Field label={t("admin.docHub.place")} htmlFor={placeId} error={convertError}>
-            <Select value={place || "quote"} onValueChange={(value) => setPlace(value === "quote" ? "" : value)}>
-              <SelectTrigger id={placeId} aria-invalid={convertError ? true : undefined}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="quote">{t("admin.docHub.quotePlace")}</SelectItem>
-                {(locations.data ?? [])
-                  .filter((option) => option.sells)
-                  .map((option) => (
-                    <SelectItem key={option.id} value={String(option.id)}>
-                      {option.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <DialogFooter>
-            <Button onClick={() => setConverting(null)}>{t("admin.docHub.back")}</Button>
-            <Button
-              variant="primary"
-              disabled={convert.isPending}
-              onClick={() => converting && convert.mutate(converting)}
-            >
-              {t("admin.docHub.actions.to_sale")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeliverDialog quoteId={converting?.id ?? null} onClose={() => setConverting(null)} />
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent>

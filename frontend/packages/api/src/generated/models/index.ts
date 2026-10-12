@@ -353,6 +353,7 @@ export * from './quote';
 export * from './quoteConvert';
 export * from './quoteConvertPaymentMethod';
 export * from './quoteCustomer';
+export * from './quoteDeliveryLine';
 export * from './quoteDetail';
 export * from './quoteLine';
 export * from './quoteLineWrite';

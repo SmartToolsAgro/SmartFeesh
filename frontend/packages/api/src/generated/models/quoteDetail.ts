@@ -45,5 +45,8 @@ export interface QuoteDetail {
   /** @nullable */
   readonly expired_at: string | null;
   readonly sale: SaleRef | null;
+  readonly sales: readonly SaleRef[];
+  /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
+  readonly remaining_quantity: string;
   readonly lines: readonly QuoteLine[];
 }

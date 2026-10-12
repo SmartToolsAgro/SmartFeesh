@@ -84,7 +84,7 @@ def quotes_of(
         .prefetch_related(
             Prefetch(
                 "sales",
-                queryset=Sale.objects.exclude(status=SaleStatus.CANCELLED).order_by("-id"),
+                queryset=Sale.objects.exclude(status=SaleStatus.CANCELLED).prefetch_related("lines").order_by("-id"),
                 to_attr="live_sales",
             )
         )
@@ -117,11 +117,50 @@ def quotes_to_expire(organization: Organization, *, today: dt.date) -> QuerySet[
 
 
 def live_sale_of(quote: Quote) -> "Sale | None":
-    """The sale an accepted quote became, unless it was cancelled (P2-T04, D-051)."""
+    """The last sale (BL) made from an accepted quote, cancelled ones left out (P2-T04, D-051). A quote may
+    be delivered in several (D-115): see `live_sales_of`."""
+    sales = live_sales_of(quote)
+    return sales[-1] if sales else None
+
+
+def live_sales_of(quote: Quote) -> list[Sale]:
+    """The sales (BL, drafts included) made from a quote, oldest first, cancelled ones left out (D-115)."""
     sales: list[Sale] | None = getattr(quote, "live_sales", None)  # prefetched by `quotes_of`
     if sales is None:
-        sales = list(quote.sales.exclude(status=SaleStatus.CANCELLED).order_by("-id"))
-    return sales[0] if sales else None
+        sales = list(quote.sales.exclude(status=SaleStatus.CANCELLED).prefetch_related("lines"))
+    return sorted(sales, key=lambda sale: sale.pk)
+
+
+@dataclass(frozen=True)
+class LineDelivery:
+    """How far one quote line went: kg already on a BL, and kg still to deliver."""
+
+    delivered: Decimal
+    remaining: Decimal
+
+
+def quote_delivery(quote: Quote) -> dict[int, LineDelivery]:
+    """Per quote line id, the kg already on the quote's BL and the kg left to deliver (D-115).
+
+    Every sale made from the quote counts, a draft too (its kilos are spoken for), except the cancelled
+    ones. Kilos are matched by product, so a BL whose lines were retyped still counts; when a quote names
+    a product twice, its first line fills first. Kilos beyond what was quoted are ignored.
+    """
+    taken: dict[int, Decimal] = {}
+    for sale in live_sales_of(quote):
+        for sale_line in sale.lines.all():
+            taken[sale_line.product_id] = taken.get(sale_line.product_id, Decimal("0.000")) + sale_line.quantity
+    delivery: dict[int, LineDelivery] = {}
+    for line in sorted(quote.lines.all(), key=lambda item: item.pk):
+        delivered = min(line.quantity, taken.get(line.product_id, Decimal("0.000")))
+        taken[line.product_id] = taken.get(line.product_id, Decimal("0.000")) - delivered
+        delivery[line.pk] = LineDelivery(delivered=delivered, remaining=line.quantity - delivered)
+    return delivery
+
+
+def quote_remaining(quote: Quote) -> Decimal:
+    """Kg of the quote not on any BL yet; zero once it is delivered in full."""
+    return sum((line.remaining for line in quote_delivery(quote).values()), Decimal("0.000"))
 
 
 # ---- Sales (P2-T04, D-051) ----
@@ -702,20 +741,27 @@ def document_rows(organization: Organization, filters: DocumentFilters, *, may_w
         quotes = (
             Quote.objects.for_organization(organization)
             .select_related("customer")
-            .annotate(
-                current_status=current_quote_status(today),
-                live_sales=Count("sales", filter=~Q(sales__status=SaleStatus.CANCELLED)),
+            .prefetch_related("lines")
+            .prefetch_related(
+                Prefetch(
+                    "sales",
+                    queryset=Sale.objects.exclude(status=SaleStatus.CANCELLED).prefetch_related("lines"),
+                    to_attr="live_sales",
+                )
             )
+            .annotate(current_status=current_quote_status(today))
         )
         for quote in _search(_days(quotes, "quoted_on", filters), "customer", filters):
             status = QuoteStatus(quote.current_status)
+            # Delivered in full once every kilo is on a BL; until then another BL can take the rest (D-115).
+            delivered_in_full = status == QuoteStatus.ACCEPTED and quote_remaining(quote) == 0
             actions: list[str] = []
             if may_write:
                 if status == QuoteStatus.DRAFT:
                     actions = ["edit", "send"]
                 elif status == QuoteStatus.SENT:
                     actions = ["accept", "refuse"]
-                elif status == QuoteStatus.ACCEPTED and quote.valid_until >= today and not quote.live_sales:
+                elif status == QuoteStatus.ACCEPTED and quote.valid_until >= today and not delivered_in_full:
                     actions = ["to_sale"]
             rows.append(
                 DocumentRow(
@@ -729,8 +775,8 @@ def document_rows(organization: Organization, filters: DocumentFilters, *, may_w
                     amount=quote.total,
                     status=status.value,
                     status_label=str(status.label),
-                    # An accepted quote that became a BL has done its job.
-                    tone="done" if status == QuoteStatus.ACCEPTED and quote.live_sales else _QUOTE_TONES[status],
+                    # An accepted quote wholly on its BL has done its job.
+                    tone="done" if delivered_in_full else _QUOTE_TONES[status],
                     actions=actions,
                     pdf="quote",
                 )

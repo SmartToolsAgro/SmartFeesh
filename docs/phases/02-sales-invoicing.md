@@ -103,8 +103,9 @@ commande fournisseur: no separate CC or CF document. Chains: DV → BL → FA �
       actions run from the row (send, accept, refuse, → BL, valider, annuler, → facture, émettre, supprimer,
       → BR, clôturer, valider FF) or open the right form (modifier, avoir, réception, facture fournisseur, payer);
       "Nouveau document" (devis, BL direct, comptoir, bon d'achat, BR direct, facture fournisseur).
-- [ ] Part 2: one devis delivered in several BL (Mahmoud: yes): drop `one_live_sale_per_quote`, track kg
-      delivered / remaining per quote line, "→ BL" offers the remaining kg; same "remaining" view on the devis.
+- [x] Part 2 (D-115): one devis delivered in several BL: `one_live_sale_per_quote` dropped, kg delivered /
+      remaining per quote line (`selectors.quote_delivery`), "Convertir en vente" / "→ BL" proposes the kg left
+      and refuses more; the devis page shows what is left and all its BL.
 - [ ] Later: supplier return (RF) once a supplier credit note exists (`RF-` is already the supplier payment code).
 
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
