@@ -39,6 +39,9 @@ from .serializers import (
     LossWriteSerializer,
     MyStockLineSerializer,
     ProductStockDetailSerializer,
+    RoadLossSerializer,
+    RoadLossWriteSerializer,
+    RoadReturnSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
     StockLocationSerializer,
@@ -370,6 +373,84 @@ class MyStockView(APIView):
                 }
             )
         return Response(MyStockLineSerializer(rows, many=True).data)
+
+
+class MyLossesView(APIView):
+    permission_classes = (IsDriver,)
+    parser_classes = (MultiPartParser,)
+
+    @extend_schema(
+        operation_id="reportMyLoss",
+        request={"multipart/form-data": RoadLossWriteSerializer},
+        responses={201: RoadLossSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Report kilos lost on the driver's truck today, with a photo. Small losses leave the stock at once;
+        a heavy one waits for the owner."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        organization = membership.organization
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})
+        serializer = RoadLossWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            product = catalog.product_of(organization, data["product"])
+        except ObjectDoesNotExist:
+            raise ValidationError({"product": _("Produit inconnu.")}) from None
+        loss = services.report_road_loss(
+            organization=organization,
+            actor=membership.user,
+            location=truck.location,
+            product=product,
+            quantity=data["quantity"],
+            reason=data["reason"],
+            note=data["note"],
+            upload=data.get("photo"),
+            client_uuid=data["client_uuid"],
+        )
+        return Response(RoadLossSerializer(loss).data, status=status.HTTP_201_CREATED)
+
+
+class MyReturnView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="returnMyStock", request=None, responses={201: RoadReturnSerializer})
+    def post(self, request: Request) -> Response:
+        """Bring everything left on the driver's truck back to the cold room it was loaded from."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        organization = membership.organization
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})
+        room = selectors.return_destination(organization, truck_location_id=truck.location_id)
+        if room is None:
+            raise ValidationError({"to_location": _("Aucune chambre froide pour recevoir le retour.")})
+        rows = selectors.location_stock(organization, location_id=truck.location_id)
+        if not rows:
+            raise ValidationError({"lines": _("Il ne reste rien dans le camion.")})
+        lines: list[services.TransferLineFields] = [
+            {"product": catalog.product_of(organization, row["product_id"]), "quantity": row["quantity"]}
+            for row in rows
+        ]
+        transfer = services.create_transfer(
+            organization=organization,
+            actor=membership.user,
+            from_location=truck.location,
+            to_location=room,
+            transferred_on=timezone.localdate(),
+            lines=lines,
+            validate=True,
+        )
+        answer = {
+            "number": transfer.number,
+            "to_location": room,
+            "total_quantity": sum((row["quantity"] for row in rows), Decimal("0.000")),
+        }
+        return Response(RoadReturnSerializer(answer).data, status=status.HTTP_201_CREATED)
 
 
 # ---- Losses and stock counts (P1-T10) ----

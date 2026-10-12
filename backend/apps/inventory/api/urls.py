@@ -12,6 +12,8 @@ urlpatterns = [
     # P1-T09 · transfers
     path("locations/<int:location_id>/stock", views.LocationStockView.as_view(), name="location-stock"),
     path("transfers", views.TransferListView.as_view(), name="transfer-list"),
+    path("my-losses", views.MyLossesView.as_view(), name="my-losses"),
+    path("my-return", views.MyReturnView.as_view(), name="my-return"),
     path("my-stock", views.MyStockView.as_view(), name="my-stock"),
     path("my-truck-day", views.MyTruckDayView.as_view(), name="my-truck-day"),
     path("transfers/truck-day", views.TruckDayView.as_view(), name="transfer-truck-day"),

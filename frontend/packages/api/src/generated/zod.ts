@@ -5685,6 +5685,49 @@ export const AddMyExpenseResponse = zod.object({
 
 
 /**
+ * Report kilos lost on the driver's truck today, with a photo. Small losses leave the stock at once;
+ * a heavy one waits for the owner.
+ */
+
+export const reportMyLossBodyNoteDefault = ``;
+
+export const ReportMyLossBody = zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "note": zod.string().default(reportMyLossBodyNoteDefault),
+  "photo": zod.instanceof(Blob).optional(),
+  "client_uuid": zod.uuid().nullish()
+})
+
+export const reportMyLossResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ReportMyLossResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée'),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', reportMyLossResponseQuantityRegExp),
+  "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
+  "rejection_reason": zod.string()
+})
+
+
+/**
+ * Bring everything left on the driver's truck back to the cold room it was loaded from.
+ */
+export const returnMyStockResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ReturnMyStockResponse = zod.object({
+  "number": zod.string(),
+  "to_location": zod.string(),
+  "total_quantity": zod.stringFormat('decimal', returnMyStockResponseTotalQuantityRegExp)
+})
+
+
+/**
  * What the driver's truck holds now per product, with today's price per kg. 404 without a truck.
  */
 export const listMyStockResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');

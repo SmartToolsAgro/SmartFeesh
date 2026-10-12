@@ -1183,3 +1183,10 @@ photo, `client_uuid`), through `expenses.services.submit_road_expense`: cash, to
 the day (D-041), status "À approuver" until the office decides; the photo is joined in the same transaction. The
 driver picks among four categories only (fuel, transport, handling, miscellaneous: `ROAD_CATEGORY_CODES`), listed by
 `GET /my-expense-categories`; `GET /my-expenses` shows their own entries of today with the decision.
+
+**D-093 · Losses and returns from the road (P3-T05)** · accepted · 2026-10-11
+`POST /my-losses` (multipart: product, kg, reason, note, photo, `client_uuid`) records a loss on the driver's truck
+today through `inventory.services.report_road_loss`: the usual threshold applies (small ones leave the stock at once,
+heavy ones wait for the owner) and the photo is joined in the same transaction. `POST /my-return` brings **everything**
+left on the truck back to the cold room of its latest validated load (else the first active cold room) as one validated
+return transfer; partial returns stay possible from the admin transfer screen.

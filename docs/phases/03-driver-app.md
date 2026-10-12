@@ -35,7 +35,7 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [x] Fuel, tolls, ice… with a photo of the receipt; status "waiting for approval"; paid from the cash box.
 
 ### P3-T05 · Losses and returns · S
-- [ ] Report damaged/spoiled product with reason and photo; return unsold stock to the cold room.
+- [x] Report damaged/spoiled product with reason and photo; return unsold stock to the cold room.
 
 ### P3-T06 · End-of-day closing · M
 - [ ] Summary: sales, cash, other payments, credit sales, expenses, remaining stock; per product,

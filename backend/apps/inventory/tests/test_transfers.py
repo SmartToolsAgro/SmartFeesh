@@ -642,3 +642,49 @@ def test_a_driver_sees_the_stock_and_price_of_their_truck(organization, actor, c
     assert rows == [
         {"product_id": dorade.pk, "product_name": "Dorade royale", "quantity": "12.000", "unit_price": "28.000"}
     ]
+
+
+def test_a_driver_reports_a_loss_with_a_photo_and_returns_the_rest_to_the_cold_room(
+    organization, actor, cold_room, dorade, tmp_path, settings
+):
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    from apps.fleet import services as fleet
+
+    settings.MEDIA_ROOT = tmp_path
+    client, driver = client_for(Role.DRIVER, organization)
+    truck = fleet.create_truck(
+        organization=organization, actor=actor, name="Camion 9", plate="109 TU 2009", driver=driver.user
+    )
+    receive(organization, dorade, cold_room, "20")
+    services.create_transfer(
+        organization=organization,
+        actor=actor,
+        from_location=cold_room,
+        to_location=truck.location,
+        transferred_on=timezone.localdate(),
+        lines=[{"product": dorade, "quantity": Decimal("12")}],
+        validate=True,
+    )
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 30), "red").save(buffer, format="JPEG")
+    photo = SimpleUploadedFile("loss.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+    lost = client.post(
+        reverse("my-losses"),
+        {"product": dorade.pk, "quantity": "1", "reason": "spoiled", "photo": photo},
+        format="multipart",
+    )
+    assert lost.status_code == 201
+    assert lost.json()["status"] == "approved"
+    assert client.get(reverse("my-stock")).json()[0]["quantity"] == "11.000"
+
+    returned = client.post(reverse("my-return"))
+
+    assert returned.status_code == 201
+    assert (returned.json()["to_location"], returned.json()["total_quantity"]) == ("Chambre froide 1", "11.000")
+    assert client.get(reverse("my-stock")).json() == []
+    assert client.post(reverse("my-return")).status_code == 400  # nothing left

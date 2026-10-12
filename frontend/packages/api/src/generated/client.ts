@@ -183,6 +183,9 @@ import type {
   RoadCategory,
   RoadExpense,
   RoadExpenseWrite,
+  RoadLoss,
+  RoadLossWrite,
+  RoadReturn,
   SalaryAdjustment,
   SalaryPayment,
   SalaryPaymentAllocate,
@@ -10029,6 +10032,162 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAddMyExpenseMutationOptions(options), queryClient);
+    }
+
+export const getReportMyLossUrl = () => {
+
+
+
+
+  return `/api/v1/my-losses`
+}
+
+/**
+ * Report kilos lost on the driver's truck today, with a photo. Small losses leave the stock at once;
+ * a heavy one waits for the owner.
+ */
+export const reportMyLoss = async (roadLossWrite: RoadLossWrite, options?: Parameters<typeof apiFetch>[1]): Promise<RoadLoss> => {
+    const formData = new FormData();
+formData.append(`product`, roadLossWrite.product.toString())
+formData.append(`quantity`, roadLossWrite.quantity);
+formData.append(`reason`, roadLossWrite.reason);
+if(roadLossWrite.note !== undefined) {
+ formData.append(`note`, roadLossWrite.note);
+ }
+if(roadLossWrite.photo !== undefined) {
+ formData.append(`photo`, roadLossWrite.photo);
+ }
+if(roadLossWrite.client_uuid !== undefined && roadLossWrite.client_uuid !== null) {
+ formData.append(`client_uuid`, roadLossWrite.client_uuid);
+ }
+
+  return apiFetch<RoadLoss>(getReportMyLossUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getReportMyLossMutationKey = () => ['reportMyLoss'] as const;
+
+export const getReportMyLossMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportMyLoss>>, TError,ReportMyLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportMyLoss>>, TError,ReportMyLossMutationVariables, TContext> => {
+
+const mutationKey = getReportMyLossMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportMyLoss>>, ReportMyLossMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportMyLoss(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportMyLossMutationResult = NonNullable<Awaited<ReturnType<typeof reportMyLoss>>>
+    export type ReportMyLossMutationBody = RoadLossWrite
+    export type ReportMyLossMutationError = unknown
+    export type ReportMyLossMutationVariables = {data: RoadLossWrite}
+
+    export const useReportMyLoss = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportMyLoss>>, TError,ReportMyLossMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reportMyLoss>>,
+        TError,
+        ReportMyLossMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReportMyLossMutationOptions(options), queryClient);
+    }
+
+export const getReturnMyStockUrl = () => {
+
+
+
+
+  return `/api/v1/my-return`
+}
+
+/**
+ * Bring everything left on the driver's truck back to the cold room it was loaded from.
+ */
+export const returnMyStock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RoadReturn> => {
+
+  return apiFetch<RoadReturn>(getReturnMyStockUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReturnMyStockMutationKey = () => ['returnMyStock'] as const;
+
+export const getReturnMyStockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnMyStock>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof returnMyStock>>, TError,void, TContext> => {
+
+const mutationKey = getReturnMyStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnMyStock>>, void> = () => {
+
+
+          return  returnMyStock(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReturnMyStockMutationResult = NonNullable<Awaited<ReturnType<typeof returnMyStock>>>
+
+    export type ReturnMyStockMutationError = unknown
+
+
+    export const useReturnMyStock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnMyStock>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof returnMyStock>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getReturnMyStockMutationOptions(options), queryClient);
     }
 
 export const getListMyStockUrl = () => {

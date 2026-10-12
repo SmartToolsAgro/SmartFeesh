@@ -568,3 +568,32 @@ class StockMovementFilterSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=MovementKind.choices, required=False)
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
+
+
+# ---- Driver app: losses and returns (P3-T05) ----
+
+
+class RoadLossWriteSerializer(serializers.Serializer[Any]):
+    product = serializers.IntegerField(min_value=1)
+    # A weight as a string ("1.500"), checked by the service.
+    quantity = serializers.CharField(allow_blank=True)
+    reason = serializers.ChoiceField(choices=LossReason.choices)
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+    photo = UploadedPhotoField(required=False)
+    # Sent by the app that may retry: the same value never makes two losses.
+    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+
+
+class RoadLossSerializer(serializers.ModelSerializer[StockLoss]):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+
+    class Meta:
+        model = StockLoss
+        fields = ("id", "number", "status", "product_name", "quantity", "reason", "rejection_reason")
+        read_only_fields = fields
+
+
+class RoadReturnSerializer(serializers.Serializer[Any]):
+    number = serializers.CharField(read_only=True)
+    to_location = serializers.CharField(source="to_location.name", read_only=True)
+    total_quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)

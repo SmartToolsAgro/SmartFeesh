@@ -6,6 +6,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 
 import { DayPage } from "./DayPage";
 import { ExpensePage } from "./ExpensePage";
+import { LossPage } from "./LossPage";
 import { SalePage } from "./SalePage";
 
 const queryClient = createQueryClient();
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route path="/" element={<DayPage />} />
         <Route path="/vente" element={<SalePage />} />
         <Route path="/depense" element={<ExpensePage />} />
+        <Route path="/perte" element={<LossPage />} />
         {tabs
           .filter((tab) => tab.to !== "/" && tab.to !== "/vente")
           .map((tab) => (

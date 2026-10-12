@@ -3151,6 +3151,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/RoadExpense'
           description: ''
+  /api/v1/my-losses:
+    post:
+      operationId: reportMyLoss
+      description: |-
+        Report kilos lost on the driver's truck today, with a photo. Small losses leave the stock at once;
+        a heavy one waits for the owner.
+      tags:
+      - my-losses
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoadLossWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadLoss'
+          description: ''
+  /api/v1/my-return:
+    post:
+      operationId: returnMyStock
+      description: Bring everything left on the driver's truck back to the cold room
+        it was loaded from.
+      tags:
+      - my-return
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadReturn'
+          description: ''
   /api/v1/my-stock:
     get:
       operationId: listMyStock
@@ -13650,6 +13689,84 @@ components:
       required:
       - amount
       - category
+    RoadLoss:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LossStatusEnum'
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/LossReasonEnum'
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
+      - product_name
+      - quantity
+      - reason
+      - rejection_reason
+      - status
+    RoadLossWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+        reason:
+          $ref: '#/components/schemas/LossReasonEnum'
+        note:
+          type: string
+          default: ''
+        photo:
+          type: string
+          format: binary
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - product
+      - quantity
+      - reason
+    RoadReturn:
+      type: object
+      properties:
+        number:
+          type: string
+          readOnly: true
+        to_location:
+          type: string
+          readOnly: true
+        total_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - number
+      - to_location
+      - total_quantity
     RoleEnum:
       enum:
       - owner
