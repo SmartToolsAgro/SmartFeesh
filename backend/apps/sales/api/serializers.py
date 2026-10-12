@@ -70,6 +70,9 @@ class QuoteProductSerializer(serializers.Serializer[Any]):
 
 class QuoteLineSerializer(serializers.ModelSerializer[QuoteLine]):
     product = QuoteProductSerializer(read_only=True)
+    # Kg already on a BL of this quote (drafts included, cancelled ones not) and kg left to deliver (D-115).
+    delivered_quantity = serializers.SerializerMethodField()
+    remaining_quantity = serializers.SerializerMethodField()
 
     class Meta:
         model = QuoteLine
@@ -82,8 +85,22 @@ class QuoteLineSerializer(serializers.ModelSerializer[QuoteLine]):
             "gross_amount",
             "discount_amount",
             "amount",
+            "delivered_quantity",
+            "remaining_quantity",
         )
         read_only_fields: tuple[str, ...] = fields
+
+    def _delivery(self, line: QuoteLine) -> selectors.LineDelivery:
+        delivery: dict[int, selectors.LineDelivery] = self.context["delivery"]
+        return delivery[line.pk]
+
+    @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=3))
+    def get_delivered_quantity(self, line: QuoteLine) -> str:
+        return str(self._delivery(line).delivered)
+
+    @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=3))
+    def get_remaining_quantity(self, line: QuoteLine) -> str:
+        return str(self._delivery(line).remaining)
 
 
 class QuoteSerializer(serializers.ModelSerializer[Quote]):
@@ -95,8 +112,12 @@ class QuoteSerializer(serializers.ModelSerializer[Quote]):
     created_by = serializers.SerializerMethodField()
     sent_by = serializers.SerializerMethodField()
     answered_by = serializers.SerializerMethodField()
-    # The sale this accepted quote became (P2-T04), unless it was cancelled.
+    # The last sale (BL) made from this accepted quote, cancelled ones left out; `sales` has them all, oldest
+    # first, since a quote may be delivered in several BL (D-115).
     sale = serializers.SerializerMethodField()
+    sales = serializers.SerializerMethodField()
+    # Kg not on any BL yet; 0.000 once the quote is delivered in full.
+    remaining_quantity = serializers.SerializerMethodField()
 
     class Meta:
         model = Quote
@@ -124,6 +145,8 @@ class QuoteSerializer(serializers.ModelSerializer[Quote]):
             "refusal_reason",
             "expired_at",
             "sale",
+            "sales",
+            "remaining_quantity",
         )
         read_only_fields: tuple[str, ...] = fields
 
@@ -131,6 +154,14 @@ class QuoteSerializer(serializers.ModelSerializer[Quote]):
     def get_sale(self, quote: Quote) -> dict[str, Any] | None:
         sale = selectors.live_sale_of(quote)
         return SaleRefSerializer(sale).data if sale is not None else None
+
+    @extend_schema_field(SaleRefSerializer(many=True))
+    def get_sales(self, quote: Quote) -> Any:
+        return SaleRefSerializer(selectors.live_sales_of(quote), many=True).data
+
+    @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=3))
+    def get_remaining_quantity(self, quote: Quote) -> str:
+        return str(selectors.quote_remaining(quote))
 
     def get_created_by(self, quote: Quote) -> str:
         return person_name(quote.created_by)
@@ -143,11 +174,16 @@ class QuoteSerializer(serializers.ModelSerializer[Quote]):
 
 
 class QuoteDetailSerializer(QuoteSerializer):
-    lines = QuoteLineSerializer(many=True, read_only=True)
+    lines = serializers.SerializerMethodField()
 
     class Meta(QuoteSerializer.Meta):
         fields = (*QuoteSerializer.Meta.fields, "lines")
         read_only_fields = fields
+
+    @extend_schema_field(QuoteLineSerializer(many=True))
+    def get_lines(self, quote: Quote) -> Any:
+        context = {**self.context, "delivery": selectors.quote_delivery(quote)}
+        return QuoteLineSerializer(quote.lines.all(), many=True, context=context).data
 
 
 class QuoteLineWriteSerializer(serializers.Serializer[Any]):
@@ -386,11 +422,18 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
 
 
+class QuoteDeliveryLineSerializer(serializers.Serializer[Any]):
+    quote_line = serializers.IntegerField(min_value=1)
+    quantity = serializers.CharField(max_length=20)
+
+
 class QuoteConvertSerializer(SalePaymentWriteSerializer):
     # Empty: the quote's own place.
     location = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     sold_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
     confirm_now = serializers.BooleanField(required=False, default=False)
+    # The kg this BL takes on each quote line, at most what is left on it (D-115). Left out: everything left.
+    lines = QuoteDeliveryLineSerializer(many=True, required=False, allow_null=True, default=None)
 
 
 class SaleConfirmSerializer(serializers.Serializer[Any]):

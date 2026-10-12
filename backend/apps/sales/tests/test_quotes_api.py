@@ -88,6 +88,8 @@ def test_creating_a_quote_answers_it_with_amounts_as_strings(api, customer, crev
             "gross_amount": "210.000",
             "discount_amount": "21.000",
             "amount": "189.000",
+            "delivered_quantity": "0.000",
+            "remaining_quantity": "5.000",
         }
     ]
     assert (body["subtotal"], body["discount_total"], body["total_excl_tax"], body["tax_amount"], body["total"]) == (

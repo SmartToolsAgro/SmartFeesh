@@ -1451,3 +1451,19 @@ today's stock). Alerts: the five biggest overdue customers (and how many more), 
   their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
 - Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
   same task.
+
+**D-115 · A devis is delivered in as many BL as needed (P2-T11 part 2)** · accepted · 2026-10-12
+Agreed with Mahmoud: the kilos left on a devis stay open for another BL. The constraint `one_live_sale_per_quote` is
+gone (migration `0011`); nothing new is stored. What is left is **computed**: `sales.selectors.quote_delivery` adds the
+kilos of every sale made from the quote that is not cancelled, **drafts included** (their kilos are spoken for), and
+matches them to the quote lines **by product** (a BL whose lines were retyped still counts; a product quoted twice fills
+its first line first; kilos beyond the quote are ignored). `create_sale_from_quote(lines=[{quote_line, quantity}])` takes
+part of each line and refuses more than what is left ("Il reste 2.000 kg à livrer sur cette ligne", under the line);
+without `lines` it takes everything left; a quote delivered in full is refused. The quote is row-locked meanwhile, so two
+people cannot deliver the same kilos. Cancelling a BL frees its kilos. API: `POST /quotes/<id>/convert` takes `lines`; a
+quote reads `sales` (all its BL, oldest first; `sale` stays = the last one), `remaining_quantity`, and per line
+`delivered_quantity` / `remaining_quantity`. Screens: one dialog (`quotes/DeliverDialog`) for the devis page and the
+"Documents" page, prefilled with the kg left; the devis page shows "Reste à livrer" per line and all its BL; on
+"Documents" a devis keeps "→ BL" until it is delivered in full, then turns green. **Not done:** the same for a bon
+d'achat needed nothing (partial receipts exist since D-076); a devis has no "close the rest" action yet (the rest simply
+stays open until its validity date).

@@ -14998,8 +14998,9 @@ export const getConvertQuoteToSaleUrl = (quoteId: number,) => {
 
 /**
  * Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
- * customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
- * quote stays accepted and links to its sale.
+ * customer, products, prices and discounts, from the quote's place unless `location` is given. Without
+ * `lines` it takes every kilo not on a BL yet; with `lines`, the kg given per quote line, at most what is
+ * left (a quote may be delivered in several BL, D-115). The quote stays accepted and links to its sales.
  */
 export const convertQuoteToSale = async (quoteId: number,
     quoteConvert?: QuoteConvert, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {

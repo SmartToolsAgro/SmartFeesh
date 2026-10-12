@@ -157,6 +157,24 @@ def test_actions_follow_the_state_of_each_document(api, organization, customer, 
     assert (draft["number"], draft["actions"], draft["pdf"]) == ("", ["edit", "issue", "delete"], "")
 
 
+def test_a_quote_keeps_its_bl_action_until_it_is_delivered_in_full(api, organization, customer, counter, crevette):
+    stock_up(organization, crevette, counter, D("20"))
+    quote = accepted_quote(organization, customer, counter, crevette)
+    line = quote.lines.get()
+
+    first = sales.create_sale_from_quote(
+        quote=quote, actor=None, confirm=True, lines=[{"quote_line": line.pk, "quantity": "2"}]
+    )
+    rows = rows_of(api.get(URL))
+    assert (rows[f"DV:{quote.pk}"]["actions"], rows[f"DV:{quote.pk}"]["tone"]) == (["to_sale"], "waiting")
+
+    second = sales.create_sale_from_quote(quote=quote, actor=None, confirm=True)
+    rows = rows_of(api.get(URL))
+    assert (rows[f"DV:{quote.pk}"]["actions"], rows[f"DV:{quote.pk}"]["tone"]) == ([], "done")
+    assert rows[f"BL:{first.pk}"]["parents"] == rows[f"BL:{second.pk}"]["parents"] == [f"DV:{quote.pk}"]
+    assert (rows[f"BL:{first.pk}"]["amount"], rows[f"BL:{second.pk}"]["amount"]) == ("84.000", "126.000")
+
+
 def test_an_invoice_of_several_bl_names_them_all(api, organization, customer, counter, crevette):
     stock_up(organization, crevette, counter, D("20"))
     first, second = (
