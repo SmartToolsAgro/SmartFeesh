@@ -10834,12 +10834,14 @@ components:
       - suppliers
       - customers
       - employees
+      - opening_stock
       type: string
       description: |-
         * `products` - products
         * `suppliers` - suppliers
         * `customers` - customers
         * `employees` - employees
+        * `opening_stock` - opening_stock
     ImportRow:
       type: object
       properties:

@@ -1469,3 +1469,10 @@ in the company and the share still due (negative: the partner owes it). The thre
 payable) stay separate (D-031, D-040); the supplier payable is in the Finances tab, not here. A lot's settlement
 appears as its capital return and its share payment. **Not done:** a per-lot breakdown under each partner (the lot screens
 have it), and Arabic texts.
+
+- **Opening stock** (slice 2): kind `opening_stock`, one row per lot: product and supplier by reference, location
+  by name, kg, cost per kg, reception date. Each row creates a batch (`receipt_reference` "STOCK-OUVERTURE") and
+  posts a `receipt` movement through `inventory.services`, so the ledger and FIFO work as for any lot. Sending the
+  file again skips a lot already imported (same product, supplier, date, cost); the same lot twice in one file is
+  an error (group the kilos).
+- Customer and supplier opening debts: slice 3.

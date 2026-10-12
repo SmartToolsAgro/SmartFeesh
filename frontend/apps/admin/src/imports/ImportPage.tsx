@@ -8,7 +8,7 @@ import { useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 
-const KINDS = ["products", "suppliers", "customers", "employees"] as const;
+const KINDS = ["products", "suppliers", "customers", "employees", "opening_stock"] as const;
 type Kind = (typeof KINDS)[number];
 
 const ROW_TONES = { created: "good", skipped: "neutral", error: "bad" } as const;
