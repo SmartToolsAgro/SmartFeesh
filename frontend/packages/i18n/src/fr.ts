@@ -1654,6 +1654,35 @@ export const fr = {
     dashboard: {
       hello: "Bonjour {{name}}",
       body: "Le socle est en place. Les indicateurs du jour apparaîtront ici dès que le stock et les ventes seront enregistrés dans l'application.",
+      period: "{{month}}, jusqu'à aujourd'hui.",
+      profit: {
+        title: "Résultat du mois",
+        hint: "Ce que l'activité a gagné : les ventes moins le coût de la marchandise vendue, les pertes, les charges et les salaires. Ce n'est pas de l'argent encaissé.",
+        sales: "Ventes du mois",
+        vsLast: "{{percent}} vs mois dernier",
+        margin: "Marge brute",
+        net: "Résultat net d'exploitation",
+        netHint: "Après salaires et charges",
+      },
+      cash: {
+        title: "Argent et stock",
+        hint: "Ce qui est entré et ce qui reste à recevoir. L'argent encaissé n'est pas le bénéfice.",
+        collected: "Encaissé ce mois",
+        receivables: "Reste à encaisser",
+        overdue: "dont {{amount}} DT en retard",
+        stock: "Valeur du stock",
+        stockHint: "Au prix de revient, tous les lieux",
+      },
+      alerts: {
+        title: "À regarder",
+        none: "Rien à signaler pour le moment.",
+        overdue: "{{name}} a des factures en retard",
+        moreOverdue: "et {{count}} autre(s) client(s) en retard",
+        days_one: "{{count}} journée de chauffeur à vérifier",
+        days_other: "{{count}} journées de chauffeur à vérifier",
+        expenses_one: "{{count}} charge à approuver",
+        expenses_other: "{{count}} charges à approuver",
+      },
     },
     // ---- Stock: sections and transfers (P1-T09) ----
     stockTabs: {
