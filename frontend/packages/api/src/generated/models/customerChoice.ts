@@ -13,4 +13,6 @@ export interface CustomerChoice {
   readonly name: string;
   readonly city: string;
   readonly is_walk_in: boolean;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly owes: string;
 }

@@ -37,6 +37,9 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
     )
     cash = sum((s.amount_paid for s in day_sales if s.payment_method == "cash"), ZERO)
     paid = sum((s.amount_paid for s in day_sales), ZERO)
+    payments = sales.payments_received_by(organization, user_id=driver_day.driver_id, day=day)
+    payments_cash = sum((p.amount for p in payments if p.method == "cash"), ZERO)
+    payments_other = sum((p.amount for p in payments if p.method != "cash"), ZERO)
     spent = sum(
         (
             e.amount
@@ -87,10 +90,11 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         "sales_count": len(day_sales),
         "sales_total": sum((s.total for s in day_sales), ZERO),
         "cash_received": cash,
-        "other_payments": paid - cash,
+        "payments_cash": payments_cash,
+        "other_payments": paid - cash + payments_other,
         "on_credit": sum((s.amount_due for s in day_sales), ZERO),
         "expenses_total": spent,
-        "expected_cash": driver_day.opening_cash + cash - spent,
+        "expected_cash": driver_day.opening_cash + cash + payments_cash - spent,
         "products": products,
     }
 
@@ -132,3 +136,8 @@ def sync_problems_of(organization: Organization, *, open_only: bool = True) -> Q
 
 def sync_problem_by_id(organization: Organization, problem_id: int) -> SyncProblem:
     return sync_problems_of(organization, open_only=False).get(pk=problem_id)
+
+
+def waiting_for_office(organization: Organization) -> int:
+    """Driver days sent by the driver (or sent again with a note) and not approved yet."""
+    return closings_of(organization).exclude(status=DayClosingStatus.APPROVED).count()

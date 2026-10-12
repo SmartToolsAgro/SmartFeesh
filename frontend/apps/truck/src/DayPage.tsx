@@ -87,7 +87,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
               <li key={line.product_id} className="flex items-center justify-between gap-3 py-3">
                 <span className="text-lg font-semibold">{line.product_name}</span>
                 <span className="text-end">
-                  <span className="block text-xl font-bold">{formatQuantity(line.loaded)} kg</span>
+                  <span className="block text-xl font-bold">{formatQuantity(line.loaded)}</span>
                   {line.unit_price === null ? null : (
                     <span className="text-sm text-ink-2">{formatMoney(line.unit_price)} / kg</span>
                   )}
@@ -99,6 +99,9 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
       )}
       <Button asChild size="lg" className="py-4 text-lg">
         <Link to="/depense">{t("truck.expense.add")}</Link>
+      </Button>
+      <Button asChild size="lg" className="py-4 text-lg">
+        <Link to="/encaissement">{t("truck.payment.add")}</Link>
       </Button>
       <Button asChild size="lg" className="py-4 text-lg">
         <Link to="/perte">{t("truck.loss.add")}</Link>

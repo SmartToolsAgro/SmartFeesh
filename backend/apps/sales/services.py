@@ -2094,14 +2094,21 @@ def record_customer_payment(
     reference: str = "",
     notes: str = "",
     allocations: Sequence[AllocationFields] | None = None,
+    client_uuid: uuid.UUID | None = None,
 ) -> CustomerPayment:
     """Register money received from a customer and allocate it (D-062).
+
+    A `client_uuid` already used returns that payment (the driver app retries).
 
     `allocations` None takes the customer's oldest open sales first; a list names the sales and amounts
     (empty keeps everything as credit). What is not allocated stays the customer's credit: their balance
     already counts the whole payment, and `allocate_customer_payment` can settle sales with it later.
     Refused for the walk-in customer (they pay on the spot). Numbered RG-0001... in the same transaction.
     """
+    if client_uuid is not None:
+        existing = CustomerPayment.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            return existing
     errors: dict[str, str] = {}
     if customer.organization_id != organization.pk:
         errors["customer"] = _("Client inconnu.")
@@ -2131,6 +2138,7 @@ def record_customer_payment(
         reference=reference.strip()[:50],
         notes=notes.strip(),
         created_by=actor,
+        client_uuid=client_uuid,
     )
     _allocate(payment, paid, allocations)
     audit.record(

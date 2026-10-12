@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { fieldErrors } from "../lib/errors";
 import { canCollect } from "../payments/shared";
 import { BalanceCard } from "./BalanceCard";
 import { CustomerDialog } from "./CustomerDialog";
@@ -37,6 +38,7 @@ export function CustomerDetailPage() {
       toast.success(t(saved.is_active ? "admin.customers.form.restoredDone" : "admin.customers.form.archivedDone"));
       await refreshCustomers(queryClient);
     },
+    onError: (failure) => toast.error(fieldErrors(failure).detail ?? t("admin.customers.form.error")),
   });
 
   const back = (

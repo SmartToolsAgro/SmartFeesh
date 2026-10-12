@@ -458,3 +458,19 @@ def month_expenses(organization: Organization, *, date_from: dt.date, date_to: d
         waiting_count=waiting_count,
         waiting_amount=waiting.waiting,
     )
+
+
+def waiting_for_approval(organization: Organization) -> int:
+    """Expenses sent for approval and not decided yet (the dashboard's alert; drafts are still being typed)."""
+    return Expense.objects.for_organization(organization).filter(status=ExpenseStatus.PENDING).count()
+
+
+def approved_by_day(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> dict[dt.date, Decimal]:
+    """Approved expenses per day (`spent_on`), inclusive. Payroll is not an expense: it is in `hr`."""
+    rows = (
+        Expense.objects.for_organization(organization)
+        .filter(status=ExpenseStatus.APPROVED, spent_on__gte=date_from, spent_on__lte=date_to)
+        .values("spent_on")
+        .annotate(total=Sum("amount"))
+    )
+    return {row["spent_on"]: row["total"] for row in rows}

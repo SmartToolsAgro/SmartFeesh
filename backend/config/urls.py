@@ -16,9 +16,10 @@ api_v1: list[URLPattern | URLResolver] = [
     path("", include("apps.expenses.api.urls")),
     path("", include("apps.partnerships.api.urls")),
     path("", include("apps.closing.api.urls")),
+    path("", include("apps.reports.api.urls")),
     path("", include("apps.dayclose.api.urls")),
     path("", include("apps.documents.api.urls")),
-    # The API map is for the people who build the apps: not for a driver or the accountant (D-108).
+    path("", include("apps.dataimport.api.urls")),
     path("schema", SpectacularAPIView.as_view(permission_classes=[IsOwnerOrManager]), name="schema"),
 ]
 

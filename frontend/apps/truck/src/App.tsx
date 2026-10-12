@@ -10,6 +10,7 @@ import { ExpensePage } from "./ExpensePage";
 import { LossPage } from "./LossPage";
 import { forgetSavedData } from "./offline";
 import { OfflineBanner } from "./OfflineBanner";
+import { PaymentPage } from "./PaymentPage";
 import { SyncStatus } from "./SyncStatus";
 import { SalePage } from "./SalePage";
 
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="/vente" element={<SalePage />} />
         <Route path="/cloture" element={<ClosingPage />} />
         <Route path="/depense" element={<ExpensePage />} />
+        <Route path="/encaissement" element={<PaymentPage />} />
         <Route path="/perte" element={<LossPage />} />
         {tabs
           .filter((tab) => tab.to !== "/" && tab.to !== "/vente" && tab.to !== "/cloture")

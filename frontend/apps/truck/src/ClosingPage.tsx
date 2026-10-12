@@ -65,6 +65,7 @@ export function ClosingPage() {
           strong
         />
         <Row label={t("truck.closing.cash")} value={formatMoney(summary.cash_received)} />
+        <Row label={t("truck.closing.payments")} value={formatMoney(summary.payments_cash ?? "0.000")} />
         <Row label={t("truck.closing.other")} value={formatMoney(summary.other_payments)} />
         <Row label={t("truck.closing.credit")} value={formatMoney(summary.on_credit)} />
         <Row label={t("truck.closing.expenses")} value={formatMoney(summary.expenses_total)} />
@@ -84,7 +85,7 @@ export function ClosingPage() {
                   {t("truck.closing.returned")} {formatQuantity(product.returned)}
                 </p>
                 <p className="font-semibold">
-                  {t("truck.closing.left")} {formatQuantity(product.remaining)} kg
+                  {t("truck.closing.left")} {formatQuantity(product.remaining)}
                 </p>
               </li>
             ))}

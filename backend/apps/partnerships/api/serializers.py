@@ -60,6 +60,7 @@ class LotPartnershipSerializer(serializers.ModelSerializer[LotPartnership]):
             "profit_rate",
             "loss_rate",
             "status",
+            "terms_pending",
             "notes",
             "capital",
             "created_at",

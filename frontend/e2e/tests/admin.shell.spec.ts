@@ -20,6 +20,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
 
   await expect(modules.getByRole("link")).toHaveText([
     "Tableau de bord",
+    "Rapports",
     "Devis",
     "Ventes & factures",
     "Factures",
@@ -36,6 +37,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Personnel & salaires",
     "Partage des bénéfices",
     "Clôture mensuelle",
+    "Import de données",
   ]);
   await expect(modules.getByRole("link", { name: "Tableau de bord" })).toHaveAttribute("aria-current", "page");
 
