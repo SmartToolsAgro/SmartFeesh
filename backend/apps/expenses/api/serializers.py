@@ -336,7 +336,7 @@ class DayLabourWriteSerializer(serializers.Serializer[Any]):
     approve_now = serializers.BooleanField(required=False, default=False)
 
 
-# ---- Driver app (P3-T04) ----
+# ---- Driver app (P3-T04) ---
 
 
 class RoadCategorySerializer(serializers.Serializer[Any]):
