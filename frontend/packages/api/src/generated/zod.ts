@@ -3340,6 +3340,11 @@ export const ListInvoicesResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
   "customer": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -3388,6 +3393,7 @@ export const createInvoiceBodyNotesDefault = ``;
 export const createInvoiceBodyIssueNowDefault = false;
 
 
+
 export const CreateInvoiceBody = zod.object({
   "apply_vat": zod.boolean().default(createInvoiceBodyApplyVatDefault),
   "lines": zod.array(zod.object({
@@ -3402,7 +3408,8 @@ export const CreateInvoiceBody = zod.object({
   "withholding_rate": zod.string().nullish(),
   "notes": zod.string().default(createInvoiceBodyNotesDefault),
   "issue_now": zod.boolean().default(createInvoiceBodyIssueNowDefault),
-  "sale": zod.int().min(1)
+  "sale": zod.int().min(1).optional(),
+  "sales": zod.array(zod.int().min(1)).optional()
 }).describe('What may change on a draft invoice. Every empty value takes the finance settings (D-056).')
 
 export const createInvoiceResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -3460,6 +3467,11 @@ export const CreateInvoiceResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
   "customer": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -3537,6 +3549,7 @@ export const CreateInvoiceResponse = zod.object({
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
+  "sale_number": zod.string(),
   "lots": zod.string(),
   "quantity": zod.stringFormat('decimal', createInvoiceResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', createInvoiceResponseLinesItemUnitPriceRegExp),
@@ -3662,6 +3675,11 @@ export const GetInvoiceResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
   "customer": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -3739,6 +3757,7 @@ export const GetInvoiceResponse = zod.object({
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
+  "sale_number": zod.string(),
   "lots": zod.string(),
   "quantity": zod.stringFormat('decimal', getInvoiceResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', getInvoiceResponseLinesItemUnitPriceRegExp),
@@ -3885,6 +3904,11 @@ export const UpdateInvoiceResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
   "customer": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -3962,6 +3986,7 @@ export const UpdateInvoiceResponse = zod.object({
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
+  "sale_number": zod.string(),
   "lots": zod.string(),
   "quantity": zod.stringFormat('decimal', updateInvoiceResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', updateInvoiceResponseLinesItemUnitPriceRegExp),
@@ -4175,6 +4200,11 @@ export const IssueInvoiceResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
   "customer": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -4252,6 +4282,7 @@ export const IssueInvoiceResponse = zod.object({
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
+  "sale_number": zod.string(),
   "lots": zod.string(),
   "quantity": zod.stringFormat('decimal', issueInvoiceResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', issueInvoiceResponseLinesItemUnitPriceRegExp),
@@ -9950,7 +9981,7 @@ export const GenerateSalaryMonthResponse = zod.object({
 export const listSalesQuerySearchDefault = ``;
 export const listSalesQuerySearchMax = 100;
 
-
+export const listSalesQueryUninvoicedDefault = false;
 
 export const ListSalesQueryParams = zod.object({
   "customer": zod.int().min(1).optional(),
@@ -9960,7 +9991,8 @@ export const ListSalesQueryParams = zod.object({
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
   "search": zod.string().max(listSalesQuerySearchMax).default(listSalesQuerySearchDefault),
-  "status": zod.enum(['draft', 'confirmed', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "uninvoiced": zod.boolean().default(listSalesQueryUninvoicedDefault)
 })
 
 export const listSalesResponseResultsItemSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
