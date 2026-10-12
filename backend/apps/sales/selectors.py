@@ -31,6 +31,7 @@ from .models import (
     CreditNote,
     CreditNoteLine,
     CreditNoteLineBatch,
+    CustomerPayment,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -545,3 +546,80 @@ def recent_customer_ids(organization: Organization, *, user_id: int, limit: int 
         if len(seen) == limit:
             break
     return seen
+
+
+def payments_received_by(organization: Organization, *, user_id: int, day: dt.date) -> list[CustomerPayment]:
+    """The customer payments this person recorded for a day (voided ones left out), newest first."""
+    return list(
+        CustomerPayment.objects.for_organization(organization)
+        .filter(created_by_id=user_id, received_on=day, voided_at__isnull=True)
+        .select_related("customer")
+        .order_by("-id")
+    )
+
+
+def owed_by_customer(organization: Organization) -> dict[int, Decimal]:
+    """What each customer owes now (only those who owe something), from the receivables of D-062."""
+    from . import receivables
+
+    return {
+        customer_id: balance.balance
+        for customer_id, balance in receivables.customer_balances(organization).items()
+        if balance.balance > 0
+    }
+
+
+# ---- The owner's dashboard (P7-T01, D-104) ----
+
+
+@dataclass(frozen=True)
+class OverdueCustomer:
+    customer_id: int
+    overdue: Decimal
+    balance: Decimal
+
+
+@dataclass(frozen=True)
+class ReceivablesOverview:
+    """What customers owe now (the customers who owe, as the ageing page counts it), the part past its due
+    date, and the customers with something overdue, biggest first."""
+
+    total: Decimal
+    overdue: Decimal
+    overdue_customers: tuple[OverdueCustomer, ...]
+
+
+def receivables_overview(organization: Organization, *, today: dt.date | None = None) -> ReceivablesOverview:
+    from . import receivables  # kept local to avoid a cycle with selectors (see outstanding_by_sale)
+
+    zero = Decimal("0.000")
+    balances = receivables.customer_balances(organization, today=today)
+    owing = [value for value in balances.values() if value.balance > 0]
+    late = sorted((value for value in owing if value.overdue > 0), key=lambda value: -value.overdue)
+    return ReceivablesOverview(
+        total=sum((value.balance for value in owing), zero),
+        overdue=sum((value.overdue for value in owing), zero),
+        overdue_customers=tuple(
+            OverdueCustomer(customer_id=value.customer_id, overdue=value.overdue, balance=value.balance)
+            for value in late
+        ),
+    )
+
+
+def cash_collected(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> Decimal:
+    """Money received from customers from `date_from` to `date_to` (local days, inclusive): what they paid on the
+    spot at a confirmed sale plus the payments they made later (voided ones left out). It is cash, not profit."""
+    zero = Decimal("0.000")
+    start = timezone.make_aware(dt.datetime.combine(date_from, dt.time.min))
+    end = timezone.make_aware(dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min))
+    on_the_spot = (
+        Sale.objects.for_organization(organization)
+        .filter(status=SaleStatus.CONFIRMED, sold_at__gte=start, sold_at__lt=end)
+        .aggregate(total=Sum("amount_paid"))["total"]
+    )
+    later = (
+        CustomerPayment.objects.for_organization(organization)
+        .filter(voided_at__isnull=True, received_on__gte=date_from, received_on__lte=date_to)
+        .aggregate(total=Sum("amount"))["total"]
+    )
+    return (on_the_spot or zero) + (later or zero)

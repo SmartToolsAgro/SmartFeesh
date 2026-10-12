@@ -30,4 +30,6 @@ Today everything is in paper notebooks (Q15), so there is no file to convert.
 
 ### P4-T06 · Training and support · human · S
 - [ ] Short guides with screenshots: French for the owner, French and Arabic for drivers (Q14).
+      (Text guides in French written: `docs/guides/guide-proprietaire.md`, `docs/guides/guide-chauffeur.md`. Still to do: screenshots,
+      the Arabic driver guide, and a walk-through with the owner and a driver.)
       Support contact and process.

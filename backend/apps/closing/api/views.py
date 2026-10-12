@@ -11,7 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.closing import engine, month_selectors, month_services, monthly, selectors, services
+from apps.closing import dashboard, engine, month_selectors, month_services, monthly, selectors, services
 from apps.closing.models import LotResult, LotResultStatus, MonthlyClosing, MonthlyClosingStatus, SettlementState
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import HasRole, ReadOwnerOrAccountantWriteOwner, membership_of
@@ -21,6 +21,7 @@ from apps.partnerships import selectors as partnerships
 
 from .serializers import (
     CloseLotSerializer,
+    DashboardSerializer,
     LotFigureSerializer,
     LotResultViewSerializer,
     LotSettlementViewSerializer,
@@ -468,3 +469,17 @@ class ReopenMonthView(MonthBaseView):
             reason=serializer.validated_data["reason"],
         )
         return self.answer(first)
+
+
+class DashboardView(APIView):
+    permission_classes = (OwnerOrAccountant,)
+
+    @extend_schema(operation_id="getDashboard", responses=DashboardSerializer)
+    def get(self, request: Request) -> Response:
+        """The owner's home page: this month's sales, margin and net result (profit), the cash collected and
+        what customers still owe (cash), the stock value, and a short list of what needs a look. Owner and
+        accountant only."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        data = dashboard.dashboard_of(membership.organization, today=timezone.localdate())
+        return Response(DashboardSerializer(data).data)

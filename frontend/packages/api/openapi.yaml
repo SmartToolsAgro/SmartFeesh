@@ -915,6 +915,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/dashboard:
+    get:
+      operationId: getDashboard
+      description: |-
+        The owner's home page: this month's sales, margin and net result (profit), the cash collected and
+        what customers still owe (cash), the stock value, and a short list of what needs a look. Owner and
+        accountant only.
+      tags:
+      - dashboard
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+          description: ''
   /api/v1/day-closings:
     get:
       operationId: listDayClosings
@@ -3485,6 +3503,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RoadLoss'
+          description: ''
+  /api/v1/my-payments:
+    get:
+      operationId: listMyPayments
+      description: What the driver collected from customers today, newest first.
+      tags:
+      - my-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoadPayment'
+          description: ''
+    post:
+      operationId: collectMyPayment
+      description: |-
+        Record money a customer handed over today. It settles their oldest open sales first, and counts in
+        the day's cash when it is cash. The same `client_uuid` sent twice records it once.
+      tags:
+      - my-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadPayment'
           description: ''
   /api/v1/my-return:
     post:
@@ -8115,11 +8178,17 @@ components:
         is_walk_in:
           type: boolean
           readOnly: true
+        owes:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - city
       - id
       - is_walk_in
       - name
+      - owes
     CustomerContact:
       type: object
       properties:
@@ -8446,6 +8515,81 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    Dashboard:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        sales:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        previous_sales:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        gross_margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_collected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        receivables:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        receivables_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        stock_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue_customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverdueCustomer'
+          readOnly: true
+        overdue_customer_count:
+          type: integer
+          readOnly: true
+        days_waiting:
+          type: integer
+          readOnly: true
+        expenses_waiting:
+          type: integer
+          readOnly: true
+      required:
+      - cash_collected
+      - days_waiting
+      - expenses_waiting
+      - gross_margin
+      - month
+      - net_result
+      - overdue_customer_count
+      - overdue_customers
+      - previous_sales
+      - receivables
+      - receivables_overdue
+      - sales
+      - stock_value
     DayClosingDetail:
       type: object
       properties:
@@ -8851,6 +8995,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        payments_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         other_payments:
           type: string
           format: decimal
@@ -8885,6 +9034,7 @@ components:
       - on_credit
       - opening_cash
       - other_payments
+      - payments_cash
       - products
       - sales_count
       - sales_total
@@ -12472,6 +12622,24 @@ components:
       required:
       - id
       - name
+    OverdueCustomer:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - customer_id
+      - name
+      - overdue
     PaginatedBatchList:
       type: object
       required:
@@ -15329,6 +15497,52 @@ components:
       - product
       - quantity
       - reason
+    RoadPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          readOnly: true
+      required:
+      - amount
+      - customer_name
+      - id
+      - method
+      - number
+    RoadPaymentWrite:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          default: cash
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - amount
+      - customer
     RoadReturn:
       type: object
       properties:
@@ -17292,11 +17506,13 @@ components:
       - sale
       - expense
       - loss
+      - payment
       type: string
       description: |-
         * `sale` - sale
         * `expense` - expense
         * `loss` - loss
+        * `payment` - payment
     Transfer:
       type: object
       properties:

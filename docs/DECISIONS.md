@@ -1386,3 +1386,26 @@ real phone.
 **D-105 · Lot page summary and the list of partnership lots with their frozen figures (P6-T07)** · accepted · 2026-10-12
 - The lot page already carried the result and the partner share (P6-T02/T03). It now opens with four headline figures (sales, lot costs, net result, partner's or owner's share) and the "Coût d'achat des kg vendus" step drills down to the cost of each sale, like sales and costs do.
 - The "Partage des bénéfices" list (`/partenariats`) gets the net result and the partner's share of each **closed** lot, read from `GET /lot-figures?batch_ids=` (closing app, frozen `LotResult` rows only, at most 200 ids). Open lots show "Pas encore clôturé": their live result is computed lot by lot and stays on the lot page, to keep the list cheap. The `partnerships` app does not import `closing` (the dependency runs the other way).
+
+**D-111 · The driver collects customer payments on the phone (P3-T11)** · accepted · 2026-10-12
+`POST /my-payments` (driver only) calls `sales.services.record_customer_payment` (D-062): today's date, cash by
+default, allocated to the customer's oldest open sales. `CustomerPayment.client_uuid` (sales migration 0010, unique per
+organization when set) makes a retry from the phone record it once. `GET /my-payments` lists the driver's own payments of
+the day. `GET /my-customers` now also returns `owes` (what each customer owes, from the receivables), and the phone shows
+it on the "Encaisser" screen. Payments join the offline queue as a fourth kind (D-098) and a refused one is reported to the
+office like the others (kind `payment`, D-099). **In the day's cash:** expected cash = opening cash + cash sales + cash
+payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
+driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
+later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
+
+
+**D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
+`GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
+month up to today. **Profit and cash are two separate groups.** Profit: sales, gross margin and net operating result come
+straight from `closing.monthly.month_report` (nothing is recomputed), plus last month's sales for the % change. Cash: money
+collected this month (what customers paid on the spot at a confirmed sale plus their later payments, voided ones left out:
+`sales.selectors.cash_collected`), what customers still owe and the overdue part (the ageing page's "customers who owe",
+`sales.selectors.receivables_overview`), and the stock value at cost (the month-end valuation, which for the current month is
+today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
+(`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
+**Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).

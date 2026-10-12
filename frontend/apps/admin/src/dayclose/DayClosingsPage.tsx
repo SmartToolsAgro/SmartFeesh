@@ -89,6 +89,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
               value={formatMoney(data.summary.sales_total)}
             />
             <Line label={t("admin.dayClosings.cash")} value={formatMoney(data.summary.cash_received)} />
+            <Line label={t("admin.dayClosings.payments")} value={formatMoney(data.summary.payments_cash ?? "0.000")} />
             <Line label={t("admin.dayClosings.other")} value={formatMoney(data.summary.other_payments)} />
             <Line label={t("admin.dayClosings.credit")} value={formatMoney(data.summary.on_credit)} />
             <Line label={t("admin.dayClosings.expenses")} value={formatMoney(data.summary.expenses_total)} />
