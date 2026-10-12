@@ -102,6 +102,15 @@ OWNER_MONEY = (
     "/api/v1/partners/",
     "/api/v1/partnerships",
     "/api/v1/payroll-summary",
+    # The owner's figures and reports (P7): the accountant reads them, a manager gets 403.
+    "/api/v1/dashboard",
+    "/api/v1/lot-figures",
+    "/api/v1/reports/cash-flow",
+    "/api/v1/reports/customer-balances",
+    "/api/v1/reports/month-result",
+    "/api/v1/reports/partners",
+    "/api/v1/reports/supplier-balances",
+    "/api/v1/reports/unpaid-salaries",
 )
 
 
@@ -113,6 +122,8 @@ OWNER_ONLY_WRITES = (
     "/api/v1/finance-settings",
     "/api/v1/stock-settings",
 )
+# Loading the company's data (P4-T01, D-112): the owner alone, even to read a template.
+OWNER_ONLY_AREA = ("/api/v1/imports",)
 # The people who run the system, and the API map: owner and manager only.
 OFFICE_ONLY = ("/api/v1/members", "/api/v1/schema")
 
@@ -170,6 +181,8 @@ def _should_forbid(role: Role, path: str, method: str) -> bool:
         return not _is_driver_area(path, method)
     if path.startswith("/api/v1/my-"):
         return True  # the driver's own screens
+    if path.startswith(OWNER_ONLY_AREA):
+        return role != Role.OWNER
     if role == Role.ACCOUNTANT:
         # The accountant reads everything office; the only things they write are their own language and the
         # review of a month (D-060).
@@ -308,6 +321,8 @@ def test_another_company_gets_empty_lists(seeded_company):
         theirs = other.get(path)
         if mine.status_code != 200 or theirs.status_code != 200:
             continue
+        if not mine["Content-Type"].startswith("application/json"):
+            continue  # a file download (the Excel templates), not a list
         shown = _rows(mine.json())
         if not shown:
             continue
