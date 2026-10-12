@@ -1234,6 +1234,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayLabourer'
           description: ''
+  /api/v1/document-index:
+    get:
+      operationId: listDocuments
+      description: |-
+        Quotes, BL, invoices, credit notes, purchase orders, receipts and supplier invoices of the organization,
+        newest day first (at most 1000; `truncated` says when there were more). Each row names the documents it
+        came from (`parents`) and the actions the person may take next (`actions`), so the page can draw the
+        chain DV → BL → FA → AV and BA → BR → FF and offer only what would succeed.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: tone
+        schema:
+          enum:
+          - draft
+          - waiting
+          - done
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - draft
+          * `waiting` - waiting
+          * `done` - done
+          * `cancelled` - cancelled
+      - in: query
+        name: types
+        schema:
+          type: string
+          default: ''
+          maxLength: 50
+      tags:
+      - document-index
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentList'
+          description: ''
   /api/v1/documents/{kind}/{object_id}/pdf:
     get:
       operationId: getDocumentPdf
@@ -8928,6 +8985,107 @@ components:
       - product
       - receipt
       - unit_cost
+    DocumentList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRow'
+        total:
+          type: integer
+        truncated:
+          type: boolean
+      required:
+      - results
+      - total
+      - truncated
+    DocumentRow:
+      type: object
+      properties:
+        key:
+          type: string
+        type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        id:
+          type: integer
+        number:
+          type: string
+        partner_side:
+          $ref: '#/components/schemas/PartnerSideEnum'
+        partner_id:
+          type: integer
+        partner_name:
+          type: string
+        date:
+          type: string
+          format: date
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        status:
+          type: string
+        status_label:
+          type: string
+        tone:
+          $ref: '#/components/schemas/DocumentToneEnum'
+        parents:
+          type: array
+          items:
+            type: string
+        actions:
+          type: array
+          items:
+            type: string
+        pdf:
+          type: string
+      required:
+      - actions
+      - amount
+      - date
+      - id
+      - key
+      - number
+      - parents
+      - partner_id
+      - partner_name
+      - partner_side
+      - pdf
+      - status
+      - status_label
+      - tone
+      - type
+    DocumentToneEnum:
+      enum:
+      - draft
+      - waiting
+      - done
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - draft
+        * `waiting` - waiting
+        * `done` - done
+        * `cancelled` - cancelled
+    DocumentTypeEnum:
+      enum:
+      - DV
+      - BL
+      - FA
+      - AV
+      - BA
+      - BR
+      - FF
+      type: string
+      description: |-
+        * `DV` - DV
+        * `BL` - BL
+        * `FA` - FA
+        * `AV` - AV
+        * `BA` - BA
+        * `BR` - BR
+        * `FF` - FF
     DriverDay:
       type: object
       properties:
@@ -12821,6 +12979,14 @@ components:
       - partner_name
       - profit_share
       - trade_payable
+    PartnerSideEnum:
+      enum:
+      - customer
+      - supplier
+      type: string
+      description: |-
+        * `customer` - customer
+        * `supplier` - supplier
     PartnershipBatch:
       type: object
       properties:

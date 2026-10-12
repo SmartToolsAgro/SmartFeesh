@@ -2012,6 +2012,54 @@ export const UpdateDayLabourerResponse = zod.object({
 
 
 /**
+ * Quotes, BL, invoices, credit notes, purchase orders, receipts and supplier invoices of the organization,
+ * newest day first (at most 1000; `truncated` says when there were more). Each row names the documents it
+ * came from (`parents`) and the actions the person may take next (`actions`), so the page can draw the
+ * chain DV → BL → FA → AV and BA → BR → FF and offer only what would succeed.
+ */
+export const listDocumentsQuerySearchDefault = ``;
+export const listDocumentsQuerySearchMax = 100;
+
+export const listDocumentsQueryTypesDefault = ``;
+export const listDocumentsQueryTypesMax = 50;
+
+
+
+export const ListDocumentsQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "search": zod.string().max(listDocumentsQuerySearchMax).default(listDocumentsQuerySearchDefault),
+  "tone": zod.enum(['draft', 'waiting', 'done', 'cancelled']).optional().describe('* `draft` - draft\n* `waiting` - waiting\n* `done` - done\n* `cancelled` - cancelled'),
+  "types": zod.string().max(listDocumentsQueryTypesMax).default(listDocumentsQueryTypesDefault)
+})
+
+export const listDocumentsResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDocumentsResponse = zod.object({
+  "results": zod.array(zod.object({
+  "key": zod.string(),
+  "type": zod.enum(['DV', 'BL', 'FA', 'AV', 'BA', 'BR', 'FF']).describe('* `DV` - DV\n* `BL` - BL\n* `FA` - FA\n* `AV` - AV\n* `BA` - BA\n* `BR` - BR\n* `FF` - FF'),
+  "id": zod.int(),
+  "number": zod.string(),
+  "partner_side": zod.enum(['customer', 'supplier']).describe('* `customer` - customer\n* `supplier` - supplier'),
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "date": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listDocumentsResponseResultsItemAmountRegExp),
+  "status": zod.string(),
+  "status_label": zod.string(),
+  "tone": zod.enum(['draft', 'waiting', 'done', 'cancelled']).describe('* `draft` - draft\n* `waiting` - waiting\n* `done` - done\n* `cancelled` - cancelled'),
+  "parents": zod.array(zod.string()),
+  "actions": zod.array(zod.string()),
+  "pdf": zod.string()
+})),
+  "total": zod.int(),
+  "truncated": zod.boolean()
+})
+
+
+/**
  * The PDF of a quote (`quote`), invoice (`invoice`), credit note (`credit_note`) or customer payment
  * receipt (`receipt`). 200 is the file; 202 `pending` means it is being made (ask again in a second);
  * 500 `failed` means the last attempt failed (`?retry=1` tries again). Office data: drivers get 403.

@@ -62,6 +62,7 @@ import { SuppliersPage } from "./suppliers/SuppliersPage";
 import { CountPage } from "./counts/CountPage";
 import { CountsPage } from "./counts/CountsPage";
 import { DayClosingsPage } from "./dayclose/DayClosingsPage";
+import { DocumentsPage } from "./doclist/DocumentsPage";
 import { LossDetailPage } from "./losses/LossDetailPage";
 import { LossesPage } from "./losses/LossesPage";
 import { LossFormPage } from "./losses/LossFormPage";
@@ -75,7 +76,13 @@ const queryClient = createQueryClient();
 function useNav(): AdminNavGroup[] {
   const { t } = useTranslation();
   return [
-    { label: t("admin.groups.steering"), items: [{ to: "/", label: t("admin.nav.dashboard"), icon: "grid" }] },
+    {
+      label: t("admin.groups.steering"),
+      items: [
+        { to: "/", label: t("admin.nav.dashboard"), icon: "grid" },
+        { to: "/documents", label: t("admin.nav.documents"), icon: "receipt" },
+      ],
+    },
     {
       label: t("admin.groups.sales"),
       items: [
@@ -112,6 +119,7 @@ function useNav(): AdminNavGroup[] {
 
 // Screens that exist; every other entry of the menu shows "coming soon".
 const SCREENS: Record<string, ReactNode> = {
+  "/documents": <DocumentsPage />,
   "/stock": <LocationsPage />,
   "/camions": <TruckDayPage />,
   "/journees": <DayClosingsPage />,

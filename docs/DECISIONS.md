@@ -1377,3 +1377,22 @@ real phone.
   whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
+
+**D-102 · One "Documents" page reads every document from the apps that own them (P2-T11)** · accepted · 2026-10-12
+Asked by Mahmoud from another ERP's screen: one list of every document, children under their parent, the next action on
+each row. **Devis = commande client, bon d'achat = commande fournisseur** (Mahmoud): no CC or CF document. A BL may
+start without a devis and a BR without a bon d'achat. **No new table and no generic `Document` model**: each app
+describes its own documents with `apps.core.documents.DocumentRow` from its selectors (`sales.selectors.document_rows`:
+DV, BL, FA, AV; `purchasing.selectors.document_rows`: BA, BR, FF) and the read-only app `doclist` merges them
+(`GET /document-index`, newest day first, at most 1000 rows with `truncated`). A row carries its `parents` as keys
+(`"BL:12"`; an FF lists all its BR, an FA its BL), a `tone` for the colour (draft, waiting, done, cancelled), the model's
+own status label, the PDF kind when one exists in that state, and **`actions`: what the person may do next, computed
+on the server** from the same rules as the services and empty for the accountant (drivers get 403). The page draws the
+tree itself (each document under the first parent present; a parent outside the period makes it a root) and runs each
+action through the endpoint of the owning app (`sendQuote`, `confirmSale`, `issueInvoice`, `postSupplierInvoice`...),
+or opens the existing form for what needs one (edit, credit note, receipt from an order, supplier invoice, payment):
+the forms keep their rules (price in force, FIFO, credit limit) in one place instead of a second copy in a side panel.
+Type and status filters run in the browser so the chips can count every type of the period; period and search run on
+the server. `/achats/factures/nouvelle?reception=<id>` now ticks that receipt. **Not done:** one devis in several BL
+(P2-T11 part 2, agreed with Mahmoud), supplier return RF (no supplier credit note yet, and `RF-` numbers supplier
+payments).

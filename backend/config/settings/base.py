@@ -46,6 +46,7 @@ LOCAL_APPS = [
     "apps.closing",
     "apps.dayclose",
     "apps.documents",
+    "apps.doclist",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -186,5 +187,8 @@ SPECTACULAR_SETTINGS = {
         # P6-T06 · monthly closing
         "MonthlyClosingStatusEnum": "apps.closing.models.MonthlyClosingStatus",
         "MonthStateEnum": "apps.closing.models.MonthState",
+        "DocumentTypeEnum": "apps.core.documents.DOCUMENT_TYPE_CHOICES",
+        "DocumentToneEnum": "apps.core.documents.TONE_CHOICES",
+        "PartnerSideEnum": "apps.core.documents.PARTNER_SIDE_CHOICES",
     },
 }
