@@ -279,7 +279,7 @@ function Receipt({ sale, onNew }: { sale: SaleDetail; onNew: () => void }) {
     `${sale.number} · ${sale.customer.name}`,
     ...sale.lines.map(
       (line) =>
-        `${line.product.name}: ${formatQuantity(line.quantity)} kg × ${formatMoney(line.unit_price)} = ${formatMoney(line.amount)}`,
+        `${line.product.name}: ${formatQuantity(line.quantity)} × ${formatMoney(line.unit_price)} = ${formatMoney(line.amount)}`,
     ),
     `${t("truck.sale.total")}: ${formatMoney(sale.total)}`,
     `${t("truck.sale.paid")}: ${formatMoney(sale.amount_paid)}`,
@@ -294,7 +294,7 @@ function Receipt({ sale, onNew }: { sale: SaleDetail; onNew: () => void }) {
           {sale.lines.map((line) => (
             <li key={line.id} className="flex items-baseline justify-between gap-3 py-2">
               <span>
-                {line.product.name} · {formatQuantity(line.quantity)} kg
+                {line.product.name} · {formatQuantity(line.quantity)}
               </span>
               <span className="font-semibold">{formatMoney(line.amount)}</span>
             </li>
@@ -339,7 +339,7 @@ function QueuedReceipt({ sale, onNew }: { sale: QueuedSale; onNew: () => void })
           {sale.estimate.lines.map((line) => (
             <li key={line.name} className="flex items-baseline justify-between gap-3 py-2">
               <span>
-                {line.name} · {formatQuantity(line.kilos)} kg
+                {line.name} · {formatQuantity(line.kilos)}
               </span>
               <span className="font-semibold">{formatMoney(line.amount)}</span>
             </li>
