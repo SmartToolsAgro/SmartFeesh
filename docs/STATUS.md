@@ -89,6 +89,8 @@ a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` an
 
 ## Recently done
 
+- 2026-10-12 · Driver app fixes: "Mon stock" tab built (was a placeholder); "Ma journée" shows the kilos
+  still in the truck when nothing was loaded today; a screen that crashes shows a message instead of a blank page.
 - 2026-10-12 · P2-T11 part 1: "Documents" page `/documents` (every DV, BL, FA, AV, BA, BR, FF as chains with their
   actions, D-102); part 2: one devis delivered in several BL (D-115).
 - 2026-10-12 · P3-T01 to P3-T06 (driver app)
@@ -96,5 +98,4 @@ a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` an
 - 2026-10-11 · P1-T11, P2-T02, P2-T03, P2-T04, P5-T01, P5-T03, P5-T04
 - 2026-10-11 · P1-T08, P1-T09, P1-T10, P1-T12, P2-T01 (first parallel wave)
 - 2026-10-11 · Plan updated after the client meeting (per-lot profit)
-- 2026-10-11 · P1-T07 goods receipts
 - 2026-10-11 · P1-T06c rebuild and nightly check

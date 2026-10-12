@@ -1,4 +1,11 @@
-import { useAssignTruck, useGetMyDay, useGetMyTruckDay, useListMyTruckChoices, useOpenMyDay } from "@frutti/api";
+import {
+  useAssignTruck,
+  useGetMyDay,
+  useGetMyTruckDay,
+  useListMyStock,
+  useListMyTruckChoices,
+  useOpenMyDay,
+} from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState, Field, Input, toast } from "@frutti/ui";
@@ -64,7 +71,13 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
       onError: () => toast.error(t("truck.day.startFailed")),
     },
   });
-  const lines = load.data?.lines.filter((line) => Number(line.loaded) > 0) ?? [];
+  // Kilos left on the truck from an earlier day are not in today's load: show them as "in the truck".
+  const stock = useListMyStock({ query: { retry: false } });
+  const loadedToday = load.data?.lines.filter((line) => Number(line.loaded) > 0) ?? [];
+  const lines =
+    loadedToday.length > 0
+      ? loadedToday.map((line) => ({ ...line, quantity: line.loaded }))
+      : (stock.data ?? []).filter((line) => Number(line.quantity) > 0);
   const started = day.data !== undefined;
   const cashValue = parseDecimalInput(cash.trim(), 3);
 
@@ -75,19 +88,19 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         <p className="text-2xl font-bold">{truck.name}</p>
         <p className="text-ink-2">{truck.plate}</p>
       </Card>
-      {load.isLoading ? null : lines.length === 0 ? (
+      {load.isLoading || stock.isLoading ? null : lines.length === 0 ? (
         <EmptyState illustration="fridge" title={t("truck.day.nothingLoaded")}>
           {t("truck.day.nothingLoadedBody")}
         </EmptyState>
       ) : (
         <Card>
-          <h2 className="mb-3">{t("truck.day.loaded")}</h2>
+          <h2 className="mb-3">{t(loadedToday.length > 0 ? "truck.day.loaded" : "truck.day.inTruck")}</h2>
           <ul className="divide-y divide-line">
             {lines.map((line) => (
               <li key={line.product_id} className="flex items-center justify-between gap-3 py-3">
                 <span className="text-lg font-semibold">{line.product_name}</span>
                 <span className="text-end">
-                  <span className="block text-xl font-bold">{formatQuantity(line.loaded)}</span>
+                  <span className="block text-xl font-bold">{formatQuantity(line.quantity)}</span>
                   {line.unit_price === null ? null : (
                     <span className="text-sm text-ink-2">{formatMoney(line.unit_price)} / kg</span>
                   )}
