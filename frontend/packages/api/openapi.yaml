@@ -17313,11 +17313,13 @@ components:
       - sale
       - expense
       - loss
+      - payment
       type: string
       description: |-
         * `sale` - sale
         * `expense` - expense
         * `loss` - loss
+        * `payment` - payment
     Transfer:
       type: object
       properties:

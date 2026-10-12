@@ -1,10 +1,4 @@
-import {
-  ApiError,
-  collectMyPayment,
-  type CustomerChoice,
-  useListMyCustomers,
-  useListMyPayments,
-} from "@frutti/api";
+import { ApiError, collectMyPayment, type CustomerChoice, useListMyCustomers, useListMyPayments } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState, Input, toast } from "@frutti/ui";
@@ -72,9 +66,7 @@ export function PaymentPage() {
       void queryClient.invalidateQueries();
       void sendWaiting(queryClient);
     } catch (failure) {
-      setError(
-        (failure instanceof ApiError ? messagesOf(failure.body).join(" ") : "") || t("truck.payment.failed"),
-      );
+      setError((failure instanceof ApiError ? messagesOf(failure.body).join(" ") : "") || t("truck.payment.failed"));
     } finally {
       setSaving(false);
     }
