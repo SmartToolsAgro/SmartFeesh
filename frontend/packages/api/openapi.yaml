@@ -3511,6 +3511,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/RoadLoss'
           description: ''
+  /api/v1/my-payments:
+    get:
+      operationId: listMyPayments
+      description: What the driver collected from customers today, newest first.
+      tags:
+      - my-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoadPayment'
+          description: ''
+    post:
+      operationId: collectMyPayment
+      description: |-
+        Record money a customer handed over today. It settles their oldest open sales first, and counts in
+        the day's cash when it is cash. The same `client_uuid` sent twice records it once.
+      tags:
+      - my-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadPayment'
+          description: ''
   /api/v1/my-return:
     post:
       operationId: returnMyStock
@@ -8140,11 +8185,17 @@ components:
         is_walk_in:
           type: boolean
           readOnly: true
+        owes:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - city
       - id
       - is_walk_in
       - name
+      - owes
     CustomerContact:
       type: object
       properties:
@@ -8951,6 +9002,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        payments_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         other_payments:
           type: string
           format: decimal
@@ -8985,6 +9041,7 @@ components:
       - on_credit
       - opening_cash
       - other_payments
+      - payments_cash
       - products
       - sales_count
       - sales_total
@@ -11517,6 +11574,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/PartnershipStatusEnum'
           readOnly: true
+        terms_pending:
+          type: boolean
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -11555,6 +11615,7 @@ components:
       - partner_capital
       - profit_rate
       - status
+      - terms_pending
     LotPartnershipCancel:
       type: object
       properties:
@@ -11600,6 +11661,9 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/PartnershipStatusEnum'
+          readOnly: true
+        terms_pending:
+          type: boolean
           readOnly: true
         notes:
           type: string
@@ -11649,6 +11713,7 @@ components:
       - partner_capital
       - profit_rate
       - status
+      - terms_pending
     LotPartnershipWrite:
       type: object
       properties:
@@ -14812,6 +14877,10 @@ components:
           type: string
           format: date
           nullable: true
+        partner:
+          type: integer
+          minimum: 1
+          nullable: true
       required:
       - accepted_quantity
       - invoiced_quantity
@@ -15497,6 +15566,52 @@ components:
       - product
       - quantity
       - reason
+    RoadPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          readOnly: true
+      required:
+      - amount
+      - customer_name
+      - id
+      - method
+      - number
+    RoadPaymentWrite:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          default: cash
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - amount
+      - customer
     RoadReturn:
       type: object
       properties:
@@ -17460,11 +17575,13 @@ components:
       - sale
       - expense
       - loss
+      - payment
       type: string
       description: |-
         * `sale` - sale
         * `expense` - expense
         * `loss` - loss
+        * `payment` - payment
     Transfer:
       type: object
       properties:

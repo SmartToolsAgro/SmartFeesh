@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
-from apps.core.models import Membership, Organization
+from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
@@ -59,7 +59,7 @@ class PurchasingView(APIView):
         return self.membership.organization
 
 
-def _resolved(organization: Organization, data: dict[str, Any]) -> dict[str, Any]:
+def _resolved(organization: Organization, data: dict[str, Any], *, is_owner: bool = False) -> dict[str, Any]:
     """The ids of a receipt replaced by the rows they name in the organization; unknown ids are field errors."""
     errors: dict[str, str] = {}
     supplier = location = None
@@ -84,7 +84,17 @@ def _resolved(organization: Organization, data: dict[str, Any]) -> dict[str, Any
         except ObjectDoesNotExist:
             errors[services.line_error_key(index, "product")] = _("Produit inconnu.")
             continue
-        lines.append({**line, "product": product})
+        partner = None
+        if line.get("partner") is not None:
+            # Partners are the owner's business (D-060), like the rest of the partnership screens.
+            if not is_owner:
+                errors[services.line_error_key(index, "partner")] = _("Seul le propriétaire choisit un partenaire.")
+            else:
+                try:
+                    partner = partners.supplier_of(organization, line["partner"])
+                except ObjectDoesNotExist:
+                    errors[services.line_error_key(index, "partner")] = _("Fournisseur inconnu.")
+        lines.append({**line, "product": product, "partner": partner})
     if errors:
         raise ValidationError(errors)
     return {**data, "supplier": supplier, "location": location, "purchase_order": order, "lines": lines}
@@ -120,7 +130,7 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
         against that bon d'achat: only its products, and only the part that arrived (partial receipts)."""
         serializer = ReceiptWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = _resolved(self.organization, serializer.validated_data)
+        data = _resolved(self.organization, serializer.validated_data, is_owner=self.membership.role == Role.OWNER)
         receipt = services.create_receipt(organization=self.organization, actor=self.membership.user, **data)
         return Response(
             ReceiptSerializer(selectors.receipt_of(self.organization, receipt.pk)).data,

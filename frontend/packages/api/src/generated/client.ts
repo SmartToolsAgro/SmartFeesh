@@ -202,6 +202,8 @@ import type {
   RoadExpenseWrite,
   RoadLoss,
   RoadLossWrite,
+  RoadPayment,
+  RoadPaymentWrite,
   RoadReturn,
   SalaryAdjustment,
   SalaryPayment,
@@ -11305,6 +11307,190 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getReportMyLossMutationOptions(options), queryClient);
+    }
+
+export const getListMyPaymentsUrl = () => {
+
+
+
+
+  return `/api/v1/my-payments`
+}
+
+/**
+ * What the driver collected from customers today, newest first.
+ */
+export const listMyPayments = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RoadPayment[]> => {
+
+  return apiFetch<RoadPayment[]>(getListMyPaymentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyPaymentsQueryKey = () => {
+    return [
+    `/api/v1/my-payments`
+    ] as const;
+    }
+
+
+export const getListMyPaymentsQueryOptions = <TData = Awaited<ReturnType<typeof listMyPayments>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyPayments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyPaymentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyPayments>>> = ({ signal }) => listMyPayments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyPayments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyPaymentsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyPayments>>>
+export type ListMyPaymentsQueryError = unknown
+
+
+export function useListMyPayments<TData = Awaited<ReturnType<typeof listMyPayments>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyPayments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyPayments>>,
+          TError,
+          Awaited<ReturnType<typeof listMyPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyPayments<TData = Awaited<ReturnType<typeof listMyPayments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyPayments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyPayments>>,
+          TError,
+          Awaited<ReturnType<typeof listMyPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyPayments<TData = Awaited<ReturnType<typeof listMyPayments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyPayments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyPayments<TData = Awaited<ReturnType<typeof listMyPayments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyPayments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyPaymentsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCollectMyPaymentUrl = () => {
+
+
+
+
+  return `/api/v1/my-payments`
+}
+
+/**
+ * Record money a customer handed over today. It settles their oldest open sales first, and counts in
+ * the day's cash when it is cash. The same `client_uuid` sent twice records it once.
+ */
+export const collectMyPayment = async (roadPaymentWrite: RoadPaymentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<RoadPayment> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<RoadPayment>(getCollectMyPaymentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roadPaymentWrite)
+  }
+);}
+
+
+
+
+
+export const getCollectMyPaymentMutationKey = () => ['collectMyPayment'] as const;
+
+export const getCollectMyPaymentMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectMyPayment>>, TError,CollectMyPaymentMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof collectMyPayment>>, TError,CollectMyPaymentMutationVariables, TContext> => {
+
+const mutationKey = getCollectMyPaymentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof collectMyPayment>>, CollectMyPaymentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  collectMyPayment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CollectMyPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof collectMyPayment>>>
+    export type CollectMyPaymentMutationBody = RoadPaymentWrite
+    export type CollectMyPaymentMutationError = unknown
+    export type CollectMyPaymentMutationVariables = {data: RoadPaymentWrite}
+
+    export const useCollectMyPayment = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectMyPayment>>, TError,CollectMyPaymentMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof collectMyPayment>>,
+        TError,
+        CollectMyPaymentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCollectMyPaymentMutationOptions(options), queryClient);
     }
 
 export const getReturnMyStockUrl = () => {

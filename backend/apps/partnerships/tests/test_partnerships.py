@@ -4,13 +4,17 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
+from apps.catalog.tests.factories import ProductFactory
+from apps.closing import services as closing
 from apps.closing.tests.conftest import client_for, member, partnership, receive, sell
 from apps.core.models import AuditLog, Role
 from apps.core.tests.factories import MembershipFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.partnerships import selectors, services
 from apps.partnerships.models import CapitalEntry, CapitalEntryKind, PartnershipStatus
+from apps.purchasing import services as purchasing
 
 pytestmark = pytest.mark.django_db
 D = Decimal
@@ -207,3 +211,79 @@ def test_another_organization_sees_nothing(organization, actor, cold_room, partn
 
     assert stranger.get(f"/api/v1/partnerships/{created.pk}").status_code == 404
     assert stranger.get("/api/v1/partnerships").json()["count"] == 0
+
+
+# ---- A partner named at the goods receipt, terms filled in later (D-100) ----
+
+
+def receipt_with_partner(organization, actor, cold_room, supplier, *, partner):
+    receipt = purchasing.create_receipt(
+        organization=organization,
+        actor=actor,
+        supplier=supplier,
+        location=cold_room,
+        received_on=timezone.localdate(),
+        lines=[
+            {
+                "product": ProductFactory.create(organization=organization),
+                "invoiced_quantity": "50.000",
+                "accepted_quantity": "50.000",
+                "unit_cost": "20.000",
+                "partner": partner,
+            }
+        ],
+    )
+    return receipt.lines.get().batch
+
+
+def test_the_supplier_of_a_receipt_can_be_its_partner_with_the_terms_still_to_fill(
+    organization, actor, cold_room, partner
+):
+    batch = receipt_with_partner(organization, actor, cold_room, partner, partner=partner)
+
+    created = selectors.live_partnership_of_batch(organization, batch_id=batch.pk)
+
+    assert created is not None
+    assert (created.partner_id, created.terms_pending) == (partner.pk, True)
+    assert (created.owner_capital, created.partner_capital, created.profit_rate) == (D("0.000"),) * 2 + (D("0.00"),)
+    assert entries(created) == []
+
+
+def test_filling_the_terms_clears_the_pending_flag_even_after_a_sale(organization, actor, cold_room, partner):
+    batch = receipt_with_partner(organization, actor, cold_room, partner, partner=partner)
+    sell(organization, actor, cold_room, batch, "10.000", "30.000")
+    created = selectors.live_partnership_of_batch(organization, batch_id=batch.pk)
+    assert created is not None
+
+    filled = services.update_partnership(
+        partnership=created,
+        actor=actor,
+        owner_capital="1000.000",
+        partner_capital="500.000",
+        profit_rate="40",
+        loss_rate="25",
+    )
+
+    assert (filled.terms_pending, filled.partner_capital) == (False, D("500.000"))
+    assert entries(filled) == [(CapitalEntryKind.CONTRIBUTION, D("500.000"))]
+    with pytest.raises(ValidationError):  # fixed now, as any partnership once the lot sold
+        services.update_partnership(partnership=filled, actor=actor, profit_rate="50")
+
+
+def test_a_lot_whose_partnership_terms_are_pending_cannot_close(organization, actor, cold_room, partner):
+    batch = receipt_with_partner(organization, actor, cold_room, partner, partner=partner)
+    sell(organization, actor, cold_room, batch, "50.000", "30.000")
+
+    with pytest.raises(ValidationError) as refused:
+        closing.close_lot(organization=organization, actor=actor, batch_id=batch.pk, costs_confirmed=True)
+
+    assert "complétez-le" in refused.value.messages[0]
+
+
+def test_an_archived_partner_is_refused_on_the_receipt_line(organization, actor, cold_room, partner):
+    archived = SupplierFactory.create(organization=organization, is_active=False)
+
+    with pytest.raises(ValidationError) as refused:
+        receipt_with_partner(organization, actor, cold_room, partner, partner=archived)
+
+    assert "lines.0.partner" in errors_of(refused)

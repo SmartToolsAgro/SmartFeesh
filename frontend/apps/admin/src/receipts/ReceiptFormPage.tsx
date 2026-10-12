@@ -40,10 +40,12 @@ import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-
 
 import { lineTotal, percentChange, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { canWriteResults } from "../partnerships/shared";
 import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, refreshAfterReceipt, todayInTunis } from "./shared";
 
-type LineField = "product" | "ordered_quantity" | "invoiced_quantity" | "accepted_quantity" | "unit_cost" | "use_by";
+type LineField =
+  "product" | "ordered_quantity" | "invoiced_quantity" | "accepted_quantity" | "unit_cost" | "use_by" | "partner";
 type Line = Record<LineField, string> & {
   key: number;
   // Once a person types in these, the form stops filling them in.
@@ -51,6 +53,9 @@ type Line = Record<LineField, string> & {
   costTouched: boolean;
 };
 type Errors = Record<string, string>;
+
+// "No partner" in a line's partner select (a Radix item cannot have an empty value).
+const NO_PARTNER = "none";
 
 // Gives each line a stable React key, also for lines not saved yet.
 let nextKey = 0;
@@ -64,6 +69,7 @@ function newLine(): Line {
     accepted_quantity: "",
     unit_cost: "",
     use_by: "",
+    partner: NO_PARTNER,
     acceptedTouched: false,
     costTouched: false,
   };
@@ -198,6 +204,7 @@ export function ReceiptFormPage() {
         accepted_quantity: accepted ?? "",
         unit_cost: cost ?? "",
         use_by: line.use_by || null,
+        partner: line.partner === NO_PARTNER ? null : Number(line.partner),
       });
     });
     setErrors(found);
@@ -427,7 +434,25 @@ export function ReceiptFormPage() {
                     aria-invalid={errors[lineKey(index, "use_by")] ? true : undefined}
                   />
                 </Field>
-                <p className="col-span-4 self-end text-[0.85rem] text-ink-2 max-[960px]:col-span-2" aria-live="polite">
+                {canWriteResults(session) &&
+                  select(
+                    lineKey(index, "partner"),
+                    t("admin.receipts.form.partner"),
+                    line.partner,
+                    (value) => setLine(line.key, () => ({ partner: value })),
+                    [
+                      { value: NO_PARTNER, label: t("admin.receipts.form.noPartner") },
+                      ...(suppliers.data ?? []).map((one) => ({
+                        value: String(one.id),
+                        label: String(one.id) === supplier ? t("admin.receipts.form.sameSupplier") : one.name,
+                      })),
+                    ],
+                    "col-span-2 max-[960px]:col-span-2",
+                  )}
+                <p
+                  className={`self-end text-[0.85rem] text-ink-2 max-[960px]:col-span-2 ${canWriteResults(session) ? "col-span-2" : "col-span-4"}`}
+                  aria-live="polite"
+                >
                   {hint}
                 </p>
                 <p className="num self-end text-end font-semibold max-[960px]:col-span-2">
