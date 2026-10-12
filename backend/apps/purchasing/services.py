@@ -664,6 +664,55 @@ def create_invoice(
 
 
 @transaction.atomic
+def create_opening_invoice(
+    *,
+    organization: Organization,
+    actor: User | None,
+    supplier: "Supplier",
+    amount: Number,
+    invoice_date: dt.date,
+    due_date: dt.date | None = None,
+    supplier_reference: str = "",
+    notes: str = "",
+) -> SupplierInvoice:
+    """What a supplier was already owed when the system started: a posted invoice with its amount typed and no
+    receipts (D-112). It is a payable like any other: payments settle it, the balance counts it."""
+    due_date = due_date or invoice_date
+    errors = _invoice_header_errors(organization, supplier, invoice_date, due_date)
+    try:
+        total = checked_amount(amount)
+    except (ValueError, TypeError):
+        total = Decimal("0.000")
+        errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    else:
+        if total <= 0:
+            errors["amount"] = _("Le montant doit être supérieur à 0.")
+    if errors:
+        raise ValidationError(errors)
+    invoice = SupplierInvoice.objects.create(
+        organization=organization,
+        number=_next_document_number(organization, DocumentKind.SUPPLIER_INVOICE, INVOICE_NUMBER_PREFIX),
+        supplier=supplier,
+        supplier_reference=supplier_reference.strip(),
+        invoice_date=invoice_date,
+        due_date=due_date,
+        notes=notes.strip(),
+        total=total,
+        is_opening=True,
+        created_by=actor,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="supplier_invoice.opening",
+        target=invoice,
+        after=_invoice_snapshot(invoice),
+    )
+    _post(invoice, actor)
+    return invoice
+
+
+@transaction.atomic
 def update_invoice(
     *,
     invoice: SupplierInvoice,

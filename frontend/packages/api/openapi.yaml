@@ -11109,6 +11109,8 @@ components:
       - customers
       - employees
       - opening_stock
+      - customer_debts
+      - supplier_debts
       type: string
       description: |-
         * `products` - products
@@ -11116,6 +11118,8 @@ components:
         * `customers` - customers
         * `employees` - employees
         * `opening_stock` - opening_stock
+        * `customer_debts` - customer_debts
+        * `supplier_debts` - supplier_debts
     ImportRow:
       type: object
       properties:
@@ -14246,14 +14250,6 @@ components:
       - partner_name
       - profit_share
       - trade_payable
-    PartnerSideEnum:
-      enum:
-      - customer
-      - supplier
-      type: string
-      description: |-
-        * `customer` - customer
-        * `supplier` - supplier
     PartnerLine:
       type: object
       properties:
@@ -14341,6 +14337,14 @@ components:
       - date_to
       - rows
       - totals
+    PartnerSideEnum:
+      enum:
+      - customer
+      - supplier
+      type: string
+      description: |-
+        * `customer` - customer
+        * `supplier` - supplier
     PartnershipBatch:
       type: object
       properties:

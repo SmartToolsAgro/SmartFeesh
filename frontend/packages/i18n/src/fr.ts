@@ -235,6 +235,8 @@ export const fr = {
         customers: "Clients",
         employees: "Employés",
         opening_stock: "Stock d'ouverture",
+        customer_debts: "Dettes clients",
+        supplier_debts: "Dettes fournisseurs",
       },
       step1: "1. Télécharger le modèle",
       download: "Modèle Excel : {{name}}",

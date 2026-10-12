@@ -141,4 +141,46 @@ OPENING_STOCK = ImportKind(
     ),
 )
 
-KINDS: dict[str, ImportKind] = {kind.key: kind for kind in (PRODUCTS, SUPPLIERS, CUSTOMERS, EMPLOYEES, OPENING_STOCK)}
+CUSTOMER_DEBTS = ImportKind(
+    "customer_debts",
+    "Dettes clients",
+    (
+        Column(
+            "customer", "Client (référence)", required=True, help="La référence d'un client connu.", example="C-001"
+        ),
+        Column("amount", "Montant dû (DT)", "decimal", True, "Ce que le client doit encore à l'ouverture.", "1250,000"),
+        Column(
+            "owed_on",
+            "Dû depuis le",
+            "date",
+            True,
+            "Date de la dette : l'ancienneté en part (JJ/MM/AAAA).",
+            "15/09/2026",
+        ),
+        Column("notes", "Remarques", help="Par exemple le numéro de la facture papier."),
+    ),
+)
+
+SUPPLIER_DEBTS = ImportKind(
+    "supplier_debts",
+    "Dettes fournisseurs",
+    (
+        Column(
+            "supplier",
+            "Fournisseur (référence)",
+            required=True,
+            help="La référence d'un fournisseur connu.",
+            example="F-001",
+        ),
+        Column("amount", "Montant dû (DT)", "decimal", True, "Ce que vous lui devez encore à l'ouverture.", "3400,000"),
+        Column("invoice_date", "Date de la facture", "date", True, "JJ/MM/AAAA.", "20/09/2026"),
+        Column("due_date", "Échéance", "date", help="Vide : le jour de la facture."),
+        Column("supplier_reference", "N° de facture du fournisseur"),
+        Column("notes", "Remarques"),
+    ),
+)
+
+KINDS: dict[str, ImportKind] = {
+    kind.key: kind
+    for kind in (PRODUCTS, SUPPLIERS, CUSTOMERS, EMPLOYEES, OPENING_STOCK, CUSTOMER_DEBTS, SUPPLIER_DEBTS)
+}

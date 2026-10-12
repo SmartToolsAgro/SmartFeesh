@@ -823,6 +823,77 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     raise ValidationError({"credit_limit": message})
 
 
+OPENING_RECEIVABLE_PREFIX = "OUV"
+
+
+@transaction.atomic
+def create_opening_receivable(
+    *,
+    organization: Organization,
+    actor: User | None,
+    customer: "Customer",
+    amount: Number,
+    owed_on: dt.date,
+    notes: str = "",
+) -> Sale:
+    """What a customer already owed when the system started: a confirmed sale without lines or stock (D-112).
+
+    It is a receivable like any other (balance, ageing from `owed_on`, payments allocated to it) but is never
+    invoiced and is left out of sales counts and lot results. `OUV-<year>-0001`; immutable, like every confirmed
+    sale: a mistake is cancelled with a reason."""
+    errors: dict[str, str] = {}
+    if customer.organization_id != organization.pk:
+        errors["customer"] = _("Client inconnu.")
+    elif customer.is_walk_in:
+        errors["customer"] = _("Le client de passage ne peut pas avoir de dette.")
+    try:
+        total = checked_amount(amount)
+    except (ValueError, TypeError):
+        total = Decimal("0.000")
+        errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    else:
+        if total <= 0:
+            errors["amount"] = _("Le montant doit être supérieur à 0.")
+    if owed_on > timezone.localdate():
+        errors["owed_on"] = _("La date ne peut pas être dans le futur.")
+    if errors:
+        raise ValidationError(errors)
+    location = inventory.opening_balance_location(organization=organization, actor=actor)
+    moment = timezone.make_aware(dt.datetime.combine(owed_on, dt.time(12, 0)))
+    now = timezone.now()
+    sale = Sale.objects.create(
+        organization=organization,
+        number=_next_yearly_number(organization, OPENING_RECEIVABLE_PREFIX, owed_on.year),
+        status=SaleStatus.CONFIRMED,
+        customer=customer,
+        location=location,
+        sold_at=moment,
+        notes=notes.strip(),
+        subtotal=total,
+        total_excl_tax=total,
+        total=total,
+        cost_total=Decimal("0.000"),
+        amount_due=total,
+        is_opening=True,
+        created_by=actor,
+        confirmed_by=actor,
+        confirmed_at=now,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="sale.opening_receivable",
+        target=sale,
+        after={
+            "number": sale.number,
+            "customer": customer.reference,
+            "amount": str(total),
+            "owed_on": owed_on.isoformat(),
+        },
+    )
+    return sale
+
+
 def record_receivable(sale: Sale) -> None:
     """A confirmed sale is a receivable: its outstanding amount is refreshed (the customer's balance itself is
     always computed from the documents, `receivables.customer_balance`)."""
@@ -1520,6 +1591,8 @@ def _lots_of(line: SaleLine) -> str:
 def _checked_sale_to_invoice(sale: Sale) -> None:
     if sale.status != SaleStatus.CONFIRMED:
         raise ValidationError(_("Seule une vente confirmée se facture."))
+    if sale.is_opening:
+        raise ValidationError(_("Un solde d'ouverture ne se facture pas : la facture existe déjà sur papier."))
     if sale.customer.is_walk_in:
         raise ValidationError(
             {"customer": _("Une vente au client de passage ne se facture pas : la facture nomme son client.")}

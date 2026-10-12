@@ -91,6 +91,22 @@ def create_location(
     return location
 
 
+OPENING_LOCATION_NAME = "Solde d'ouverture"
+
+
+@transaction.atomic
+def opening_balance_location(*, organization: Organization, actor: User | None) -> StockLocation:
+    """The archived, empty "place" that opening customer debts hang on (a sale needs one). It holds no stock, takes
+    none and never shows in pickers: created and archived the first time it is asked for."""
+    found = StockLocation.objects.for_organization(organization).filter(name__iexact=OPENING_LOCATION_NAME).first()
+    if found is not None:
+        return found
+    location = create_location(
+        organization=organization, actor=actor, kind=LocationKind.OTHER, name=OPENING_LOCATION_NAME
+    )
+    return set_location_active(location=location, actor=actor, is_active=False)
+
+
 @transaction.atomic
 def update_location(
     *, location: StockLocation, actor: User | None, name: str | None = None, counter_sales: bool | None = None

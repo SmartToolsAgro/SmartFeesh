@@ -1,5 +1,6 @@
 # Frutti Del Mare ERP
 
+
 Management software for a seafood distributor: purchases, cold-room and truck stock, quotes, sales and
 invoicing, a phone app for drivers, expenses and payroll, and month-end profit sharing with partner suppliers.
 

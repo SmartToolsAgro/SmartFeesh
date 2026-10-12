@@ -3396,7 +3396,7 @@ export const RunImportBody = zod.object({
 })
 
 export const RunImportResponse = zod.object({
-  "kind": zod.enum(['products', 'suppliers', 'customers', 'employees', 'opening_stock']).describe('* `products` - products\n* `suppliers` - suppliers\n* `customers` - customers\n* `employees` - employees\n* `opening_stock` - opening_stock'),
+  "kind": zod.enum(['products', 'suppliers', 'customers', 'employees', 'opening_stock', 'customer_debts', 'supplier_debts']).describe('* `products` - products\n* `suppliers` - suppliers\n* `customers` - customers\n* `employees` - employees\n* `opening_stock` - opening_stock\n* `customer_debts` - customer_debts\n* `supplier_debts` - supplier_debts'),
   "dry_run": zod.boolean(),
   "committed": zod.boolean(),
   "created": zod.int(),
