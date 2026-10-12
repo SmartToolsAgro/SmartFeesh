@@ -10,7 +10,7 @@ from typing import Any, Literal
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import connection
-from django.db.models import Prefetch, Q, QuerySet, Sum
+from django.db.models import Max, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -937,3 +937,143 @@ def pending_losses(organization: Organization, *, date_from: dt.date, date_to: d
     return StockLoss.objects.for_organization(organization).filter(
         status="pending", lost_on__gte=date_from, lost_on__lte=date_to
     )
+
+
+# ---- Stock reports (P7-T03, D-113) ----
+
+
+@dataclass(frozen=True)
+class LocationProductValue:
+    """What one place holds of one product: kg, and what that cost (each lot's kg × its cost per kg)."""
+
+    location_id: int
+    location_name: str
+    product_id: int
+    product_name: str
+    quantity: Decimal
+    value: Decimal
+
+
+def value_by_location_product(organization: Organization) -> list[LocationProductValue]:
+    """Stock on hand now by place and product at the purchase cost of each lot, by place then product name.
+    Places holding nothing are left out (`location_totals` lists every active place)."""
+    kg: dict[tuple[int, int], Decimal] = defaultdict(lambda: Decimal("0.000"))
+    value: dict[tuple[int, int], Decimal] = defaultdict(lambda: Decimal("0.000"))
+    names: dict[tuple[int, int], tuple[str, str]] = {}
+    for row in (
+        StockOnHand.objects.for_organization(organization)
+        .filter(quantity__gt=0)
+        .select_related("location", "batch__product")
+    ):
+        key = (row.location_id, row.batch.product_id)
+        kg[key] += row.quantity
+        value[key] += line_total(row.quantity, row.batch.unit_cost)
+        names[key] = (row.location.name, row.batch.product.name)
+    return [
+        LocationProductValue(key[0], names[key][0], key[1], names[key][1], kg[key], value[key])
+        for key in sorted(kg, key=lambda k: (names[k][0].lower(), names[k][1].lower()))
+    ]
+
+
+@dataclass(frozen=True)
+class SlowLot:
+    """A lot still on hand that nothing has touched for a while."""
+
+    batch_id: int
+    batch_number: str
+    product_name: str
+    supplier_name: str
+    received_on: dt.date
+    last_movement_on: dt.date
+    days_idle: int
+    quantity: Decimal
+    value: Decimal
+
+
+def slow_moving_lots(organization: Organization, *, days: int, today: dt.date) -> list[SlowLot]:
+    """Lots with stock on hand whose last movement of any kind (receipt, sale, transfer, loss...) was `days`
+    days ago or more, longest idle first. The money is the kg on hand at the lot's purchase cost."""
+    held: dict[int, Decimal] = defaultdict(lambda: Decimal("0.000"))
+    for row in StockOnHand.objects.for_organization(organization).filter(quantity__gt=0):
+        held[row.batch_id] += row.quantity
+    last = {
+        batch_id: _local_day(moment)
+        for batch_id, moment in StockMovement.objects.for_organization(organization)
+        .filter(batch_id__in=list(held))
+        .values("batch_id")
+        .annotate(last=Max("occurred_at"))
+        .values_list("batch_id", "last")
+    }
+    lots = Batch.objects.for_organization(organization).filter(pk__in=list(held)).select_related("product", "supplier")
+    rows = []
+    for batch in lots:
+        moved_on = last.get(batch.pk, batch.received_on)
+        idle = (today - moved_on).days
+        if idle >= days:
+            rows.append(
+                SlowLot(
+                    batch.pk,
+                    batch.number,
+                    batch.product.name,
+                    batch.supplier.name,
+                    batch.received_on,
+                    moved_on,
+                    idle,
+                    held[batch.pk],
+                    line_total(held[batch.pk], batch.unit_cost),
+                )
+            )
+    return sorted(rows, key=lambda row: (-row.days_idle, row.batch_number))
+
+
+@dataclass(frozen=True)
+class ProductLoss:
+    """Per product over a period: kg written off as losses, and the net weight differences found by counts
+    and adjustments (negative: less stock than the books). Values are at the lot's cost per kg."""
+
+    product_id: int
+    product_name: str
+    lost_quantity: Decimal
+    lost_value: Decimal
+    difference_quantity: Decimal
+    difference_value: Decimal
+
+
+def losses_by_product(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> list[ProductLoss]:
+    """Losses and weight differences by product, from the ledger in the period: `loss` movements, and the
+    `count_correction` and `adjustment` movements (counts and manual corrections) as signed differences."""
+    start = timezone.make_aware(dt.datetime.combine(date_from, dt.time.min))
+    end = timezone.make_aware(dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min))
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(
+            occurred_at__gte=start,
+            occurred_at__lt=end,
+            kind__in=["loss", "count_correction", "adjustment"],
+        )
+        .select_related("batch__product")
+        .order_by("id")
+    )
+    zero = Decimal("0.000")
+    lost_kg: dict[int, Decimal] = defaultdict(lambda: zero)
+    lost_value: dict[int, Decimal] = defaultdict(lambda: zero)
+    diff_kg: dict[int, Decimal] = defaultdict(lambda: zero)
+    diff_value: dict[int, Decimal] = defaultdict(lambda: zero)
+    names: dict[int, str] = {}
+    for movement in rows:
+        if (movement.from_location_id is None) == (movement.to_location_id is None):
+            continue
+        sign = 1 if movement.to_location_id is not None else -1
+        product = movement.batch.product
+        names[product.pk] = product.name
+        amount = line_total(movement.quantity, movement.unit_cost)
+        if movement.kind == "loss":
+            lost_kg[product.pk] -= sign * movement.quantity
+            lost_value[product.pk] -= sign * amount
+        else:
+            diff_kg[product.pk] += sign * movement.quantity
+            diff_value[product.pk] += sign * amount
+    return [
+        ProductLoss(pk, names[pk], lost_kg[pk], lost_value[pk], diff_kg[pk], diff_value[pk])
+        for pk in sorted(names, key=lambda k: names[k].lower())
+    ]

@@ -170,7 +170,10 @@ export function QuoteDetailPage() {
               {t("admin.quotes.detail.stamp")}
             </div>
           )}
-          <header className="mb-4 flex flex-wrap justify-between gap-4 border-b-2 border-ink pb-4">
+          {/* The draft stamp sits in the top corner: keep the quote number clear of it. */}
+          <header
+            className={`mb-4 flex flex-wrap justify-between gap-4 border-b-2 border-ink pb-4 ${data.status === "draft" ? "pe-14" : ""}`}
+          >
             <div>
               <div className="flex items-center gap-2.5 font-display text-[1.1rem] font-extrabold">
                 <BrandMark className="size-[30px]" />

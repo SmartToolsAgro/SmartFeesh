@@ -113,4 +113,32 @@ EMPLOYEES = ImportKind(
     ),
 )
 
-KINDS: dict[str, ImportKind] = {kind.key: kind for kind in (PRODUCTS, SUPPLIERS, CUSTOMERS, EMPLOYEES)}
+OPENING_STOCK = ImportKind(
+    "opening_stock",
+    "Stock d'ouverture",
+    (
+        Column(
+            "product", "Produit (référence)", required=True, help="La référence d'un produit connu.", example="CR-001"
+        ),
+        Column(
+            "location",
+            "Emplacement",
+            required=True,
+            help="Le nom exact d'une chambre froide ou d'un camion.",
+            example="Chambre froide 1",
+        ),
+        Column(
+            "supplier",
+            "Fournisseur (référence)",
+            required=True,
+            help="Le fournisseur du lot, par sa référence.",
+            example="F-001",
+        ),
+        Column("quantity", "Quantité (kg)", "decimal", True, "Le poids en stock au jour de l'ouverture.", "120,500"),
+        Column("unit_cost", "Coût d'achat (DT/kg)", "decimal", True, "Prix d'achat du lot, sans TVA.", "21,000"),
+        Column("received_on", "Date de réception", "date", True, "Jour d'arrivée du lot (JJ/MM/AAAA).", "05/10/2026"),
+        Column("use_by", "Date limite", "date", help="JJ/MM/AAAA."),
+    ),
+)
+
+KINDS: dict[str, ImportKind] = {kind.key: kind for kind in (PRODUCTS, SUPPLIERS, CUSTOMERS, EMPLOYEES, OPENING_STOCK)}

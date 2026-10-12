@@ -1,4 +1,4 @@
-import { type ListPartnershipsStatus, useListPartnerships } from "@frutti/api";
+import { type ListPartnershipsStatus, useListLotFigures, useListPartnerships } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import { Card, cn, EmptyState, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
@@ -25,6 +25,12 @@ export function PartnershipsPage() {
     { query: { enabled: allowed } },
   );
 
+  const rows = partnerships.data?.results ?? [];
+  // The frozen figures of the closed lots on this page; an open lot has none (its result is live, on its page).
+  const batchIds = rows.map((row) => row.batch.id).join(",");
+  const figures = useListLotFigures({ batch_ids: batchIds }, { query: { enabled: allowed && batchIds !== "" } });
+  const figureOf = (batchId: number) => figures.data?.find((figure) => figure.batch_id === batchId);
+
   if (!allowed) {
     return (
       <>
@@ -34,7 +40,6 @@ export function PartnershipsPage() {
     );
   }
 
-  const rows = partnerships.data?.results ?? [];
   return (
     <>
       <PageHeader eyebrow={t("admin.partnerships.eyebrow")} title={t("admin.partnerships.title")} />
@@ -82,6 +87,10 @@ export function PartnershipsPage() {
                 <Th>{t("admin.partnerships.columns.product")}</Th>
                 <Th>{t("admin.partnerships.columns.partner")}</Th>
                 <Th numeric>{t("admin.partnerships.columns.capital")}</Th>
+                <Th numeric>{t("admin.partnerships.columns.net")}</Th>
+                <Th numeric className="max-[720px]:hidden">
+                  {t("admin.partnerships.columns.share")}
+                </Th>
                 <Th className="max-[720px]:hidden">{t("admin.partnerships.columns.rates")}</Th>
                 <Th>{t("admin.partnerships.columns.status")}</Th>
               </tr>
@@ -99,6 +108,18 @@ export function PartnershipsPage() {
                   <Td>{row.partner.name}</Td>
                   <Td numeric className="whitespace-nowrap">
                     {formatMoney(row.capital)}
+                  </Td>
+                  <Td numeric className="whitespace-nowrap">
+                    {figureOf(row.batch.id) ? (
+                      <span className={figureOf(row.batch.id)?.outcome === "loss" ? "text-bad" : undefined}>
+                        {formatMoney(figureOf(row.batch.id)?.net_result ?? "0")}
+                      </span>
+                    ) : (
+                      <span className="text-[0.8rem] text-ink-2">{t("admin.partnerships.notClosed")}</span>
+                    )}
+                  </Td>
+                  <Td numeric className="whitespace-nowrap max-[720px]:hidden">
+                    {figureOf(row.batch.id) ? formatMoney(figureOf(row.batch.id)?.partner_share ?? "0") : "—"}
                   </Td>
                   <Td className="num max-[720px]:hidden">
                     {t("admin.partnerships.rates", {
