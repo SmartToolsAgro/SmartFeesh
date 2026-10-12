@@ -1544,6 +1544,43 @@ export const RestoreCustomerResponse = zod.object({
 
 
 /**
+ * The owner's home page: this month's sales, margin and net result (profit), the cash collected and
+ * what customers still owe (cash), the stock value, and a short list of what needs a look. Owner and
+ * accountant only.
+ */
+export const getDashboardResponseSalesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponsePreviousSalesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseGrossMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseCashCollectedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseReceivablesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseReceivablesOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseStockValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseOverdueCustomersItemOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetDashboardResponse = zod.object({
+  "month": zod.iso.date(),
+  "sales": zod.stringFormat('decimal', getDashboardResponseSalesRegExp),
+  "previous_sales": zod.stringFormat('decimal', getDashboardResponsePreviousSalesRegExp),
+  "gross_margin": zod.stringFormat('decimal', getDashboardResponseGrossMarginRegExp),
+  "net_result": zod.stringFormat('decimal', getDashboardResponseNetResultRegExp),
+  "cash_collected": zod.stringFormat('decimal', getDashboardResponseCashCollectedRegExp),
+  "receivables": zod.stringFormat('decimal', getDashboardResponseReceivablesRegExp),
+  "receivables_overdue": zod.stringFormat('decimal', getDashboardResponseReceivablesOverdueRegExp),
+  "stock_value": zod.stringFormat('decimal', getDashboardResponseStockValueRegExp),
+  "overdue_customers": zod.array(zod.object({
+  "customer_id": zod.int(),
+  "name": zod.string(),
+  "overdue": zod.stringFormat('decimal', getDashboardResponseOverdueCustomersItemOverdueRegExp)
+})),
+  "overdue_customer_count": zod.int(),
+  "days_waiting": zod.int(),
+  "expenses_waiting": zod.int()
+})
+
+
+/**
  * Days sent by the drivers, newest first. Filter by status.
  */
 export const ListDayClosingsQueryParams = zod.object({

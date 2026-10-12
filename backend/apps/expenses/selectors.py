@@ -458,3 +458,8 @@ def month_expenses(organization: Organization, *, date_from: dt.date, date_to: d
         waiting_count=waiting_count,
         waiting_amount=waiting.waiting,
     )
+
+
+def waiting_for_approval(organization: Organization) -> int:
+    """Expenses sent for approval and not decided yet (the dashboard's alert; drafts are still being typed)."""
+    return Expense.objects.for_organization(organization).filter(status=ExpenseStatus.PENDING).count()

@@ -1377,3 +1377,14 @@ real phone.
   whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
+
+**D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
+`GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
+month up to today. **Profit and cash are two separate groups.** Profit: sales, gross margin and net operating result come
+straight from `closing.monthly.month_report` (nothing is recomputed), plus last month's sales for the % change. Cash: money
+collected this month (what customers paid on the spot at a confirmed sale plus their later payments, voided ones left out:
+`sales.selectors.cash_collected`), what customers still owe and the overdue part (the ageing page's "customers who owe",
+`sales.selectors.receivables_overview`), and the stock value at cost (the month-end valuation, which for the current month is
+today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
+(`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
+**Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
