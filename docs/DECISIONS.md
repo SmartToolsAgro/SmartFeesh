@@ -1107,7 +1107,7 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - Known gaps: no settlement PDF (P6-T04); a cancelled partnership with capital returned is not part of the
   balances beyond its ledger; the settlement uses today's date (no back-dating field).
 
-**D-070 · Back button, truck-of-day menu entry, sticky filter bars** · accepted · 2026-10-11
+**D-110 · Back button, truck-of-day menu entry, sticky filter bars** (numbered D-070 until 2026-10-12, a duplicate) · accepted · 2026-10-11
 - `AdminShell` shows a "Retour" button on every page that is not a menu entry (previous page, or the parent menu
   entry when opened directly). "Camions du jour" (D-046) is its own menu entry `/camions`, no longer a section of
   the Stock page. Filter bars of list pages use the `filter-bar` class: sticky under the 62px top bar.
@@ -1312,7 +1312,7 @@ it is needed. The truck app's queries use `networkMode: "offlineFirst"` so they 
 saved answer. Logging out deletes the saved API answers, so the next driver on the phone sees none of them. A banner
 says when there is no signal. Not yet shown: the time of the last update on each screen.
 
-**D-095 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** · accepted · 2026-10-12
+**D-109 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** (numbered D-095 until 2026-10-12, a duplicate) · accepted · 2026-10-12
 Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
 rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
 customers the driver sold to most recently first (up to 8), then the others by name, the walk-in customer last.

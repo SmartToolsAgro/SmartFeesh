@@ -997,7 +997,7 @@ export const fr = {
       withholding: {
         title: "Retenues à la source (pour le comptable)",
         summary:
-          "{{count}} certificats pour {{total}} DT. {{awaiting}} factures attendent encore leur certificat ({{awaitingTotal}} DT prévus).",
+          "{{count}} certificats pour {{total}}. {{awaiting}} factures attendent encore leur certificat ({{awaitingTotal}} prévus).",
         month: "Mois",
         count: "Certificats",
         amount: "Montant",
@@ -1989,7 +1989,7 @@ export const fr = {
     },
     // ---- Stock screens (P1-T11) ----
     stock: {
-      locationLine: "{{quantity}} kg · {{value}} DT",
+      locationLine: "{{quantity}} · {{value}}",
       productsTitle: "Stock par produit",
       productsIntro:
         "Chaque carte montre les kilos de chaque emplacement. Le prix d'achat moyen sert à fixer les prix de vente : les ventes restent valorisées lot par lot (FIFO).",
@@ -1997,10 +1997,10 @@ export const fr = {
       low: "Sous le seuil",
       enough: "OK",
       total: "Total",
-      minimum: "Seuil : {{quantity}} kg",
+      minimum: "Seuil : {{quantity}}",
       averageCost: "Prix d'achat moyen",
       lastCost: "Dernier prix d'achat",
-      perKg: "DT/kg",
+      perKg: "/ kg",
       none: "—",
       outside: "Extérieur",
       loadError: "Le stock n'a pas pu être chargé.",
@@ -2539,7 +2539,7 @@ export const fr = {
         how: "Imputation",
         amount: "Montant",
       },
-      truckShare: "{{truck}} : {{quantity}} kg sur {{total}} kg chargés ({{amount}} au total)",
+      truckShare: "{{truck}} : {{quantity}} sur {{total}} chargés ({{amount}} au total)",
       onLot: "Saisi sur le lot",
       total: "Total approuvé :",
       // P5-T02, P5-T05: costs worked out from the stock ledger
@@ -2550,9 +2550,9 @@ export const fr = {
         cold_room_adjustment: "Correction facture d'électricité",
         general: "Frais généraux",
       },
-      coldRoom: "{{room}} · {{kgDays}} kg-jours ({{month}})",
+      coldRoom: "{{room}} · {{kgDays}}-jours ({{month}})",
       coldRoomAdjustment: "{{room}} · réel moins estimation ({{month}})",
-      general: "{{kgDays}} kg-jours, part de {{amount}} sur {{month}}",
+      general: "{{kgDays}}-jours, part de {{amount}} sur {{month}}",
       estimated: "Estimé",
       estimatedHint: "Estimation au tarif du mois précédent : la facture n'est pas encore saisie.",
       correction: "Correction",
@@ -2769,7 +2769,7 @@ export const fr = {
         createTitle: "Mettre le lot {{number}} en partenariat",
         editTitle: "Modifier le partenariat du lot {{number}}",
         description: "Un seul partenaire par lot. Les deux taux peuvent être différents.",
-        origin: "Lot acheté chez {{supplier}} : {{quantity}} kg à {{unitCost}}/kg, soit {{total}} au total.",
+        origin: "Lot acheté chez {{supplier}} : {{quantity}} à {{unitCost}} / kg, soit {{total}} au total.",
         partner: "Fournisseur partenaire",
         choosePartner: "Choisir un fournisseur",
         ownerCapital: "Apport du propriétaire (DT)",
@@ -2937,10 +2937,10 @@ export const fr = {
         costs_approvedFailed: "{{count}} coût(s) attendent une approbation ({{amount}})",
         customers_paid: "Clients payés",
         customers_paidFailed:
-          "Les clients doivent encore {{amount}} sur {{count}} vente(s) : vérifiez avant de clôturer",
+          "Les clients doivent encore {{amount}} sur {{count}} vente(s) de ce lot : encaissez-les avant de clôturer",
       },
       paymentsWarning:
-        "Les paiements clients ne sont pas encore suivis dans l'application : vérifiez que les clients ont payé.",
+        "Le montant est ce qui reste dû sur ces ventes entières (règlements, avoirs et retenues déduits), pas seulement sur ce lot.",
       close: "Clôturer le lot",
       closeTitle: "Clôturer le lot {{number}}",
       closeDescription:
