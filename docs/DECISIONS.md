@@ -1255,3 +1255,8 @@ the day's customer payments collected by the driver ("other payments") wait for 
   ledgers and the settlement date, so settling a lot or booking a late adjustment gives a new file.
 - **Not done:** one statement covering several lots of a partner (the three balances over time) and sending
   it by e-mail or WhatsApp; Arabic ("Haka bayek" in the partner's language) comes with P0-T08.
+
+**D-095 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** · accepted · 2026-10-12
+Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
+rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
+customers the driver sold to most recently first (up to 8), then the others by name, the walk-in customer last.

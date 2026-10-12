@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.dayclose import selectors as dayclose
 from apps.expenses import selectors, services
 from apps.expenses.models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory
 from apps.fleet import selectors as fleet
@@ -477,6 +478,7 @@ class MyRoadExpensesView(APIView):
         serializer = RoadExpenseWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        dayclose.refuse_if_day_approved(membership)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise DjangoValidationError({"truck": _("Choisissez d'abord votre camion.")})
