@@ -9487,6 +9487,450 @@ export const GenerateRecurringCostsResponse = zod.array(GenerateRecurringCostsRe
 
 
 /**
+ * Money in (paid at sales, customer payments) against money out (supplier payments, salaries paid, approved
+ * expenses) by day, week or month.
+ */
+export const GetCashFlowReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).'),
+  "group_by": zod.enum(['day', 'month', 'week']).optional()
+})
+
+export const getCashFlowReportResponseRowsItemCashInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCashFlowReportResponseRowsItemCashOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCashFlowReportResponseRowsItemNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCashFlowReportResponseTotalInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCashFlowReportResponseTotalOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCashFlowReportResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetCashFlowReportResponse = zod.object({
+  "date_from": zod.iso.date(),
+  "date_to": zod.iso.date(),
+  "group_by": zod.enum(['day', 'week', 'month']).describe('* `day` - day\n* `week` - week\n* `month` - month'),
+  "rows": zod.array(zod.object({
+  "key": zod.string(),
+  "cash_in": zod.stringFormat('decimal', getCashFlowReportResponseRowsItemCashInRegExp),
+  "cash_out": zod.stringFormat('decimal', getCashFlowReportResponseRowsItemCashOutRegExp),
+  "net": zod.stringFormat('decimal', getCashFlowReportResponseRowsItemNetRegExp)
+})),
+  "total_in": zod.stringFormat('decimal', getCashFlowReportResponseTotalInRegExp),
+  "total_out": zod.stringFormat('decimal', getCashFlowReportResponseTotalOutRegExp),
+  "net": zod.stringFormat('decimal', getCashFlowReportResponseNetRegExp)
+})
+
+
+/**
+ * The cash flow as an Excel file.
+ */
+export const ExportCashFlowReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).'),
+  "group_by": zod.enum(['day', 'month', 'week']).optional()
+})
+
+export const ExportCashFlowReportResponse = zod.unknown()
+
+
+/**
+ * Customers who owe, biggest first, with the part overdue and the ageing (0-30, 31-60, 61+ days).
+ */
+export const getCustomerBalancesReportResponseRowsItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseRowsItemOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseRowsItemCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseRowsItemD030RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseRowsItemD3160RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseRowsItemD60PlusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseTotalBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseTotalOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseD030RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseD3160RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalancesReportResponseD60PlusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetCustomerBalancesReportResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "customer_id": zod.int(),
+  "name": zod.string(),
+  "balance": zod.stringFormat('decimal', getCustomerBalancesReportResponseRowsItemBalanceRegExp),
+  "overdue": zod.stringFormat('decimal', getCustomerBalancesReportResponseRowsItemOverdueRegExp),
+  "credit": zod.stringFormat('decimal', getCustomerBalancesReportResponseRowsItemCreditRegExp),
+  "d0_30": zod.stringFormat('decimal', getCustomerBalancesReportResponseRowsItemD030RegExp),
+  "d31_60": zod.stringFormat('decimal', getCustomerBalancesReportResponseRowsItemD3160RegExp),
+  "d60_plus": zod.stringFormat('decimal', getCustomerBalancesReportResponseRowsItemD60PlusRegExp)
+})),
+  "total_balance": zod.stringFormat('decimal', getCustomerBalancesReportResponseTotalBalanceRegExp),
+  "total_overdue": zod.stringFormat('decimal', getCustomerBalancesReportResponseTotalOverdueRegExp),
+  "d0_30": zod.stringFormat('decimal', getCustomerBalancesReportResponseD030RegExp),
+  "d31_60": zod.stringFormat('decimal', getCustomerBalancesReportResponseD3160RegExp),
+  "d60_plus": zod.stringFormat('decimal', getCustomerBalancesReportResponseD60PlusRegExp)
+})
+
+
+/**
+ * What customers owe, as an Excel file.
+ */
+export const ExportCustomerBalancesReportResponse = zod.unknown()
+
+
+/**
+ * Per product: kilos written off as losses, and the net weight differences found by counts and
+ * adjustments, at the lot's cost per kg.
+ */
+export const GetLossesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const getLossesReportResponseRowsItemLostQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseRowsItemLostValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseRowsItemDifferenceQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseRowsItemDifferenceValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseTotalLostQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLossesReportResponseTotalLostValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetLossesReportResponse = zod.object({
+  "date_from": zod.iso.date(),
+  "date_to": zod.iso.date(),
+  "rows": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "lost_quantity": zod.stringFormat('decimal', getLossesReportResponseRowsItemLostQuantityRegExp),
+  "lost_value": zod.stringFormat('decimal', getLossesReportResponseRowsItemLostValueRegExp),
+  "difference_quantity": zod.stringFormat('decimal', getLossesReportResponseRowsItemDifferenceQuantityRegExp),
+  "difference_value": zod.stringFormat('decimal', getLossesReportResponseRowsItemDifferenceValueRegExp)
+})),
+  "total_lost_quantity": zod.stringFormat('decimal', getLossesReportResponseTotalLostQuantityRegExp),
+  "total_lost_value": zod.stringFormat('decimal', getLossesReportResponseTotalLostValueRegExp)
+})
+
+
+/**
+ * The losses and differences report as an Excel file.
+ */
+export const ExportLossesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const ExportLossesReportResponse = zod.unknown()
+
+
+/**
+ * The month's result exactly as the monthly closing computes it (sales, cost of goods, spoilage, expenses
+ * by category, personnel, net result).
+ */
+export const GetMonthResultReportQueryParams = zod.object({
+  "month": zod.iso.date().optional().describe('Any day of the month (default: now).')
+})
+
+export const getMonthResultReportResponseQuantitySoldRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponseRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponseCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponseGrossMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponseSpoilageRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponseExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponsePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponseNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResultReportResponseCategoriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMonthResultReportResponse = zod.object({
+  "month": zod.iso.date(),
+  "sales_count": zod.int(),
+  "quantity_sold": zod.stringFormat('decimal', getMonthResultReportResponseQuantitySoldRegExp),
+  "revenue": zod.stringFormat('decimal', getMonthResultReportResponseRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', getMonthResultReportResponseCogsRegExp),
+  "gross_margin": zod.stringFormat('decimal', getMonthResultReportResponseGrossMarginRegExp),
+  "spoilage": zod.stringFormat('decimal', getMonthResultReportResponseSpoilageRegExp),
+  "expenses_total": zod.stringFormat('decimal', getMonthResultReportResponseExpensesTotalRegExp),
+  "personnel": zod.stringFormat('decimal', getMonthResultReportResponsePersonnelRegExp),
+  "net_result": zod.stringFormat('decimal', getMonthResultReportResponseNetResultRegExp),
+  "categories": zod.array(zod.object({
+  "name": zod.string(),
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', getMonthResultReportResponseCategoriesItemTotalRegExp)
+}))
+})
+
+
+/**
+ * The month's result and its expenses by category as an Excel file.
+ */
+export const ExportMonthResultReportQueryParams = zod.object({
+  "month": zod.iso.date().optional().describe('Any day of the month (default: now).')
+})
+
+export const ExportMonthResultReportResponse = zod.unknown()
+
+
+/**
+ * Per partner over a period: capital put in, loss share taken from it and capital returned, the capital
+ * still in the company now; profit share earned, uncovered losses, late adjustments and paid, and the share
+ * still due now. The balances are those of the partner screens.
+ */
+export const GetPartnerReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const getPartnerReportResponseRowsItemContributedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemLossDeductedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemReturnedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemCapitalOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemLateAdjustmentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseRowsItemShareDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsContributedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsLossDeductedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsReturnedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsCapitalOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsUncoveredLossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsLateAdjustmentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPartnerReportResponseTotalsShareDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPartnerReportResponse = zod.object({
+  "date_from": zod.iso.date(),
+  "date_to": zod.iso.date(),
+  "rows": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "name": zod.string(),
+  "lots": zod.int(),
+  "contributed": zod.stringFormat('decimal', getPartnerReportResponseRowsItemContributedRegExp),
+  "loss_deducted": zod.stringFormat('decimal', getPartnerReportResponseRowsItemLossDeductedRegExp),
+  "returned": zod.stringFormat('decimal', getPartnerReportResponseRowsItemReturnedRegExp),
+  "capital_outstanding": zod.stringFormat('decimal', getPartnerReportResponseRowsItemCapitalOutstandingRegExp),
+  "share": zod.stringFormat('decimal', getPartnerReportResponseRowsItemShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', getPartnerReportResponseRowsItemUncoveredLossRegExp),
+  "late_adjustments": zod.stringFormat('decimal', getPartnerReportResponseRowsItemLateAdjustmentsRegExp),
+  "paid": zod.stringFormat('decimal', getPartnerReportResponseRowsItemPaidRegExp),
+  "share_due": zod.stringFormat('decimal', getPartnerReportResponseRowsItemShareDueRegExp)
+})),
+  "totals": zod.object({
+  "partner_id": zod.int(),
+  "name": zod.string(),
+  "lots": zod.int(),
+  "contributed": zod.stringFormat('decimal', getPartnerReportResponseTotalsContributedRegExp),
+  "loss_deducted": zod.stringFormat('decimal', getPartnerReportResponseTotalsLossDeductedRegExp),
+  "returned": zod.stringFormat('decimal', getPartnerReportResponseTotalsReturnedRegExp),
+  "capital_outstanding": zod.stringFormat('decimal', getPartnerReportResponseTotalsCapitalOutstandingRegExp),
+  "share": zod.stringFormat('decimal', getPartnerReportResponseTotalsShareRegExp),
+  "uncovered_loss": zod.stringFormat('decimal', getPartnerReportResponseTotalsUncoveredLossRegExp),
+  "late_adjustments": zod.stringFormat('decimal', getPartnerReportResponseTotalsLateAdjustmentsRegExp),
+  "paid": zod.stringFormat('decimal', getPartnerReportResponseTotalsPaidRegExp),
+  "share_due": zod.stringFormat('decimal', getPartnerReportResponseTotalsShareDueRegExp)
+})
+})
+
+
+/**
+ * The partner report as an Excel file.
+ */
+export const ExportPartnerReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const ExportPartnerReportResponse = zod.unknown()
+
+
+/**
+ * Confirmed sales (BL) by customer, product, truck, driver, day, week or month: kilos, revenue without
+ * VAT, cost of goods sold and margin, net of the credit notes issued in the period. The same rows as the
+ * monthly closing, so the totals always agree with it.
+ */
+export const GetSalesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).'),
+  "group_by": zod.enum(['customer', 'day', 'driver', 'month', 'product', 'truck', 'week']).optional()
+})
+
+export const getSalesReportResponseRowsItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseRowsItemRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseRowsItemCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseRowsItemMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsCogsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalesReportResponseTotalsMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSalesReportResponse = zod.object({
+  "group_by": zod.enum(['customer', 'product', 'truck', 'driver', 'day', 'week', 'month']).describe('* `customer` - customer\n* `product` - product\n* `truck` - truck\n* `driver` - driver\n* `day` - day\n* `week` - week\n* `month` - month'),
+  "date_from": zod.iso.date(),
+  "date_to": zod.iso.date(),
+  "rows": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "sales": zod.int(),
+  "quantity": zod.stringFormat('decimal', getSalesReportResponseRowsItemQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', getSalesReportResponseRowsItemRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', getSalesReportResponseRowsItemCogsRegExp),
+  "margin": zod.stringFormat('decimal', getSalesReportResponseRowsItemMarginRegExp)
+})),
+  "totals": zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "sales": zod.int(),
+  "quantity": zod.stringFormat('decimal', getSalesReportResponseTotalsQuantityRegExp),
+  "revenue": zod.stringFormat('decimal', getSalesReportResponseTotalsRevenueRegExp),
+  "cogs": zod.stringFormat('decimal', getSalesReportResponseTotalsCogsRegExp),
+  "margin": zod.stringFormat('decimal', getSalesReportResponseTotalsMarginRegExp)
+})
+})
+
+
+/**
+ * The sales report as an Excel file.
+ */
+export const ExportSalesReportQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day (default: first of this month).'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).'),
+  "group_by": zod.enum(['customer', 'day', 'driver', 'month', 'product', 'truck', 'week']).optional()
+})
+
+export const ExportSalesReportResponse = zod.unknown()
+
+
+/**
+ * Lots still on hand that nothing has touched for `days` days or more, longest idle first.
+ */
+export const GetSlowMovingReportQueryParams = zod.object({
+  "days": zod.int().optional().describe('Days without movement (default 30).')
+})
+
+export const getSlowMovingReportResponseRowsItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSlowMovingReportResponseRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSlowMovingReportResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSlowMovingReportResponseTotalValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSlowMovingReportResponse = zod.object({
+  "days": zod.int(),
+  "rows": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "last_movement_on": zod.iso.date(),
+  "days_idle": zod.int(),
+  "quantity": zod.stringFormat('decimal', getSlowMovingReportResponseRowsItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', getSlowMovingReportResponseRowsItemValueRegExp)
+})),
+  "total_quantity": zod.stringFormat('decimal', getSlowMovingReportResponseTotalQuantityRegExp),
+  "total_value": zod.stringFormat('decimal', getSlowMovingReportResponseTotalValueRegExp)
+})
+
+
+/**
+ * The slow-moving lots as an Excel file.
+ */
+export const ExportSlowMovingReportQueryParams = zod.object({
+  "days": zod.int().optional().describe('Days without movement (default 30).')
+})
+
+export const ExportSlowMovingReportResponse = zod.unknown()
+
+
+/**
+ * What each place (cold rooms and trucks) holds now, per product, valued at the purchase cost of
+ * each lot. Unsold stock is an asset, not a cost.
+ */
+export const getStockValueReportResponseRowsItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockValueReportResponseRowsItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockValueReportResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getStockValueReportResponseTotalValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetStockValueReportResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getStockValueReportResponseRowsItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', getStockValueReportResponseRowsItemValueRegExp)
+})),
+  "total_quantity": zod.stringFormat('decimal', getStockValueReportResponseTotalQuantityRegExp),
+  "total_value": zod.stringFormat('decimal', getStockValueReportResponseTotalValueRegExp)
+})
+
+
+/**
+ * The stock value report as an Excel file.
+ */
+export const ExportStockValueReportResponse = zod.unknown()
+
+
+/**
+ * What the company owes suppliers for goods (invoices minus payments), with what is overdue and what is
+ * received but not invoiced yet.
+ */
+export const getSupplierBalancesReportResponseRowsItemInvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseRowsItemPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseRowsItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseRowsItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseRowsItemOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseRowsItemUninvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseTotalBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseTotalOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalancesReportResponseTotalUninvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSupplierBalancesReportResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "supplier_id": zod.int(),
+  "name": zod.string(),
+  "invoiced": zod.stringFormat('decimal', getSupplierBalancesReportResponseRowsItemInvoicedRegExp),
+  "paid": zod.stringFormat('decimal', getSupplierBalancesReportResponseRowsItemPaidRegExp),
+  "balance": zod.stringFormat('decimal', getSupplierBalancesReportResponseRowsItemBalanceRegExp),
+  "outstanding": zod.stringFormat('decimal', getSupplierBalancesReportResponseRowsItemOutstandingRegExp),
+  "overdue": zod.stringFormat('decimal', getSupplierBalancesReportResponseRowsItemOverdueRegExp),
+  "uninvoiced": zod.stringFormat('decimal', getSupplierBalancesReportResponseRowsItemUninvoicedRegExp)
+})),
+  "total_balance": zod.stringFormat('decimal', getSupplierBalancesReportResponseTotalBalanceRegExp),
+  "total_overdue": zod.stringFormat('decimal', getSupplierBalancesReportResponseTotalOverdueRegExp),
+  "total_uninvoiced": zod.stringFormat('decimal', getSupplierBalancesReportResponseTotalUninvoicedRegExp)
+})
+
+
+/**
+ * What is owed to suppliers, as an Excel file.
+ */
+export const ExportSupplierBalancesReportResponse = zod.unknown()
+
+
+/**
+ * What is still to pay on approved salaries, per employee.
+ */
+export const getUnpaidSalariesReportResponseRowsItemUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getUnpaidSalariesReportResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetUnpaidSalariesReportResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "employee_id": zod.int(),
+  "name": zod.string(),
+  "unpaid": zod.stringFormat('decimal', getUnpaidSalariesReportResponseRowsItemUnpaidRegExp)
+})),
+  "total": zod.stringFormat('decimal', getUnpaidSalariesReportResponseTotalRegExp)
+})
+
+
+/**
+ * Unpaid salaries as an Excel file.
+ */
+export const ExportUnpaidSalariesReportResponse = zod.unknown()
+
+
+/**
  * Salary payments, newest first, with the salaries each settled and the part not allocated.
  * Filter by `employee` or `search` (number, reference, name). Not paginated.
  */

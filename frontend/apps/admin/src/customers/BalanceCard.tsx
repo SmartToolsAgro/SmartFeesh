@@ -20,7 +20,8 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
       <Card className="col-span-full">
         <CardTitle>{t("admin.payments.balance.title")}</CardTitle>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <dl className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-6 gap-y-3">
+          {/* flex-1: without a width the auto-fill grid shrinks to one column inside the flex row. */}
+          <dl className="grid min-w-0 flex-1 grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-6 gap-y-3">
             <div>
               <dt className="text-[0.78rem] font-semibold text-ink-2">
                 {t(credit ? "admin.payments.balance.creditHeld" : "admin.payments.balance.owes")}

@@ -44,6 +44,7 @@ LOCAL_APPS = [
     "apps.expenses",
     "apps.partnerships",
     "apps.closing",
+    "apps.reports",
     "apps.dayclose",
     "apps.documents",
     "apps.dataimport",

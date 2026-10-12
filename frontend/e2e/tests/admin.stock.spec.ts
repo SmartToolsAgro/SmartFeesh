@@ -12,7 +12,7 @@ test("the stock page shows each place with its kilos and each product with its p
 
   await expect(page.getByRole("heading", { name: "Stock frigo & camions", level: 1 })).toBeVisible();
   // A cold room card: kilos and cost on a line of their own.
-  await expect(page.getByRole("article", { name: "Chambre froide 1 (frais)" })).toContainText(/\d.* kg · .* DT/);
+  await expect(page.getByRole("article", { name: "Chambre froide 1 (frais)" })).toContainText(/\d.*\skg · .*\sDT/);
 
   const dorade = page.getByRole("article", { name: "Dorade royale" });
   await expect(dorade.getByTestId("average-cost")).toContainText(/^(18|19|20),\d{3}/);
