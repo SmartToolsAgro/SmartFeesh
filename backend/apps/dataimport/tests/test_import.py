@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
 from openpyxl import Workbook, load_workbook
 from rest_framework.test import APIClient
 
@@ -71,7 +72,7 @@ def test_every_template_opens_in_excel_with_its_titles_and_a_help_sheet(owner, k
     book = load_workbook(io.BytesIO(response.content))
     assert book.sheetnames == [KINDS[kind].title, "Aide"]
     titles = [cell.value for cell in book.worksheets[0][1]]
-    assert len(titles) >= 5
+    assert titles[0].startswith(KINDS[kind].columns[0].title)
     assert len(titles) == len(KINDS[kind].columns)
 
 
@@ -415,3 +416,105 @@ def test_the_same_lot_twice_in_the_file_is_an_error(organization, owner):
     report = run(organization, owner, "opening_stock", [OPENING, OPENING], dry_run=True)
 
     assert [row.status for row in report.rows] == ["created", "error"]
+
+
+# ---- opening debts ----
+
+
+def test_customer_debts_become_receivables_that_age_from_their_date(organization, owner):
+    from apps.partners.tests.factories import CustomerFactory
+    from apps.sales import receivables
+
+    customer = CustomerFactory.create(organization=organization, reference="C-001", name="Corail")
+    old = (timezone.localdate() - dt.timedelta(days=45)).strftime("%d/%m/%Y")
+
+    report = run(
+        organization,
+        owner,
+        "customer_debts",
+        [{"customer": "C-001", "amount": "1250,000", "owed_on": old, "notes": "Facture papier 118"}],
+    )
+
+    assert (report.created, report.error_count, report.committed) == (1, 0, True)
+    balance = receivables.customer_balance(organization, customer.pk)
+    assert (balance.balance, balance.buckets["d31_60"]) == (Decimal("1250.000"), Decimal("1250.000"))
+    (open_sale,) = balance.open_sales
+    assert open_sale.number.startswith("OUV-")
+
+
+def test_an_opening_receivable_is_never_invoiced_nor_counted_as_a_sale(organization, owner):
+    from django.core.exceptions import ValidationError
+
+    from apps.partners.tests.factories import CustomerFactory
+    from apps.sales import selectors
+    from apps.sales import services as sales
+
+    CustomerFactory.create(organization=organization, reference="C-001", name="Corail")
+    run(organization, owner, "customer_debts", [{"customer": "C-001", "amount": 100, "owed_on": "01/09/2026"}])
+    (sale,) = selectors.sales_of(organization)
+
+    assert sale.is_opening
+    assert not list(selectors.sales_of(organization, uninvoiced=True))
+    with pytest.raises(ValidationError, match="ouverture"):
+        sales.create_invoice(sale=sale, actor=owner.user)
+
+
+def test_customer_debts_sent_twice_are_skipped_and_unknown_customers_reported(organization, owner):
+    from apps.partners.tests.factories import CustomerFactory
+
+    CustomerFactory.create(organization=organization, reference="C-001", name="Corail")
+    row = {"customer": "C-001", "amount": 100, "owed_on": "01/09/2026"}
+    run(organization, owner, "customer_debts", [row])
+
+    again = run(organization, owner, "customer_debts", [row], dry_run=True)
+    unknown = run(organization, owner, "customer_debts", [{**row, "customer": "C-999"}], dry_run=True)
+
+    assert (again.created, again.skipped) == (0, 1)
+    assert unknown.rows[0].errors[0].column == "Client (référence)"
+
+
+def test_supplier_debts_become_posted_payables(organization, owner):
+    from apps.partners.tests.factories import SupplierFactory
+    from apps.purchasing import selectors as purchasing
+
+    supplier = SupplierFactory.create(organization=organization, reference="F-001", name="Golfe")
+
+    report = run(
+        organization,
+        owner,
+        "supplier_debts",
+        [{"supplier": "F-001", "amount": "3400,000", "invoice_date": "20/09/2026", "due_date": "20/10/2026"}],
+    )
+
+    assert (report.created, report.error_count) == (1, 0)
+    (invoice,) = purchasing.invoices_of(organization, supplier_id=supplier.pk)
+    assert (invoice.status, invoice.total, invoice.is_opening) == ("posted", Decimal("3400.000"), True)
+    assert purchasing.supplier_balance(organization, supplier.pk).outstanding == Decimal("3400.000")
+
+    again = run(
+        organization,
+        owner,
+        "supplier_debts",
+        [{"supplier": "F-001", "amount": "3400,000", "invoice_date": "20/09/2026"}],
+    )
+    assert again.skipped == 1
+
+
+def test_a_debt_row_with_a_bad_amount_or_a_future_date_is_an_error(organization, owner):
+    from apps.partners.tests.factories import CustomerFactory
+
+    CustomerFactory.create(organization=organization, reference="C-001", name="Corail")
+    future = (timezone.localdate() + dt.timedelta(days=5)).strftime("%d/%m/%Y")
+
+    report = run(
+        organization,
+        owner,
+        "customer_debts",
+        [
+            {"customer": "C-001", "amount": 0, "owed_on": "01/09/2026"},
+            {"customer": "C-001", "amount": 10, "owed_on": future},
+        ],
+        dry_run=True,
+    )
+
+    assert [row.status for row in report.rows] == ["error", "error"]

@@ -10835,6 +10835,8 @@ components:
       - customers
       - employees
       - opening_stock
+      - customer_debts
+      - supplier_debts
       type: string
       description: |-
         * `products` - products
@@ -10842,6 +10844,8 @@ components:
         * `customers` - customers
         * `employees` - employees
         * `opening_stock` - opening_stock
+        * `customer_debts` - customer_debts
+        * `supplier_debts` - supplier_debts
     ImportRow:
       type: object
       properties:

@@ -23,6 +23,10 @@ from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.partners import selectors as partners_selectors
 from apps.partners import services as partners
+from apps.purchasing import selectors as purchasing_selectors
+from apps.purchasing import services as purchasing
+from apps.sales import selectors as sales_selectors
+from apps.sales import services as sales
 
 from . import workbook
 from .columns import CUSTOMER_KINDS, KINDS, Column, ImportKind
@@ -248,6 +252,87 @@ def _create_opening(ctx: _Context, values: Values) -> None:
     )
 
 
+def _party(ctx: _Context, key: str, values: Values) -> Any:
+    """The customer or the supplier named by reference in a debt row, or None."""
+    reference = values.get(key, "")
+    if key == "customer":
+        return (
+            partners_selectors.customers_of(ctx.organization, status="all").filter(reference__iexact=reference).first()
+        )
+    return partners_selectors.suppliers_of(ctx.organization, status="all").filter(reference__iexact=reference).first()
+
+
+def _exists_customer_debt(ctx: _Context, values: Values) -> bool:
+    customer = _party(ctx, "customer", values)
+    if customer is None or "amount" not in values or "owed_on" not in values:
+        return False
+    return (
+        sales_selectors.sales_of(ctx.organization, customer_id=customer.pk)
+        .filter(is_opening=True, total=values["amount"], sold_at__date=values["owed_on"])
+        .exists()
+    )
+
+
+def _create_customer_debt(ctx: _Context, values: Values) -> None:
+    customer = _party(ctx, "customer", values)
+    if customer is None:
+        raise ValidationError({"customer": "Client inconnu."})
+    sales.create_opening_receivable(
+        organization=ctx.organization,
+        actor=ctx.actor,
+        customer=customer,
+        amount=values["amount"],
+        owed_on=values["owed_on"],
+        notes=values.get("notes", ""),
+    )
+
+
+def _exists_supplier_debt(ctx: _Context, values: Values) -> bool:
+    supplier = _party(ctx, "supplier", values)
+    if supplier is None or "amount" not in values or "invoice_date" not in values:
+        return False
+    return (
+        purchasing_selectors.invoices_of(ctx.organization, supplier_id=supplier.pk)
+        .filter(is_opening=True, total=values["amount"], invoice_date=values["invoice_date"])
+        .exists()
+    )
+
+
+def _create_supplier_debt(ctx: _Context, values: Values) -> None:
+    supplier = _party(ctx, "supplier", values)
+    if supplier is None:
+        raise ValidationError({"supplier": "Fournisseur inconnu."})
+    purchasing.create_opening_invoice(
+        organization=ctx.organization,
+        actor=ctx.actor,
+        supplier=supplier,
+        amount=values["amount"],
+        invoice_date=values["invoice_date"],
+        due_date=values.get("due_date"),
+        supplier_reference=values.get("supplier_reference", ""),
+        notes=values.get("notes", ""),
+    )
+
+
+# Kinds without a reference column: a row is "already there" when the same document exists (a re-sent file).
+_ROW_CHECKS: dict[str, Callable[[_Context, Values], bool]] = {
+    "opening_stock": _exists_opening,
+    "customer_debts": _exists_customer_debt,
+    "supplier_debts": _exists_supplier_debt,
+}
+_ROW_KEYS: dict[str, tuple[str, ...]] = {
+    "opening_stock": ("product", "location", "supplier", "unit_cost", "received_on"),
+    "customer_debts": ("customer", "amount", "owed_on"),
+    "supplier_debts": ("supplier", "amount", "invoice_date"),
+}
+# What the report shows in its "Référence" and "Nom" columns for those kinds.
+_ROW_LABELS: dict[str, tuple[str, str]] = {
+    "opening_stock": ("product", "location"),
+    "customer_debts": ("customer", "amount"),
+    "supplier_debts": ("supplier", "amount"),
+}
+
+
 @dataclass(frozen=True)
 class _Importer:
     exists: Callable[[_Context, str], bool]
@@ -260,6 +345,8 @@ _IMPORTERS: dict[str, _Importer] = {
     "customers": _Importer(_exists_customer, _create_customer),
     "employees": _Importer(_exists_employee, _create_employee),
     "opening_stock": _Importer(lambda _ctx, _reference: False, _create_opening),
+    "customer_debts": _Importer(lambda _ctx, _reference: False, _create_customer_debt),
+    "supplier_debts": _Importer(lambda _ctx, _reference: False, _create_supplier_debt),
 }
 
 
@@ -285,23 +372,17 @@ def run_import(
             values, errors = _parse_cells(kind, row)
             reference = str(values.get("reference", "")).strip()
             entry = RowReport(row.number, CREATED, reference=reference, name=str(values.get("name", "")))
-            if not errors and kind_key == "opening_stock":
-                key = "|".join(
-                    str(values.get(k, "")).casefold()
-                    for k in ("product", "location", "supplier", "unit_cost", "received_on")
-                )
+            if kind_key in _ROW_CHECKS:
+                ref_key, name_key = _ROW_LABELS[kind_key]
+                entry.reference = str(values.get(ref_key, ""))
+                entry.name = str(values.get(name_key, ""))
+            if not errors and kind_key in _ROW_CHECKS:
+                key = "|".join(str(values.get(k, "")).casefold() for k in _ROW_KEYS[kind_key])
                 if key in seen:
-                    errors.append(
-                        ColumnError(
-                            "Produit (référence)",
-                            "Ce lot est déjà plus haut dans le fichier : regroupez les quantités.",
-                        )
-                    )
-                elif _exists_opening(ctx, values):
+                    errors.append(ColumnError(kind.columns[0].title, "Cette ligne est déjà plus haut dans le fichier."))
+                elif _ROW_CHECKS[kind_key](ctx, values):
                     entry.status = SKIPPED
                 seen.add(key)
-                entry.reference = str(values.get("product", ""))
-                entry.name = str(values.get("location", ""))
             elif not errors and reference:
                 if reference.casefold() in seen:
                     errors.append(ColumnError("Référence", "Cette référence est déjà plus haut dans le fichier."))

@@ -175,7 +175,7 @@ def sales_of(
     if date_to is not None:
         sales = sales.filter(sold_at__date__lte=date_to)
     if uninvoiced:
-        sales = sales.filter(status=SaleStatus.CONFIRMED, customer__is_walk_in=False).exclude(
+        sales = sales.filter(status=SaleStatus.CONFIRMED, customer__is_walk_in=False, is_opening=False).exclude(
             Exists(InvoiceSale.objects.filter(sale=OuterRef("pk"), is_live=True))
         )
     if search := search.strip():
@@ -499,7 +499,7 @@ def month_sales(organization: Organization, *, date_from: dt.date, date_to: dt.d
     totals = sold.aggregate(quantity=Sum("quantity"), revenue=Sum("revenue_amount"), cost=Sum("cost_amount"))
     count = (
         Sale.objects.for_organization(organization)
-        .filter(status=SaleStatus.CONFIRMED, sold_at__gte=start, sold_at__lt=end)
+        .filter(status=SaleStatus.CONFIRMED, is_opening=False, sold_at__gte=start, sold_at__lt=end)
         .count()
     )
     credited = CreditNoteLineBatch.objects.for_organization(organization).filter(

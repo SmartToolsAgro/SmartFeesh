@@ -1475,4 +1475,9 @@ have it), and Arabic texts.
   posts a `receipt` movement through `inventory.services`, so the ledger and FIFO work as for any lot. Sending the
   file again skips a lot already imported (same product, supplier, date, cost); the same lot twice in one file is
   an error (group the kilos).
-- Customer and supplier opening debts: slice 3.
+- **Opening debts** (slice 3): kinds `customer_debts` and `supplier_debts`, one row per debt (party by reference,
+  amount, date, notes). A customer debt is a confirmed `Sale` with `is_opening` (number `OUV-<year>-0001`, no
+  lines, no stock, attached to the archived place "Solde d'ouverture"): it ages from its date, payments are
+  allocated to it, and it is never invoiced nor counted in sales counts or lot results. A supplier debt is a
+  posted `SupplierInvoice` with `is_opening`, its amount typed and no receipts; payments settle it like any other.
+  A re-sent file skips a debt already there (same party, amount, date). Cancelled with a reason if wrong.

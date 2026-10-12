@@ -215,6 +215,8 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     # The sum of its receipts' invoiced amounts, kept by the services; frozen once posted.
     total = MoneyField(default=Decimal("0.000"))
     notes = models.TextField(blank=True)
+    # What the supplier was owed when the system started (P4-T01, D-112): a posted invoice with no receipts.
+    is_opening = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )

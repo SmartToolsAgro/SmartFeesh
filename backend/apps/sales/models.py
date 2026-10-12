@@ -276,6 +276,8 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     credit_decided_at = models.DateTimeField(null=True, blank=True)
+    # What a customer owed when the system started (P4-T01, D-112): no lines, no stock, never invoiced.
+    is_opening = models.BooleanField(default=False)
     # Sent by an app that may retry (the driver app, the seed): the same request never makes two sales.
     client_uuid = models.UUIDField(null=True, blank=True)
 
