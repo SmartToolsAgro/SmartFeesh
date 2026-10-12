@@ -14,10 +14,10 @@
  * * `week` - week
  * * `month` - month
  */
-export type GroupByEnum = typeof GroupByEnum[keyof typeof GroupByEnum];
+export type SalesReportGroupByEnum = typeof SalesReportGroupByEnum[keyof typeof SalesReportGroupByEnum];
 
 
-export const GroupByEnum = {
+export const SalesReportGroupByEnum = {
   customer: 'customer',
   product: 'product',
   truck: 'truck',

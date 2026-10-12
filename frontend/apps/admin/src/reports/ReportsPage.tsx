@@ -1,9 +1,13 @@
 import { useGetLossesReport, useGetSalesReport, useGetSlowMovingReport, useGetStockValueReport } from "@frutti/api";
+import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, cn, EmptyState, Field, Input, PageHeader, Table, Td, Th } from "@frutti/ui";
 import { useId, useState } from "react";
+import { useOutletContext } from "react-router";
 
-const TABS = ["sales", "stockValue", "slow", "losses"] as const;
+import { FinancialReports } from "./FinancialReports";
+
+const TABS = ["sales", "stockValue", "slow", "losses", "financial"] as const;
 type Tab = (typeof TABS)[number];
 const GROUPS = ["customer", "product", "truck", "driver", "day", "week", "month"] as const;
 type Group = (typeof GROUPS)[number];
@@ -331,6 +335,11 @@ function LossesReport() {
 /** "Rapports": commercial and stock reports, with an Excel file for each (P7-T02, P7-T03, D-113). */
 export function ReportsPage() {
   const { t } = useTranslation();
+  const session = useOutletContext<Session>();
+  // The company's money is for the owner and the accountant (the server refuses the others too).
+  const tabs = TABS.filter(
+    (value) => value !== "financial" || session.role === "owner" || session.role === "accountant",
+  );
   const [tab, setTab] = useState<Tab>("sales");
   return (
     <>
@@ -340,7 +349,7 @@ export function ReportsPage() {
         aria-label={t("admin.reports.title")}
         className="flex flex-wrap gap-1 rounded-control bg-surface-2 p-1 self-start"
       >
-        {TABS.map((value) => (
+        {tabs.map((value) => (
           <button
             key={value}
             type="button"
@@ -360,6 +369,7 @@ export function ReportsPage() {
       {tab === "stockValue" && <StockValueReport />}
       {tab === "slow" && <SlowReport />}
       {tab === "losses" && <LossesReport />}
+      {tab === "financial" && <FinancialReports />}
     </>
   );
 }

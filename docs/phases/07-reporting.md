@@ -19,7 +19,7 @@ _Coarse plan: detail each task when the phase starts._
 - [ ] Batch history (exists per lot on the stock screens; not in the reports page).
 
 ### P7-T04 · Financial reports · M
-- [ ] Monthly result, expenses by category, cash flow, customer and supplier balances, unpaid salaries.
+- [x] (D-116) Monthly result, expenses by category, cash flow, customer and supplier balances, unpaid salaries.
 
 ### P7-T05 · Partnership reports · S
 - [ ] Capital invested/recovered/outstanding, shares allocated/paid/due per partner over time.
