@@ -1347,3 +1347,14 @@ runs until it works. The office sees the open ones at the top of `/journees` ("E
 to guess what is stuck on a phone, and nothing is dropped silently. **Not done:** a notice to the driver when the office
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
+
+**D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
+`GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
+month up to today. **Profit and cash are two separate groups.** Profit: sales, gross margin and net operating result come
+straight from `closing.monthly.month_report` (nothing is recomputed), plus last month's sales for the % change. Cash: money
+collected this month (what customers paid on the spot at a confirmed sale plus their later payments, voided ones left out:
+`sales.selectors.cash_collected`), what customers still owe and the overdue part (the ageing page's "customers who owe",
+`sales.selectors.receivables_overview`), and the stock value at cost (the month-end valuation, which for the current month is
+today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
+(`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
+**Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
