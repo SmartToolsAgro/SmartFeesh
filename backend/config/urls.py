@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
 from drf_spectacular.views import SpectacularAPIView
 
+from apps.core.permissions import IsOwnerOrManager
+
 api_v1: list[URLPattern | URLResolver] = [
     path("", include("apps.core.api.urls")),
     path("", include("apps.catalog.api.urls")),
@@ -18,7 +20,7 @@ api_v1: list[URLPattern | URLResolver] = [
     path("", include("apps.dayclose.api.urls")),
     path("", include("apps.documents.api.urls")),
     path("", include("apps.dataimport.api.urls")),
-    path("schema", SpectacularAPIView.as_view(), name="schema"),
+    path("schema", SpectacularAPIView.as_view(permission_classes=[IsOwnerOrManager]), name="schema"),
 ]
 
 urlpatterns = [

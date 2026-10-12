@@ -54,6 +54,8 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.RequestSizeLimitMiddleware",
+    "apps.core.middleware.AdminLoginThrottleMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -86,8 +88,26 @@ TEMPLATES = [
 DATABASES = {
     "default": env.db("DATABASE_URL", default="postgres://frutti:frutti@localhost:5432/frutti"),
 }
+# Login throttling counts attempts here (D-023, D-108). The default in-process cache is per server process,
+# so with several processes every limit is multiplied: production sets DJANGO_CACHE_URL to the shared Redis.
+CACHES = {
+    "default": (
+        {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": env("DJANGO_CACHE_URL")}
+        if env("DJANGO_CACHE_URL", default="")
+        else {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+    ),
+}
+
 DATABASES["default"]["ATOMIC_REQUESTS"] = False  # transactions are explicit, in services
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# Session and CSRF cookies (D-108): scripts cannot read the session, and neither cookie travels with a request
+# started from another site. The apps read the CSRF cookie themselves, so that one is not HttpOnly.
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "same-origin"
+
 AUTH_USER_MODEL = "core.User"
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -108,6 +128,9 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# The largest API request body: an 8 MB photo or PDF plus its form fields (D-108).
+MAX_REQUEST_BYTES = 10 * 1024 * 1024
+
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
@@ -132,7 +155,7 @@ REST_FRAMEWORK = {
     # Amounts travel as strings so no precision is lost (docs/ARCHITECTURE.md rule 1).
     "COERCE_DECIMAL_TO_STRING": True,
     # Login attempts, per address and per account (apps/core/authentication.py).
-    "DEFAULT_THROTTLE_RATES": {"login_ip": "30/min", "login_username": "8/min"},
+    "DEFAULT_THROTTLE_RATES": {"login_ip": "30/min", "login_username": "8/min", "admin_login": "8/min"},
 }
 
 SPECTACULAR_SETTINGS = {
@@ -140,7 +163,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     # The schema is generated offline for the TS client (make gen-api); online it needs a login.
-    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    "SERVE_PERMISSIONS": ["apps.core.permissions.IsOwnerOrManager"],
     # Choice sets get stable names after their model, not their field: several models have a `kind`,
     # and "status" and "method" will exist on sales documents too.
     "ENUM_NAME_OVERRIDES": {
