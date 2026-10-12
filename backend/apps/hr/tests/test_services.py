@@ -190,6 +190,18 @@ def test_approving_the_month_approves_every_draft():
     assert expense == Decimal("1300.000") * 2 + Decimal("221.910") * 2
 
 
+def test_the_payroll_summary_expense_includes_adjustments_like_the_month_figure():
+    record = draft_record(bonus="100.000")
+    services.approve_salary_record(record=record, actor=None)
+    services.add_adjustment(record=record, actor=None, amount="-30.000", reason="Absence")
+    organization = record.organization
+
+    summary = selectors.payroll_summary(organization, month=THIS_MONTH)
+
+    assert summary.expense == selectors.monthly_personnel_expense(organization, month=THIS_MONTH)
+    assert summary.expense == record.expense_amount - Decimal("30.000")
+
+
 def approved(record):
     return services.approve_salary_record(record=record, actor=None)
 
