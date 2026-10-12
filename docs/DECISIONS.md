@@ -1347,3 +1347,16 @@ runs until it works. The office sees the open ones at the top of `/journees` ("E
 to guess what is stuck on a phone, and nothing is dropped silently. **Not done:** a notice to the driver when the office
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
+
+**D-103 · Arabic for the driver app, provisional (P3-T09)** · accepted, **texts to be reviewed by a native speaker** · 2026-10-12
+The language switch (`LanguageSwitch` in `@frutti/auth`: "Français | العربية", each name written in its own language)
+is on the driver login screen and above the screens of the driver app. Logged out it changes the page and the choice is
+saved on the account at login; logged in it is saved on the account at once (`PUT` language, D-023 route guard applies
+it). The phone remembers the last language for the next login screen (`localStorage`, device only). `ar.ts` now
+translates everything the driver app shows (`truck.*`, login, common, roles) in short plain sentences; **nothing else
+is translated**: the admin app stays French, and a missing key shows the French text. Arabic plurals are written once
+for all six forms. Amounts, weights and dates keep Western digits (`format.ts`). The layout was already built with
+logical CSS (D-025); the one physical `text-right` was fixed. **Not done:** server messages (validation errors, the
+reasons of a refused sale) come back in French: Django has no Arabic catalogue yet (`backend/locale/`), which needs the
+`.po` translations and gettext tooling; the native-speaker review of every Arabic text; a visual right-to-left check on a
+real phone.
