@@ -233,9 +233,17 @@ def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationE
 
 
 def allocate_fifo(
-    organization: Organization, *, product_id: int, location: StockLocation, quantity: Number
+    organization: Organization,
+    *,
+    product_id: int,
+    location: StockLocation,
+    quantity: Number,
+    day: dt.date | None = None,
 ) -> list[Allocation]:
     """Which batches `quantity` kg of a product would come from at `location`: oldest first (D-009, Q7).
+
+    With `day` (a document typed for an earlier day), only batches received on or before that day can
+    be taken: stock cannot leave before it arrived (D-106).
 
     A preview: nothing is locked or posted (`services.post_fifo_movements` does both). Refused with a
     ValidationError on `quantity` when the location holds less, or when the quantity is not valid.
@@ -244,7 +252,10 @@ def allocate_fifo(
         amount = checked_quantity(quantity)
     except ValueError as error:
         raise ValidationError({"quantity": str(error)}) from None
-    holdings = list(holdings_oldest_first(organization, product_id=product_id, location_id=location.pk))
+    rows = holdings_oldest_first(organization, product_id=product_id, location_id=location.pk)
+    if day is not None:
+        rows = rows.filter(batch__received_on__lte=day)
+    holdings = list(rows)
     allocations = fifo_split(holdings, amount)
     if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
         raise not_enough_stock(sum((row.quantity for row in holdings), Decimal("0.000")), location)

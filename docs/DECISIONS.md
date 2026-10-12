@@ -1387,6 +1387,18 @@ real phone.
 - The lot page already carried the result and the partner share (P6-T02/T03). It now opens with four headline figures (sales, lot costs, net result, partner's or owner's share) and the "Coût d'achat des kg vendus" step drills down to the cost of each sale, like sales and costs do.
 - The "Partage des bénéfices" list (`/partenariats`) gets the net result and the partner's share of each **closed** lot, read from `GET /lot-figures?batch_ids=` (closing app, frozen `LotResult` rows only, at most 200 ids). Open lots show "Pas encore clôturé": their live result is computed lot by lot and stays on the lot page, to keep the list cheap. The `partnerships` app does not import `closing` (the dependency runs the other way).
 
+**D-106 · Stock cannot leave before it arrived (review, round 2)** · accepted · 2026-10-12
+- `post_fifo_movements` and `selectors.allocate_fifo` (new `day` argument, given by `record_loss`) only take batches
+  with `received_on` on or before the document's day (the local day of `occurred_at`; today when none). A transfer,
+  loss or sale typed for an earlier day can no longer take a batch received afterwards, which made the daily replay of
+  the ledger (`kg_by_batch_by_day`, month-end valuation) show negative balances.
+- A document of today is unaffected (a batch is never received in the future). When only later batches exist for
+  that day, the document is refused with the usual "Stock insuffisant" message.
+- Tests that sell on past days must create their batch with an older `received_on`
+  (`sales/tests/test_payments.py::stocked` now does; it was the only test relying on the old behaviour).
+- Also: a product still in stock cannot be archived (PR #59); a receipt whose supplier delivery-note number is already
+  on another receipt of the same supplier shows a non-blocking warning in the form (a note can cover two deliveries).
+
 **D-111 · The driver collects customer payments on the phone (P3-T11)** · accepted · 2026-10-12
 `POST /my-payments` (driver only) calls `sales.services.record_customer_payment` (D-062): today's date, cash by
 default, allocated to the customer's oldest open sales. `CustomerPayment.client_uuid` (sales migration 0010, unique per
@@ -1409,3 +1421,18 @@ collected this month (what customers paid on the spot at a confirmed sale plus t
 today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
 (`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
 **Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
+
+**D-112 · Data import from Excel and opening balances (P4-T01)** · accepted · 2026-10-12
+- New app `dataimport` (owner only, `openpyxl`). One Excel template per kind (products, suppliers, customers,
+  employees), downloaded from **Import de données** (`GET /imports/<kind>/template`): French titles on row 1
+  (a star marks a required column; titles are matched without case, accents or star), an "Aide" sheet explains
+  each column.
+- `POST /imports/<kind>` (multipart `file`, `dry_run` default true) returns a report row by row: created, skipped
+  (reference already known: the same file may be sent again) or error with **column and reason**. It runs the real
+  services (`create_product`, `create_supplier`, `create_customer`, `create_employee`) in one transaction, so every
+  screen rule applies and each row is audited. A dry run, or any error, rolls everything back: **all or nothing**.
+  The screen offers "Importer" only after a clean check.
+- Products need an existing category (a typo is an error, not a new category) and a price above 0; customers take
+  their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
+- Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
+  same task.
