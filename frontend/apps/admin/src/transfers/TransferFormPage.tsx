@@ -251,7 +251,9 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
   );
   const placeOptions = places
     .filter((place) => place.is_active || String(place.id) === from || String(place.id) === to)
-    .map((place) => ({ value: String(place.id), label: place.is_active ? place.name : t("admin.transfers.form.archivedPlace", { name: place.name }),
+    .map((place) => ({
+      value: String(place.id),
+      label: place.is_active ? place.name : t("admin.transfers.form.archivedPlace", { name: place.name }),
     }));
   const back = draft ? `/stock/transferts/${draft.id}` : "/stock/transferts";
 
