@@ -1256,6 +1256,16 @@ the day's customer payments collected by the driver ("other payments") wait for 
 - **Not done:** one statement covering several lots of a partner (the three balances over time) and sending
   it by e-mail or WhatsApp; Arabic ("Haka bayek" in the partner's language) comes with P0-T08.
 
+**D-096 · Offline, first step: a hand-written service worker, no library (P3-T07a)** · accepted · 2026-10-12
+`apps/truck/public/sw.js` (about 80 lines) plus a web manifest and icons: the app opens without signal after its
+first visit and can be put on the home screen. The app files answer from the cache and refresh in the background;
+API reads (not `/api/v1/auth/`) go network first and fall back to the last answer; writes are never touched. This keeps
+what the screens showed in the **Cache Storage** instead of IndexedDB: simpler, no new dependency (`vite-plugin-pwa`
+was not added: one more package to keep in step with Vite 8). IndexedDB comes with the write queue (P3-T07b), where
+it is needed. The truck app's queries use `networkMode: "offlineFirst"` so they ask even without signal and get the
+saved answer. Logging out deletes the saved API answers, so the next driver on the phone sees none of them. A banner
+says when there is no signal. Not yet shown: the time of the last update on each screen.
+
 **D-095 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** · accepted · 2026-10-12
 Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
 rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
