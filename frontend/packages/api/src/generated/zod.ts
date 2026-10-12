@@ -7732,6 +7732,293 @@ export const RestoreProductResponse = zod.object({
 
 
 /**
+ * Purchase orders (bons d'achat), newest first, paginated, each with its lines (ordered, received
+ * and remaining weight) and its receipts. Filter by supplier, status (`pending` = still waiting for
+ * goods) or `search` (number, supplier's name).
+ */
+export const listPurchaseOrdersQuerySearchDefault = ``;
+export const listPurchaseOrdersQuerySearchMax = 100;
+
+
+
+
+export const ListPurchaseOrdersQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listPurchaseOrdersQuerySearchMax).default(listPurchaseOrdersQuerySearchDefault),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled', 'pending']).optional().describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé\n* `pending` - pending'),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const listPurchaseOrdersResponseResultsItemLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listPurchaseOrdersResponseResultsItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listPurchaseOrdersResponseResultsItemLinesItemOrderedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listPurchaseOrdersResponseResultsItemLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listPurchaseOrdersResponseResultsItemLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listPurchaseOrdersResponseResultsItemOrderedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListPurchaseOrdersResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_on": zod.iso.date(),
+  "expected_on": zod.iso.date().nullable(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_quantity": zod.stringFormat('decimal', listPurchaseOrdersResponseResultsItemLinesItemOrderedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', listPurchaseOrdersResponseResultsItemLinesItemUnitCostRegExp),
+  "ordered_amount": zod.stringFormat('decimal', listPurchaseOrdersResponseResultsItemLinesItemOrderedAmountRegExp),
+  "received_quantity": zod.stringFormat('decimal', listPurchaseOrdersResponseResultsItemLinesItemReceivedQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', listPurchaseOrdersResponseResultsItemLinesItemRemainingQuantityRegExp)
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}).describe('A delivery against an order: its receipt.')),
+  "ordered_total": zod.stringFormat('decimal', listPurchaseOrdersResponseResultsItemOrderedTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "closed_at": zod.iso.datetime({"offset":true}).nullable()
+}))
+})
+
+
+/**
+ * Record a purchase order: what we ask a supplier to deliver, at what price. It moves no stock;
+ * deliveries are goods receipts against it, as many as the supplier makes.
+ */
+
+export const createPurchaseOrderBodyNotesDefault = ``;
+
+
+export const CreatePurchaseOrderBody = zod.object({
+  "supplier": zod.int().min(1),
+  "ordered_on": zod.iso.date(),
+  "expected_on": zod.iso.date().nullish(),
+  "notes": zod.string().default(createPurchaseOrderBodyNotesDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "ordered_quantity": zod.string(),
+  "unit_cost": zod.string()
+}))
+})
+
+export const createPurchaseOrderResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createPurchaseOrderResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createPurchaseOrderResponseLinesItemOrderedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createPurchaseOrderResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createPurchaseOrderResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createPurchaseOrderResponseOrderedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreatePurchaseOrderResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_on": zod.iso.date(),
+  "expected_on": zod.iso.date().nullable(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_quantity": zod.stringFormat('decimal', createPurchaseOrderResponseLinesItemOrderedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', createPurchaseOrderResponseLinesItemUnitCostRegExp),
+  "ordered_amount": zod.stringFormat('decimal', createPurchaseOrderResponseLinesItemOrderedAmountRegExp),
+  "received_quantity": zod.stringFormat('decimal', createPurchaseOrderResponseLinesItemReceivedQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', createPurchaseOrderResponseLinesItemRemainingQuantityRegExp)
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}).describe('A delivery against an order: its receipt.')),
+  "ordered_total": zod.stringFormat('decimal', createPurchaseOrderResponseOrderedTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "closed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+export const GetPurchaseOrderParams = zod.object({
+  "order_id": zod.int()
+})
+
+export const getPurchaseOrderResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getPurchaseOrderResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPurchaseOrderResponseLinesItemOrderedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPurchaseOrderResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getPurchaseOrderResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getPurchaseOrderResponseOrderedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPurchaseOrderResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_on": zod.iso.date(),
+  "expected_on": zod.iso.date().nullable(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_quantity": zod.stringFormat('decimal', getPurchaseOrderResponseLinesItemOrderedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', getPurchaseOrderResponseLinesItemUnitCostRegExp),
+  "ordered_amount": zod.stringFormat('decimal', getPurchaseOrderResponseLinesItemOrderedAmountRegExp),
+  "received_quantity": zod.stringFormat('decimal', getPurchaseOrderResponseLinesItemReceivedQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', getPurchaseOrderResponseLinesItemRemainingQuantityRegExp)
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}).describe('A delivery against an order: its receipt.')),
+  "ordered_total": zod.stringFormat('decimal', getPurchaseOrderResponseOrderedTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "closed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Cancel an order nothing was delivered against.
+ */
+export const CancelPurchaseOrderParams = zod.object({
+  "order_id": zod.int()
+})
+
+export const cancelPurchaseOrderResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelPurchaseOrderResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelPurchaseOrderResponseLinesItemOrderedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelPurchaseOrderResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelPurchaseOrderResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelPurchaseOrderResponseOrderedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CancelPurchaseOrderResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_on": zod.iso.date(),
+  "expected_on": zod.iso.date().nullable(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_quantity": zod.stringFormat('decimal', cancelPurchaseOrderResponseLinesItemOrderedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', cancelPurchaseOrderResponseLinesItemUnitCostRegExp),
+  "ordered_amount": zod.stringFormat('decimal', cancelPurchaseOrderResponseLinesItemOrderedAmountRegExp),
+  "received_quantity": zod.stringFormat('decimal', cancelPurchaseOrderResponseLinesItemReceivedQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', cancelPurchaseOrderResponseLinesItemRemainingQuantityRegExp)
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}).describe('A delivery against an order: its receipt.')),
+  "ordered_total": zod.stringFormat('decimal', cancelPurchaseOrderResponseOrderedTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "closed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * Close an order that was delivered in part: the rest will not come. Receipts stay as they are.
+ */
+export const ClosePurchaseOrderParams = zod.object({
+  "order_id": zod.int()
+})
+
+export const closePurchaseOrderResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closePurchaseOrderResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closePurchaseOrderResponseLinesItemOrderedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closePurchaseOrderResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closePurchaseOrderResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closePurchaseOrderResponseOrderedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ClosePurchaseOrderResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_on": zod.iso.date(),
+  "expected_on": zod.iso.date().nullable(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "ordered_quantity": zod.stringFormat('decimal', closePurchaseOrderResponseLinesItemOrderedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', closePurchaseOrderResponseLinesItemUnitCostRegExp),
+  "ordered_amount": zod.stringFormat('decimal', closePurchaseOrderResponseLinesItemOrderedAmountRegExp),
+  "received_quantity": zod.stringFormat('decimal', closePurchaseOrderResponseLinesItemReceivedQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', closePurchaseOrderResponseLinesItemRemainingQuantityRegExp)
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "received_on": zod.iso.date()
+}).describe('A delivery against an order: its receipt.')),
+  "ordered_total": zod.stringFormat('decimal', closePurchaseOrderResponseOrderedTotalRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "closed_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
  * Quotes, newest first, paginated (`limit`, `offset`). Filter by status (a sent quote past its
  * validity date counts as expired), customer, days (inclusive) or `search` (number, customer).
  */
@@ -8453,6 +8740,7 @@ export const ListReceiptsQueryParams = zod.object({
   "differences": zod.boolean().default(listReceiptsQueryDifferencesDefault),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "purchase_order": zod.int().min(1).optional(),
   "search": zod.string().max(listReceiptsQuerySearchMax).default(listReceiptsQuerySearchDefault),
   "supplier": zod.int().min(1).optional(),
   "uninvoiced": zod.boolean().default(listReceiptsQueryUninvoicedDefault)
@@ -8484,6 +8772,11 @@ export const ListReceiptsResponse = zod.object({
   "id": zod.int(),
   "name": zod.string()
 }),
+  "purchase_order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}).describe('The purchase order a receipt delivers against.'),zod.null()]),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "notes": zod.string(),
@@ -8523,8 +8816,10 @@ export const ListReceiptsResponse = zod.object({
 
 /**
  * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
- * Errors of a line come back on `lines.<index>.<field>`.
+ * Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
+ * against that bon d'achat: only its products, and only the part that arrived (partial receipts).
  */
+
 
 
 export const createReceiptBodySupplierReferenceDefault = ``;
@@ -8536,6 +8831,7 @@ export const createReceiptBodyNotesDefault = ``;
 export const CreateReceiptBody = zod.object({
   "supplier": zod.int().min(1),
   "location": zod.int().min(1),
+  "purchase_order": zod.int().min(1).nullish(),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string().max(createReceiptBodySupplierReferenceMax).default(createReceiptBodySupplierReferenceDefault),
   "notes": zod.string().default(createReceiptBodyNotesDefault),
@@ -8571,6 +8867,11 @@ export const CreateReceiptResponse = zod.object({
   "id": zod.int(),
   "name": zod.string()
 }),
+  "purchase_order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}).describe('The purchase order a receipt delivers against.'),zod.null()]),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "notes": zod.string(),
@@ -8633,6 +8934,11 @@ export const GetReceiptResponse = zod.object({
   "id": zod.int(),
   "name": zod.string()
 }),
+  "purchase_order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}).describe('The purchase order a receipt delivers against.'),zod.null()]),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "notes": zod.string(),

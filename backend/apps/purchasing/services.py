@@ -19,10 +19,14 @@ from apps.inventory.services import MovementKind
 
 from . import selectors
 from .models import (
+    RECEIVABLE_ORDER_STATUSES,
     DocumentCounter,
     DocumentKind,
     GoodsReceipt,
     GoodsReceiptLine,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderStatus,
     ReceiptCounter,
     SupplierInvoice,
     SupplierInvoiceReceipt,
@@ -39,6 +43,7 @@ if TYPE_CHECKING:
 
 RECEIPT_NUMBER_PREFIX = "BR-"
 INVOICE_NUMBER_PREFIX = "FF-"
+ORDER_NUMBER_PREFIX = "BA-"
 PAYMENT_NUMBER_PREFIX = "RF-"
 
 
@@ -119,6 +124,7 @@ def _checked_line(
 def _snapshot(receipt: GoodsReceipt, lines: Sequence[GoodsReceiptLine]) -> dict[str, Any]:
     return {
         "number": receipt.number,
+        "purchase_order": receipt.purchase_order.number if receipt.purchase_order else None,
         "supplier": receipt.supplier.reference,
         "location": receipt.location.name,
         "received_on": receipt.received_on.isoformat(),
@@ -148,17 +154,33 @@ def create_receipt(
     lines: Sequence[ReceiptLineFields],
     supplier_reference: str = "",
     notes: str = "",
+    purchase_order: PurchaseOrder | None = None,
 ) -> GoodsReceipt:
     """Record goods received from a supplier: one batch per line, and its accepted weight into stock.
 
     Everything is checked before anything is written; problems come back together, the header's on
     their field and each line's on `lines.<index>.<field>`. The receipt, its batches and its movements
     are saved in one transaction, so a refused receipt leaves nothing behind.
+
+    Against a purchase order (D-076) the receipt may carry only some of its products and only part of
+    their weight: the order stays open until every line is delivered or it is closed by hand. A line's
+    product must be on the order; its accepted weight counts as received there.
     """
     errors = _header_errors(organization, supplier, location, received_on)
+    order = _locked_order_to_receive(organization, supplier, purchase_order, errors) if purchase_order else None
+    order_lines = {line.product_id: line for line in order.lines.all()} if order else {}
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
     checked_lines = [_checked_line(organization, index, line, received_on, errors) for index, line in enumerate(lines)]
+    if order:
+        for index, values in enumerate(checked_lines):
+            product = values["product"]
+            if product is not None and product.pk not in order_lines:
+                errors[line_error_key(index, "product")] = _("Ce produit n'est pas sur le bon d'achat %(number)s.") % {
+                    "number": order.number
+                }
+            # The order says what was asked for; a delivery of part of it is not a difference.
+            values["ordered_quantity"] = None
     if errors:
         raise ValidationError(errors)
 
@@ -168,6 +190,7 @@ def create_receipt(
         number=_next_receipt_number(organization),
         supplier=supplier,
         location=location,
+        purchase_order=order,
         received_on=received_on,
         supplier_reference=supplier_reference,
         notes=notes.strip(),
@@ -196,6 +219,7 @@ def create_receipt(
             receipt=receipt,
             product=values["product"],
             batch=batch,
+            order_line=order_lines.get(values["product"].pk),
             ordered_quantity=values["ordered_quantity"],
             invoiced_quantity=values["invoiced_quantity"],
             accepted_quantity=values["accepted_quantity"],
@@ -212,6 +236,8 @@ def create_receipt(
             occurred_at=occurred_at,
         )
         saved.append(line)
+    if order:
+        refresh_order_status(order)
     audit.record(
         organization=organization,
         actor=actor,
@@ -220,6 +246,223 @@ def create_receipt(
         after=_snapshot(receipt, saved),
     )
     return receipt
+
+
+# ---- Purchase orders, the "bon d'achat" (D-076) ----
+# An order moves no stock and owes nothing; its receipts do. Its status follows them.
+
+
+class OrderLineFields(TypedDict, total=False):
+    product: "Product"
+    ordered_quantity: Number
+    unit_cost: Number
+
+
+def _next_order_number(organization: Organization) -> str:
+    DocumentCounter.objects.bulk_create(
+        [DocumentCounter(organization=organization, kind=DocumentKind.PURCHASE_ORDER)], ignore_conflicts=True
+    )
+    counter = DocumentCounter.objects.select_for_update().get(
+        organization=organization, kind=DocumentKind.PURCHASE_ORDER
+    )
+    counter.last_number += 1
+    counter.save(update_fields=["last_number"])
+    return f"{ORDER_NUMBER_PREFIX}{counter.last_number:04d}"
+
+
+def _order_snapshot(order: PurchaseOrder) -> dict[str, Any]:
+    return {
+        "number": order.number,
+        "supplier": order.supplier.reference,
+        "ordered_on": order.ordered_on.isoformat(),
+        "expected_on": order.expected_on.isoformat() if order.expected_on else None,
+        "status": order.status,
+        "lines": {
+            line.product.reference: {"ordered_quantity": str(line.ordered_quantity), "unit_cost": str(line.unit_cost)}
+            for line in order.lines.select_related("product")
+        },
+    }
+
+
+@transaction.atomic
+def create_order(
+    *,
+    organization: Organization,
+    actor: User | None,
+    supplier: "Supplier",
+    ordered_on: dt.date,
+    lines: Sequence[OrderLineFields],
+    expected_on: dt.date | None = None,
+    notes: str = "",
+) -> PurchaseOrder:
+    """Record what we ask a supplier to deliver: products, weights and agreed prices.
+
+    Every problem comes back at once, the header's on their field and each line's on
+    `lines.<index>.<field>`. A product appears once per order.
+    """
+    errors: dict[str, str] = {}
+    if supplier.organization_id != organization.pk:
+        errors["supplier"] = _("Fournisseur inconnu.")
+    elif not supplier.is_active:
+        errors["supplier"] = _("Ce fournisseur est archivé.")
+    if ordered_on > timezone.localdate():
+        errors["ordered_on"] = _("La date du bon d'achat ne peut pas être dans le futur.")
+    if expected_on is not None and expected_on < ordered_on:
+        errors["expected_on"] = _("La livraison prévue ne peut pas précéder le bon d'achat.")
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un produit.")
+    checked_lines: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for index, line in enumerate(lines):
+        product = line.get("product")
+        checked: dict[str, Any] = {"product": product}
+        if product is None or product.organization_id != organization.pk:
+            errors[line_error_key(index, "product")] = _("Produit inconnu.")
+        elif not product.is_active:
+            errors[line_error_key(index, "product")] = _("Ce produit est archivé.")
+        elif product.pk in seen:
+            errors[line_error_key(index, "product")] = _("Ce produit est déjà sur le bon d'achat.")
+        else:
+            seen.add(product.pk)
+        try:
+            value: Any = line.get("ordered_quantity", "")
+            checked["ordered_quantity"] = checked_quantity(value)
+        except (ValueError, TypeError):
+            errors[line_error_key(index, "ordered_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+        try:
+            cost: Any = line.get("unit_cost", "")
+            checked["unit_cost"] = checked_amount(cost)
+        except (ValueError, TypeError):
+            errors[line_error_key(index, "unit_cost")] = _("Indiquez un prix en DT par kg, au millime près.")
+        checked_lines.append(checked)
+    if errors:
+        raise ValidationError(errors)
+
+    order = PurchaseOrder.objects.create(
+        organization=organization,
+        number=_next_order_number(organization),
+        supplier=supplier,
+        ordered_on=ordered_on,
+        expected_on=expected_on,
+        notes=notes.strip(),
+        created_by=actor,
+    )
+    PurchaseOrderLine.objects.bulk_create(
+        [PurchaseOrderLine(organization=organization, order=order, **values) for values in checked_lines]
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="purchase_order.created",
+        target=order,
+        after=_order_snapshot(order),
+    )
+    return order
+
+
+def _locked_order(order: PurchaseOrder) -> PurchaseOrder:
+    return (
+        PurchaseOrder.objects.select_for_update(of=("self",))
+        .select_related("supplier")
+        .prefetch_related("lines")
+        .get(pk=order.pk)
+    )
+
+
+def _locked_order_to_receive(
+    organization: Organization, supplier: "Supplier", order: PurchaseOrder, errors: dict[str, str]
+) -> PurchaseOrder | None:
+    """The order re-read under a row lock so two deliveries cannot be counted at once; problems go to `errors`."""
+    if order.organization_id != organization.pk:
+        errors["purchase_order"] = _("Bon d'achat inconnu.")
+        return None
+    locked = _locked_order(order)
+    if locked.supplier_id != supplier.pk:
+        errors["purchase_order"] = _("Le bon d'achat %(number)s est d'un autre fournisseur.") % {
+            "number": locked.number
+        }
+    elif locked.status not in RECEIVABLE_ORDER_STATUSES:
+        errors["purchase_order"] = _("Le bon d'achat %(number)s est %(status)s : on ne peut plus y recevoir.") % {
+            "number": locked.number,
+            "status": PurchaseOrderStatus(locked.status).label.lower(),
+        }
+    return locked
+
+
+def refresh_order_status(order: PurchaseOrder) -> PurchaseOrder:
+    """Set the status from what was received: nothing → open; every line in full → received; else partly.
+
+    Only an order still waiting for goods changes; a closed or cancelled one stays as it was decided.
+    """
+    if order.status not in RECEIVABLE_ORDER_STATUSES:
+        return order
+    received = {
+        row["order_line"]: row["total"]
+        for row in GoodsReceiptLine.objects.filter(order_line__order=order)
+        .values("order_line")
+        .annotate(total=Sum("accepted_quantity"))
+    }
+    lines = list(order.lines.all())
+    if lines and all(received.get(line.pk, Decimal("0")) >= line.ordered_quantity for line in lines):
+        status = PurchaseOrderStatus.RECEIVED
+    elif received:
+        status = PurchaseOrderStatus.PARTLY_RECEIVED
+    else:
+        status = PurchaseOrderStatus.OPEN
+    if status != order.status:
+        order.status = status
+        order.save(update_fields=["status", "updated_at"])
+    return order
+
+
+@transaction.atomic
+def cancel_order(*, order: PurchaseOrder, actor: User | None) -> PurchaseOrder:
+    """Cancel an order nothing was delivered against. Once goods came, it is closed instead."""
+    order = _locked_order(order)
+    if order.receipts.exists():
+        raise ValidationError(
+            _("Le bon d'achat %(number)s a déjà reçu des marchandises : clôturez-le au lieu de l'annuler.")
+            % {"number": order.number}
+        )
+    if order.status != PurchaseOrderStatus.OPEN:
+        raise ValidationError(_("Le bon d'achat %(number)s ne peut plus être annulé.") % {"number": order.number})
+    before = _order_snapshot(order)
+    order.status = PurchaseOrderStatus.CANCELLED
+    order.closed_at = timezone.now()
+    order.save(update_fields=["status", "closed_at", "updated_at"])
+    audit.record(
+        organization=order.organization,
+        actor=actor,
+        action="purchase_order.cancelled",
+        target=order,
+        before=before,
+        after=_order_snapshot(order),
+    )
+    return order
+
+
+@transaction.atomic
+def close_order(*, order: PurchaseOrder, actor: User | None) -> PurchaseOrder:
+    """Close an order partly delivered: the rest will not come. What was received stays as received."""
+    order = _locked_order(order)
+    if order.status != PurchaseOrderStatus.PARTLY_RECEIVED:
+        raise ValidationError(
+            _("Seul un bon d'achat reçu en partie peut être clôturé : %(number)s est %(status)s.")
+            % {"number": order.number, "status": PurchaseOrderStatus(order.status).label.lower()}
+        )
+    before = _order_snapshot(order)
+    order.status = PurchaseOrderStatus.CLOSED
+    order.closed_at = timezone.now()
+    order.save(update_fields=["status", "closed_at", "updated_at"])
+    audit.record(
+        organization=order.organization,
+        actor=actor,
+        action="purchase_order.closed",
+        target=order,
+        before=before,
+        after=_order_snapshot(order),
+    )
+    return order
 
 
 # ---- Supplier invoices and payments (P1-T08, D-043) ----

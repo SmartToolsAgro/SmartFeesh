@@ -3,7 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 /** After a receipt, refresh receipts, batches, last costs and stock: the receipt changed all of them. */
 export function refreshAfterReceipt(queryClient: QueryClient) {
-  const prefixes = ["/api/v1/receipts", "/api/v1/batches", "/api/v1/locations"];
+  const prefixes = ["/api/v1/receipts", "/api/v1/purchase-orders", "/api/v1/batches", "/api/v1/locations"];
   return queryClient.invalidateQueries({
     predicate: (query) =>
       typeof query.queryKey[0] === "string" && prefixes.some((prefix) => String(query.queryKey[0]).startsWith(prefix)),

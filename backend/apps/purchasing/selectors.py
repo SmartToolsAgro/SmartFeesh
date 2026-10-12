@@ -24,8 +24,11 @@ from django.utils import timezone
 from apps.core.models import Organization
 
 from .models import (
+    RECEIVABLE_ORDER_STATUSES,
     GoodsReceipt,
     GoodsReceiptLine,
+    PurchaseOrder,
+    PurchaseOrderLine,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -46,6 +49,7 @@ def receipts_of(
     search: str = "",
     with_differences: bool = False,
     uninvoiced: bool = False,
+    purchase_order_id: int | None = None,
 ) -> QuerySet[GoodsReceipt]:
     """Receipts newest first, with supplier, location, lines (product and batch), their invoice if any,
     and `has_differences`.
@@ -56,13 +60,15 @@ def receipts_of(
     lines = GoodsReceiptLine.objects.select_related("product", "batch").order_by("id")
     receipts = (
         GoodsReceipt.objects.for_organization(organization)
-        .select_related("supplier", "location", "created_by", "invoice_link__invoice")
+        .select_related("supplier", "location", "created_by", "invoice_link__invoice", "purchase_order")
         .prefetch_related(Prefetch("lines", queryset=lines))
         .annotate(has_differences=Exists(GoodsReceiptLine.objects.filter(DIFFERENT, receipt=OuterRef("pk"))))
         .order_by("-received_on", "-id")
     )
     if supplier_id is not None:
         receipts = receipts.filter(supplier_id=supplier_id)
+    if purchase_order_id is not None:
+        receipts = receipts.filter(purchase_order_id=purchase_order_id)
     if search := search.strip():
         receipts = receipts.filter(
             Q(number__icontains=search) | Q(supplier_reference__icontains=search) | Q(supplier__name__icontains=search)
@@ -110,10 +116,63 @@ def receipt_totals(receipt: GoodsReceipt) -> tuple[Decimal, Decimal]:
     return invoiced, accepted
 
 
-# ---- Supplier invoices, payments and balances (P1-T08, D-043) ----
-
 ZERO = Decimal("0.000")
+
+
+# ---- Purchase orders (D-076) ----
+
+type OrderStatusFilter = Literal["open", "partly_received", "received", "closed", "cancelled", "pending"]
+
+
+def orders_of(
+    organization: Organization,
+    *,
+    supplier_id: int | None = None,
+    status: OrderStatusFilter | None = None,
+    search: str = "",
+) -> QuerySet[PurchaseOrder]:
+    """Purchase orders newest first, with supplier, receipts and lines carrying `received_quantity`.
+
+    `status="pending"` keeps the orders still waiting for goods (open or partly received). `search`
+    matches the order number and the supplier's name.
+    """
+    lines = (
+        PurchaseOrderLine.objects.select_related("product")
+        .annotate(received_quantity=Coalesce(Sum("receipt_lines__accepted_quantity"), ZERO, output_field=QUANTITY))
+        .order_by("id")
+    )
+    receipts = GoodsReceipt.objects.order_by("received_on", "id")
+    orders = (
+        PurchaseOrder.objects.for_organization(organization)
+        .select_related("supplier", "created_by")
+        .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(Prefetch("receipts", queryset=receipts))
+        .order_by("-ordered_on", "-id")
+    )
+    if supplier_id is not None:
+        orders = orders.filter(supplier_id=supplier_id)
+    if status == "pending":
+        orders = orders.filter(status__in=RECEIVABLE_ORDER_STATUSES)
+    elif status is not None:
+        orders = orders.filter(status=status)
+    if search := search.strip():
+        orders = orders.filter(Q(number__icontains=search) | Q(supplier__name__icontains=search))
+    return orders
+
+
+def order_of(organization: Organization, order_id: int) -> PurchaseOrder:
+    """One order with its lines and receipts. Raises PurchaseOrder.DoesNotExist outside the organization."""
+    return orders_of(organization).get(pk=order_id)
+
+
+def order_line_remaining(line: PurchaseOrderLine) -> Decimal:
+    """Weight still to come on a line (never negative: a delivery of more than asked leaves nothing)."""
+    return max(line.ordered_quantity - getattr(line, "received_quantity", ZERO), ZERO)
+
+
+# ---- Supplier invoices, payments and balances (P1-T08, D-043) ----
 AMOUNT = DecimalField(max_digits=14, decimal_places=3)
+QUANTITY = DecimalField(max_digits=12, decimal_places=3)
 # Posted and not fully paid: what is still owed on invoices.
 OPEN_STATUSES = (SupplierInvoiceStatus.POSTED, SupplierInvoiceStatus.PARTLY_PAID)
 

@@ -18,13 +18,16 @@ from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.purchasing import selectors, services
-from apps.purchasing.models import GoodsReceipt, GoodsReceiptLine, SupplierInvoice, SupplierPayment
+from apps.purchasing.models import GoodsReceipt, GoodsReceiptLine, PurchaseOrder, SupplierInvoice, SupplierPayment
 
 from .serializers import (
     DifferenceFilterSerializer,
     DifferenceLineSerializer,
     LastCostFilterSerializer,
     LastCostSerializer,
+    OrderFilterSerializer,
+    OrderSerializer,
+    OrderWriteSerializer,
     PaymentAllocateSerializer,
     ReceiptFilterSerializer,
     ReceiptSerializer,
@@ -68,6 +71,12 @@ def _resolved(organization: Organization, data: dict[str, Any]) -> dict[str, Any
         location = inventory.location_of(organization, data["location"])
     except ObjectDoesNotExist:
         errors["location"] = _("Emplacement inconnu.")
+    order = None
+    if data.get("purchase_order") is not None:
+        try:
+            order = selectors.order_of(organization, data["purchase_order"])
+        except PurchaseOrder.DoesNotExist:
+            errors["purchase_order"] = _("Bon d'achat inconnu.")
     lines = []
     for index, line in enumerate(data["lines"]):
         try:
@@ -78,7 +87,7 @@ def _resolved(organization: Organization, data: dict[str, Any]) -> dict[str, Any
         lines.append({**line, "product": product})
     if errors:
         raise ValidationError(errors)
-    return {**data, "supplier": supplier, "location": location, "lines": lines}
+    return {**data, "supplier": supplier, "location": location, "purchase_order": order, "lines": lines}
 
 
 class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
@@ -94,6 +103,7 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
             search=filters.validated_data["search"],
             with_differences=filters.validated_data["differences"],
             uninvoiced=filters.validated_data["uninvoiced"],
+            purchase_order_id=filters.validated_data.get("purchase_order"),
         )
 
     @extend_schema(operation_id="listReceipts", parameters=[ReceiptFilterSerializer])
@@ -106,7 +116,8 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
     @extend_schema(operation_id="createReceipt", request=ReceiptWriteSerializer, responses={201: ReceiptSerializer})
     def post(self, request: Request) -> Response:
         """Record goods received from a supplier: one batch per line, its accepted net weight into stock.
-        Errors of a line come back on `lines.<index>.<field>`."""
+        Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
+        against that bon d'achat: only its products, and only the part that arrived (partial receipts)."""
         serializer = ReceiptWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = _resolved(self.organization, serializer.validated_data)
@@ -161,6 +172,87 @@ class LastCostListView(PurchasingView):
         filters.is_valid(raise_exception=True)
         batches = inventory.last_batches_from(self.organization, supplier_id=filters.validated_data["supplier"])
         return Response(LastCostSerializer(batches, many=True).data)
+
+
+# ---- Purchase orders, the "bon d'achat" (D-076) ----
+
+
+class OrderListView(PurchasingView, ListAPIView[PurchaseOrder]):
+    serializer_class = OrderSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[PurchaseOrder]:
+        filters = OrderFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.orders_of(
+            self.organization,
+            supplier_id=filters.validated_data.get("supplier"),
+            status=filters.validated_data.get("status"),
+            search=filters.validated_data["search"],
+        )
+
+    @extend_schema(operation_id="listPurchaseOrders", parameters=[OrderFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Purchase orders (bons d'achat), newest first, paginated, each with its lines (ordered, received
+        and remaining weight) and its receipts. Filter by supplier, status (`pending` = still waiting for
+        goods) or `search` (number, supplier's name)."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(operation_id="createPurchaseOrder", request=OrderWriteSerializer, responses={201: OrderSerializer})
+    def post(self, request: Request) -> Response:
+        """Record a purchase order: what we ask a supplier to deliver, at what price. It moves no stock;
+        deliveries are goods receipts against it, as many as the supplier makes."""
+        serializer = OrderWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        supplier = _supplier(self.organization, data.pop("supplier"))
+        errors: dict[str, str] = {}
+        lines: list[Any] = []
+        for index, line in enumerate(data.pop("lines")):
+            try:
+                product = catalog.product_of(self.organization, line["product"])
+            except ObjectDoesNotExist:
+                errors[services.line_error_key(index, "product")] = _("Produit inconnu.")
+                continue
+            lines.append({**line, "product": product})
+        if errors:
+            raise ValidationError(errors)
+        order = services.create_order(
+            organization=self.organization, actor=self.membership.user, supplier=supplier, lines=lines, **data
+        )
+        return Response(
+            OrderSerializer(selectors.order_of(self.organization, order.pk)).data, status=status.HTTP_201_CREATED
+        )
+
+
+class OrderView(PurchasingView):
+    def _order(self, order_id: int) -> PurchaseOrder:
+        try:
+            return selectors.order_of(self.organization, order_id)
+        except PurchaseOrder.DoesNotExist:
+            raise Http404 from None
+
+
+class OrderDetailView(OrderView):
+    @extend_schema(operation_id="getPurchaseOrder", responses=OrderSerializer)
+    def get(self, request: Request, order_id: int) -> Response:
+        return Response(OrderSerializer(self._order(order_id)).data)
+
+
+class OrderCancelView(OrderView):
+    @extend_schema(operation_id="cancelPurchaseOrder", request=None, responses=OrderSerializer)
+    def post(self, request: Request, order_id: int) -> Response:
+        """Cancel an order nothing was delivered against."""
+        services.cancel_order(order=self._order(order_id), actor=self.membership.user)
+        return Response(OrderSerializer(self._order(order_id)).data)
+
+
+class OrderCloseView(OrderView):
+    @extend_schema(operation_id="closePurchaseOrder", request=None, responses=OrderSerializer)
+    def post(self, request: Request, order_id: int) -> Response:
+        """Close an order that was delivered in part: the rest will not come. Receipts stay as they are."""
+        services.close_order(order=self._order(order_id), actor=self.membership.user)
+        return Response(OrderSerializer(self._order(order_id)).data)
 
 
 # ---- Supplier invoices and payments (P1-T08, D-043) ----

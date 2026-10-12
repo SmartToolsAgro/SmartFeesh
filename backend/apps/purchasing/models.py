@@ -20,6 +20,11 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     # By name, not by import: an app only uses another app's services and selectors (ARCHITECTURE §3).
     supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="receipts")
     location = models.ForeignKey("inventory.StockLocation", on_delete=models.PROTECT, related_name="receipts")
+    # The purchase order this delivery is against, or empty for goods that came without an order (D-076).
+    # One order is received in as many receipts as the supplier delivers it in.
+    purchase_order = models.ForeignKey(
+        "PurchaseOrder", null=True, blank=True, on_delete=models.PROTECT, related_name="receipts"
+    )
     received_on = models.DateField()
     # The supplier's delivery note or invoice number, as printed on their paper.
     supplier_reference = models.CharField(max_length=50, blank=True)
@@ -48,6 +53,10 @@ class GoodsReceiptLine(OrganizationScopedModel):
     receipt = models.ForeignKey(GoodsReceipt, on_delete=models.PROTECT, related_name="lines")
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
     batch = models.OneToOneField("inventory.Batch", on_delete=models.PROTECT, related_name="receipt_line")
+    # The order line this delivers against; its accepted weight counts as received on the order (D-076).
+    order_line = models.ForeignKey(
+        "PurchaseOrderLine", null=True, blank=True, on_delete=models.PROTECT, related_name="receipt_lines"
+    )
     # Empty when nothing was ordered beforehand (the boat came in with what it had).
     # A QuantityField that may be empty (QuantityField itself is typed as never empty).
     ordered_quantity = models.DecimalField[Decimal | None, Decimal | None](
@@ -100,6 +109,82 @@ class ReceiptCounter(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.organization} · {self.last_number}"
+
+
+class PurchaseOrderStatus(models.TextChoices):
+    # Sent to the supplier, nothing delivered yet.
+    OPEN = "open", _("En attente")
+    # Some of it delivered (a receipt per delivery), some still to come.
+    PARTLY_RECEIVED = "partly_received", _("Reçu en partie")
+    # Every line delivered in full (or more).
+    RECEIVED = "received", _("Reçu")
+    # Closed by hand while part was never delivered: the rest will not come.
+    CLOSED = "closed", _("Clôturé")
+    # Cancelled before anything was delivered.
+    CANCELLED = "cancelled", _("Annulé")
+
+
+# The orders that can still be delivered against.
+RECEIVABLE_ORDER_STATUSES = (PurchaseOrderStatus.OPEN, PurchaseOrderStatus.PARTLY_RECEIVED)
+
+
+class PurchaseOrder(OrganizationScopedModel, TimeStampedModel):
+    """What we ask a supplier to deliver: the "bon d'achat" (D-076).
+
+    It moves no stock and owes nothing: only goods receipts do. It is never edited; a mistake is
+    cancelled (before any delivery) and typed again. Its status follows its receipts.
+    """
+
+    # "BA-0001", "BA-0002"... per organization, given by `services.create_order`.
+    number = models.CharField(max_length=20)
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="purchase_orders")
+    ordered_on = models.DateField()
+    # When the supplier promised to deliver; empty when no date was agreed.
+    expected_on = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=PurchaseOrderStatus.choices, default=PurchaseOrderStatus.OPEN)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-ordered_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="order_number_unique_per_organization"),
+            models.CheckConstraint(
+                condition=models.Q(expected_on__isnull=True) | models.Q(expected_on__gte=models.F("ordered_on")),
+                name="order_expected_not_before_ordered",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class PurchaseOrderLine(OrganizationScopedModel):
+    """One product of an order: the weight asked for and the price agreed (per kg, without VAT)."""
+
+    order = models.ForeignKey(PurchaseOrder, on_delete=models.PROTECT, related_name="lines")
+    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
+    ordered_quantity = QuantityField()
+    # The agreed price. The receipt line has its own cost, because the real price can differ on the day.
+    unit_cost = MoneyField()
+
+    class Meta:
+        ordering = ["order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["order", "product"], name="order_line_one_per_product"),
+            models.CheckConstraint(condition=models.Q(ordered_quantity__gt=0), name="order_line_quantity_positive"),
+            models.CheckConstraint(condition=models.Q(unit_cost__gte=0), name="order_line_cost_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.order} · {self.product}"
+
+    @property
+    def ordered_amount(self) -> Decimal:
+        return line_total(self.ordered_quantity, self.unit_cost)
 
 
 class SupplierInvoiceStatus(models.TextChoices):
@@ -229,6 +314,7 @@ class SupplierPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
 class DocumentKind(models.TextChoices):
     SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
     SUPPLIER_PAYMENT = "supplier_payment", _("Paiement fournisseur")
+    PURCHASE_ORDER = "purchase_order", _("Bon d'achat")
 
 
 class DocumentCounter(OrganizationScopedModel):

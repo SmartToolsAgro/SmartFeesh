@@ -43,6 +43,9 @@ import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "./purchasing/SupplierInvoicesPage";
 import { SupplierPaymentFormPage } from "./purchasing/SupplierPaymentFormPage";
 import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
+import { PurchaseOrderDetailPage } from "./orders/PurchaseOrderDetailPage";
+import { PurchaseOrderFormPage } from "./orders/PurchaseOrderFormPage";
+import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
 import { ReceiptFormPage } from "./receipts/ReceiptFormPage";
 import { ReceiptsPage } from "./receipts/ReceiptsPage";
@@ -205,6 +208,9 @@ function AppRoutes() {
         {/* Invoices and finance settings (P2-T05) */}
         <Route path="/factures/parametres" element={<FinanceSettingsPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
+        <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
+        <Route path="/achats/bons/nouveau" element={<PurchaseOrderFormPage />} />
+        <Route path="/achats/bons/:orderId" element={<PurchaseOrderDetailPage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         <Route path="/achats/factures" element={<SupplierInvoicesPage />} />

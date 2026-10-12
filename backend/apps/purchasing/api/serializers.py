@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from django.utils import timezone
@@ -9,6 +10,9 @@ from apps.purchasing.models import (
     GoodsReceipt,
     GoodsReceiptLine,
     PaymentMethod,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderStatus,
     SupplierInvoice,
     SupplierInvoiceStatus,
     SupplierPayment,
@@ -70,8 +74,18 @@ class InvoiceRefSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=SupplierInvoiceStatus.choices, read_only=True)
 
 
+class OrderRefSerializer(serializers.Serializer[Any]):
+    """The purchase order a receipt delivers against."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    status = serializers.ChoiceField(choices=PurchaseOrderStatus.choices, read_only=True)
+
+
 class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     supplier = RefSerializer(read_only=True)
+    # The bon d'achat this delivery is against, or null for goods that came without one.
+    purchase_order = OrderRefSerializer(read_only=True, allow_null=True)
     location = ReceiptLocationSerializer(read_only=True)
     lines = ReceiptLineSerializer(many=True, read_only=True)
     has_differences = serializers.BooleanField(read_only=True)
@@ -88,6 +102,7 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
             "number",
             "supplier",
             "location",
+            "purchase_order",
             "received_on",
             "supplier_reference",
             "notes",
@@ -135,6 +150,8 @@ class ReceiptLineWriteSerializer(serializers.Serializer[Any]):
 class ReceiptWriteSerializer(serializers.Serializer[Any]):
     supplier = serializers.IntegerField(min_value=1)
     location = serializers.IntegerField(min_value=1)
+    # Deliver against this bon d'achat: its products only, as much of each as arrived (D-076).
+    purchase_order = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     received_on = serializers.DateField()
     supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
@@ -148,6 +165,8 @@ class ReceiptFilterSerializer(serializers.Serializer[Any]):
     differences = serializers.BooleanField(required=False, default=False)
     # Only receipts not on any supplier invoice yet (draft or posted).
     uninvoiced = serializers.BooleanField(required=False, default=False)
+    # Only the receipts against this purchase order.
+    purchase_order = serializers.IntegerField(required=False, min_value=1)
 
 
 class ReceiptRefSerializer(serializers.Serializer[Any]):
@@ -182,6 +201,105 @@ class LastCostSerializer(serializers.Serializer[Any]):
 
 class LastCostFilterSerializer(serializers.Serializer[Any]):
     supplier = serializers.IntegerField(min_value=1)
+
+
+# ---- Purchase orders, the "bon d'achat" (D-076) ----
+
+
+class OrderReceiptRefSerializer(serializers.Serializer[Any]):
+    """A delivery against an order: its receipt."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    received_on = serializers.DateField(read_only=True)
+
+
+class OrderLineSerializer(serializers.ModelSerializer[PurchaseOrderLine]):
+    product = RefSerializer(read_only=True)
+    ordered_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Accepted weight of the receipts against this line, and what is still to come.
+    received_quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    remaining_quantity = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseOrderLine
+        fields: tuple[str, ...] = (
+            "id",
+            "product",
+            "ordered_quantity",
+            "unit_cost",
+            "ordered_amount",
+            "received_quantity",
+            "remaining_quantity",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=3))
+    def get_remaining_quantity(self, line: PurchaseOrderLine) -> str:
+        return str(selectors.order_line_remaining(line))
+
+
+class OrderSerializer(serializers.ModelSerializer[PurchaseOrder]):
+    supplier = RefSerializer(read_only=True)
+    lines = OrderLineSerializer(many=True, read_only=True)
+    receipts = serializers.SerializerMethodField()
+    ordered_total = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseOrder
+        fields = (
+            "id",
+            "number",
+            "supplier",
+            "ordered_on",
+            "expected_on",
+            "status",
+            "notes",
+            "lines",
+            "receipts",
+            "ordered_total",
+            "created_by",
+            "created_at",
+            "closed_at",
+        )
+        read_only_fields = fields
+
+    @extend_schema_field(OrderReceiptRefSerializer(many=True))
+    def get_receipts(self, order: PurchaseOrder) -> list[dict[str, Any]]:
+        return [dict(OrderReceiptRefSerializer(receipt).data) for receipt in order.receipts.all()]
+
+    @extend_schema_field(AMOUNT)
+    def get_ordered_total(self, order: PurchaseOrder) -> str:
+        return str(sum((line.ordered_amount for line in order.lines.all()), Decimal("0.000")))
+
+    def get_created_by(self, order: PurchaseOrder) -> str:
+        user = order.created_by
+        if user is None:
+            return ""
+        return f"{user.first_name} {user.last_name}".strip() or user.username
+
+
+class OrderLineWriteSerializer(serializers.Serializer[Any]):
+    product = serializers.IntegerField(min_value=1)
+    # Strings, checked by the service, which reports each problem on `lines.<index>.<field>`.
+    ordered_quantity = serializers.CharField(allow_blank=True)
+    unit_cost = serializers.CharField(allow_blank=True)
+
+
+class OrderWriteSerializer(serializers.Serializer[Any]):
+    supplier = serializers.IntegerField(min_value=1)
+    ordered_on = serializers.DateField()
+    expected_on = serializers.DateField(required=False, allow_null=True, default=None)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    lines = OrderLineWriteSerializer(many=True, allow_empty=True)
+
+
+class OrderFilterSerializer(serializers.Serializer[Any]):
+    supplier = serializers.IntegerField(required=False, min_value=1)
+    # `pending` = open or partly received: still waiting for goods.
+    status = serializers.ChoiceField(choices=[*PurchaseOrderStatus.choices, ("pending", "pending")], required=False)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
 
 
 # ---- Supplier invoices and payments (P1-T08, D-043) ----
