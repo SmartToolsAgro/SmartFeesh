@@ -419,8 +419,14 @@ def post_fifo_movements(
         .select_related("batch")
         .order_by("location_id", "batch_id")
     )
+    # A document typed for an earlier day cannot take a batch that arrived after it (D-106).
+    day = timezone.localtime(occurred_at).date() if occurred_at is not None else timezone.localdate()
     holdings = sorted(
-        (row for row in locked if row.location_id == from_location.pk and row.quantity > 0),
+        (
+            row
+            for row in locked
+            if row.location_id == from_location.pk and row.quantity > 0 and row.batch.received_on <= day
+        ),
         key=lambda row: tuple(getattr(row.batch, field) for field in FIFO_ORDER),
     )
     allocations = selectors.fifo_split(holdings, amount)
@@ -935,7 +941,9 @@ def record_loss(
     if not errors and amount is not None:
         try:
             # Checked now so a loss waiting for approval is possible at least today.
-            selectors.allocate_fifo(organization, product_id=product.pk, location=location, quantity=amount)
+            selectors.allocate_fifo(
+                organization, product_id=product.pk, location=location, quantity=amount, day=lost_on
+            )
         except ValidationError as error:
             errors.update({field: messages[0] for field, messages in error.message_dict.items()})
     if errors or amount is None:

@@ -84,7 +84,7 @@ export function BatchStockPage() {
             {data.use_by ? formatDate(data.use_by) : t("admin.stock.none")}
           </Detail>
           <Detail label={t("admin.stock.batch.onHand")}>
-            <span className="num font-semibold">{formatQuantity(held?.quantity ?? "0")} kg</span>
+            <span className="num font-semibold">{formatQuantity(held?.quantity ?? "0")}</span>
             {held && (
               <span className="block text-[0.85rem] text-ink-2">
                 {held.locations.map((row) => `${row.location.name} (${formatQuantity(row.quantity)})`).join(" · ")}

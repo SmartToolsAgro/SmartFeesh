@@ -217,3 +217,32 @@ def test_loads_and_returns_at_once_do_not_deadlock():
     assert run_at_once(8, move) == []
     total = selectors.quantity_on_hand(organization, product_id=product.pk)
     assert total == Decimal("60.000")
+
+
+def test_a_document_of_an_earlier_day_cannot_take_a_batch_that_arrived_after_it(
+    organization, actor, product, cold_room, truck
+):
+    old = receive(organization, product, cold_room, "10", days_ago=3)
+    receive(organization, product, cold_room, "50", days_ago=0)
+    two_days_ago = timezone.now() - dt.timedelta(days=2)
+
+    # The old batch alone can serve 10 kg dated two days ago ...
+    moved = take(organization, actor, product, "10", cold_room, to_location=truck, occurred_at=two_days_ago)
+    assert split(moved) == [(old, Decimal("10.000"))]
+    # ... but not 11: the other batch only arrived today.
+    with pytest.raises(ValidationError, match="Stock insuffisant"):
+        take(organization, actor, product, "1", cold_room, to_location=truck, occurred_at=two_days_ago)
+    # Today, the newer batch is available.
+    assert sum(m.quantity for m in take(organization, actor, product, "1", cold_room, to_location=truck)) == 1
+
+
+def test_the_fifo_preview_with_a_day_ignores_later_batches(organization, product, cold_room):
+    old = receive(organization, product, cold_room, "10", days_ago=3)
+    receive(organization, product, cold_room, "50", days_ago=0)
+    day = timezone.localdate() - dt.timedelta(days=1)
+
+    kwargs = {"product_id": product.pk, "location": cold_room}
+    assert selectors.allocate_fifo(organization, quantity="10", day=day, **kwargs) == [(old, Decimal("10.000"))]
+    with pytest.raises(ValidationError):
+        selectors.allocate_fifo(organization, quantity="11", day=day, **kwargs)
+    assert len(selectors.allocate_fifo(organization, quantity="11", **kwargs)) == 2

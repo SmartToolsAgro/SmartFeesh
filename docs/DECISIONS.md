@@ -1107,7 +1107,7 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - Known gaps: no settlement PDF (P6-T04); a cancelled partnership with capital returned is not part of the
   balances beyond its ledger; the settlement uses today's date (no back-dating field).
 
-**D-070 · Back button, truck-of-day menu entry, sticky filter bars** · accepted · 2026-10-11
+**D-110 · Back button, truck-of-day menu entry, sticky filter bars** (numbered D-070 until 2026-10-12, a duplicate) · accepted · 2026-10-11
 - `AdminShell` shows a "Retour" button on every page that is not a menu entry (previous page, or the parent menu
   entry when opened directly). "Camions du jour" (D-046) is its own menu entry `/camions`, no longer a section of
   the Stock page. Filter bars of list pages use the `filter-bar` class: sticky under the 62px top bar.
@@ -1312,7 +1312,7 @@ it is needed. The truck app's queries use `networkMode: "offlineFirst"` so they 
 saved answer. Logging out deletes the saved API answers, so the next driver on the phone sees none of them. A banner
 says when there is no signal. Not yet shown: the time of the last update on each screen.
 
-**D-095 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** · accepted · 2026-10-12
+**D-109 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** (numbered D-095 until 2026-10-12, a duplicate) · accepted · 2026-10-12
 Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
 rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
 customers the driver sold to most recently first (up to 8), then the others by name, the walk-in customer last.
@@ -1383,6 +1383,30 @@ real phone.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
 
+**D-113 · Commercial and stock reports (P7-T02, P7-T03)** · accepted · 2026-10-12
+New app `reports` (read-only; owner, manager and accountant, never a driver) and the page **Rapports** (menu "Pilotage",
+four tabs, each with an Excel file). **Sales** by customer, product, truck, driver, day, week or month: number of
+sales, kg, revenue without VAT, cost of the goods sold and margin, net of the credit notes of the period. They are the
+rows of the monthly closing (`sales.report_rows`), so a report and the closing never differ by a dinar. The **driver** of
+a truck is the one who opened that truck's day on the phone (`fleet.drivers_by_truck_day`, D-090); a truck day nobody
+opened, or a counter sale, shows "—". **Stock value** by place and product at the purchase cost of each lot; **slow
+lots** (no movement for N days, default 30, longest idle first); **losses and weight differences** per product over a
+period, at the lot's cost per kg. Excel files (`openpyxl`, amounts kept as exact numbers with three decimals, a totals
+row) are plain downloads next to each table. **Not done:** sales by supplier and by payment method (listed in P7-T02),
+a driver/period comparison chart, and the Arabic texts (the page is French, like the rest of the admin app).
+
+**D-106 · Stock cannot leave before it arrived (review, round 2)** · accepted · 2026-10-12
+- `post_fifo_movements` and `selectors.allocate_fifo` (new `day` argument, given by `record_loss`) only take batches
+  with `received_on` on or before the document's day (the local day of `occurred_at`; today when none). A transfer,
+  loss or sale typed for an earlier day can no longer take a batch received afterwards, which made the daily replay of
+  the ledger (`kg_by_batch_by_day`, month-end valuation) show negative balances.
+- A document of today is unaffected (a batch is never received in the future). When only later batches exist for
+  that day, the document is refused with the usual "Stock insuffisant" message.
+- Tests that sell on past days must create their batch with an older `received_on`
+  (`sales/tests/test_payments.py::stocked` now does; it was the only test relying on the old behaviour).
+- Also: a product still in stock cannot be archived (PR #59); a receipt whose supplier delivery-note number is already
+  on another receipt of the same supplier shows a non-blocking warning in the form (a note can cover two deliveries).
+
 **D-111 · The driver collects customer payments on the phone (P3-T11)** · accepted · 2026-10-12
 `POST /my-payments` (driver only) calls `sales.services.record_customer_payment` (D-062): today's date, cash by
 default, allocated to the customer's oldest open sales. `CustomerPayment.client_uuid` (sales migration 0010, unique per
@@ -1418,6 +1442,34 @@ today's stock). Alerts: the five biggest overdue customers (and how many more), 
   The screen offers "Importer" only after a clean check.
 - Products need an existing category (a typo is an error, not a new category) and a price above 0; customers take
   their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
+- Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
+  same task.
+
+**D-116 · Financial reports (P7-T04)** · accepted · 2026-10-12
+Five reports on the **Finances** tab of Rapports, **owner and accountant only** (the manager and drivers get 403: this is
+the company's money), each with a date or month filter where it makes sense and an Excel file. Everything is read from the
+selector that owns the number, nothing is recomputed: **month result** = `closing.selectors.month_result` (the monthly
+closing's own report: revenue, cost of goods, spoilage, expenses by category, personnel, net result); **customers who
+owe** = the receivables of D-062 (balance, overdue, ageing 0-30 / 31-60 / 61+; customers whose credit we hold are left
+out); **suppliers owed** = `purchasing.supplier_balance` per supplier (posted invoices minus payments, overdue, and goods
+received but not invoiced, which are not owed yet; partner capital and profit shares stay out, D-040); **unpaid
+salaries** = `hr.unpaid_by_employee`. **Cash flow** by day, week (Monday) or month: in = paid on the spot at confirmed
+sales (by sale day) + customer payments (by received day, voided left out); out = supplier payments + salary payments +
+approved expenses (an approved expense is taken as paid on its date, whatever its payment method: provisional). It is a
+movement report, not a bank reconciliation: there is no opening balance. Payroll accruals are not cash and appear in the
+month result only.
+
+**D-117 · Partnership report (P7-T05)** · accepted · 2026-10-12
+Tab **Partenaires** on Rapports (owner and accountant only), one row per partner and a totals row, with a date range and an
+Excel file. **Over the period** (by entry date, straight from the two partner ledgers, `partnerships.partner_flows`): capital
+put in, loss share deducted from the capital (net of reversals), capital returned; profit share earned, losses beyond the
+capital (owed by the partner), late adjustments (signed) and shares paid out. **Today** (the same selectors as the partner
+screens, `capital_by_partner` and `profit_share_balance_of_partner`, so the report never disagrees with them): capital still
+in the company and the share still due (negative: the partner owes it). The three balances (capital, profit share, trade
+payable) stay separate (D-031, D-040); the supplier payable is in the Finances tab, not here. A lot's settlement
+appears as its capital return and its share payment. **Not done:** a per-lot breakdown under each partner (the lot screens
+have it), and Arabic texts.
+
 - **Opening stock** (slice 2): kind `opening_stock`, one row per lot: product and supplier by reference, location
   by name, kg, cost per kg, reception date. Each row creates a batch (`receipt_reference` "STOCK-OUVERTURE") and
   posts a `receipt` movement through `inventory.services`, so the ledger and FIFO work as for any lot. Sending the

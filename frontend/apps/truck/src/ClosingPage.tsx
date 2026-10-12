@@ -85,7 +85,7 @@ export function ClosingPage() {
                   {t("truck.closing.returned")} {formatQuantity(product.returned)}
                 </p>
                 <p className="font-semibold">
-                  {t("truck.closing.left")} {formatQuantity(product.remaining)} kg
+                  {t("truck.closing.left")} {formatQuantity(product.remaining)}
                 </p>
               </li>
             ))}

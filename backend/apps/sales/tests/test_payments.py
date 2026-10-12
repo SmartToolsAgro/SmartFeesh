@@ -56,7 +56,13 @@ def crevette(organization):
 
 @pytest.fixture
 def stocked(organization, counter, crevette):
-    batch = BatchFactory.create(organization=organization, product=crevette, unit_cost=D("20.000"))
+    # Received long ago: some tests sell on past days, and stock cannot leave before it arrived (D-106).
+    batch = BatchFactory.create(
+        organization=organization,
+        product=crevette,
+        unit_cost=D("20.000"),
+        received_on=timezone.localdate() - dt.timedelta(days=120),
+    )
     stock.post_movement(
         organization=organization,
         actor=None,

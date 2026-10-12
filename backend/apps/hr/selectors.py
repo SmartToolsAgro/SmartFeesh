@@ -239,3 +239,14 @@ def employee_cost_of_lot(organization: Organization, *, batch_id: int) -> Decima
     """Employees' cost charged to one lot: the sum of the costs kept on their days (read by Phase 6)."""
     total = LotWorkDay.objects.for_organization(organization).filter(batch_id=batch_id).aggregate(total=Sum("cost"))
     return total["total"] or ZERO
+
+
+def payments_by_day(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> dict[dt.date, Decimal]:
+    """Salary paid per day (`paid_on`), inclusive."""
+    rows = (
+        SalaryPayment.objects.for_organization(organization)
+        .filter(paid_on__gte=date_from, paid_on__lte=date_to)
+        .values("paid_on")
+        .annotate(total=Sum("amount"))
+    )
+    return {row["paid_on"]: row["total"] for row in rows}

@@ -130,7 +130,7 @@ export function LossPage() {
                   onClick={() => setProduct(item.product_id)}
                 >
                   <span>{item.product_name}</span>
-                  <span className="text-sm font-normal">{formatQuantity(item.quantity)} kg</span>
+                  <span className="text-sm font-normal">{formatQuantity(item.quantity)}</span>
                 </Button>
               ))}
             </div>
