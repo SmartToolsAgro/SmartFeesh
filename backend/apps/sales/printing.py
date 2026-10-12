@@ -74,7 +74,9 @@ def invoice_printable(organization: Organization, invoice_id: int) -> documents.
         # A draft has no number and may still change: only an issued invoice is a document.
         raise ValidationError(_("Une facture brouillon n'a pas de PDF : émettez-la d'abord."))
     lines = list(invoice.lines.all())
+    several = invoice.sales.count() > 1
     context: dict[str, Any] = {
+        "several_sales": several,
         "number": invoice.number,
         "seller": {
             "name": invoice.seller_name,
@@ -84,7 +86,7 @@ def invoice_printable(organization: Organization, invoice_id: int) -> documents.
             "trade_register": invoice.seller_trade_register,
         },
         "invoice": invoice,
-        "sale_number": invoice.sale.number,
+        "sale_numbers": ", ".join(sale.number for sale in invoice.sales.all()),
         "lines": lines,
         "has_discount": any(line.discount_rate for line in lines),
         "vat_lines": list(invoice.vat_lines.all()) if invoice.apply_vat else [],

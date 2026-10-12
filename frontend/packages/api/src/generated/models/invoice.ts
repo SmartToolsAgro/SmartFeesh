@@ -14,6 +14,7 @@ export interface Invoice {
   readonly number: string;
   readonly status: InvoiceStatusEnum;
   readonly sale: SaleRef;
+  readonly sales: readonly SaleRef[];
   readonly customer: QuoteCustomer;
   /** @nullable */
   readonly issued_on: string | null;

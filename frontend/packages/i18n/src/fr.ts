@@ -889,6 +889,15 @@ export const fr = {
       page: "{{from}}–{{to}} sur {{count}}",
       statusFilter: "Statut de la vente",
       allStatuses: "Toutes",
+      // Grouped invoice from several BL (D-096)
+      groupInvoice: {
+        filter: "À facturer",
+        select: "Choisir le bon de livraison {{number}}",
+        action: "Facturer la sélection ({{count}})",
+        mixed: "Une facture ne regroupe que les bons de livraison d'un même client.",
+        ready: "Brouillon de facture prêt pour {{count}} bons de livraison.",
+        failed: "La facture n'a pas pu être préparée.",
+      },
       statuses: {
         draft: "Brouillon",
         confirmed: "Confirmée",
@@ -2587,6 +2596,7 @@ export const fr = {
         createTitle: "Mettre le lot {{number}} en partenariat",
         editTitle: "Modifier le partenariat du lot {{number}}",
         description: "Un seul partenaire par lot. Les deux taux peuvent être différents.",
+        origin: "Lot acheté chez {{supplier}} : {{quantity}} kg à {{unitCost}}/kg, soit {{total}} au total.",
         partner: "Fournisseur partenaire",
         choosePartner: "Choisir un fournisseur",
         ownerCapital: "Apport du propriétaire (DT)",
