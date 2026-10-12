@@ -26,4 +26,4 @@ _Coarse plan: detail each task when the phase starts._
 - [ ] Every report exports to Excel and PDF (Celery job for large ones).
 
 ### P7-T07 · Alerts and notifications · S
-- [ ] Low stock, overdue customers, cash differences, expiring batches. In-app first; SMS/WhatsApp in Phase 8.
+- [x] Low stock, overdue customers, cash differences, expiring batches. In-app first; SMS/WhatsApp in Phase 8.

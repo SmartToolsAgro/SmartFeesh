@@ -1388,3 +1388,12 @@ collected this month (what customers paid on the spot at a confirmed sale plus t
 today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
 (`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
 **Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
+
+**D-114 · In-app alerts on the dashboard (P7-T07)** · accepted · 2026-10-12
+The dashboard's alerts card (D-104) gains three alerts, each from a read-only selector in the app that owns the data, each
+showing at most five items and a count of all: **low stock** (`inventory.low_stock_products`: active products under their
+`min_stock`, emptiest first), **lots expiring** (`inventory.expiring_batches`: kilos still in stock, `use_by` within 3 days or
+already past; the 3 days is `closing.dashboard.EXPIRY_ALERT_DAYS`, provisional, to confirm with the client) and **unexplained
+cash differences** (`dayclose.selectors.unexplained_cash_differences`: driver days not approved with counted cash different
+from expected, where the driver left no note or the office asked for a justification and has not got it). **Not done:** lots
+with pending partner terms (waits for #58 on `main`); SMS/WhatsApp (Phase 8); no per-user read/dismiss state.

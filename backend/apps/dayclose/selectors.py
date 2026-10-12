@@ -1,9 +1,11 @@
 """What a driver's day adds up to (P3-T06): sales, cash, expenses and the stock of the truck."""
 
+import datetime as dt
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import PermissionDenied
@@ -137,3 +139,39 @@ def sync_problem_by_id(organization: Organization, problem_id: int) -> SyncProbl
 def waiting_for_office(organization: Organization) -> int:
     """Driver days sent by the driver (or sent again with a note) and not approved yet."""
     return closings_of(organization).exclude(status=DayClosingStatus.APPROVED).count()
+
+
+# ---- Alert for the owner's dashboard (P7-T07, D-114) ----
+
+
+@dataclass(frozen=True)
+class CashDifference:
+    closing_id: int
+    day: dt.date
+    driver_name: str
+    # counted - expected: negative means less cash than the records say.
+    difference: Decimal
+
+
+def unexplained_cash_differences(organization: Organization) -> list[CashDifference]:
+    """Driver days not approved yet whose counted cash is not what the records say and that nobody explained:
+    the driver left no note, or the office asked for a justification and has not got it. Newest first."""
+    rows = (
+        closings_of(organization)
+        .exclude(status=DayClosingStatus.APPROVED)
+        .exclude(difference=0)
+        .filter(Q(driver_note="") | Q(status=DayClosingStatus.JUSTIFICATION))
+        .order_by("-driver_day__date", "-id")
+    )
+    return [
+        CashDifference(
+            closing_id=row.pk,
+            day=row.driver_day.date,
+            driver_name=(
+                f"{row.driver_day.driver.first_name} {row.driver_day.driver.last_name}".strip()
+                or row.driver_day.driver.username
+            ),
+            difference=row.difference,
+        )
+        for row in rows
+    ]

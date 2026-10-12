@@ -1557,6 +1557,10 @@ export const getDashboardResponseReceivablesRegExp = new RegExp('^-?\\d{0,11}(?:
 export const getDashboardResponseReceivablesOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDashboardResponseStockValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDashboardResponseOverdueCustomersItemOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseLowStockItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseLowStockItemMinStockRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseExpiringItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseCashDifferencesItemDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetDashboardResponse = zod.object({
@@ -1576,7 +1580,29 @@ export const GetDashboardResponse = zod.object({
 })),
   "overdue_customer_count": zod.int(),
   "days_waiting": zod.int(),
-  "expenses_waiting": zod.int()
+  "expenses_waiting": zod.int(),
+  "low_stock": zod.array(zod.object({
+  "product_id": zod.int(),
+  "name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getDashboardResponseLowStockItemQuantityRegExp),
+  "min_stock": zod.stringFormat('decimal', getDashboardResponseLowStockItemMinStockRegExp)
+})),
+  "low_stock_count": zod.int(),
+  "expiring": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "use_by": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', getDashboardResponseExpiringItemQuantityRegExp)
+})),
+  "expiring_count": zod.int(),
+  "cash_differences": zod.array(zod.object({
+  "closing_id": zod.int(),
+  "day": zod.iso.date(),
+  "driver_name": zod.string(),
+  "difference": zod.stringFormat('decimal', getDashboardResponseCashDifferencesItemDifferenceRegExp)
+})),
+  "cash_difference_count": zod.int()
 })
 
 
