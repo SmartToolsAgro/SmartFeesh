@@ -31,3 +31,15 @@ test("the driver app follows a dark device", async ({ page }, testInfo) => {
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(7, 26, 35)");
   await page.screenshot({ path: testInfo.outputPath("truck-dark.png") });
 });
+
+test("the stock tab shows what the truck holds instead of a placeholder", async ({ page }) => {
+  await logIn(page);
+  const tabs = page.getByRole("navigation", { name: "Navigation camion" });
+
+  await tabs.getByRole("link", { name: "Mon stock" }).click();
+
+  await expect(page).toHaveURL(/\/stock$/);
+  // Other tests may have emptied the demo truck: either way the screen says what is in it.
+  await expect(page.getByRole("heading", { name: /^(Stock du camion|Le camion est vide)$/ })).toBeVisible();
+  await expect(page.getByText("Cet écran sera construit")).toHaveCount(0);
+});
