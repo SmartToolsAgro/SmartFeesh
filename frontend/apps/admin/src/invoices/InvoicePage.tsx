@@ -202,7 +202,9 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
     onSuccess: async () => {
       toast.success(t("admin.invoices.detail.discarded"));
       await refreshAfterInvoice(queryClient);
-      void navigate(`/ventes/${invoice.sale.id}`);
+      // One BL: back to it. A grouped invoice has several: back to the invoices.
+      const [only] = invoice.sales;
+      void navigate(invoice.sales.length === 1 && only ? `/ventes/${only.id}` : "/factures");
     },
     onError: () => toast.error(t("admin.invoices.detail.actionError")),
   });
