@@ -13,6 +13,8 @@ interface Waiting {
   /** "pending": waiting for a connection. "refused": the server said no; it stays until someone looks at it. */
   status: "pending" | "refused";
   error: string;
+  /** The office has been told about a refusal (P3-T07d). */
+  reported?: boolean;
 }
 
 export interface QueuedSale extends Waiting {
@@ -82,6 +84,11 @@ export async function enqueue(item: QueuedItem): Promise<void> {
 
 export async function removeQueued(uuid: string): Promise<void> {
   await run("readwrite", (store) => store.delete(uuid));
+  changed();
+}
+
+export async function markReported(item: QueuedItem): Promise<void> {
+  await run("readwrite", (store) => store.put({ ...item, reported: true }));
   changed();
 }
 

@@ -13,7 +13,7 @@ from apps.expenses import selectors as expenses
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
 
-from .models import DayClosing, DayClosingStatus
+from .models import DayClosing, DayClosingStatus, SyncProblem
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
@@ -122,3 +122,13 @@ def refuse_if_day_approved(membership: Membership) -> None:
     )
     if approved.exists():
         raise PermissionDenied(_("Votre journée est approuvée par le bureau : elle est fermée."))
+
+
+def sync_problems_of(organization: Organization, *, open_only: bool = True) -> QuerySet[SyncProblem]:
+    """Refused sends reported by the phones, newest first."""
+    rows = SyncProblem.objects.for_organization(organization).select_related("driver", "resolved_by")
+    return rows.filter(resolved_at__isnull=True) if open_only else rows
+
+
+def sync_problem_by_id(organization: Organization, problem_id: int) -> SyncProblem:
+    return sync_problems_of(organization, open_only=False).get(pk=problem_id)

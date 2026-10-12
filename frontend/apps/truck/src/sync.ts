@@ -1,8 +1,8 @@
-import { addMyExpense, ApiError, createSale, reportMyLoss } from "@frutti/api";
+import { addMyExpense, ApiError, createSale, reportMyLoss, reportSyncProblem } from "@frutti/api";
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { listQueue, markRefused, type QueuedItem, removeQueued } from "./queue";
+import { listQueue, markRefused, markReported, type QueuedItem, removeQueued } from "./queue";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -13,6 +13,16 @@ function messagesOf(body: unknown): string[] {
 }
 
 let sending = false;
+
+/** Tell the office a send was refused (once, kept until it has worked): it is never lost on the phone alone. */
+async function tellOffice(item: QueuedItem): Promise<void> {
+  try {
+    await reportSyncProblem({ kind: item.kind, what: item.label, reason: item.error, client_uuid: item.uuid });
+    await markReported(item);
+  } catch {
+    // No connection or no login right now: it is reported on a later run.
+  }
+}
 
 function sendItem(item: QueuedItem): Promise<unknown> {
   if (item.kind === "sale") return createSale(item.data);
@@ -27,7 +37,10 @@ export async function sendWaiting(queryClient: QueryClient): Promise<void> {
   let sent = false;
   try {
     for (const item of await listQueue()) {
-      if (item.status !== "pending") continue;
+      if (item.status === "refused") {
+        if (item.reported !== true) await tellOffice(item);
+        continue;
+      }
       try {
         await sendItem(item);
         await removeQueued(item.uuid);
@@ -35,7 +48,13 @@ export async function sendWaiting(queryClient: QueryClient): Promise<void> {
       } catch (failure) {
         // The connection dropped or the session ended: keep everything and try again later.
         if (!(failure instanceof ApiError) || failure.status === 401) break;
-        await markRefused(item, messagesOf(failure.body).join(" ") || failure.message);
+        const refused = {
+          ...item,
+          status: "refused" as const,
+          error: messagesOf(failure.body).join(" ") || failure.message,
+        };
+        await markRefused(item, refused.error);
+        await tellOffice(refused);
       }
     }
   } finally {

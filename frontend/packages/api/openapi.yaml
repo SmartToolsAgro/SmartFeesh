@@ -3496,6 +3496,35 @@ paths:
                 items:
                   $ref: '#/components/schemas/MyStockLine'
           description: ''
+  /api/v1/my-sync-problems:
+    post:
+      operationId: reportSyncProblem
+      description: |-
+        The phone tells the office that the server refused something it tried to send (kept on the phone
+        until then). The same item reported twice makes one problem.
+      tags:
+      - my-sync-problems
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncProblemWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SyncProblemWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SyncProblemWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncProblem'
+          description: ''
   /api/v1/my-truck-choices:
     get:
       operationId: listMyTruckChoices
@@ -6127,6 +6156,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/sync-problems:
+    get:
+      operationId: listSyncProblems
+      description: Sends the server refused, reported by the drivers' phones and not
+        dealt with yet.
+      tags:
+      - sync-problems
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SyncProblem'
+          description: ''
+  /api/v1/sync-problems/{problem_id}/resolve:
+    post:
+      operationId: resolveSyncProblem
+      description: Mark a refused send as dealt with (owner or manager).
+      parameters:
+      - in: path
+        name: problem_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sync-problems
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncProblem'
           description: ''
   /api/v1/transfers:
     get:
@@ -17060,6 +17128,70 @@ components:
             $ref: '#/components/schemas/SupplierContact'
       required:
       - name
+    SyncProblem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          type: string
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - driver_name
+      - id
+      - kind
+      - label
+      - reason
+      - resolved_at
+    SyncProblemWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/SyncProblemWriteKindEnum'
+        what:
+          type: string
+          maxLength: 150
+        reason:
+          type: string
+          maxLength: 500
+        client_uuid:
+          type: string
+          format: uuid
+      required:
+      - client_uuid
+      - kind
+      - reason
+      - what
+    SyncProblemWriteKindEnum:
+      enum:
+      - sale
+      - expense
+      - loss
+      type: string
+      description: |-
+        * `sale` - sale
+        * `expense` - expense
+        * `loss` - loss
     Transfer:
       type: object
       properties:
