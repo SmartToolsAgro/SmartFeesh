@@ -402,6 +402,7 @@ def road_expenses(organization: Organization, *, user_id: int, day: dt.date) -> 
     """What this driver typed on a day, newest first."""
     return expenses_of(organization, date_from=day, date_to=day).filter(entered_by_id=user_id)
 
+
 # ---- Month figures (P6-T05, D-073) ----
 
 
