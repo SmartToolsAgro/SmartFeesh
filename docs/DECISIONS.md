@@ -1348,6 +1348,11 @@ to guess what is stuck on a phone, and nothing is dropped silently. **Not done:*
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
 
+**D-100 · A partner named at the goods receipt, capital and rates filled in later (P6)** · accepted, provisional points marked · 2026-10-12
+- On a receipt line the owner may pick a **partner** (the receipt's own supplier is allowed: the same person can be supplier and partner). The lot gets a `LotPartnership` with `terms_pending = true`, capital 0 and rates 0, created in the receipt's transaction by `partnerships.services.designate_partner` (no capital ledger entry yet). Only the owner may do it (400 on `lines.N.partner` for others).
+- The owner completes it with the usual edit (`update_partnership`); sending both rates clears `terms_pending`, and the capital becomes the first ledger entry. **While pending, the terms may be filled in even after sales** (the shares are only computed at closing); once filled, the usual rule applies (fixed after the first sale).
+- `close_lot` is refused while the terms are pending. **Provisional:** sales are not blocked meanwhile. Screens: partner select per receipt line, "À compléter" pill on the lot and its partnership section, "Partenaire" badge and filter on the suppliers list and page.
+
 **D-103 · Arabic for the driver app, provisional (P3-T09)** · accepted, **texts to be reviewed by a native speaker** · 2026-10-12
 The language switch (`LanguageSwitch` in `@frutti/auth`: "Français | العربية", each name written in its own language)
 is on the driver login screen and above the screens of the driver app. Logged out it changes the page and the choice is

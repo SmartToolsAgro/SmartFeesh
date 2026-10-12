@@ -11378,6 +11378,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/PartnershipStatusEnum'
           readOnly: true
+        terms_pending:
+          type: boolean
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -11416,6 +11419,7 @@ components:
       - partner_capital
       - profit_rate
       - status
+      - terms_pending
     LotPartnershipCancel:
       type: object
       properties:
@@ -11461,6 +11465,9 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/PartnershipStatusEnum'
+          readOnly: true
+        terms_pending:
+          type: boolean
           readOnly: true
         notes:
           type: string
@@ -11510,6 +11517,7 @@ components:
       - partner_capital
       - profit_rate
       - status
+      - terms_pending
     LotPartnershipWrite:
       type: object
       properties:
@@ -14672,6 +14680,10 @@ components:
         use_by:
           type: string
           format: date
+          nullable: true
+        partner:
+          type: integer
+          minimum: 1
           nullable: true
       required:
       - accepted_quantity

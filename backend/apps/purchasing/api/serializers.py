@@ -145,6 +145,9 @@ class ReceiptLineWriteSerializer(serializers.Serializer[Any]):
     accepted_quantity = serializers.CharField(allow_blank=True)
     unit_cost = serializers.CharField(allow_blank=True)
     use_by = serializers.DateField(required=False, allow_null=True, default=None)
+    # Buy this lot together with a partner supplier (D-100): the owner's choice, the receipt's own supplier
+    # allowed. Capital and percentages are filled in later, on the lot.
+    partner = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
 
 
 class ReceiptWriteSerializer(serializers.Serializer[Any]):

@@ -15,4 +15,9 @@ export interface ReceiptLineWrite {
   unit_cost: string;
   /** @nullable */
   use_by?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  partner?: number | null;
 }
