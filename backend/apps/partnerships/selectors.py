@@ -210,3 +210,14 @@ def partner_balances(organization: Organization, *, partner_id: int) -> PartnerB
         profit_share=profit_share_balance_of_partner(organization, partner_id=partner_id),
         lots=capital.lots if capital is not None else 0,
     )
+
+
+def pending_terms(organization: Organization) -> QuerySet[LotPartnership]:
+    """Open partnerships named at the goods receipt whose capital and rates are still to fill in (D-100):
+    the lot cannot close until they are. Oldest first."""
+    return (
+        LotPartnership.objects.for_organization(organization)
+        .filter(status=PartnershipStatus.OPEN, terms_pending=True)
+        .select_related("batch", "partner")
+        .order_by("created_at", "id")
+    )

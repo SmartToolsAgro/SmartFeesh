@@ -1424,8 +1424,7 @@ showing at most five items and a count of all: **low stock** (`inventory.low_sto
 `min_stock`, emptiest first), **lots expiring** (`inventory.expiring_batches`: kilos still in stock, `use_by` within 3 days or
 already past; the 3 days is `closing.dashboard.EXPIRY_ALERT_DAYS`, provisional, to confirm with the client) and **unexplained
 cash differences** (`dayclose.selectors.unexplained_cash_differences`: driver days not approved with counted cash different
-from expected, where the driver left no note or the office asked for a justification and has not got it). **Not done:** lots
-with pending partner terms (waits for #58 on `main`); SMS/WhatsApp (Phase 8); no per-user read/dismiss state.
+from expected, where the driver left no note or the office asked for a justification and has not got it). **Fourth alert:** partner lots whose terms are still to fill in (D-100, `partnerships.selectors.pending_terms`, links to the lot). **Not done:** SMS/WhatsApp (Phase 8); no per-user read/dismiss state.
 
 **D-112 · Data import from Excel and opening balances (P4-T01)** · accepted · 2026-10-12
 - New app `dataimport` (owner only, `openpyxl`). One Excel template per kind (products, suppliers, customers,

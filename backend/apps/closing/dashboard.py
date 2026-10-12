@@ -14,6 +14,7 @@ from apps.dayclose import selectors as dayclose
 from apps.expenses import selectors as expenses
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
+from apps.partnerships import selectors as partnerships
 from apps.sales import selectors as sales
 
 from . import monthly
@@ -60,6 +61,14 @@ class CashDifferenceRow:
 
 
 @dataclass(frozen=True)
+class PendingTermsRow:
+    partnership_id: int
+    batch_id: int
+    batch_number: str
+    partner_name: str
+
+
+@dataclass(frozen=True)
 class Dashboard:
     month: dt.date
     # Profit (what the business earned): sales less the cost of what was sold, spoilage, expenses and payroll.
@@ -85,6 +94,9 @@ class Dashboard:
     expiring_count: int
     cash_differences: tuple[CashDifferenceRow, ...]
     cash_difference_count: int
+    # Lots whose partner was named at the receipt and whose capital and rates are not filled in (D-100).
+    pending_terms: tuple[PendingTermsRow, ...]
+    pending_terms_count: int
 
 
 def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
@@ -101,6 +113,7 @@ def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
     low = inventory.low_stock_products(organization)
     expiring = inventory.expiring_batches(organization, today=today, within_days=EXPIRY_ALERT_DAYS)
     differences = dayclose.unexplained_cash_differences(organization)
+    pending = list(partnerships.pending_terms(organization))
     return Dashboard(
         month=month,
         sales=report.revenue,
@@ -144,4 +157,14 @@ def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
             for row in differences[:ALERT_ITEMS_SHOWN]
         ),
         cash_difference_count=len(differences),
+        pending_terms=tuple(
+            PendingTermsRow(
+                partnership_id=row.pk,
+                batch_id=row.batch_id,
+                batch_number=row.batch.number,
+                partner_name=row.partner.name,
+            )
+            for row in pending[:ALERT_ITEMS_SHOWN]
+        ),
+        pending_terms_count=len(pending),
     )

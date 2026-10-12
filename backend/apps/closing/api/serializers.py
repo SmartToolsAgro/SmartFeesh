@@ -433,6 +433,13 @@ class CashDifferenceSerializer(serializers.Serializer[Any]):
     difference = _money()
 
 
+class PendingTermsSerializer(serializers.Serializer[Any]):
+    partnership_id = serializers.IntegerField(read_only=True)
+    batch_id = serializers.IntegerField(read_only=True)
+    batch_number = serializers.CharField(read_only=True)
+    partner_name = serializers.CharField(read_only=True)
+
+
 class DashboardSerializer(serializers.Serializer[Any]):
     # The first day of the current month: every figure is this month up to today.
     month = serializers.DateField(read_only=True)
@@ -461,3 +468,6 @@ class DashboardSerializer(serializers.Serializer[Any]):
     expiring_count = serializers.IntegerField(read_only=True)
     cash_differences = CashDifferenceSerializer(many=True, read_only=True)
     cash_difference_count = serializers.IntegerField(read_only=True)
+    # Partner lots whose capital and rates are still to fill in (D-100): the lot cannot close before.
+    pending_terms = PendingTermsSerializer(many=True, read_only=True)
+    pending_terms_count = serializers.IntegerField(read_only=True)

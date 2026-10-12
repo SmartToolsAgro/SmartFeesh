@@ -140,3 +140,39 @@ def test_low_stock_and_expiring_lots_are_alerts(organization, owner, cold_room):
             "quantity": "4.000",
         }
     ]
+
+
+def test_a_partner_named_at_the_receipt_is_an_alert_until_the_terms_are_filled(organization, owner, actor, cold_room):
+    from apps.partners.tests.factories import SupplierFactory
+    from apps.partnerships import selectors as partnership_selectors
+    from apps.partnerships import services as partnerships
+
+    partner = SupplierFactory.create(organization=organization, name="Hamadi Pêche")
+    batch = BatchFactory.create(organization=organization, product=ProductFactory.create(organization=organization))
+    inventory.post_movement(
+        organization=organization,
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=batch,
+        quantity="10.000",
+        to_location=cold_room,
+    )
+    created = partnerships.designate_partner(organization=organization, actor=actor, batch=batch, partner=partner)
+
+    data = client_for(owner).get(reverse("dashboard")).json()
+    assert data["pending_terms_count"] == 1
+    assert (data["pending_terms"][0]["batch_number"], data["pending_terms"][0]["partner_name"]) == (
+        batch.number,
+        "Hamadi Pêche",
+    )
+
+    partnerships.update_partnership(
+        partnership=created,
+        actor=actor,
+        owner_capital="100.000",
+        partner_capital="50.000",
+        profit_rate="40",
+        loss_rate="25",
+    )
+    assert client_for(owner).get(reverse("dashboard")).json()["pending_terms_count"] == 0
+    assert not partnership_selectors.pending_terms(organization).exists()

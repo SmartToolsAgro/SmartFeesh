@@ -8630,6 +8630,14 @@ components:
         cash_difference_count:
           type: integer
           readOnly: true
+        pending_terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingTerms'
+          readOnly: true
+        pending_terms_count:
+          type: integer
+          readOnly: true
       required:
       - cash_collected
       - cash_difference_count
@@ -8645,6 +8653,8 @@ components:
       - net_result
       - overdue_customer_count
       - overdue_customers
+      - pending_terms
+      - pending_terms_count
       - previous_sales
       - receivables
       - receivables_overdue
@@ -13747,6 +13757,26 @@ components:
       description: |-
         * `pending` - pending
         * `failed` - failed
+    PendingTerms:
+      type: object
+      properties:
+        partnership_id:
+          type: integer
+          readOnly: true
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        partner_name:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - partner_name
+      - partnership_id
     PhotoUpload:
       type: object
       properties:

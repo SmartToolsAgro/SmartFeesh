@@ -1568,6 +1568,8 @@ export const fr = {
         moreLowStock: "et {{count}} autre(s) produit(s) sous le minimum",
         expiring: "Date limite proche : {{name}}, lot {{batch}}, jusqu'au {{date}}",
         moreExpiring: "et {{count}} autre(s) lot(s) à date limite proche",
+        pendingTerms: "Partenariat à compléter : lot {{batch}}, avec {{partner}}",
+        morePendingTerms: "et {{count}} autre(s) partenariat(s) à compléter",
         days_one: "{{count}} journée de chauffeur à vérifier",
         days_other: "{{count}} journées de chauffeur à vérifier",
         expenses_one: "{{count}} charge à approuver",

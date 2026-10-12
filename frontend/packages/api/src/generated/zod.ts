@@ -1602,7 +1602,14 @@ export const GetDashboardResponse = zod.object({
   "driver_name": zod.string(),
   "difference": zod.stringFormat('decimal', getDashboardResponseCashDifferencesItemDifferenceRegExp)
 })),
-  "cash_difference_count": zod.int()
+  "cash_difference_count": zod.int(),
+  "pending_terms": zod.array(zod.object({
+  "partnership_id": zod.int(),
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "partner_name": zod.string()
+})),
+  "pending_terms_count": zod.int()
 })
 
 

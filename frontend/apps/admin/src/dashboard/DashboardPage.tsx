@@ -62,7 +62,8 @@ export function DashboardPage() {
     data.expenses_waiting +
     data.low_stock_count +
     data.expiring_count +
-    data.cash_difference_count;
+    data.cash_difference_count +
+    data.pending_terms_count;
 
   return (
     <>
@@ -192,6 +193,23 @@ export function DashboardPage() {
               <li>
                 <Link to="/stock" className="text-ink-2 hover:underline">
                   {t("admin.dashboard.alerts.moreExpiring", { count: data.expiring_count - data.expiring.length })}
+                </Link>
+              </li>
+            )}
+            {data.pending_terms.map((row) => (
+              <li key={row.partnership_id} className="flex items-center justify-between gap-3">
+                <Link to={`/stock/lots/${row.batch_id}`} className="hover:underline">
+                  {t("admin.dashboard.alerts.pendingTerms", { batch: row.batch_number, partner: row.partner_name })}
+                </Link>
+                <Pill tone="warn">{t("admin.partnerships.section.pending")}</Pill>
+              </li>
+            ))}
+            {data.pending_terms_count > data.pending_terms.length && (
+              <li>
+                <Link to="/partenariats" className="text-ink-2 hover:underline">
+                  {t("admin.dashboard.alerts.morePendingTerms", {
+                    count: data.pending_terms_count - data.pending_terms.length,
+                  })}
                 </Link>
               </li>
             )}

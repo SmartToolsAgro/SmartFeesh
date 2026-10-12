@@ -297,6 +297,7 @@ export * from './paymentRef';
 export * from './payrollSummary';
 export * from './pdfState';
 export * from './pdfStateStatusEnum';
+export * from './pendingTerms';
 export * from './photoUpload';
 export * from './place';
 export * from './priceBoard';
