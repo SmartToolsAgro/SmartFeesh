@@ -2708,6 +2708,9 @@ export const fr = {
       returned: "Retour fait vers {{room}}.",
       returnFailed: "Le retour n'a pas pu être fait. Réessayez.",
     },
+    offline: {
+      banner: "Pas de réseau : les chiffres affichés datent de la dernière connexion.",
+    },
     closing: {
       notStarted: "La journée n'a pas commencé",
       notStartedBody: "Commencez d'abord votre journée dans « Ma journée ».",
