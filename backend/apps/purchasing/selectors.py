@@ -463,3 +463,14 @@ def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBa
         uninvoiced_receipts=len(uninvoiced),
         uninvoiced_total=sum((receipt_totals(receipt)[0] for receipt in uninvoiced), ZERO),
     )
+
+
+def payments_by_day(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> dict[dt.date, Decimal]:
+    """Money paid to suppliers per day (`paid_on`), inclusive."""
+    rows = (
+        SupplierPayment.objects.for_organization(organization)
+        .filter(paid_on__gte=date_from, paid_on__lte=date_to)
+        .values("paid_on")
+        .annotate(total=Sum("amount"))
+    )
+    return {row["paid_on"]: row["total"] for row in rows}

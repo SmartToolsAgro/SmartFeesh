@@ -314,6 +314,20 @@ def test_the_api_shows_the_live_result_then_the_frozen_one(api, organization, ac
     assert reopened.json()["history"][0]["reopen_reason"] == "Erreur de prix"
 
 
+def test_lot_figures_list_only_the_closed_lots_among_the_ones_asked_for(api, organization, actor, finished_lot):
+    asked = f"/api/v1/lot-figures?batch_ids={finished_lot.pk},999999"
+    assert api.get(asked).json() == []
+
+    close(organization, actor, finished_lot)
+    rows = api.get(asked).json()
+
+    assert [(row["batch_id"], row["outcome"], row["net_result"]) for row in rows] == [
+        (finished_lot.pk, "profit", "715.000")
+    ]
+    assert rows[0]["partner_share"] == "286.000"
+    assert api.get("/api/v1/lot-figures?batch_ids=abc").status_code == 400
+
+
 @pytest.mark.parametrize(
     ("role", "read", "write"),
     [(Role.ACCOUNTANT, 200, 403), (Role.MANAGER, 403, 403), (Role.DRIVER, 403, 403)],

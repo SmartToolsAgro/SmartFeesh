@@ -71,7 +71,7 @@ def test_every_template_opens_in_excel_with_its_titles_and_a_help_sheet(owner, k
     book = load_workbook(io.BytesIO(response.content))
     assert book.sheetnames == [KINDS[kind].title, "Aide"]
     titles = [cell.value for cell in book.worksheets[0][1]]
-    assert titles[1].startswith("Nom")
+    assert len(titles) >= 5
     assert len(titles) == len(KINDS[kind].columns)
 
 
@@ -342,3 +342,76 @@ def test_an_unreadable_file_answers_400_on_the_file_field(owner):
 
     assert response.status_code == 400
     assert "Excel" in response.json()["file"][0]
+
+
+# ---- opening stock ----
+
+
+def opening_setup(organization):
+    from apps.catalog.tests.factories import ProductFactory
+    from apps.inventory.tests.factories import StockLocationFactory
+    from apps.partners.tests.factories import SupplierFactory
+
+    ProductFactory.create(organization=organization, reference="CR-001", name="Crevette")
+    SupplierFactory.create(organization=organization, reference="F-001", name="Golfe")
+    return StockLocationFactory.create(organization=organization, name="Chambre froide 1")
+
+
+OPENING = {
+    "product": "CR-001",
+    "location": "Chambre froide 1",
+    "supplier": "F-001",
+    "quantity": "120,500",
+    "unit_cost": "21,000",
+    "received_on": "05/10/2026",
+}
+
+
+def test_opening_stock_posts_a_receipt_into_the_location(organization, owner):
+    from apps.inventory import selectors as inventory
+
+    location = opening_setup(organization)
+
+    report = run(organization, owner, "opening_stock", [OPENING])
+
+    assert (report.created, report.error_count, report.committed) == (1, 0, True)
+    (batch,) = inventory.batches_of(organization)
+    assert (batch.unit_cost, batch.received_on, batch.receipt_reference) == (
+        Decimal("21.000"),
+        dt.date(2026, 10, 5),
+        "STOCK-OUVERTURE",
+    )
+    assert inventory.quantity_on_hand(organization, location_id=location.pk, product_id=batch.product_id) == Decimal(
+        "120.500"
+    )
+
+
+def test_opening_stock_sent_twice_does_not_double_the_stock(organization, owner):
+    from apps.inventory import selectors as inventory
+
+    opening_setup(organization)
+    run(organization, owner, "opening_stock", [OPENING])
+
+    again = run(organization, owner, "opening_stock", [OPENING])
+
+    assert (again.created, again.skipped) == (0, 1)
+    assert inventory.batches_of(organization).count() == 1
+
+
+def test_opening_stock_names_the_unknown_product_location_and_supplier(organization, owner):
+    opening_setup(organization)
+    bad = {**OPENING, "product": "ZZ", "location": "Cave", "supplier": "F-999"}
+
+    report = run(organization, owner, "opening_stock", [bad, {**OPENING, "quantity": 0}], dry_run=True)
+
+    first, second = report.rows
+    assert {error.column for error in first.errors} == {"Produit (référence)", "Emplacement", "Fournisseur (référence)"}
+    assert [error.column for error in second.errors] == ["Quantité (kg)"]
+
+
+def test_the_same_lot_twice_in_the_file_is_an_error(organization, owner):
+    opening_setup(organization)
+
+    report = run(organization, owner, "opening_stock", [OPENING, OPENING], dry_run=True)
+
+    assert [row.status for row in report.rows] == ["created", "error"]

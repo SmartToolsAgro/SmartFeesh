@@ -1,5 +1,6 @@
 """Reusable read queries of partnership lots and the partners' capital (P6-T01, D-060)."""
 
+import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -210,3 +211,65 @@ def partner_balances(organization: Organization, *, partner_id: int) -> PartnerB
         profit_share=profit_share_balance_of_partner(organization, partner_id=partner_id),
         lots=capital.lots if capital is not None else 0,
     )
+
+
+@dataclass(frozen=True)
+class PartnerFlows:
+    """What moved on one partner's two ledgers between two days (by `entry_date`), as positive amounts.
+
+    Capital: `contributed` (money put in, corrections included), `loss_deducted` (their loss share taken from
+    it, net of reversals on reopening), `returned` (paid back). Profit share: `share` (their part of profits),
+    `uncovered_loss` (what their capital could not cover: they owe it), `late_adjustments` (signed: a cost or a
+    sale after a closing), `paid` (paid out of the share).
+    """
+
+    partner_id: int
+    contributed: Decimal = ZERO
+    loss_deducted: Decimal = ZERO
+    returned: Decimal = ZERO
+    share: Decimal = ZERO
+    uncovered_loss: Decimal = ZERO
+    late_adjustments: Decimal = ZERO
+    paid: Decimal = ZERO
+
+
+def partner_flows(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> dict[int, PartnerFlows]:
+    """The movements of every partner's capital and profit-share ledgers in a period, inclusive, by partner id.
+    The balances themselves stay with `capital_by_partner` and `profit_share_balance_of_partner`."""
+    flows: dict[int, dict[str, Decimal]] = {}
+
+    def add(partner_id: int, field: str, amount: Decimal) -> None:
+        bucket = flows.setdefault(partner_id, {})
+        bucket[field] = bucket.get(field, ZERO) + amount
+
+    capital_rows = (
+        CapitalEntry.objects.for_organization(organization)
+        .filter(entry_date__gte=date_from, entry_date__lte=date_to)
+        .values("partnership__partner_id", "kind")
+        .annotate(total=Sum("amount"))
+    )
+    for row in capital_rows:
+        partner_id, kind, total = row["partnership__partner_id"], row["kind"], row["total"]
+        if kind in (CapitalEntryKind.CONTRIBUTION, CapitalEntryKind.CORRECTION):
+            add(partner_id, "contributed", total)
+        elif kind in (CapitalEntryKind.LOSS_DEDUCTION, CapitalEntryKind.LOSS_REVERSAL):
+            add(partner_id, "loss_deducted", -total)
+        elif kind == CapitalEntryKind.RETURN:
+            add(partner_id, "returned", -total)
+    share_rows = (
+        ProfitShareEntry.objects.for_organization(organization)
+        .filter(entry_date__gte=date_from, entry_date__lte=date_to)
+        .values("partnership__partner_id", "kind")
+        .annotate(total=Sum("amount"))
+    )
+    for row in share_rows:
+        partner_id, kind, total = row["partnership__partner_id"], row["kind"], row["total"]
+        if kind == ProfitShareKind.SHARE:
+            add(partner_id, "share", total)
+        elif kind == ProfitShareKind.UNCOVERED_LOSS:
+            add(partner_id, "uncovered_loss", -total)
+        elif kind == ProfitShareKind.LATE_ADJUSTMENT:
+            add(partner_id, "late_adjustments", total)
+        elif kind == ProfitShareKind.PAYMENT:
+            add(partner_id, "paid", -total)
+    return {partner_id: PartnerFlows(partner_id, **values) for partner_id, values in flows.items()}

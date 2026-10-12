@@ -2892,6 +2892,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotCosts'
           description: ''
+  /api/v1/lot-figures:
+    get:
+      operationId: listLotFigures
+      description: |-
+        The frozen figures (sales, costs, net result, partner share) of the closed lots among `batch_ids`.
+        An open lot has no row: its result is live and read lot by lot.
+      parameters:
+      - in: query
+        name: batch_ids
+        schema:
+          type: string
+        description: Lot ids, comma-separated (at most 200).
+      tags:
+      - lot-figures
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LotFigure'
+          description: ''
   /api/v1/lot-work-days:
     get:
       operationId: listLotWorkDays
@@ -5090,6 +5115,504 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/GeneralCost'
+          description: ''
+  /api/v1/reports/cash-flow:
+    get:
+      operationId: getCashFlowReport
+      description: |-
+        Money in (paid at sales, customer payments) against money out (supplier payments, salaries paid, approved
+        expenses) by day, week or month.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      - in: query
+        name: group_by
+        schema:
+          type: string
+          enum:
+          - day
+          - month
+          - week
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashFlow'
+          description: ''
+  /api/v1/reports/cash-flow/export:
+    get:
+      operationId: exportCashFlowReport
+      description: The cash flow as an Excel file.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      - in: query
+        name: group_by
+        schema:
+          type: string
+          enum:
+          - day
+          - month
+          - week
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/customer-balances:
+    get:
+      operationId: getCustomerBalancesReport
+      description: Customers who owe, biggest first, with the part overdue and the
+        ageing (0-30, 31-60, 61+ days).
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerBalances'
+          description: ''
+  /api/v1/reports/customer-balances/export:
+    get:
+      operationId: exportCustomerBalancesReport
+      description: What customers owe, as an Excel file.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/losses:
+    get:
+      operationId: getLossesReport
+      description: |-
+        Per product: kilos written off as losses, and the net weight differences found by counts and
+        adjustments, at the lot's cost per kg.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LossReport'
+          description: ''
+  /api/v1/reports/losses/export:
+    get:
+      operationId: exportLossesReport
+      description: The losses and differences report as an Excel file.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/month-result:
+    get:
+      operationId: getMonthResultReport
+      description: |-
+        The month's result exactly as the monthly closing computes it (sales, cost of goods, spoilage, expenses
+        by category, personnel, net result).
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+        description: 'Any day of the month (default: now).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthResult'
+          description: ''
+  /api/v1/reports/month-result/export:
+    get:
+      operationId: exportMonthResultReport
+      description: The month's result and its expenses by category as an Excel file.
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+        description: 'Any day of the month (default: now).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/partners:
+    get:
+      operationId: getPartnerReport
+      description: |-
+        Per partner over a period: capital put in, loss share taken from it and capital returned, the capital
+        still in the company now; profit share earned, uncovered losses, late adjustments and paid, and the share
+        still due now. The balances are those of the partner screens.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerReport'
+          description: ''
+  /api/v1/reports/partners/export:
+    get:
+      operationId: exportPartnerReport
+      description: The partner report as an Excel file.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/sales:
+    get:
+      operationId: getSalesReport
+      description: |-
+        Confirmed sales (BL) by customer, product, truck, driver, day, week or month: kilos, revenue without
+        VAT, cost of goods sold and margin, net of the credit notes issued in the period. The same rows as the
+        monthly closing, so the totals always agree with it.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      - in: query
+        name: group_by
+        schema:
+          type: string
+          enum:
+          - customer
+          - day
+          - driver
+          - month
+          - product
+          - truck
+          - week
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesReport'
+          description: ''
+  /api/v1/reports/sales/export:
+    get:
+      operationId: exportSalesReport
+      description: The sales report as an Excel file.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day (default: first of this month).'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      - in: query
+        name: group_by
+        schema:
+          type: string
+          enum:
+          - customer
+          - day
+          - driver
+          - month
+          - product
+          - truck
+          - week
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/slow-moving:
+    get:
+      operationId: getSlowMovingReport
+      description: Lots still on hand that nothing has touched for `days` days or
+        more, longest idle first.
+      parameters:
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Days without movement (default 30).
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlowReport'
+          description: ''
+  /api/v1/reports/slow-moving/export:
+    get:
+      operationId: exportSlowMovingReport
+      description: The slow-moving lots as an Excel file.
+      parameters:
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Days without movement (default 30).
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/stock-value:
+    get:
+      operationId: getStockValueReport
+      description: |-
+        What each place (cold rooms and trucks) holds now, per product, valued at the purchase cost of
+        each lot. Unsold stock is an asset, not a cost.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockValueReport'
+          description: ''
+  /api/v1/reports/stock-value/export:
+    get:
+      operationId: exportStockValueReport
+      description: The stock value report as an Excel file.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/supplier-balances:
+    get:
+      operationId: getSupplierBalancesReport
+      description: |-
+        What the company owes suppliers for goods (invoices minus payments), with what is overdue and what is
+        received but not invoiced yet.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBalances'
+          description: ''
+  /api/v1/reports/supplier-balances/export:
+    get:
+      operationId: exportSupplierBalancesReport
+      description: What is owed to suppliers, as an Excel file.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/unpaid-salaries:
+    get:
+      operationId: getUnpaidSalariesReport
+      description: What is still to pay on approved salaries, per employee.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnpaidSalaries'
+          description: ''
+  /api/v1/reports/unpaid-salaries/export:
+    get:
+      operationId: exportUnpaidSalariesReport
+      description: Unpaid salaries as an Excel file.
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/salary-payments:
     get:
@@ -7380,6 +7903,79 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+    CashFlow:
+      type: object
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        group_by:
+          $ref: '#/components/schemas/CashFlowGroupByEnum'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashLine'
+        total_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - date_from
+      - date_to
+      - group_by
+      - net
+      - rows
+      - total_in
+      - total_out
+    CashFlowGroupByEnum:
+      enum:
+      - day
+      - week
+      - month
+      type: string
+      description: |-
+        * `day` - day
+        * `week` - week
+        * `month` - month
+    CashLine:
+      type: object
+      properties:
+        key:
+          type: string
+        cash_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - cash_in
+      - cash_out
+      - key
+      - net
     Category:
       type: object
       properties:
@@ -7392,6 +7988,22 @@ components:
       required:
       - id
       - name
+    CategoryLine:
+      type: object
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - count
+      - name
+      - total
     CategoryRef:
       type: object
       properties:
@@ -8226,6 +8838,45 @@ components:
       - open_sales
       - open_total
       - overdue
+    CustomerBalances:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerLine'
+        total_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d0_30:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d31_60:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d60_plus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - d0_30
+      - d31_60
+      - d60_plus
+      - rows
+      - total_balance
+      - total_overdue
     CustomerChoice:
       type: object
       description: The little a driver needs to pick a customer.
@@ -8295,6 +8946,52 @@ components:
         * `wholesaler` - Grossiste
         * `caterer` - Traiteur
         * `individual` - Particulier
+    CustomerLine:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+        name:
+          type: string
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d0_30:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d31_60:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        d60_plus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - balance
+      - credit
+      - customer_id
+      - d0_30
+      - d31_60
+      - d60_plus
+      - name
+      - overdue
     CustomerPayment:
       type: object
       properties:
@@ -10320,12 +11017,14 @@ components:
       - suppliers
       - customers
       - employees
+      - opening_stock
       type: string
       description: |-
         * `products` - products
         * `suppliers` - suppliers
         * `customers` - customers
         * `employees` - employees
+        * `opening_stock` - opening_stock
     ImportRow:
       type: object
       properties:
@@ -11485,6 +12184,35 @@ components:
           type: string
       required:
       - reason
+    LossReport:
+      type: object
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductLoss'
+        total_lost_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_lost_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - date_from
+      - date_to
+      - rows
+      - total_lost_quantity
+      - total_lost_value
     LossStatusEnum:
       enum:
       - pending
@@ -11684,6 +12412,51 @@ components:
       - batch_id
       - lines
       - total
+    LotFigure:
+      type: object
+      description: The main figures of one closed lot, for the list of partnership
+        lots.
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/LotOutcomeEnum'
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        costs_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        partner_share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital_to_return:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - capital_to_return
+      - costs_total
+      - net_result
+      - outcome
+      - partner_share
+      - revenue
     LotOutcomeEnum:
       enum:
       - profit
@@ -12306,6 +13079,70 @@ components:
       - sales
       - spoilage
       - stock
+    MonthResult:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+        sales_count:
+          type: integer
+        quantity_sold:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cogs:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        gross_margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        spoilage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expenses_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        personnel:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryLine'
+      required:
+      - categories
+      - cogs
+      - expenses_total
+      - gross_margin
+      - month
+      - net_result
+      - personnel
+      - quantity_sold
+      - revenue
+      - sales_count
+      - spoilage
     MonthRow:
       type: object
       properties:
@@ -13302,6 +14139,93 @@ components:
       description: |-
         * `customer` - customer
         * `supplier` - supplier
+    PartnerLine:
+      type: object
+      properties:
+        partner_id:
+          type: integer
+        name:
+          type: string
+        lots:
+          type: integer
+        contributed:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        loss_deducted:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        capital_outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        share:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        uncovered_loss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        late_adjustments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        share_due:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - capital_outstanding
+      - contributed
+      - late_adjustments
+      - loss_deducted
+      - lots
+      - name
+      - paid
+      - partner_id
+      - returned
+      - share
+      - share_due
+      - uncovered_loss
+    PartnerReport:
+      type: object
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerLine'
+        totals:
+          $ref: '#/components/schemas/PartnerLine'
+      required:
+      - date_from
+      - date_to
+      - rows
+      - totals
     PartnershipBatch:
       type: object
       properties:
@@ -14181,6 +15105,40 @@ components:
       required:
       - location_id
       - quantity
+    ProductLoss:
+      type: object
+      properties:
+        product_id:
+          type: integer
+        product_name:
+          type: string
+        lost_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lost_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - difference_quantity
+      - difference_value
+      - lost_quantity
+      - lost_value
+      - product_id
+      - product_name
     ProductPrice:
       type: object
       properties:
@@ -15846,6 +16804,22 @@ components:
       required:
       - amount
       - salary_record
+    SalaryLine:
+      type: object
+      properties:
+        employee_id:
+          type: integer
+        name:
+          type: string
+        unpaid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - employee_id
+      - name
+      - unpaid
     SalaryPayment:
       type: object
       properties:
@@ -16807,6 +17781,84 @@ components:
       required:
       - lines
       - location
+    SalesLine:
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        sales:
+          type: integer
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cogs:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - cogs
+      - key
+      - margin
+      - name
+      - quantity
+      - revenue
+      - sales
+    SalesReport:
+      type: object
+      properties:
+        group_by:
+          $ref: '#/components/schemas/SalesReportGroupByEnum'
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesLine'
+        totals:
+          $ref: '#/components/schemas/SalesLine'
+      required:
+      - date_from
+      - date_to
+      - group_by
+      - rows
+      - totals
+    SalesReportGroupByEnum:
+      enum:
+      - customer
+      - product
+      - truck
+      - driver
+      - day
+      - week
+      - month
+      type: string
+      description: |-
+        * `customer` - customer
+        * `product` - product
+        * `truck` - truck
+        * `driver` - driver
+        * `day` - day
+        * `week` - week
+        * `month` - month
     Session:
       type: object
       description: 'Who is logged in and what they may do: the answer of `/me` and
@@ -17040,6 +18092,69 @@ components:
         * `not_closed` - Lot non clôturé
         * `ready` - À régler
         * `settled` - Réglé
+    SlowLot:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+        batch_number:
+          type: string
+        product_name:
+          type: string
+        supplier_name:
+          type: string
+        received_on:
+          type: string
+          format: date
+        last_movement_on:
+          type: string
+          format: date
+        days_idle:
+          type: integer
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - days_idle
+      - last_movement_on
+      - product_name
+      - quantity
+      - received_on
+      - supplier_name
+      - value
+    SlowReport:
+      type: object
+      properties:
+        days:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlowLot'
+        total_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - days
+      - rows
+      - total_quantity
+      - total_value
     StockLocation:
       type: object
       properties:
@@ -17222,6 +18337,55 @@ components:
           type: string
       required:
       - loss_approval_threshold
+    StockValueReport:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockValueRow'
+        total_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - rows
+      - total_quantity
+      - total_value
+    StockValueRow:
+      type: object
+      properties:
+        location_id:
+          type: integer
+        location_name:
+          type: string
+        product_id:
+          type: integer
+        product_name:
+          type: string
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - location_id
+      - location_name
+      - product_id
+      - product_name
+      - quantity
+      - value
     Supplier:
       type: object
       properties:
@@ -17352,6 +18516,33 @@ components:
       - unallocated
       - uninvoiced_receipts
       - uninvoiced_total
+    SupplierBalances:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierLine'
+        total_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_uninvoiced:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - rows
+      - total_balance
+      - total_overdue
+      - total_uninvoiced
     SupplierContact:
       type: object
       properties:
@@ -17542,6 +18733,52 @@ components:
       - invoice_date
       - receipts
       - supplier
+    SupplierLine:
+      type: object
+      properties:
+        supplier_id:
+          type: integer
+        name:
+          type: string
+        invoiced:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        uninvoiced:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - balance
+      - invoiced
+      - name
+      - outstanding
+      - overdue
+      - paid
+      - supplier_id
+      - uninvoiced
     SupplierPayment:
       type: object
       properties:
@@ -18295,6 +19532,21 @@ components:
       required:
       - name
       - plate
+    UnpaidSalaries:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryLine'
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - rows
+      - total
     User:
       type: object
       properties:
