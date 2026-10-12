@@ -13,8 +13,8 @@ import { Button, Card, EmptyState, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { enqueueSale, pendingKilos, type QueuedSale, useQueue } from "./salesQueue";
-import { sendWaitingSales } from "./syncSales";
+import { enqueue, pendingKilos, type QueuedSale, useQueue } from "./queue";
+import { sendWaiting } from "./sync";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -93,9 +93,10 @@ export function SalePage() {
       lines: lines.map((line) => ({ product: line.product_id, quantity: kilos[line.product_id] ?? "" })),
     };
     const waiting = (): QueuedSale => ({
+      kind: "sale",
       uuid,
       createdAt: new Date().toISOString(),
-      customerName: customer.name,
+      label: customer.name,
       data,
       estimate: {
         lines: lines.map((line) => ({
@@ -115,7 +116,7 @@ export function SalePage() {
       const sale = await createSale(data);
       setReceipt(sale);
       void queryClient.invalidateQueries();
-      void sendWaitingSales(queryClient);
+      void sendWaiting(queryClient);
     } catch (failure) {
       if (failure instanceof ApiError) {
         setError(messagesOf(failure.body).join(" ") || t("truck.sale.failed"));
@@ -123,7 +124,7 @@ export function SalePage() {
         // No connection: keep the sale on the phone, it is sent as soon as the network is back.
         const kept = waiting();
         try {
-          await enqueueSale(kept);
+          await enqueue(kept);
           setReceipt(kept);
         } catch {
           setError(t("truck.sale.failed"));
@@ -333,7 +334,7 @@ function QueuedReceipt({ sale, onNew }: { sale: QueuedSale; onNew: () => void })
       <Card className="space-y-3">
         <p className="text-xl font-bold">{t("truck.sale.keptOnPhone")}</p>
         <p className="text-ink-2">{t("truck.sale.keptOnPhoneBody")}</p>
-        <p className="text-ink-2">{sale.customerName}</p>
+        <p className="text-ink-2">{sale.label}</p>
         <ul className="divide-y divide-line">
           {sale.estimate.lines.map((line) => (
             <li key={line.name} className="flex items-baseline justify-between gap-3 py-2">

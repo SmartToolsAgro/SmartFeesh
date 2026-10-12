@@ -63,8 +63,8 @@ small line says how many things are waiting to be sent.
       reduced locally per queued sale so the driver cannot sell more than the truck holds.
 
 #### P3-T07c · Queue for expenses, losses and closing · S
-- [ ] Same queue for expenses (with the photo kept locally), losses and the day closing.
-- [ ] The closing is refused offline with a clear message until everything queued is sent.
+- [x] (returning the unsold stock still needs signal) Same queue for expenses (with the photo kept locally), losses and the day closing.
+- [x] The closing is refused offline with a clear message until everything queued is sent.
 
 #### P3-T07d · Conflicts · S
 - [ ] A queued write the server refuses (stock changed by the office, credit limit) is kept, shown to

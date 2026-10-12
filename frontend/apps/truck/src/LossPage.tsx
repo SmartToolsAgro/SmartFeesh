@@ -1,9 +1,13 @@
-import { ApiError, useListMyStock, useReportMyLoss, useReturnMyStock } from "@frutti/api";
+import { ApiError, reportMyLoss, useListMyStock, useReturnMyStock } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { pendingKilos, useQueue } from "./queue";
+import { sendOrKeep } from "./sendOrKeep";
+import { sendWaiting } from "./sync";
 
 const REASONS = ["spoiled", "damaged", "expired", "cold_chain", "other"] as const;
 
@@ -32,21 +36,8 @@ export function LossPage() {
 
   const fail = (failure: unknown, fallback: string) =>
     (failure instanceof ApiError ? messagesOf(failure.body).join(" ") : "") || fallback;
-  const report = useReportMyLoss({
-    mutation: {
-      onSuccess: (loss) => {
-        toast.success(t(loss.status === "pending" ? "truck.loss.savedWaiting" : "truck.loss.saved"));
-        setProduct(null);
-        setKilos("");
-        setReason(null);
-        setPhoto(undefined);
-        setError("");
-        setUuid(crypto.randomUUID());
-        void queryClient.invalidateQueries();
-      },
-      onError: (failure) => setError(fail(failure, t("truck.loss.failed"))),
-    },
-  });
+  const [saving, setSaving] = useState(false);
+  const queue = useQueue();
   const giveBack = useReturnMyStock({
     mutation: {
       onSuccess: (done) => {
@@ -70,7 +61,54 @@ export function LossPage() {
   }
   const items = stock.data ?? [];
   const kilosValue = parseDecimalInput(kilos.trim(), 3);
-  const ready = product !== null && reason !== null && kilosValue !== null && Number(kilosValue) > 0;
+  const promised = pendingKilos(queue);
+  const heldBack = (id: number) => promised[id] ?? 0;
+  const tooMuch =
+    product !== null &&
+    kilosValue !== null &&
+    Number(kilosValue) > Number(items.find((item) => item.product_id === product)?.quantity ?? 0) - heldBack(product);
+  const ready = product !== null && reason !== null && kilosValue !== null && Number(kilosValue) > 0 && !tooMuch;
+
+  const save = async () => {
+    if (product === null || reason === null || kilosValue === null) return;
+    setSaving(true);
+    setError("");
+    const data = { product, quantity: kilosValue, reason, photo, client_uuid: uuid };
+    try {
+      const outcome = await sendOrKeep(
+        {
+          kind: "loss",
+          uuid,
+          createdAt: new Date().toISOString(),
+          label: items.find((item) => item.product_id === product)?.product_name ?? "",
+          data,
+          status: "pending",
+          error: "",
+        },
+        () => reportMyLoss(data),
+      );
+      toast.success(
+        t(
+          outcome.kept
+            ? "truck.loss.kept"
+            : outcome.result?.status === "pending"
+              ? "truck.loss.savedWaiting"
+              : "truck.loss.saved",
+        ),
+      );
+      setProduct(null);
+      setKilos("");
+      setReason(null);
+      setPhoto(undefined);
+      setUuid(crypto.randomUUID());
+      void queryClient.invalidateQueries();
+      void sendWaiting(queryClient);
+    } catch (failure) {
+      setError(fail(failure, t("truck.loss.failed")));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -136,18 +174,14 @@ export function LossPage() {
                 onChange={(event) => setPhoto(event.target.files?.[0])}
               />
             </div>
+            {tooMuch ? <p className="text-bad">{t("truck.sale.notEnough")}</p> : null}
             {error === "" ? null : <p className="text-bad">{error}</p>}
             <Button
               size="lg"
               variant="primary"
               className="py-4 text-lg"
-              disabled={!ready || report.isPending}
-              onClick={() =>
-                ready &&
-                report.mutate({
-                  data: { product, quantity: kilosValue, reason, photo, client_uuid: uuid },
-                })
-              }
+              disabled={!ready || saving}
+              onClick={() => void save()}
             >
               {t("truck.loss.save")}
             </Button>
