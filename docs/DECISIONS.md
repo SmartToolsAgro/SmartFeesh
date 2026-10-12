@@ -1383,6 +1383,18 @@ real phone.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
 
+**D-111 · The driver collects customer payments on the phone (P3-T11)** · accepted · 2026-10-12
+`POST /my-payments` (driver only) calls `sales.services.record_customer_payment` (D-062): today's date, cash by
+default, allocated to the customer's oldest open sales. `CustomerPayment.client_uuid` (sales migration 0010, unique per
+organization when set) makes a retry from the phone record it once. `GET /my-payments` lists the driver's own payments of
+the day. `GET /my-customers` now also returns `owes` (what each customer owes, from the receivables), and the phone shows
+it on the "Encaisser" screen. Payments join the offline queue as a fourth kind (D-098) and a refused one is reported to the
+office like the others (kind `payment`, D-099). **In the day's cash:** expected cash = opening cash + cash sales + cash
+payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
+driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
+later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
+
+
 **D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
 `GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
 month up to today. **Profit and cash are two separate groups.** Profit: sales, gross margin and net operating result come

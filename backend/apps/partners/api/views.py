@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -205,4 +207,15 @@ class MyCustomersView(APIView):
         recent = sales.recent_customer_ids(membership.organization, user_id=membership.user_id)
         rank = {customer_id: position for position, customer_id in enumerate(recent)}
         found.sort(key=lambda customer: (customer.is_walk_in, rank.get(customer.pk, len(rank)), customer.name))
-        return Response(CustomerChoiceSerializer(found[:30], many=True).data)
+        owed = sales.owed_by_customer(membership.organization)
+        rows = [
+            {
+                "id": customer.pk,
+                "name": customer.name,
+                "city": customer.city,
+                "is_walk_in": customer.is_walk_in,
+                "owes": owed.get(customer.pk, Decimal("0.000")),
+            }
+            for customer in found[:30]
+        ]
+        return Response(CustomerChoiceSerializer(rows, many=True).data)

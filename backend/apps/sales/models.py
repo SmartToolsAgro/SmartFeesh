@@ -819,11 +819,18 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     void_reason = models.CharField(max_length=255, blank=True)
+    # Sent by the driver app, which may retry: the same value never records a payment twice (P3-T11).
+    client_uuid = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ["-received_on", "-id"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "number"], name="customer_payment_number_unique"),
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"],
+                condition=models.Q(client_uuid__isnull=False),
+                name="customer_payment_client_uuid_unique",
+            ),
             models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_payment_amount_positive"),
         ]
         indexes = [

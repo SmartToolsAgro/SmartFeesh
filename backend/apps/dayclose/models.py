@@ -53,7 +53,7 @@ class SyncProblem(OrganizationScopedModel, TimeStampedModel):
     dropped silently."""
 
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
-    # "sale", "expense" or "loss".
+    # "sale", "expense", "loss" or "payment".
     kind = models.CharField(max_length=20)
     # What the driver would call it: the customer, the category, the product.
     label = models.CharField(max_length=150)
