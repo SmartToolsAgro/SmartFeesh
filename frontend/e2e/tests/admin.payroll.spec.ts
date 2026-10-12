@@ -83,6 +83,6 @@ test("the owner generates the month, edits a draft, approves it and pays it", as
   const pay = page.getByRole("dialog", { name: `Payer ${name}` });
   await expect(pay.getByLabel("Montant (DT)")).toHaveValue("1350,000");
   await pay.getByRole("button", { name: "Enregistrer le paiement" }).click();
-  await expect(page.getByText(/Paiement PS-\d{4} enregistré\./)).toBeVisible();
+  await expect(page.getByText(/Paiement PS-\d{4}-\d{4} enregistré\./)).toBeVisible();
   await expect(row).toContainText("Soldé");
 });
