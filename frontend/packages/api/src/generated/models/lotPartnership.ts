@@ -21,6 +21,7 @@ export interface LotPartnership {
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   readonly loss_rate: string;
   readonly status: PartnershipStatusEnum;
+  readonly terms_pending: boolean;
   readonly notes: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly capital: string;

@@ -1644,6 +1644,7 @@ export const getDayClosingResponseDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:
 export const getDayClosingResponseSummaryOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayClosingResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -1677,6 +1678,7 @@ export const GetDayClosingResponse = zod.object({
   "sales_count": zod.int(),
   "sales_total": zod.stringFormat('decimal', getDayClosingResponseSummaryOneSalesTotalRegExp),
   "cash_received": zod.stringFormat('decimal', getDayClosingResponseSummaryOneCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', getDayClosingResponseSummaryOnePaymentsCashRegExp),
   "other_payments": zod.stringFormat('decimal', getDayClosingResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', getDayClosingResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', getDayClosingResponseSummaryOneExpensesTotalRegExp),
@@ -1707,6 +1709,7 @@ export const approveDayClosingResponseDifferenceRegExp = new RegExp('^-?\\d{0,11
 export const approveDayClosingResponseSummaryOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveDayClosingResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -1740,6 +1743,7 @@ export const ApproveDayClosingResponse = zod.object({
   "sales_count": zod.int(),
   "sales_total": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneSalesTotalRegExp),
   "cash_received": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', approveDayClosingResponseSummaryOnePaymentsCashRegExp),
   "other_payments": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneExpensesTotalRegExp),
@@ -1778,6 +1782,7 @@ export const requestDayJustificationResponseDifferenceRegExp = new RegExp('^-?\\
 export const requestDayJustificationResponseSummaryOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const requestDayJustificationResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -1811,6 +1816,7 @@ export const RequestDayJustificationResponse = zod.object({
   "sales_count": zod.int(),
   "sales_total": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneSalesTotalRegExp),
   "cash_received": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOnePaymentsCashRegExp),
   "other_payments": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneExpensesTotalRegExp),
@@ -3315,6 +3321,42 @@ export const DeleteGeneralCostResponse = zod.void()
 export const GetHealthResponse = zod.object({
   "status": zod.string(),
   "database": zod.string()
+})
+
+
+/**
+ * Check a filled Excel template (`dry_run`, the default: nothing is written) or import it for real.
+ * The report lists every row: created, skipped (reference already known) or in error with its column.
+ * A real import is all or nothing: one error anywhere and nothing is saved (`committed` false). Owner only.
+ */
+export const RunImportParams = zod.object({
+  "kind": zod.string()
+})
+
+export const runImportBodyDryRunDefault = true;
+
+export const RunImportBody = zod.object({
+  "file": zod.instanceof(Blob),
+  "dry_run": zod.boolean().default(runImportBodyDryRunDefault)
+})
+
+export const RunImportResponse = zod.object({
+  "kind": zod.enum(['products', 'suppliers', 'customers', 'employees']).describe('* `products` - products\n* `suppliers` - suppliers\n* `customers` - customers\n* `employees` - employees'),
+  "dry_run": zod.boolean(),
+  "committed": zod.boolean(),
+  "created": zod.int(),
+  "skipped": zod.int(),
+  "error_count": zod.int(),
+  "rows": zod.array(zod.object({
+  "row": zod.int(),
+  "status": zod.enum(['created', 'skipped', 'error']).describe('* `created` - created\n* `skipped` - skipped\n* `error` - error'),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "errors": zod.array(zod.object({
+  "column": zod.string(),
+  "message": zod.string()
+}))
+}))
 })
 
 
@@ -6448,11 +6490,15 @@ export const ListMyCustomersQueryParams = zod.object({
   "status": zod.enum(['active', 'archived', 'all']).default(listMyCustomersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
 })
 
+export const listMyCustomersResponseOwesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
 export const ListMyCustomersResponseItem = zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "city": zod.string(),
-  "is_walk_in": zod.boolean()
+  "is_walk_in": zod.boolean(),
+  "owes": zod.stringFormat('decimal', listMyCustomersResponseOwesRegExp)
 }).describe('The little a driver needs to pick a customer.')
 export const ListMyCustomersResponse = zod.array(ListMyCustomersResponseItem)
 
@@ -6506,6 +6552,7 @@ export const CloseMyDayBody = zod.object({
 export const closeMyDayResponseSummaryOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeMyDayResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6527,6 +6574,7 @@ export const CloseMyDayResponse = zod.object({
   "sales_count": zod.int(),
   "sales_total": zod.stringFormat('decimal', closeMyDayResponseSummaryOneSalesTotalRegExp),
   "cash_received": zod.stringFormat('decimal', closeMyDayResponseSummaryOneCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', closeMyDayResponseSummaryOnePaymentsCashRegExp),
   "other_payments": zod.stringFormat('decimal', closeMyDayResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', closeMyDayResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', closeMyDayResponseSummaryOneExpensesTotalRegExp),
@@ -6559,6 +6607,7 @@ export const CloseMyDayResponse = zod.object({
 export const getMyDaySummaryResponseSummaryOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyDaySummaryResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6580,6 +6629,7 @@ export const GetMyDaySummaryResponse = zod.object({
   "sales_count": zod.int(),
   "sales_total": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneSalesTotalRegExp),
   "cash_received": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOnePaymentsCashRegExp),
   "other_payments": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneExpensesTotalRegExp),
@@ -6696,6 +6746,48 @@ export const ReportMyLossResponse = zod.object({
 
 
 /**
+ * What the driver collected from customers today, newest first.
+ */
+export const listMyPaymentsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMyPaymentsResponseItem = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "amount": zod.stringFormat('decimal', listMyPaymentsResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire')
+})
+export const ListMyPaymentsResponse = zod.array(ListMyPaymentsResponseItem)
+
+
+/**
+ * Record money a customer handed over today. It settles their oldest open sales first, and counts in
+ * the day's cash when it is cash. The same `client_uuid` sent twice records it once.
+ */
+
+export const collectMyPaymentBodyMethodDefault = `cash`;
+
+export const CollectMyPaymentBody = zod.object({
+  "customer": zod.int().min(1),
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire').default(collectMyPaymentBodyMethodDefault),
+  "client_uuid": zod.uuid().nullish()
+})
+
+export const collectMyPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CollectMyPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "amount": zod.stringFormat('decimal', collectMyPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire')
+})
+
+
+/**
  * Bring everything left on the driver's truck back to the cold room it was loaded from.
  */
 export const returnMyStockResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -6735,7 +6827,7 @@ export const reportSyncProblemBodyReasonMax = 500;
 
 
 export const ReportSyncProblemBody = zod.object({
-  "kind": zod.enum(['sale', 'expense', 'loss']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss'),
+  "kind": zod.enum(['sale', 'expense', 'loss', 'payment']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment'),
   "what": zod.string().max(reportSyncProblemBodyWhatMax),
   "reason": zod.string().max(reportSyncProblemBodyReasonMax),
   "client_uuid": zod.uuid()
@@ -6867,6 +6959,7 @@ export const ListPartnershipsResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', listPartnershipsResponseResultsItemProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', listPartnershipsResponseResultsItemLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', listPartnershipsResponseResultsItemCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -6923,6 +7016,7 @@ export const CreatePartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', createPartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', createPartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', createPartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -6978,6 +7072,7 @@ export const GetPartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', getPartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', getPartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', getPartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -7046,6 +7141,7 @@ export const UpdatePartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', updatePartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', updatePartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', updatePartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -7110,6 +7206,7 @@ export const CancelPartnershipResponse = zod.object({
   "profit_rate": zod.stringFormat('decimal', cancelPartnershipResponseProfitRateRegExp),
   "loss_rate": zod.stringFormat('decimal', cancelPartnershipResponseLossRateRegExp),
   "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
   "notes": zod.string(),
   "capital": zod.stringFormat('decimal', cancelPartnershipResponseCapitalRegExp),
   "created_at": zod.iso.datetime({"offset":true}),
@@ -8950,6 +9047,7 @@ export const createReceiptBodySupplierReferenceMax = 50;
 export const createReceiptBodyNotesDefault = ``;
 
 
+
 export const CreateReceiptBody = zod.object({
   "supplier": zod.int().min(1),
   "location": zod.int().min(1),
@@ -8963,7 +9061,8 @@ export const CreateReceiptBody = zod.object({
   "invoiced_quantity": zod.string(),
   "accepted_quantity": zod.string(),
   "unit_cost": zod.string(),
-  "use_by": zod.iso.date().nullish()
+  "use_by": zod.iso.date().nullish(),
+  "partner": zod.int().min(1).nullish()
 }))
 })
 

@@ -2131,6 +2131,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
           description: ''
+  /api/v1/imports/{kind}:
+    post:
+      operationId: runImport
+      description: |-
+        Check a filled Excel template (`dry_run`, the default: nothing is written) or import it for real.
+        The report lists every row: created, skipped (reference already known) or in error with its column.
+        A real import is all or nothing: one error anywhere and nothing is saved (`committed` false). Owner only.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportUpload'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportReport'
+          description: ''
+        '400':
+          description: Not a readable template
   /api/v1/invoices:
     get:
       operationId: listInvoices
@@ -3478,6 +3510,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RoadLoss'
+          description: ''
+  /api/v1/my-payments:
+    get:
+      operationId: listMyPayments
+      description: What the driver collected from customers today, newest first.
+      tags:
+      - my-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoadPayment'
+          description: ''
+    post:
+      operationId: collectMyPayment
+      description: |-
+        Record money a customer handed over today. It settles their oldest open sales first, and counts in
+        the day's cash when it is cash. The same `client_uuid` sent twice records it once.
+      tags:
+      - my-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoadPaymentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadPayment'
           description: ''
   /api/v1/my-return:
     post:
@@ -8131,11 +8208,17 @@ components:
         is_walk_in:
           type: boolean
           readOnly: true
+        owes:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - city
       - id
       - is_walk_in
       - name
+      - owes
     CustomerContact:
       type: object
       properties:
@@ -8972,6 +9055,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        payments_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         other_payments:
           type: string
           format: decimal
@@ -9006,6 +9094,7 @@ components:
       - on_credit
       - opening_cash
       - other_payments
+      - payments_cash
       - products
       - sales_count
       - sales_total
@@ -10100,6 +10189,113 @@ components:
         * `octopus` - Poulpe
         * `mussel` - Coquillage
         * `mix` - Mélange
+    ImportColumnError:
+      type: object
+      properties:
+        column:
+          type: string
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+      required:
+      - column
+      - message
+    ImportReport:
+      type: object
+      properties:
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/ImportReportKindEnum'
+          readOnly: true
+        dry_run:
+          type: boolean
+          readOnly: true
+        committed:
+          type: boolean
+          readOnly: true
+        created:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        error_count:
+          type: integer
+          readOnly: true
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRow'
+          readOnly: true
+      required:
+      - committed
+      - created
+      - dry_run
+      - error_count
+      - kind
+      - rows
+      - skipped
+    ImportReportKindEnum:
+      enum:
+      - products
+      - suppliers
+      - customers
+      - employees
+      type: string
+      description: |-
+        * `products` - products
+        * `suppliers` - suppliers
+        * `customers` - customers
+        * `employees` - employees
+    ImportRow:
+      type: object
+      properties:
+        row:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ImportRowStatusEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportColumnError'
+          readOnly: true
+      required:
+      - errors
+      - name
+      - reference
+      - row
+      - status
+    ImportRowStatusEnum:
+      enum:
+      - created
+      - skipped
+      - error
+      type: string
+      description: |-
+        * `created` - created
+        * `skipped` - skipped
+        * `error` - error
+    ImportUpload:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        dry_run:
+          type: boolean
+          default: true
+      required:
+      - file
     Invoice:
       type: object
       properties:
@@ -11458,6 +11654,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/PartnershipStatusEnum'
           readOnly: true
+        terms_pending:
+          type: boolean
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -11496,6 +11695,7 @@ components:
       - partner_capital
       - profit_rate
       - status
+      - terms_pending
     LotPartnershipCancel:
       type: object
       properties:
@@ -11541,6 +11741,9 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/PartnershipStatusEnum'
+          readOnly: true
+        terms_pending:
+          type: boolean
           readOnly: true
         notes:
           type: string
@@ -11590,6 +11793,7 @@ components:
       - partner_capital
       - profit_rate
       - status
+      - terms_pending
     LotPartnershipWrite:
       type: object
       properties:
@@ -14777,6 +14981,10 @@ components:
           type: string
           format: date
           nullable: true
+        partner:
+          type: integer
+          minimum: 1
+          nullable: true
       required:
       - accepted_quantity
       - invoiced_quantity
@@ -15462,6 +15670,52 @@ components:
       - product
       - quantity
       - reason
+    RoadPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          readOnly: true
+      required:
+      - amount
+      - customer_name
+      - id
+      - method
+      - number
+    RoadPaymentWrite:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          default: cash
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - amount
+      - customer
     RoadReturn:
       type: object
       properties:
@@ -17425,11 +17679,13 @@ components:
       - sale
       - expense
       - loss
+      - payment
       type: string
       description: |-
         * `sale` - sale
         * `expense` - expense
         * `loss` - loss
+        * `payment` - payment
     Transfer:
       type: object
       properties:

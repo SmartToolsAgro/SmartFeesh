@@ -548,6 +548,27 @@ def recent_customer_ids(organization: Organization, *, user_id: int, limit: int 
     return seen
 
 
+def payments_received_by(organization: Organization, *, user_id: int, day: dt.date) -> list[CustomerPayment]:
+    """The customer payments this person recorded for a day (voided ones left out), newest first."""
+    return list(
+        CustomerPayment.objects.for_organization(organization)
+        .filter(created_by_id=user_id, received_on=day, voided_at__isnull=True)
+        .select_related("customer")
+        .order_by("-id")
+    )
+
+
+def owed_by_customer(organization: Organization) -> dict[int, Decimal]:
+    """What each customer owes now (only those who owe something), from the receivables of D-062."""
+    from . import receivables
+
+    return {
+        customer_id: balance.balance
+        for customer_id, balance in receivables.customer_balances(organization).items()
+        if balance.balance > 0
+    }
+
+
 # ---- The owner's dashboard (P7-T01, D-104) ----
 
 
