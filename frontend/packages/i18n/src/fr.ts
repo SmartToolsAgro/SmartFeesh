@@ -36,6 +36,7 @@ export const fr = {
   admin: {
     documents: {
       pdf: "PDF",
+      statement: "Relevé du partenaire (PDF)",
       making: "Préparation…",
       failed: "Le PDF n'a pas pu être préparé. Réessayez dans un instant.",
       slow: "Le PDF tarde à venir. Réessayez dans un instant.",

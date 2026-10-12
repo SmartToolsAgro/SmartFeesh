@@ -1,16 +1,19 @@
+import datetime as dt
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.closing import engine, selectors, services
-from apps.closing.models import LotResult, LotResultStatus, SettlementState
-from apps.core.models import Membership, Organization
-from apps.core.permissions import ReadOwnerOrAccountantWriteOwner, membership_of
+from apps.closing import engine, month_selectors, month_services, monthly, selectors, services
+from apps.closing.models import LotResult, LotResultStatus, MonthlyClosing, MonthlyClosingStatus, SettlementState
+from apps.core.models import Membership, Organization, Role
+from apps.core.permissions import HasRole, ReadOwnerOrAccountantWriteOwner, membership_of
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as suppliers
 from apps.partnerships import selectors as partnerships
@@ -19,8 +22,12 @@ from .serializers import (
     CloseLotSerializer,
     LotResultViewSerializer,
     LotSettlementViewSerializer,
+    MonthRowSerializer,
+    MonthViewSerializer,
     PartnerBalancesSerializer,
     ReopenLotSerializer,
+    ReopenMonthSerializer,
+    ReviewMonthSerializer,
     SettleLotSerializer,
 )
 
@@ -270,3 +277,163 @@ class ReopenLotView(LotResultBaseView):
             raise Http404
         services.reopen_lot(result=result, actor=self.membership.user, reason=serializer.validated_data["reason"])
         return self.answer(batch_id)
+
+
+# ---- The monthly closing (P6-T05, P6-T06, D-073, D-074) ----
+
+
+def _month_closing(closing: MonthlyClosing) -> dict[str, Any]:
+    return {
+        "id": closing.pk,
+        "status": closing.status,
+        "net_result": closing.net_result,
+        "reviewed_at": closing.reviewed_at,
+        "reviewed_by_name": person_name(closing.reviewed_by),
+        "review_notes": closing.review_notes,
+        "approved_at": closing.approved_at,
+        "approved_by_name": person_name(closing.approved_by),
+        "reopened_at": closing.reopened_at,
+        "reopened_by_name": person_name(closing.reopened_by),
+        "reopen_reason": closing.reopen_reason,
+    }
+
+
+def parse_month(value: str) -> dt.date:
+    try:
+        year, month = value.split("-")
+        return dt.date(int(year), int(month), 1)
+    except ValueError:
+        raise Http404 from None
+
+
+def month_payload(organization: Organization, month: dt.date) -> dict[str, Any]:
+    """The month for the screen: live figures while open or reviewed, the frozen ones once approved."""
+    first = monthly.month_start(month)
+    live = monthly.month_report(organization, month=first)
+    closing = month_selectors.live_closing_of(organization, month=first)
+    state = month_selectors.state_of(closing)
+    is_over = monthly.month_end(first) < timezone.localdate()
+    blocked = any(check.blocking and not check.ok for check in live.checks)
+    approved = closing is not None and closing.status == MonthlyClosingStatus.APPROVED
+    history = [
+        _month_closing(row)
+        for row in month_selectors.closings_of(organization, month=first)
+        if row.status == MonthlyClosingStatus.REOPENED
+    ]
+    return {
+        "month": first,
+        "state": state,
+        "is_over": is_over,
+        "report": closing.data if approved and closing is not None else monthly.to_json(live),
+        "can_review": is_over and not blocked and not approved,
+        "can_approve": (
+            is_over
+            and not blocked
+            and closing is not None
+            and closing.status == MonthlyClosingStatus.REVIEWED
+            and month_services.fingerprint_of(live) == closing.fingerprint
+        ),
+        "closing": _month_closing(closing) if closing is not None else None,
+        "live_net_result": live.net_result if approved else None,
+        "history": history,
+    }
+
+
+# The month is the owner's and the accountant's business: both read and both may review; only the owner
+# approves and reopens (Q9). Managers and drivers get 403.
+class MonthBaseView(APIView):
+    permission_classes: tuple[type[BasePermission], ...] = (ReadOwnerOrAccountantWriteOwner,)
+
+    @property
+    def membership(self) -> Membership:
+        membership = membership_of(self.request)
+        assert membership is not None  # guaranteed by the permission class
+        return membership
+
+    @property
+    def organization(self) -> Organization:
+        return self.membership.organization
+
+    def answer(self, month: dt.date) -> Response:
+        return Response(MonthViewSerializer(month_payload(self.organization, month)).data)
+
+
+class OwnerOrAccountant(HasRole):
+    roles = frozenset({Role.OWNER, Role.ACCOUNTANT})
+
+
+class MonthListView(MonthBaseView):
+    @extend_schema(operation_id="listMonths", responses=MonthRowSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The last twelve months, newest first, with where each stands (open, reviewed, approved) and its
+        net result once reviewed. The current month is listed but cannot be closed before its last day."""
+        today = timezone.localdate()
+        rows = []
+        for back in range(12):
+            index = today.year * 12 + today.month - 1 - back
+            first = dt.date(index // 12, index % 12 + 1, 1)
+            closing = month_selectors.live_closing_of(self.organization, month=first)
+            rows.append(
+                {
+                    "month": first,
+                    "state": month_selectors.state_of(closing),
+                    "is_over": monthly.month_end(first) < today,
+                    "net_result": closing.net_result if closing is not None else None,
+                }
+            )
+        return Response(MonthRowSerializer(rows, many=True).data)
+
+
+class MonthView(MonthBaseView):
+    @extend_schema(operation_id="getMonth", responses=MonthViewSerializer)
+    def get(self, request: Request, month: str) -> Response:
+        """The month's figures: sales, cost of goods sold (from sale snapshots, never purchases), spoilage,
+        expenses by category, payroll, net result, the stock valued at month-end with its roll-forward, and
+        the checks before closing. Live until approved, then frozen."""
+        return self.answer(parse_month(month))
+
+
+class ReviewMonthView(MonthBaseView):
+    permission_classes = (OwnerOrAccountant,)
+
+    @extend_schema(operation_id="reviewMonth", request=ReviewMonthSerializer, responses=MonthViewSerializer)
+    def post(self, request: Request, month: str) -> Response:
+        """The accountant (or the owner) checks the month. Refused while expenses, salaries or losses of the
+        month wait for a decision, or before the month is over."""
+        first = parse_month(month)
+        serializer = ReviewMonthSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        month_services.review_month(
+            organization=self.organization,
+            actor=self.membership.user,
+            month=first,
+            notes=serializer.validated_data["notes"],
+        )
+        return self.answer(first)
+
+
+class ApproveMonthView(MonthBaseView):
+    @extend_schema(operation_id="approveMonth", request=None, responses=MonthViewSerializer)
+    def post(self, request: Request, month: str) -> Response:
+        """Approve a reviewed month (owner only): lock it and freeze its figures. Refused when the figures
+        moved since the accountant's review."""
+        first = parse_month(month)
+        month_services.approve_month(organization=self.organization, actor=self.membership.user, month=first)
+        return self.answer(first)
+
+
+class ReopenMonthView(MonthBaseView):
+    @extend_schema(operation_id="reopenMonth", request=ReopenMonthSerializer, responses=MonthViewSerializer)
+    def post(self, request: Request, month: str) -> Response:
+        """Reopen a reviewed or approved month (owner only, reason required, audited). The frozen figures
+        stay as history."""
+        first = parse_month(month)
+        serializer = ReopenMonthSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        month_services.reopen_month(
+            organization=self.organization,
+            actor=self.membership.user,
+            month=first,
+            reason=serializer.validated_data["reason"],
+        )
+        return self.answer(first)

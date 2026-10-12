@@ -2990,6 +2990,141 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/months:
+    get:
+      operationId: listMonths
+      description: |-
+        The last twelve months, newest first, with where each stands (open, reviewed, approved) and its
+        net result once reviewed. The current month is listed but cannot be closed before its last day.
+      tags:
+      - months
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MonthRow'
+          description: ''
+  /api/v1/months/{month}:
+    get:
+      operationId: getMonth
+      description: |-
+        The month's figures: sales, cost of goods sold (from sale snapshots, never purchases), spoilage,
+        expenses by category, payroll, net result, the stock valued at month-end with its roll-forward, and
+        the checks before closing. Live until approved, then frozen.
+      parameters:
+      - in: path
+        name: month
+        schema:
+          type: string
+        required: true
+      tags:
+      - months
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthView'
+          description: ''
+  /api/v1/months/{month}/approve:
+    post:
+      operationId: approveMonth
+      description: |-
+        Approve a reviewed month (owner only): lock it and freeze its figures. Refused when the figures
+        moved since the accountant's review.
+      parameters:
+      - in: path
+        name: month
+        schema:
+          type: string
+        required: true
+      tags:
+      - months
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthView'
+          description: ''
+  /api/v1/months/{month}/reopen:
+    post:
+      operationId: reopenMonth
+      description: |-
+        Reopen a reviewed or approved month (owner only, reason required, audited). The frozen figures
+        stay as history.
+      parameters:
+      - in: path
+        name: month
+        schema:
+          type: string
+        required: true
+      tags:
+      - months
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReopenMonth'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReopenMonth'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReopenMonth'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthView'
+          description: ''
+  /api/v1/months/{month}/review:
+    post:
+      operationId: reviewMonth
+      description: |-
+        The accountant (or the owner) checks the month. Refused while expenses, salaries or losses of the
+        month wait for a decision, or before the month is over.
+      parameters:
+      - in: path
+        name: month
+        schema:
+          type: string
+        required: true
+      tags:
+      - months
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewMonth'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewMonth'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewMonth'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthView'
+          description: ''
   /api/v1/my-customers:
     get:
       operationId: listMyCustomers
@@ -10792,6 +10927,403 @@ components:
           format: date
       required:
       - month
+    MonthCategory:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        count:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - category_id
+      - code
+      - count
+      - name
+      - total
+    MonthClosing:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MonthlyClosingStatusEnum'
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_by_name:
+          type: string
+          readOnly: true
+        review_notes:
+          type: string
+          readOnly: true
+        approved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        approved_by_name:
+          type: string
+          readOnly: true
+        reopened_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reopened_by_name:
+          type: string
+          readOnly: true
+        reopen_reason:
+          type: string
+          readOnly: true
+      required:
+      - approved_at
+      - approved_by_name
+      - id
+      - net_result
+      - reopen_reason
+      - reopened_at
+      - reopened_by_name
+      - review_notes
+      - reviewed_at
+      - reviewed_by_name
+      - status
+    MonthExpenses:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthCategory'
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - categories
+      - total
+    MonthLedger:
+      type: object
+      properties:
+        kind:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - kind
+      - quantity
+      - value
+    MonthReport:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        sales:
+          allOf:
+          - $ref: '#/components/schemas/MonthSales'
+          readOnly: true
+        cogs:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        gross_margin:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        spoilage:
+          allOf:
+          - $ref: '#/components/schemas/MonthSpoilage'
+          readOnly: true
+        expenses:
+          allOf:
+          - $ref: '#/components/schemas/MonthExpenses'
+          readOnly: true
+        personnel:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        operating_costs:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        stock:
+          allOf:
+          - $ref: '#/components/schemas/MonthStock'
+          readOnly: true
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClosingCheck'
+          readOnly: true
+      required:
+      - checks
+      - cogs
+      - expenses
+      - gross_margin
+      - month
+      - net_result
+      - operating_costs
+      - personnel
+      - sales
+      - spoilage
+      - stock
+    MonthRow:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/MonthStateEnum'
+          readOnly: true
+        is_over:
+          type: boolean
+          readOnly: true
+        net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+      required:
+      - is_over
+      - month
+      - net_result
+      - state
+    MonthSales:
+      type: object
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - count
+      - quantity
+      - revenue
+    MonthSpoilage:
+      type: object
+      properties:
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - quantity
+      - value
+    MonthStateEnum:
+      enum:
+      - open
+      - reviewed
+      - approved
+      type: string
+      description: |-
+        * `open` - Ouvert
+        * `reviewed` - Vérifié
+        * `approved` - Approuvé
+    MonthStock:
+      type: object
+      properties:
+        opening_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchases:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        closing_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        rounding_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        ledger:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthLedger'
+          readOnly: true
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthStockRow'
+          readOnly: true
+      required:
+      - closing_value
+      - ledger
+      - opening_value
+      - purchases
+      - rounding_difference
+      - rows
+    MonthStockRow:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - product_name
+      - quantity
+      - received_on
+      - supplier_name
+      - unit_cost
+      - value
+    MonthView:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          readOnly: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/MonthStateEnum'
+          readOnly: true
+        is_over:
+          type: boolean
+          readOnly: true
+        report:
+          allOf:
+          - $ref: '#/components/schemas/MonthReport'
+          readOnly: true
+        can_review:
+          type: boolean
+          readOnly: true
+        can_approve:
+          type: boolean
+          readOnly: true
+        closing:
+          allOf:
+          - $ref: '#/components/schemas/MonthClosing'
+          readOnly: true
+          nullable: true
+        live_net_result:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthClosing'
+          readOnly: true
+      required:
+      - can_approve
+      - can_review
+      - closing
+      - history
+      - is_over
+      - live_net_result
+      - month
+      - report
+      - state
+    MonthlyClosingStatusEnum:
+      enum:
+      - reviewed
+      - approved
+      - reopened
+      type: string
+      description: |-
+        * `reviewed` - Vérifié
+        * `approved` - Approuvé
+        * `reopened` - Rouvert
     MovedBatch:
       type: object
       description: 'One batch a line took, oldest first: the movement posted for it.'
@@ -13272,6 +13804,14 @@ components:
           maxLength: 300
       required:
       - reason
+    ReopenMonth:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+      required:
+      - reason
     ResultBatch:
       type: object
       properties:
@@ -13581,6 +14121,13 @@ components:
       - reason
       - unit_cost
       - value
+    ReviewMonth:
+      type: object
+      properties:
+        notes:
+          type: string
+          default: ''
+          maxLength: 300
     RoadCategory:
       type: object
       properties:

@@ -130,6 +130,8 @@ import type {
   LotWorkDayWrite,
   Member,
   Month,
+  MonthRow,
+  MonthView,
   MyStockLine,
   PaginatedBatchList,
   PaginatedCountList,
@@ -180,6 +182,8 @@ import type {
   RecurringCost,
   RecurringCostWrite,
   ReopenLot,
+  ReopenMonth,
+  ReviewMonth,
   RoadCategory,
   RoadExpense,
   RoadExpenseWrite,
@@ -9461,6 +9465,451 @@ export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, 
 
 
 
+
+export const getListMonthsUrl = () => {
+
+
+
+
+  return `/api/v1/months`
+}
+
+/**
+ * The last twelve months, newest first, with where each stands (open, reviewed, approved) and its
+ * net result once reviewed. The current month is listed but cannot be closed before its last day.
+ */
+export const listMonths = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MonthRow[]> => {
+
+  return apiFetch<MonthRow[]>(getListMonthsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMonthsQueryKey = () => {
+    return [
+    `/api/v1/months`
+    ] as const;
+    }
+
+
+export const getListMonthsQueryOptions = <TData = Awaited<ReturnType<typeof listMonths>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMonths>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMonthsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMonths>>> = ({ signal }) => listMonths({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMonths>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMonthsQueryResult = NonNullable<Awaited<ReturnType<typeof listMonths>>>
+export type ListMonthsQueryError = unknown
+
+
+export function useListMonths<TData = Awaited<ReturnType<typeof listMonths>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMonths>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMonths>>,
+          TError,
+          Awaited<ReturnType<typeof listMonths>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMonths<TData = Awaited<ReturnType<typeof listMonths>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMonths>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMonths>>,
+          TError,
+          Awaited<ReturnType<typeof listMonths>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMonths<TData = Awaited<ReturnType<typeof listMonths>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMonths>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMonths<TData = Awaited<ReturnType<typeof listMonths>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMonths>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMonthsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMonthUrl = (month: string,) => {
+
+
+
+
+  return `/api/v1/months/${month}`
+}
+
+/**
+ * The month's figures: sales, cost of goods sold (from sale snapshots, never purchases), spoilage,
+ * expenses by category, payroll, net result, the stock valued at month-end with its roll-forward, and
+ * the checks before closing. Live until approved, then frozen.
+ */
+export const getMonth = async (month: string, options?: Parameters<typeof apiFetch>[1]): Promise<MonthView> => {
+
+  return apiFetch<MonthView>(getGetMonthUrl(month),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMonthQueryKey = (month: string,) => {
+    return [
+    `/api/v1/months/${month}`
+    ] as const;
+    }
+
+
+export const getGetMonthQueryOptions = <TData = Awaited<ReturnType<typeof getMonth>>, TError = unknown>(month: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonth>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMonthQueryKey(month);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMonth>>> = ({ signal }) => getMonth(month, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: month !== null && month !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMonth>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMonthQueryResult = NonNullable<Awaited<ReturnType<typeof getMonth>>>
+export type GetMonthQueryError = unknown
+
+
+export function useGetMonth<TData = Awaited<ReturnType<typeof getMonth>>, TError = unknown>(
+ month: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonth>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMonth>>,
+          TError,
+          Awaited<ReturnType<typeof getMonth>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMonth<TData = Awaited<ReturnType<typeof getMonth>>, TError = unknown>(
+ month: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonth>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMonth>>,
+          TError,
+          Awaited<ReturnType<typeof getMonth>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMonth<TData = Awaited<ReturnType<typeof getMonth>>, TError = unknown>(
+ month: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonth>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMonth<TData = Awaited<ReturnType<typeof getMonth>>, TError = unknown>(
+ month: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonth>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMonthQueryOptions(month,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveMonthUrl = (month: string,) => {
+
+
+
+
+  return `/api/v1/months/${month}/approve`
+}
+
+/**
+ * Approve a reviewed month (owner only): lock it and freeze its figures. Refused when the figures
+ * moved since the accountant's review.
+ */
+export const approveMonth = async (month: string, options?: Parameters<typeof apiFetch>[1]): Promise<MonthView> => {
+
+  return apiFetch<MonthView>(getApproveMonthUrl(month),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveMonthMutationKey = () => ['approveMonth'] as const;
+
+export const getApproveMonthMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMonth>>, TError,ApproveMonthMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveMonth>>, TError,ApproveMonthMutationVariables, TContext> => {
+
+const mutationKey = getApproveMonthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveMonth>>, ApproveMonthMutationVariables> = (props) => {
+          const {month} = props ?? {};
+
+          return  approveMonth(month,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveMonthMutationResult = NonNullable<Awaited<ReturnType<typeof approveMonth>>>
+
+    export type ApproveMonthMutationError = unknown
+    export type ApproveMonthMutationVariables = {month: string}
+
+    export const useApproveMonth = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMonth>>, TError,ApproveMonthMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveMonth>>,
+        TError,
+        ApproveMonthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveMonthMutationOptions(options), queryClient);
+    }
+
+export const getReopenMonthUrl = (month: string,) => {
+
+
+
+
+  return `/api/v1/months/${month}/reopen`
+}
+
+/**
+ * Reopen a reviewed or approved month (owner only, reason required, audited). The frozen figures
+ * stay as history.
+ */
+export const reopenMonth = async (month: string,
+    reopenMonthBody: ReopenMonth, options?: Parameters<typeof apiFetch>[1]): Promise<MonthView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MonthView>(getReopenMonthUrl(month),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reopenMonthBody)
+  }
+);}
+
+
+
+
+
+export const getReopenMonthMutationKey = () => ['reopenMonth'] as const;
+
+export const getReopenMonthMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenMonth>>, TError,ReopenMonthMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reopenMonth>>, TError,ReopenMonthMutationVariables, TContext> => {
+
+const mutationKey = getReopenMonthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reopenMonth>>, ReopenMonthMutationVariables> = (props) => {
+          const {month,data} = props ?? {};
+
+          return  reopenMonth(month,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReopenMonthMutationResult = NonNullable<Awaited<ReturnType<typeof reopenMonth>>>
+    export type ReopenMonthMutationBody = ReopenMonth
+    export type ReopenMonthMutationError = unknown
+    export type ReopenMonthMutationVariables = {month: string;data: ReopenMonth}
+
+    export const useReopenMonth = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenMonth>>, TError,ReopenMonthMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reopenMonth>>,
+        TError,
+        ReopenMonthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReopenMonthMutationOptions(options), queryClient);
+    }
+
+export const getReviewMonthUrl = (month: string,) => {
+
+
+
+
+  return `/api/v1/months/${month}/review`
+}
+
+/**
+ * The accountant (or the owner) checks the month. Refused while expenses, salaries or losses of the
+ * month wait for a decision, or before the month is over.
+ */
+export const reviewMonth = async (month: string,
+    reviewMonthBody?: ReviewMonth, options?: Parameters<typeof apiFetch>[1]): Promise<MonthView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MonthView>(getReviewMonthUrl(month),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reviewMonthBody)
+  }
+);}
+
+
+
+
+
+export const getReviewMonthMutationKey = () => ['reviewMonth'] as const;
+
+export const getReviewMonthMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewMonth>>, TError,ReviewMonthMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewMonth>>, TError,ReviewMonthMutationVariables, TContext> => {
+
+const mutationKey = getReviewMonthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewMonth>>, ReviewMonthMutationVariables> = (props) => {
+          const {month,data} = props ?? {};
+
+          return  reviewMonth(month,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewMonthMutationResult = NonNullable<Awaited<ReturnType<typeof reviewMonth>>>
+    export type ReviewMonthMutationBody = ReviewMonth | undefined
+    export type ReviewMonthMutationError = unknown
+    export type ReviewMonthMutationVariables = {month: string;data?: ReviewMonth}
+
+    export const useReviewMonth = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewMonth>>, TError,ReviewMonthMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reviewMonth>>,
+        TError,
+        ReviewMonthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewMonthMutationOptions(options), queryClient);
+    }
 
 export const getListMyCustomersUrl = (params?: ListMyCustomersParams,) => {
   const normalizedParams = new URLSearchParams();

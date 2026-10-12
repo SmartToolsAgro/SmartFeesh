@@ -101,3 +101,80 @@ class LotResult(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.batch} · {self.get_status_display()}"
+
+
+# ---- The monthly closing for the accountant (P6-T06, D-074) ----
+
+
+class MonthlyClosingStatus(models.TextChoices):
+    # The accountant checked the month's figures; the owner has not approved them yet.
+    REVIEWED = "reviewed", _("Vérifié")
+    # The owner approved: the month is locked and its figures frozen.
+    APPROVED = "approved", _("Approuvé")
+    # The owner reopened it (reason kept): this copy is history, a new review and approval make a new one.
+    REOPENED = "reopened", _("Rouvert")
+
+
+class MonthState(models.TextChoices):
+    """Where a month stands: still open (live figures), reviewed by the accountant, or approved (frozen)."""
+
+    OPEN = "open", _("Ouvert")
+    REVIEWED = "reviewed", _("Vérifié")
+    APPROVED = "approved", _("Approuvé")
+
+
+class MonthlyClosingQuerySet(OrganizationScopedQuerySet["MonthlyClosing"]):
+    def update(self, **kwargs: Any) -> int:
+        raise TypeError("A monthly closing is frozen: reopen the month (with a reason) and close it again")
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise TypeError("A monthly closing is never deleted: reopening keeps it as history")
+
+
+class MonthlyClosing(OrganizationScopedModel):
+    """The accountant's review and the owner's approval of one month, with the figures as they were.
+
+    One live row per month (reviewed, then approved); a reopened one stays as history. `data` is
+    `monthly.to_json` of the report. The review keeps a fingerprint of the figures: if they change before the
+    owner approves, the accountant must review again. It does not change the partners' shares, which are
+    settled per lot (D-040).
+    """
+
+    month = models.DateField()
+    status = models.CharField(max_length=20, choices=MonthlyClosingStatus.choices)
+    revenue = MoneyField()
+    cogs = MoneyField()
+    spoilage = MoneyField()
+    operating_costs = MoneyField()
+    net_result = MoneyField()
+    closing_stock_value = MoneyField()
+    data = models.JSONField(encoder=DjangoJSONEncoder)
+    # What the review looked at: approving figures that moved since is refused.
+    fingerprint = models.CharField(max_length=64)
+    reviewed_at = models.DateTimeField()
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="+")
+    review_notes = models.CharField(max_length=300, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    reopened_at = models.DateTimeField(null=True, blank=True)
+    reopened_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    reopen_reason = models.CharField(max_length=300, blank=True)
+
+    objects = MonthlyClosingQuerySet.as_manager()  # type: ignore[misc]
+
+    class Meta:
+        ordering = ["-month", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "month"],
+                condition=models.Q(status__in=["reviewed", "approved"]),
+                name="one_live_closing_per_month",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.month:%Y-%m} · {self.get_status_display()}"
