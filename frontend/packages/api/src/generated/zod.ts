@@ -4921,6 +4921,33 @@ export const GetLotCostsResponse = zod.object({
 
 
 /**
+ * The frozen figures (sales, costs, net result, partner share) of the closed lots among `batch_ids`.
+ * An open lot has no row: its result is live and read lot by lot.
+ */
+export const ListLotFiguresQueryParams = zod.object({
+  "batch_ids": zod.string().optional().describe('Lot ids, comma-separated (at most 200).')
+})
+
+export const listLotFiguresResponseRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponseCostsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponseNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponsePartnerShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponseCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListLotFiguresResponseItem = zod.object({
+  "batch_id": zod.int(),
+  "outcome": zod.enum(['profit', 'zero', 'loss']).describe('* `profit` - Bénéfice\n* `zero` - Nul\n* `loss` - Perte'),
+  "revenue": zod.stringFormat('decimal', listLotFiguresResponseRevenueRegExp),
+  "costs_total": zod.stringFormat('decimal', listLotFiguresResponseCostsTotalRegExp),
+  "net_result": zod.stringFormat('decimal', listLotFiguresResponseNetResultRegExp),
+  "partner_share": zod.stringFormat('decimal', listLotFiguresResponsePartnerShareRegExp),
+  "capital_to_return": zod.stringFormat('decimal', listLotFiguresResponseCapitalToReturnRegExp)
+}).describe('The main figures of one closed lot, for the list of partnership lots.')
+export const ListLotFiguresResponse = zod.array(ListLotFiguresResponseItem)
+
+
+/**
  * Days worked on lots, newest first, each with its cost (days × salary / 26). Filter by `employee`,
  * `batch` or `month`.
  */

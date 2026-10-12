@@ -1383,6 +1383,9 @@ real phone.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
 
+**D-105 · Lot page summary and the list of partnership lots with their frozen figures (P6-T07)** · accepted · 2026-10-12
+- The lot page already carried the result and the partner share (P6-T02/T03). It now opens with four headline figures (sales, lot costs, net result, partner's or owner's share) and the "Coût d'achat des kg vendus" step drills down to the cost of each sale, like sales and costs do.
+- The "Partage des bénéfices" list (`/partenariats`) gets the net result and the partner's share of each **closed** lot, read from `GET /lot-figures?batch_ids=` (closing app, frozen `LotResult` rows only, at most 200 ids). Open lots show "Pas encore clôturé": their live result is computed lot by lot and stays on the lot page, to keep the list cheap. The `partnerships` app does not import `closing` (the dependency runs the other way).
 **D-113 · Commercial and stock reports (P7-T02, P7-T03)** · accepted · 2026-10-12
 New app `reports` (read-only; owner, manager and accountant, never a driver) and the page **Rapports** (menu "Pilotage",
 four tabs, each with an Excel file). **Sales** by customer, product, truck, driver, day, week or month: number of
