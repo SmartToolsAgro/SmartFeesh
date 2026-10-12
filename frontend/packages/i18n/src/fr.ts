@@ -12,6 +12,9 @@ export const fr = {
   brand: {
     tagline: "Gestion & distribution",
   },
+  language: {
+    label: "Langue",
+  },
   theme: {
     label: "Thème d'affichage",
     light: "Thème clair",
@@ -2777,7 +2780,7 @@ export const fr = {
       emptyTruck: "Le camion est vide",
       emptyTruckBody: "Il n'y a plus rien à vendre dans ce camion.",
       howMuch: "Combien de kilos ?",
-      left: "Reste {{kg}} kg",
+      left: "Reste {{kg}}",
       total: "Total",
       next: "Suivant",
       paid: "Le client paie (DT)",
