@@ -112,3 +112,17 @@ def driver_day_of(membership: Membership, on: date_type | None = None) -> Driver
 def locked_driver_day(driver_day: DriverDay) -> DriverDay:
     """The same day read again with its row locked (inside a transaction), with truck and driver."""
     return DriverDay.objects.select_for_update().select_related("truck__location", "driver").get(pk=driver_day.pk)
+
+
+def drivers_by_truck_day(
+    organization: Organization, *, date_from: date_type, date_to: date_type
+) -> dict[tuple[int, date_type], str]:
+    """Who drove each truck on each day, from the days drivers opened on the phone: `{(truck location id,
+    day): driver name}`. A day nobody opened is missing (reports show it as "no driver")."""
+    rows = (
+        DriverDay.objects.for_organization(organization)
+        .filter(date__gte=date_from, date__lte=date_to)
+        .select_related("driver", "truck")
+        .order_by("id")
+    )
+    return {(row.truck.location_id, row.date): row.driver.get_full_name() or row.driver.username for row in rows}

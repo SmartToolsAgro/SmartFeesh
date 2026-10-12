@@ -25,10 +25,12 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from apps.core.documents import DocumentFilters, DocumentRow, DocumentType, Tone, document_key
 from apps.core.models import Organization
 
 from .models import (
     CreditNote,
+    CreditNoteKind,
     CreditNoteLine,
     CreditNoteLineBatch,
     CustomerPayment,
@@ -520,6 +522,122 @@ def month_sales(organization: Organization, *, date_from: dt.date, date_to: dt.d
     )
 
 
+@dataclass(frozen=True)
+class ReportRow:
+    """One slice of what was sold (or given back by a credit note) for the commercial reports: the kilos,
+    revenue without VAT and cost of one sale line batch. A credit note's row carries negative figures."""
+
+    sale_id: int
+    day: dt.date
+    sold_on: dt.date
+    customer_id: int
+    customer_name: str
+    product_id: int
+    product_name: str
+    location_id: int
+    location_name: str
+    quantity: Decimal
+    revenue: Decimal
+    cost: Decimal
+    is_credit: bool
+
+
+def report_rows(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> list[ReportRow]:
+    """The rows `month_sales` adds up, one per sale line batch, so every report agrees with the closing
+    (D-113): confirmed sales made from `date_from` to `date_to`, and, with negative figures, what credit notes
+    issued in those days gave back. `day` is the day the row counts in (sale day, or credit note day);
+    `sold_on` is always the sale's own day."""
+    start = timezone.make_aware(dt.datetime.combine(date_from, dt.time.min))
+    end = timezone.make_aware(dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min))
+    fields = (
+        "line__sale_id",
+        "line__sale__sold_at",
+        "line__sale__customer_id",
+        "line__sale__customer__name",
+        "line__product_id",
+        "line__product__name",
+        "line__sale__location_id",
+        "line__sale__location__name",
+        "quantity",
+        "revenue_amount",
+        "cost_amount",
+    )
+    rows: list[ReportRow] = []
+    sold = (
+        SaleLineBatch.objects.for_organization(organization)
+        .filter(line__sale__status=SaleStatus.CONFIRMED, line__sale__sold_at__gte=start, line__sale__sold_at__lt=end)
+        .order_by("id")
+        .values_list(*fields)
+    )
+    for sale_id, sold_at, customer_id, customer, product_id, product, location_id, location, kg, revenue, cost in sold:
+        local_day = timezone.localtime(sold_at).date()
+        rows.append(
+            ReportRow(
+                sale_id,
+                local_day,
+                local_day,
+                customer_id,
+                customer,
+                product_id,
+                product,
+                location_id,
+                location,
+                kg,
+                revenue,
+                cost,
+                False,
+            )
+        )
+    given_back = (
+        CreditNoteLineBatch.objects.for_organization(organization)
+        .filter(
+            line__credit_note__issued_on__gte=date_from,
+            line__credit_note__issued_on__lte=date_to,
+            sale_line_batch__line__sale__status=SaleStatus.CONFIRMED,
+        )
+        .order_by("id")
+        .values_list(
+            "line__credit_note__issued_on",
+            *(f"sale_line_batch__{name}" for name in fields[:8]),
+            "quantity",
+            "revenue_amount",
+            "cost_amount",
+        )
+    )
+    for (
+        issued_on,
+        sale_id,
+        sold_at,
+        customer_id,
+        customer,
+        product_id,
+        product,
+        location_id,
+        location,
+        kg,
+        revenue,
+        cost,
+    ) in given_back:
+        rows.append(
+            ReportRow(
+                sale_id,
+                issued_on,
+                timezone.localtime(sold_at).date(),
+                customer_id,
+                customer,
+                product_id,
+                product,
+                location_id,
+                location,
+                -kg,
+                -revenue,
+                -cost,
+                True,
+            )
+        )
+    return rows
+
+
 def draft_sales_count(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> int:
     """Sales still drafts, dated in the period: they have not left the stock nor counted anywhere."""
     start = timezone.make_aware(dt.datetime.combine(date_from, dt.time.min))
@@ -529,6 +647,192 @@ def draft_sales_count(organization: Organization, *, date_from: dt.date, date_to
         .filter(status=SaleStatus.DRAFT, sold_at__gte=start, sold_at__lt=end)
         .count()
     )
+
+
+# ---- The "Documents" page (P2-T11, D-102) ----
+
+_QUOTE_TONES: dict[str, Tone] = {
+    QuoteStatus.DRAFT: "draft",
+    QuoteStatus.SENT: "waiting",
+    QuoteStatus.ACCEPTED: "waiting",
+    QuoteStatus.REFUSED: "cancelled",
+    QuoteStatus.EXPIRED: "cancelled",
+}
+_SALE_TONES: dict[str, Tone] = {
+    SaleStatus.DRAFT: "draft",
+    SaleStatus.CONFIRMED: "done",
+    SaleStatus.CANCELLED: "cancelled",
+}
+_INVOICE_TONES: dict[str, Tone] = {
+    InvoiceStatus.DRAFT: "draft",
+    InvoiceStatus.ISSUED: "done",
+    InvoiceStatus.CANCELLED: "cancelled",
+}
+
+
+def _days(queryset: QuerySet[Any], field: str, filters: DocumentFilters) -> QuerySet[Any]:
+    if filters.date_from is not None:
+        queryset = queryset.filter(**{f"{field}__gte": filters.date_from})
+    if filters.date_to is not None:
+        queryset = queryset.filter(**{f"{field}__lte": filters.date_to})
+    return queryset
+
+
+def _search(queryset: QuerySet[Any], customer: str, filters: DocumentFilters) -> QuerySet[Any]:
+    if search := filters.search.strip():
+        queryset = queryset.filter(Q(number__icontains=search) | Q(**{f"{customer}__name__icontains": search}))
+    return queryset
+
+
+def _wanted(kind: DocumentType, filters: DocumentFilters) -> bool:
+    return not filters.types or kind in filters.types
+
+
+def document_rows(organization: Organization, filters: DocumentFilters, *, may_write: bool) -> list[DocumentRow]:
+    """Quotes (DV), BL (a sale, D-095), invoices (FA) and credit notes (AV) as rows of the "Documents" page.
+
+    `may_write` is whether the person may change sales documents (owner or manager): it decides `actions`,
+    which follow the same rules as the services so the page offers only what would succeed. The services
+    still check everything: an action offered here can be refused if the document changed meanwhile.
+    """
+    today = timezone.localdate()
+    rows: list[DocumentRow] = []
+
+    if _wanted("DV", filters):
+        quotes = (
+            Quote.objects.for_organization(organization)
+            .select_related("customer")
+            .annotate(
+                current_status=current_quote_status(today),
+                live_sales=Count("sales", filter=~Q(sales__status=SaleStatus.CANCELLED)),
+            )
+        )
+        for quote in _search(_days(quotes, "quoted_on", filters), "customer", filters):
+            status = QuoteStatus(quote.current_status)
+            actions: list[str] = []
+            if may_write:
+                if status == QuoteStatus.DRAFT:
+                    actions = ["edit", "send"]
+                elif status == QuoteStatus.SENT:
+                    actions = ["accept", "refuse"]
+                elif status == QuoteStatus.ACCEPTED and quote.valid_until >= today and not quote.live_sales:
+                    actions = ["to_sale"]
+            rows.append(
+                DocumentRow(
+                    type="DV",
+                    id=quote.pk,
+                    number=quote.number,
+                    partner_side="customer",
+                    partner_id=quote.customer_id,
+                    partner_name=quote.customer.name,
+                    date=quote.quoted_on,
+                    amount=quote.total,
+                    status=status.value,
+                    status_label=str(status.label),
+                    # An accepted quote that became a BL has done its job.
+                    tone="done" if status == QuoteStatus.ACCEPTED and quote.live_sales else _QUOTE_TONES[status],
+                    actions=actions,
+                    pdf="quote",
+                )
+            )
+
+    if _wanted("BL", filters):
+        sales = (
+            Sale.objects.for_organization(organization)
+            .select_related("customer")
+            .annotate(
+                live_invoices=Count("invoices", filter=~Q(invoices__status=InvoiceStatus.CANCELLED)),
+                issued_invoices=Count("invoices", filter=Q(invoices__status=InvoiceStatus.ISSUED)),
+            )
+        )
+        for sale in _search(_days(sales, "sold_at__date", filters), "customer", filters):
+            sale_status = SaleStatus(sale.status)
+            actions = []
+            if may_write:
+                if sale_status == SaleStatus.DRAFT:
+                    actions = ["edit", "confirm", "cancel"]
+                elif sale_status == SaleStatus.CONFIRMED:
+                    actions = [] if sale.live_invoices else ["to_invoice"]
+                    if not sale.issued_invoices:
+                        actions.append("cancel")
+            rows.append(
+                DocumentRow(
+                    type="BL",
+                    id=sale.pk,
+                    number=sale.number,
+                    partner_side="customer",
+                    partner_id=sale.customer_id,
+                    partner_name=sale.customer.name,
+                    date=timezone.localtime(sale.sold_at).date(),
+                    amount=sale.total,
+                    status=sale_status.value,
+                    status_label=str(sale_status.label),
+                    tone=_SALE_TONES[sale_status],
+                    parents=[document_key("DV", sale.quote_id)] if sale.quote_id else [],
+                    actions=actions,
+                    # A BL exists once the sale was validated, even if it was cancelled afterwards.
+                    pdf="delivery_note" if sale.confirmed_at is not None else "",
+                )
+            )
+
+    if _wanted("FA", filters):
+        invoices = (
+            Invoice.objects.for_organization(organization)
+            .select_related("customer")
+            .prefetch_related(Prefetch("sale_links", queryset=InvoiceSale.objects.order_by("sale__sold_at", "sale_id")))
+            .annotate(day=Coalesce("issued_on", "created_at__date"))
+        )
+        for invoice in _search(_days(invoices, "day", filters), "customer", filters):
+            invoice_status = InvoiceStatus(invoice.status)
+            actions = []
+            if may_write:
+                if invoice_status == InvoiceStatus.DRAFT:
+                    actions = ["edit", "issue", "delete"]
+                elif invoice_status == InvoiceStatus.ISSUED:
+                    actions = ["credit_note"]
+            rows.append(
+                DocumentRow(
+                    type="FA",
+                    id=invoice.pk,
+                    # A draft has no number yet (taken when issued): the page says "Brouillon".
+                    number=invoice.number,
+                    partner_side="customer",
+                    partner_id=invoice.customer_id,
+                    partner_name=invoice.customer.name,
+                    date=invoice.day,
+                    amount=invoice.net_to_pay,
+                    status=invoice_status.value,
+                    status_label=str(invoice_status.label),
+                    tone=_INVOICE_TONES[invoice_status],
+                    # One or several BL (D-101), oldest first.
+                    parents=[document_key("BL", link.sale_id) for link in invoice.sale_links.all()],
+                    actions=actions,
+                    pdf="" if invoice_status == InvoiceStatus.DRAFT else "invoice",
+                )
+            )
+
+    if _wanted("AV", filters):
+        notes = CreditNote.objects.for_organization(organization).select_related("invoice__customer")
+        for note in _search(_days(notes, "issued_on", filters), "invoice__customer", filters):
+            rows.append(
+                DocumentRow(
+                    type="AV",
+                    id=note.pk,
+                    number=note.number,
+                    partner_side="customer",
+                    partner_id=note.invoice.customer_id,
+                    partner_name=note.invoice.customer.name,
+                    date=note.issued_on,
+                    amount=note.net_amount,
+                    # A credit note has no status: it is final when made.
+                    status="issued",
+                    status_label=str(CreditNoteKind(note.kind).label),
+                    tone="done",
+                    parents=[document_key("FA", note.invoice_id)],
+                    pdf="credit_note",
+                )
+            )
+    return rows
 
 
 def recent_customer_ids(organization: Organization, *, user_id: int, limit: int = 8) -> list[int]:
@@ -623,3 +927,37 @@ def cash_collected(organization: Organization, *, date_from: dt.date, date_to: d
         .aggregate(total=Sum("amount"))["total"]
     )
     return (on_the_spot or zero) + (later or zero)
+
+
+def cash_in_by_day(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> dict[dt.date, Decimal]:
+    """Money received per day from customers: what was paid on the spot at confirmed sales (by the day of the
+    sale) plus the customer payments recorded since (by the day received, voided ones left out)."""
+    from django.db.models.functions import TruncDate
+
+    result: dict[dt.date, Decimal] = {}
+    on_the_spot = (
+        Sale.objects.for_organization(organization)
+        .filter(confirmed_at__isnull=False, amount_paid__gt=0)
+        .annotate(day=TruncDate("sold_at"))
+        .filter(day__gte=date_from, day__lte=date_to)
+        .values("day")
+        .annotate(total=Sum("amount_paid"))
+    )
+    for spot in on_the_spot:
+        result[spot["day"]] = result.get(spot["day"], Decimal("0.000")) + spot["total"]
+    later = (
+        CustomerPayment.objects.for_organization(organization)
+        .filter(voided_at__isnull=True, received_on__gte=date_from, received_on__lte=date_to)
+        .values("received_on")
+        .annotate(total=Sum("amount"))
+    )
+    for row in later:
+        result[row["received_on"]] = result.get(row["received_on"], Decimal("0.000")) + row["total"]
+    return result
+
+
+def receivable_balances(organization: Organization) -> dict[int, Any]:
+    """Every customer's balance, credit and ageing (`receivables.CustomerBalance`), keyed by customer id."""
+    from . import receivables
+
+    return dict(receivables.customer_balances(organization))

@@ -32,6 +32,7 @@ import { ImportPage } from "./imports/ImportPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { TruckDayPage } from "./locations/TruckDayPage";
 import { MonthClosingPage } from "./closing/MonthClosingPage";
+import { ReportsPage } from "./reports/ReportsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
@@ -64,6 +65,7 @@ import { SuppliersPage } from "./suppliers/SuppliersPage";
 import { CountPage } from "./counts/CountPage";
 import { CountsPage } from "./counts/CountsPage";
 import { DayClosingsPage } from "./dayclose/DayClosingsPage";
+import { DocumentsPage } from "./doclist/DocumentsPage";
 import { LossDetailPage } from "./losses/LossDetailPage";
 import { LossesPage } from "./losses/LossesPage";
 import { LossFormPage } from "./losses/LossFormPage";
@@ -77,7 +79,14 @@ const queryClient = createQueryClient();
 function useNav(): AdminNavGroup[] {
   const { t } = useTranslation();
   return [
-    { label: t("admin.groups.steering"), items: [{ to: "/", label: t("admin.nav.dashboard"), icon: "grid" }] },
+    {
+      label: t("admin.groups.steering"),
+      items: [
+        { to: "/", label: t("admin.nav.dashboard"), icon: "grid" },
+        { to: "/documents", label: t("admin.nav.documents"), icon: "receipt" },
+        { to: "/rapports", label: t("admin.nav.reports"), icon: "grid" },
+      ],
+    },
     {
       label: t("admin.groups.sales"),
       items: [
@@ -115,6 +124,7 @@ function useNav(): AdminNavGroup[] {
 
 // Screens that exist; every other entry of the menu shows "coming soon".
 const SCREENS: Record<string, ReactNode> = {
+  "/documents": <DocumentsPage />,
   "/stock": <LocationsPage />,
   "/camions": <TruckDayPage />,
   "/journees": <DayClosingsPage />,
@@ -132,6 +142,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/partenariats": <PartnershipsPage />,
   "/import": <ImportPage />,
   "/cloture": <MonthClosingPage />,
+  "/rapports": <ReportsPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};

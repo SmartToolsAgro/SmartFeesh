@@ -239,6 +239,18 @@ class LateAdjustmentSerializer(serializers.Serializer[Any]):
     pending_share = _money()
 
 
+class LotFigureSerializer(serializers.Serializer[Any]):
+    """The main figures of one closed lot, for the list of partnership lots."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    outcome = serializers.ChoiceField(choices=LotOutcome.choices, read_only=True)
+    revenue = _money()
+    costs_total = _money()
+    net_result = _money()
+    partner_share = _money()
+    capital_to_return = _money()
+
+
 class PartnerBalancesSerializer(serializers.Serializer[Any]):
     """The three balances of a partner, kept apart: never added together (D-031, D-040)."""
 

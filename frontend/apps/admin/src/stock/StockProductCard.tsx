@@ -67,7 +67,6 @@ export function StockProductCard({ stock, places }: { stock: ProductStock; place
           </h3>
           <span className="flex-none text-end">
             <span className="num font-semibold">{formatQuantity(stock.quantity)}</span>
-            <span className="text-[0.75rem] text-ink-2"> kg</span>
           </span>
         </div>
         <div className="flex h-2 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">

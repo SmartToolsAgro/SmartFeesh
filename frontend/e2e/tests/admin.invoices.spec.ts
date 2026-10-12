@@ -118,4 +118,17 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
   for (const number of numbers) {
     await expect(page.getByRole("link", { name: number })).toBeVisible();
   }
+
+  // The invoice list shows every BL of a grouped invoice, not only the first.
+  await page.goto("/factures");
+  const row = page.getByRole("row").filter({ hasText: numbers[0] ?? "" });
+  for (const number of numbers) {
+    await expect(row).toContainText(number);
+  }
+
+  // Dropping the grouped draft goes back to the list: there is no single BL to return to.
+  await row.getByRole("link", { name: "Brouillon" }).click();
+  await page.getByRole("button", { name: "Supprimer le brouillon" }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(page).toHaveURL(/\/factures$/);
 });

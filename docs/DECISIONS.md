@@ -1107,7 +1107,7 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - Known gaps: no settlement PDF (P6-T04); a cancelled partnership with capital returned is not part of the
   balances beyond its ledger; the settlement uses today's date (no back-dating field).
 
-**D-070 · Back button, truck-of-day menu entry, sticky filter bars** · accepted · 2026-10-11
+**D-110 · Back button, truck-of-day menu entry, sticky filter bars** (numbered D-070 until 2026-10-12, a duplicate) · accepted · 2026-10-11
 - `AdminShell` shows a "Retour" button on every page that is not a menu entry (previous page, or the parent menu
   entry when opened directly). "Camions du jour" (D-046) is its own menu entry `/camions`, no longer a section of
   the Stock page. Filter bars of list pages use the `filter-bar` class: sticky under the 62px top bar.
@@ -1312,7 +1312,7 @@ it is needed. The truck app's queries use `networkMode: "offlineFirst"` so they 
 saved answer. Logging out deletes the saved API answers, so the next driver on the phone sees none of them. A banner
 says when there is no signal. Not yet shown: the time of the last update on each screen.
 
-**D-095 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** · accepted · 2026-10-12
+**D-109 · An approved day is closed; recent customers first (follow-up of D-091, D-094)** (numbered D-095 until 2026-10-12, a duplicate) · accepted · 2026-10-12
 Once the office approves a driver's day, that driver gets 403 on sales, road expenses, losses and returns for the
 rest of that day (`dayclose.selectors.refuse_if_day_approved`, called by the driver views). `GET /my-customers` puts the
 customers the driver sold to most recently first (up to 8), then the others by name, the walk-in customer last.
@@ -1348,6 +1348,29 @@ to guess what is stuck on a phone, and nothing is dropped silently. **Not done:*
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
 
+**D-108 · Security review of the API: what was found and closed (P4-T05)** · accepted · 2026-10-12
+- `apps/core/tests/test_api_security.py` walks **every route** of the API: each has a role permission (none relies on
+  "any logged-in user"), a logged-out visitor gets 401 everywhere, and each role (owner, manager, accountant, driver)
+  gets 403 exactly where D-023, D-060 and D-091 say. A new view that forgets its permission class fails there. On a fully
+  seeded company, the owner of *another* company asks every route with the real ids: no row, no change, empty lists
+  (D-022). Approved expenses, bills, salaries, posted invoices and validated transfers refuse PUT/PATCH/DELETE (they
+  already did; the test now pins it). The views write nothing themselves, and the admin is read-only for business data.
+- **Holes found, each with a test, and closed:** (1) `/api/v1/schema` was readable by every logged-in user, a driver
+  included: now owner and manager only. (2) No limit on the size of a request: the 8 MB photo check ran after the whole
+  upload was on disk; `RequestSizeLimitMiddleware` answers 413 above `MAX_REQUEST_BYTES` (10 MB, as nginx) before reading.
+  (3) The login limits of D-023 lived in each gunicorn worker's memory (3 workers: 24 attempts a minute, not 8): the
+  cache is Redis when `DJANGO_CACHE_URL` is set, and **production refuses to start without it** (staging compose sets
+  it). (4) The Django admin login (`/django-admin/login/`) had no throttle at all: `AdminLoginThrottleMiddleware`, 8 a
+  minute per address. (5) A driver could swap or drop their truck assignment after opening the day, then sell from
+  another truck than the one the day's cash and closing are counted on: refused once the day is open (the office can
+  still move it); asking again for the same truck is still accepted.
+- Settings pinned by tests: cookies HttpOnly and SameSite=Lax, `X-Frame-Options: DENY`, production HTTPS-only with secure
+  cookies and HSTS by default, CSRF token required for a logged-in session to write.
+- **Not changed, on purpose:** no general rate limit on the rest of the API (the driver app replays queues of sales after
+  a lost connection: a limit would need tuning with real use; put `limit_req` on the reverse proxy if abuse appears).
+  A PDF receipt is checked by its `%PDF-` header and size only, then served as `application/pdf` (nosniff in production).
+  Sales and invoices views are reviewed in a follow-up after PR #55.
+
 **D-100 · A partner named at the goods receipt, capital and rates filled in later (P6)** · accepted, provisional points marked · 2026-10-12
 - On a receipt line the owner may pick a **partner** (the receipt's own supplier is allowed: the same person can be supplier and partner). The lot gets a `LotPartnership` with `terms_pending = true`, capital 0 and rates 0, created in the receipt's transaction by `partnerships.services.designate_partner` (no capital ledger entry yet). Only the owner may do it (400 on `lines.N.partner` for others).
 - The owner completes it with the usual edit (`update_partnership`); sending both rates clears `terms_pending`, and the capital becomes the first ledger entry. **While pending, the terms may be filled in even after sales** (the shares are only computed at closing); once filled, the usual rule applies (fixed after the first sale).
@@ -1382,6 +1405,41 @@ real phone.
   whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
+
+**D-102 · One "Documents" page reads every document from the apps that own them (P2-T11)** · accepted · 2026-10-12
+Asked by Mahmoud from another ERP's screen: one list of every document, children under their parent, the next action on
+each row. **Devis = commande client, bon d'achat = commande fournisseur** (Mahmoud): no CC or CF document. A BL may
+start without a devis and a BR without a bon d'achat. **No new table and no generic `Document` model**: each app
+describes its own documents with `apps.core.documents.DocumentRow` from its selectors (`sales.selectors.document_rows`:
+DV, BL, FA, AV; `purchasing.selectors.document_rows`: BA, BR, FF) and the read-only app `doclist` merges them
+(`GET /document-index`, newest day first, at most 1000 rows with `truncated`). A row carries its `parents` as keys
+(`"BL:12"`; an FF lists all its BR, an FA its BL), a `tone` for the colour (draft, waiting, done, cancelled), the model's
+own status label, the PDF kind when one exists in that state, and **`actions`: what the person may do next, computed
+on the server** from the same rules as the services and empty for the accountant (drivers get 403). The page draws the
+tree itself (each document under the first parent present; a parent outside the period makes it a root) and runs each
+action through the endpoint of the owning app (`sendQuote`, `confirmSale`, `issueInvoice`, `postSupplierInvoice`...),
+or opens the existing form for what needs one (edit, credit note, receipt from an order, supplier invoice, payment):
+the forms keep their rules (price in force, FIFO, credit limit) in one place instead of a second copy in a side panel.
+Type and status filters run in the browser so the chips can count every type of the period; period and search run on
+the server. `/achats/factures/nouvelle?reception=<id>` now ticks that receipt. **Not done:** one devis in several BL
+(P2-T11 part 2, agreed with Mahmoud), supplier return RF (no supplier credit note yet, and `RF-` numbers supplier
+payments).
+
+**D-105 · Lot page summary and the list of partnership lots with their frozen figures (P6-T07)** · accepted · 2026-10-12
+- The lot page already carried the result and the partner share (P6-T02/T03). It now opens with four headline figures (sales, lot costs, net result, partner's or owner's share) and the "Coût d'achat des kg vendus" step drills down to the cost of each sale, like sales and costs do.
+- The "Partage des bénéfices" list (`/partenariats`) gets the net result and the partner's share of each **closed** lot, read from `GET /lot-figures?batch_ids=` (closing app, frozen `LotResult` rows only, at most 200 ids). Open lots show "Pas encore clôturé": their live result is computed lot by lot and stays on the lot page, to keep the list cheap. The `partnerships` app does not import `closing` (the dependency runs the other way).
+
+**D-113 · Commercial and stock reports (P7-T02, P7-T03)** · accepted · 2026-10-12
+New app `reports` (read-only; owner, manager and accountant, never a driver) and the page **Rapports** (menu "Pilotage",
+four tabs, each with an Excel file). **Sales** by customer, product, truck, driver, day, week or month: number of
+sales, kg, revenue without VAT, cost of the goods sold and margin, net of the credit notes of the period. They are the
+rows of the monthly closing (`sales.report_rows`), so a report and the closing never differ by a dinar. The **driver** of
+a truck is the one who opened that truck's day on the phone (`fleet.drivers_by_truck_day`, D-090); a truck day nobody
+opened, or a counter sale, shows "—". **Stock value** by place and product at the purchase cost of each lot; **slow
+lots** (no movement for N days, default 30, longest idle first); **losses and weight differences** per product over a
+period, at the lot's cost per kg. Excel files (`openpyxl`, amounts kept as exact numbers with three decimals, a totals
+row) are plain downloads next to each table. **Not done:** sales by supplier and by payment method (listed in P7-T02),
+a driver/period comparison chart, and the Arabic texts (the page is French, like the rest of the admin app).
 
 **D-106 · Stock cannot leave before it arrived (review, round 2)** · accepted · 2026-10-12
 - `post_fifo_movements` and `selectors.allocate_fifo` (new `day` argument, given by `record_loss`) only take batches
@@ -1440,3 +1498,35 @@ from expected, where the driver left no note or the office asked for a justifica
   their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
 - Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
   same task.
+
+**D-116 · Financial reports (P7-T04)** · accepted · 2026-10-12
+Five reports on the **Finances** tab of Rapports, **owner and accountant only** (the manager and drivers get 403: this is
+the company's money), each with a date or month filter where it makes sense and an Excel file. Everything is read from the
+selector that owns the number, nothing is recomputed: **month result** = `closing.selectors.month_result` (the monthly
+closing's own report: revenue, cost of goods, spoilage, expenses by category, personnel, net result); **customers who
+owe** = the receivables of D-062 (balance, overdue, ageing 0-30 / 31-60 / 61+; customers whose credit we hold are left
+out); **suppliers owed** = `purchasing.supplier_balance` per supplier (posted invoices minus payments, overdue, and goods
+received but not invoiced, which are not owed yet; partner capital and profit shares stay out, D-040); **unpaid
+salaries** = `hr.unpaid_by_employee`. **Cash flow** by day, week (Monday) or month: in = paid on the spot at confirmed
+sales (by sale day) + customer payments (by received day, voided left out); out = supplier payments + salary payments +
+approved expenses (an approved expense is taken as paid on its date, whatever its payment method: provisional). It is a
+movement report, not a bank reconciliation: there is no opening balance. Payroll accruals are not cash and appear in the
+month result only.
+
+**D-117 · Partnership report (P7-T05)** · accepted · 2026-10-12
+Tab **Partenaires** on Rapports (owner and accountant only), one row per partner and a totals row, with a date range and an
+Excel file. **Over the period** (by entry date, straight from the two partner ledgers, `partnerships.partner_flows`): capital
+put in, loss share deducted from the capital (net of reversals), capital returned; profit share earned, losses beyond the
+capital (owed by the partner), late adjustments (signed) and shares paid out. **Today** (the same selectors as the partner
+screens, `capital_by_partner` and `profit_share_balance_of_partner`, so the report never disagrees with them): capital still
+in the company and the share still due (negative: the partner owes it). The three balances (capital, profit share, trade
+payable) stay separate (D-031, D-040); the supplier payable is in the Finances tab, not here. A lot's settlement
+appears as its capital return and its share payment. **Not done:** a per-lot breakdown under each partner (the lot screens
+have it), and Arabic texts.
+
+- **Opening stock** (slice 2): kind `opening_stock`, one row per lot: product and supplier by reference, location
+  by name, kg, cost per kg, reception date. Each row creates a batch (`receipt_reference` "STOCK-OUVERTURE") and
+  posts a `receipt` movement through `inventory.services`, so the ledger and FIFO work as for any lot. Sending the
+  file again skips a lot already imported (same product, supplier, date, cost); the same lot twice in one file is
+  an error (group the kilos).
+- Customer and supplier opening debts: slice 3.

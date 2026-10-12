@@ -20,7 +20,9 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
+from apps.core.documents import DocumentFilters, DocumentRow, Tone, document_key
 from apps.core.models import Organization
 
 from .models import (
@@ -29,6 +31,7 @@ from .models import (
     GoodsReceiptLine,
     PurchaseOrder,
     PurchaseOrderLine,
+    PurchaseOrderStatus,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -302,6 +305,134 @@ def _total(queryset: QuerySet[Any], field: str) -> Decimal:
     return value if value is not None else ZERO
 
 
+# ---- The "Documents" page (P2-T11, D-102) ----
+
+_ORDER_TONES: dict[str, Tone] = {
+    PurchaseOrderStatus.OPEN: "waiting",
+    PurchaseOrderStatus.PARTLY_RECEIVED: "waiting",
+    PurchaseOrderStatus.RECEIVED: "done",
+    PurchaseOrderStatus.CLOSED: "done",
+    PurchaseOrderStatus.CANCELLED: "cancelled",
+}
+
+
+def _in_days(queryset: QuerySet[Any], field: str, filters: DocumentFilters) -> QuerySet[Any]:
+    if filters.date_from is not None:
+        queryset = queryset.filter(**{f"{field}__gte": filters.date_from})
+    if filters.date_to is not None:
+        queryset = queryset.filter(**{f"{field}__lte": filters.date_to})
+    if search := filters.search.strip():
+        queryset = queryset.filter(Q(number__icontains=search) | Q(supplier__name__icontains=search))
+    return queryset
+
+
+def document_rows(organization: Organization, filters: DocumentFilters, *, may_write: bool) -> list[DocumentRow]:
+    """Purchase orders (BA), goods receipts (BR) and supplier invoices (FF) as rows of the "Documents" page.
+
+    `may_write` is whether the person may change purchases (owner or manager); `actions` follow the services'
+    rules, which still check everything when an action runs.
+    """
+    rows: list[DocumentRow] = []
+    wanted = filters.types
+
+    if not wanted or "BA" in wanted:
+        lines = PurchaseOrderLine.objects.order_by("id")
+        orders = (
+            PurchaseOrder.objects.for_organization(organization)
+            .select_related("supplier")
+            .prefetch_related(Prefetch("lines", queryset=lines))
+            .annotate(has_receipts=Exists(GoodsReceipt.objects.filter(purchase_order=OuterRef("pk"))))
+        )
+        for order in _in_days(orders, "ordered_on", filters):
+            status = PurchaseOrderStatus(order.status)
+            actions: list[str] = []
+            if may_write and status in RECEIVABLE_ORDER_STATUSES:
+                actions.append("receive")
+                if status == PurchaseOrderStatus.OPEN and not order.has_receipts:
+                    actions.append("cancel")
+                if status == PurchaseOrderStatus.PARTLY_RECEIVED:
+                    actions.append("close")
+            rows.append(
+                DocumentRow(
+                    type="BA",
+                    id=order.pk,
+                    number=order.number,
+                    partner_side="supplier",
+                    partner_id=order.supplier_id,
+                    partner_name=order.supplier.name,
+                    date=order.ordered_on,
+                    amount=sum((line.ordered_amount for line in order.lines.all()), ZERO),
+                    status=status.value,
+                    status_label=str(status.label),
+                    tone=_ORDER_TONES[status],
+                    actions=actions,
+                )
+            )
+
+    if not wanted or "BR" in wanted:
+        receipt_lines = GoodsReceiptLine.objects.order_by("id")
+        receipts = (
+            GoodsReceipt.objects.for_organization(organization)
+            .select_related("supplier")
+            .prefetch_related(Prefetch("lines", queryset=receipt_lines))
+            .annotate(invoiced=Exists(SupplierInvoiceReceipt.objects.filter(receipt=OuterRef("pk"))))
+        )
+        for receipt in _in_days(receipts, "received_on", filters):
+            rows.append(
+                DocumentRow(
+                    type="BR",
+                    id=receipt.pk,
+                    number=receipt.number,
+                    partner_side="supplier",
+                    partner_id=receipt.supplier_id,
+                    partner_name=receipt.supplier.name,
+                    date=receipt.received_on,
+                    # What the supplier charges for it (invoiced kg × cost, D-039).
+                    amount=receipt_totals(receipt)[0],
+                    # A receipt has no status: the goods are in stock once it is saved.
+                    status="received",
+                    status_label=str(_("Reçu")),
+                    tone="done",
+                    parents=[document_key("BA", receipt.purchase_order_id)] if receipt.purchase_order_id else [],
+                    actions=["to_supplier_invoice"] if may_write and not receipt.invoiced else [],
+                )
+            )
+
+    if not wanted or "FF" in wanted:
+        links = SupplierInvoiceReceipt.objects.order_by("receipt__received_on", "receipt_id")
+        invoices = (
+            SupplierInvoice.objects.for_organization(organization)
+            .select_related("supplier")
+            .prefetch_related(Prefetch("receipt_links", queryset=links))
+        )
+        for invoice in _in_days(invoices, "invoice_date", filters):
+            invoice_status = SupplierInvoiceStatus(invoice.status)
+            actions = []
+            if may_write:
+                if invoice_status == SupplierInvoiceStatus.DRAFT:
+                    actions = ["edit", "post", "delete"]
+                elif invoice_status in OPEN_STATUSES:
+                    actions = ["pay"]
+            rows.append(
+                DocumentRow(
+                    type="FF",
+                    id=invoice.pk,
+                    number=invoice.number,
+                    partner_side="supplier",
+                    partner_id=invoice.supplier_id,
+                    partner_name=invoice.supplier.name,
+                    date=invoice.invoice_date,
+                    amount=invoice.total,
+                    status=invoice_status.value,
+                    status_label=str(invoice_status.label),
+                    tone="draft" if invoice_status == SupplierInvoiceStatus.DRAFT else "done",
+                    parents=[document_key("BR", link.receipt_id) for link in invoice.receipt_links.all()],
+                    actions=actions,
+                )
+            )
+    return rows
+
+
 def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBalance:
     """The trade balance of one supplier of the organization (an unknown supplier simply has zeros)."""
     invoices = SupplierInvoice.objects.for_organization(organization).filter(supplier_id=supplier_id)
@@ -332,3 +463,14 @@ def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBa
         uninvoiced_receipts=len(uninvoiced),
         uninvoiced_total=sum((receipt_totals(receipt)[0] for receipt in uninvoiced), ZERO),
     )
+
+
+def payments_by_day(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> dict[dt.date, Decimal]:
+    """Money paid to suppliers per day (`paid_on`), inclusive."""
+    rows = (
+        SupplierPayment.objects.for_organization(organization)
+        .filter(paid_on__gte=date_from, paid_on__lte=date_to)
+        .values("paid_on")
+        .annotate(total=Sum("amount"))
+    )
+    return {row["paid_on"]: row["total"] for row in rows}

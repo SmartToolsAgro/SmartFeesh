@@ -10,7 +10,7 @@
 Today everything is in paper notebooks (Q15), so there is no file to convert.
 - [x] (D-112, slice 1) Excel templates for products, suppliers, customers, employees. The client's team types the
       notebooks into them (human: plan the time), then import scripts load them.
-- [ ] Opening balances: customer debts, supplier debts, opening stock per location and batch.
+- [ ] Opening balances: customer debts, supplier debts (slice 3); [x] opening stock per location and batch (D-112, slice 2).
 - [x] (D-112, slice 1) Dry-run mode with a report; the owner signs off the opening numbers.
 - [ ] The stand-in data of `docs/spec/sample/` never reaches production.
 
@@ -27,6 +27,9 @@ Today everything is in paper notebooks (Q15), so there is no file to convert.
 
 ### P4-T05 · Security review · S
 - [ ] Run the `security-review` skill; check permissions per role, CSRF, rate limits, file upload limits.
+  - API review done (D-108): roles per route, tenancy, uploads, throttles, CSRF and cookies, with tests in
+    `apps/core/tests/test_api_security.py`. Still to run: the `security-review` skill on the front ends and the sales
+    and invoices views (after PR #55).
 
 ### P4-T06 · Training and support · human · S
 - [ ] Short guides with screenshots: French for the owner, French and Arabic for drivers (Q14).

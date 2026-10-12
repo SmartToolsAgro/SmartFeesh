@@ -74,7 +74,7 @@ export function ProductStockPage() {
           {data.locations.map((row) => (
             <Card key={row.location_id} className="min-w-36 p-3">
               <p className="text-[0.78rem] font-semibold text-ink-2">{placeName(row.location_id)}</p>
-              <p className="num font-bold">{formatQuantity(row.quantity)} kg</p>
+              <p className="num font-bold">{formatQuantity(row.quantity)}</p>
             </Card>
           ))}
         </div>

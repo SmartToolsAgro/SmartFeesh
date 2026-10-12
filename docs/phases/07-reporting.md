@@ -11,16 +11,19 @@ _Coarse plan: detail each task when the phase starts._
       alerts list. Clearly separate profit from cash.
 
 ### P7-T02 · Commercial reports · M
-- [ ] Sales by customer, product, truck, driver, supplier, period, payment method.
+- [x] (D-113) Sales by customer, product, truck, driver, period.
+- [ ] Sales by supplier and by payment method.
 
 ### P7-T03 · Stock reports · S
-- [ ] Stock value by location; batch history; losses and weight differences; slow-moving stock.
+- [x] (D-113) Stock value by location; losses and weight differences; slow-moving stock.
+- [ ] Batch history (exists per lot on the stock screens; not in the reports page).
 
 ### P7-T04 · Financial reports · M
-- [ ] Monthly result, expenses by category, cash flow, customer and supplier balances, unpaid salaries.
+- [x] (D-116) Monthly result, expenses by category, cash flow, customer and supplier balances, unpaid salaries.
 
 ### P7-T05 · Partnership reports · S
-- [ ] Capital invested/recovered/outstanding, shares allocated/paid/due per partner over time.
+- [x] (D-117) Capital invested/recovered/outstanding, shares allocated/paid/due per partner over a period.
+- [ ] Per-lot breakdown under each partner.
 
 ### P7-T06 · Exports · S
 - [ ] Every report exports to Excel and PDF (Celery job for large ones).

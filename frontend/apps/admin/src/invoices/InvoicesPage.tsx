@@ -153,7 +153,7 @@ export function InvoicesPage() {
                     <span className="font-semibold">{invoice.customer.name}</span>
                     <div className="num text-[0.8rem] text-ink-2">{invoice.customer.reference}</div>
                   </Td>
-                  <Td className="num max-[720px]:hidden">{invoice.sale.number}</Td>
+                  <Td className="num max-[720px]:hidden">{invoice.sales.map((sale) => sale.number).join(", ")}</Td>
                   <Td numeric className="whitespace-nowrap">
                     {formatMoney(invoice.total_incl_tax)}
                   </Td>

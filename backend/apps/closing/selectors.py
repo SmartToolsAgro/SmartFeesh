@@ -1,6 +1,7 @@
 """Reads of lot results: the snapshot a result is computed from, the live result and the closing checks
 (P6-T02, D-061). Every number comes from another app's selectors; nothing here writes."""
 
+import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -384,3 +385,11 @@ def settlement_preview(organization: Organization, result: LotResult) -> Settlem
         total=capital + share_paid,
         carried_out=balance - share_paid,
     )
+
+
+def month_result(organization: Organization, *, month: "dt.date") -> Any:
+    """The month's result as the monthly closing computes it (`closing.monthly.MonthReport`): sales, cost of goods,
+    spoilage, expenses by category, personnel and net result. Reports read it here instead of recomputing."""
+    from . import monthly
+
+    return monthly.month_report(organization, month=month)
