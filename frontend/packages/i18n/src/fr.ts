@@ -954,7 +954,7 @@ export const fr = {
         reasonLabel: "Motif",
         keep: "Retour",
         confirmCancel: "Annuler la vente",
-        confirmed: "BL {{number}} validé : le stock est sorti.",
+        confirmed: "{{number}} validé : le stock est sorti.",
         cancelled: "Vente {{number}} annulée.",
         actionError: "L'opération a échoué. Réessayez.",
         invoice: "Facturer",
