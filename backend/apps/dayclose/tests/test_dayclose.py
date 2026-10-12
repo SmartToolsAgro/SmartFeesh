@@ -180,7 +180,7 @@ def test_customers_sold_to_lately_come_first(day):
 def test_a_refused_send_is_reported_once_and_the_office_marks_it_dealt_with(day):
     body = {
         "kind": "sale",
-        "label": "Restaurant Le Port",
+        "what": "Restaurant Le Port",
         "reason": "Limite de crédit dépassée",
         "client_uuid": str(uuid4()),
     }
