@@ -484,6 +484,8 @@ def expire_quotes(*, organization: Organization, actor: User | None = None, toda
 # ---- Sales (P2-T04, D-051) ----
 
 SALE_SERIES = "VE"
+# A validated sale is a delivery note (bon de livraison): BL-2026-0001, restarting every year (D-095).
+DELIVERY_NOTE_PREFIX = "BL"
 # A sale may be dated slightly ahead of the server's clock (a phone or a till a little fast).
 CLOCK_MARGIN = dt.timedelta(minutes=5)
 
@@ -896,6 +898,11 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool) -> Sa
     if errors:
         raise ValidationError(errors)
     check_credit(sale, actor=actor, approve_credit=approve_credit)
+    # The validated sale is the delivery note (D-095): it takes the next BL number of the year now, at the
+    # server, so a driver who sold offline gets the next free number when the phone reconnects. A refusal
+    # below rolls the counter back with everything else: no gap.
+    draft_number = sale.number
+    sale.number = _next_yearly_number(organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
@@ -914,6 +921,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool) -> Sa
     sale.confirmed_at = timezone.now()
     sale.save(
         update_fields=[
+            "number",
             "cost_total",
             "amount_due",
             "status",
@@ -936,7 +944,11 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool) -> Sa
             after={"policy": sale.credit_status, "over_by": str(sale.credit_over_by)},
         )
     audit.record(
-        organization=organization, actor=actor, action="sale.confirmed", target=sale, after=_sale_snapshot(sale)
+        organization=organization,
+        actor=actor,
+        action="sale.confirmed",
+        target=sale,
+        after={**_sale_snapshot(sale), "draft_number": draft_number},
     )
     below = [line for line in lines if line.below_minimum]
     if below:

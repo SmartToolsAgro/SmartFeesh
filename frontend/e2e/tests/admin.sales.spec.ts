@@ -77,7 +77,7 @@ test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a r
   await expect(page.getByRole("note")).toContainText("rien n'est encore sorti du stock");
   const number = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 
-  await page.getByRole("button", { name: "Confirmer la vente" }).click();
+  await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
   await expect(page.getByText(new RegExp(`Vente ${number} confirmée`))).toBeVisible();
   await expect(page.getByRole("region", { name: /^Vente VE-/ })).toContainText(/Reste dû\s*30,000\sDT/);
 
