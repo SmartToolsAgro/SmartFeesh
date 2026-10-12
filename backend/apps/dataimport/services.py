@@ -19,6 +19,8 @@ from apps.catalog import services as catalog
 from apps.core.models import Organization, User
 from apps.hr import selectors as hr_selectors
 from apps.hr import services as hr
+from apps.inventory import selectors as inventory_selectors
+from apps.inventory import services as inventory
 from apps.partners import selectors as partners_selectors
 from apps.partners import services as partners
 
@@ -170,6 +172,82 @@ def _create_employee(ctx: _Context, values: Values) -> None:
     hr.create_employee(organization=ctx.organization, actor=ctx.actor, **values)
 
 
+OPENING_REFERENCE = "STOCK-OUVERTURE"
+
+
+def _opening_batch_match(ctx: _Context, values: Values) -> Any:
+    """The product and the supplier of an opening-stock row, or None when one is unknown (create reports it)."""
+    product = (
+        catalog_selectors.products_of(ctx.organization, status="all")
+        .filter(reference__iexact=values.get("product", ""))
+        .first()
+    )
+    supplier = (
+        partners_selectors.suppliers_of(ctx.organization, status="all")
+        .filter(reference__iexact=values.get("supplier", ""))
+        .first()
+    )
+    return (product, supplier) if product and supplier else None
+
+
+def _exists_opening(ctx: _Context, values: Values) -> bool:
+    """The same opening lot was already imported: sending the file again must not double the stock."""
+    found = _opening_batch_match(ctx, values)
+    if found is None or "received_on" not in values or "unit_cost" not in values:
+        return False
+    product, supplier = found
+    return (
+        inventory_selectors.batches_of(ctx.organization, product_id=product.pk, supplier_id=supplier.pk)
+        .filter(receipt_reference=OPENING_REFERENCE, received_on=values["received_on"], unit_cost=values["unit_cost"])
+        .exists()
+    )
+
+
+def _create_opening(ctx: _Context, values: Values) -> None:
+    found = _opening_batch_match(ctx, values)
+    errors: dict[str, str] = {}
+    if found is None:
+        if (
+            not catalog_selectors.products_of(ctx.organization, status="all")
+            .filter(reference__iexact=values["product"])
+            .exists()
+        ):
+            errors["product"] = "Produit inconnu."
+        if (
+            not partners_selectors.suppliers_of(ctx.organization, status="all")
+            .filter(reference__iexact=values["supplier"])
+            .exists()
+        ):
+            errors["supplier"] = "Fournisseur inconnu."
+    location = inventory_selectors.locations_of(ctx.organization).filter(name__iexact=values["location"]).first()
+    if location is None:
+        errors["location"] = "Emplacement inconnu ou archivé."
+    if values["quantity"] <= 0:
+        errors["quantity"] = "La quantité doit être supérieure à 0."
+    if errors or found is None:
+        raise ValidationError(errors)
+    product, supplier = found
+    batch = inventory.create_batch(
+        organization=ctx.organization,
+        actor=ctx.actor,
+        product=product,
+        supplier=supplier,
+        received_on=values["received_on"],
+        unit_cost=values["unit_cost"],
+        receipt_reference=OPENING_REFERENCE,
+        use_by=values.get("use_by"),
+    )
+    inventory.post_movement(
+        organization=ctx.organization,
+        actor=ctx.actor,
+        kind=inventory.MovementKind.RECEIPT,
+        batch=batch,
+        quantity=values["quantity"],
+        to_location=location,
+        reason="Stock d'ouverture",
+    )
+
+
 @dataclass(frozen=True)
 class _Importer:
     exists: Callable[[_Context, str], bool]
@@ -181,6 +259,7 @@ _IMPORTERS: dict[str, _Importer] = {
     "suppliers": _Importer(_exists_supplier, _create_supplier),
     "customers": _Importer(_exists_customer, _create_customer),
     "employees": _Importer(_exists_employee, _create_employee),
+    "opening_stock": _Importer(lambda _ctx, _reference: False, _create_opening),
 }
 
 
@@ -206,7 +285,24 @@ def run_import(
             values, errors = _parse_cells(kind, row)
             reference = str(values.get("reference", "")).strip()
             entry = RowReport(row.number, CREATED, reference=reference, name=str(values.get("name", "")))
-            if not errors and reference:
+            if not errors and kind_key == "opening_stock":
+                key = "|".join(
+                    str(values.get(k, "")).casefold()
+                    for k in ("product", "location", "supplier", "unit_cost", "received_on")
+                )
+                if key in seen:
+                    errors.append(
+                        ColumnError(
+                            "Produit (référence)",
+                            "Ce lot est déjà plus haut dans le fichier : regroupez les quantités.",
+                        )
+                    )
+                elif _exists_opening(ctx, values):
+                    entry.status = SKIPPED
+                seen.add(key)
+                entry.reference = str(values.get("product", ""))
+                entry.name = str(values.get("location", ""))
+            elif not errors and reference:
                 if reference.casefold() in seen:
                     errors.append(ColumnError("Référence", "Cette référence est déjà plus haut dans le fichier."))
                 elif importer.exists(ctx, reference):

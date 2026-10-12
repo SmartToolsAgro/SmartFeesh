@@ -1418,5 +1418,9 @@ today's stock). Alerts: the five biggest overdue customers (and how many more), 
   The screen offers "Importer" only after a clean check.
 - Products need an existing category (a typo is an error, not a new category) and a price above 0; customers take
   their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
-- Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
-  same task.
+- **Opening stock** (slice 2): kind `opening_stock`, one row per lot: product and supplier by reference, location
+  by name, kg, cost per kg, reception date. Each row creates a batch (`receipt_reference` "STOCK-OUVERTURE") and
+  posts a `receipt` movement through `inventory.services`, so the ledger and FIFO work as for any lot. Sending the
+  file again skips a lot already imported (same product, supplier, date, cost); the same lot twice in one file is
+  an error (group the kilos).
+- Customer and supplier opening debts: slice 3.
