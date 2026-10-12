@@ -22,7 +22,7 @@ def withholding_certificates_of(
     """Certificates, newest first, each with its invoice and customer. Days are the certificate's date."""
     certificates = (
         WithholdingCertificate.objects.for_organization(organization)
-        .select_related("invoice", "invoice__customer", "invoice__sale", "created_by")
+        .select_related("invoice", "invoice__customer", "created_by")
         .order_by("-issued_on", "-id")
     )
     if not include_voided:
@@ -52,7 +52,8 @@ def invoices_awaiting_certificate(
     live = WithholdingCertificate.objects.filter(voided_at__isnull=True).values("invoice_id")
     invoices = (
         Invoice.objects.for_organization(organization)
-        .select_related("customer", "sale")
+        .select_related("customer")
+        .prefetch_related("sales")
         .filter(status=InvoiceStatus.ISSUED, withholding_amount__gt=0)
         .exclude(pk__in=live)
         .order_by("issued_on", "id")

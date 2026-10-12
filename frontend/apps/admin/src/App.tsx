@@ -29,6 +29,7 @@ import { InvoicesPage } from "./invoices/InvoicesPage";
 import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { TruckDayPage } from "./locations/TruckDayPage";
+import { MonthClosingPage } from "./closing/MonthClosingPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
@@ -126,6 +127,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/salaires": <PayrollPage />,
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,
+  "/cloture": <MonthClosingPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};

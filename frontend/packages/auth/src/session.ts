@@ -24,6 +24,13 @@ export type { Session };
 
 const SESSION_KEY = ["session"] as const;
 
+// The language picked on the login screen, saved on the account once the person is logged in.
+let chosenBeforeLogin: LanguageEnum | null = null;
+
+export function chooseLanguageBeforeLogin(language: LanguageEnum): void {
+  chosenBeforeLogin = language;
+}
+
 async function fetchSession(): Promise<Session | null> {
   try {
     return await getSession();
@@ -63,7 +70,14 @@ export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (credentials: Login) => login(credentials),
-    onSuccess: (session) => queryClient.setQueryData(SESSION_KEY, session),
+    onSuccess: (session) => {
+      queryClient.setQueryData(SESSION_KEY, session);
+      const chosen = chosenBeforeLogin;
+      chosenBeforeLogin = null;
+      if (chosen !== null && chosen !== session.user.language) {
+        void setLanguage({ language: chosen }).then((saved) => queryClient.setQueryData(SESSION_KEY, saved));
+      }
+    },
   });
 }
 

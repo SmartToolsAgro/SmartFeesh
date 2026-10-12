@@ -2,7 +2,7 @@
 {% block heading %}Facture{% endblock %}
 {% block subtitle %}
   <p class="muted num">Émise le {{ invoice.issued_on|day }}{% if invoice.due_on %} · échéance {{ invoice.due_on|day }}{% endif %}</p>
-  <p class="muted small num">Vente {{ sale_number }}</p>
+  <p class="muted small num">{% if several_sales %}Bons de livraison{% else %}Bon de livraison{% endif %} {{ sale_numbers }}</p>
   {% if cancelled %}<p class="banner">ANNULÉE PAR AVOIR</p>{% endif %}
 {% endblock %}
 {% block body %}
@@ -31,7 +31,7 @@
   <tbody>
     {% for line in lines %}
     <tr>
-      <td>{{ line.product_name }}{% if line.lots %}<br><span class="muted small">Lot {{ line.lots }}</span>{% endif %}</td>
+      <td>{{ line.product_name }}{% if line.lots %}<br><span class="muted small">Lot {{ line.lots }}</span>{% endif %}{% if several_sales %}<br><span class="muted small">{{ line.sale_line.sale.number }}</span>{% endif %}</td>
       <td class="r num">{{ line.quantity|kilos }}</td>
       <td class="r num">{{ line.unit_price_excl_tax|money }}</td>
       {% if has_discount %}<td class="r num">{% if line.discount_rate %}{{ line.discount_rate|percent }}{% endif %}</td>{% endif %}

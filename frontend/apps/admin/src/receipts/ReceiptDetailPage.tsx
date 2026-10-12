@@ -52,6 +52,8 @@ export function ReceiptDetailPage() {
   const data = receipt.data;
   const none = t("admin.receipts.detail.none");
   const differing = data.lines.filter((line) => line.has_difference);
+  // The ordered weight is optional: a receipt where none was typed (or against a purchase order) has no such column.
+  const hasOrdered = data.lines.some((line) => line.ordered_quantity);
   const describe = (line: ReceiptLine) =>
     line.accepted_quantity !== line.invoiced_quantity
       ? t("admin.receipts.detail.differenceLine", {
@@ -141,7 +143,7 @@ export function ReceiptDetailPage() {
             <tr>
               <Th>{t("admin.receipts.detail.product")}</Th>
               <Th>{t("admin.receipts.detail.batch")}</Th>
-              <Th numeric>{t("admin.receipts.detail.ordered")}</Th>
+              {hasOrdered && <Th numeric>{t("admin.receipts.detail.ordered")}</Th>}
               <Th numeric>{t("admin.receipts.detail.invoiced")}</Th>
               <Th numeric>{t("admin.receipts.detail.accepted")}</Th>
               <Th numeric>{t("admin.receipts.detail.gap")}</Th>
@@ -167,9 +169,11 @@ export function ReceiptDetailPage() {
                   </Link>
                   {line.batch.use_by && <div className="text-[0.8rem] text-ink-2">{formatDate(line.batch.use_by)}</div>}
                 </Td>
-                <Td numeric className="whitespace-nowrap">
-                  {line.ordered_quantity ? formatQuantity(line.ordered_quantity) : none}
-                </Td>
+                {hasOrdered && (
+                  <Td numeric className="whitespace-nowrap">
+                    {line.ordered_quantity ? formatQuantity(line.ordered_quantity) : none}
+                  </Td>
+                )}
                 <Td numeric className="whitespace-nowrap">
                   {formatQuantity(line.invoiced_quantity)}
                 </Td>

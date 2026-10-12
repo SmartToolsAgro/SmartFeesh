@@ -1353,6 +1353,36 @@ still protects against overselling).
 - The owner completes it with the usual edit (`update_partnership`); sending both rates clears `terms_pending`, and the capital becomes the first ledger entry. **While pending, the terms may be filled in even after sales** (the shares are only computed at closing); once filled, the usual rule applies (fixed after the first sale).
 - `close_lot` is refused while the terms are pending. **Provisional:** sales are not blocked meanwhile. Screens: partner select per receipt line, "À compléter" pill on the lot and its partnership section, "Partenaire" badge and filter on the suppliers list and page.
 
+**D-103 · Arabic for the driver app, provisional (P3-T09)** · accepted, **texts to be reviewed by a native speaker** · 2026-10-12
+The language switch (`LanguageSwitch` in `@frutti/auth`: "Français | العربية", each name written in its own language)
+is on the driver login screen and above the screens of the driver app. Logged out it changes the page and the choice is
+saved on the account at login; logged in it is saved on the account at once (`PUT` language, D-023 route guard applies
+it). The phone remembers the last language for the next login screen (`localStorage`, device only). `ar.ts` now
+translates everything the driver app shows (`truck.*`, login, common, roles) in short plain sentences; **nothing else
+is translated**: the admin app stays French, and a missing key shows the French text. Arabic plurals are written once
+for all six forms. Amounts, weights and dates keep Western digits (`format.ts`). The layout was already built with
+logical CSS (D-025); the one physical `text-right` was fixed. **Not done:** server messages (validation errors, the
+reasons of a refused sale) come back in French: Django has no Arabic catalogue yet (`backend/locale/`), which needs the
+`.po` translations and gettext tooling; the native-speaker review of every Arabic text; a visual right-to-left check on a
+real phone.
+
+**D-101 · One invoice for several BL of a customer (P2-T10 part 2)** · accepted · 2026-10-12
+- `Invoice.sale` is gone: an invoice has `sales` (through `InvoiceSale`, with `is_live`). Partial unique
+  `one_live_invoice_per_sale` moved to `InvoiceSale`: a BL is on one live invoice (draft or issued) at most;
+  a full credit note sets `is_live` false on all its BL, which may then be invoiced again. Migration `0008`/`0009`
+  copies the old one-to-one links.
+- `create_invoice(sales=[...])` (or `sale=` as before): confirmed BL of one named customer; lines follow the
+  BL in date order and keep their `sale_line` (the invoice PDF names the BL under each line). One fiscal
+  stamp and one withholding for the whole invoice. API: `POST /invoices` takes `sale` or `sales`; an invoice
+  reads `sales` (and `sale` = the first, for older screens); `GET /sales?uninvoiced=true` lists the BL left.
+- **Receivable per BL** (payments are allocated per BL): what the invoice asks (net to pay − credit notes ±
+  certificate) is **shared over its BL by the amount each holds on the invoice**, last BL takes the rounding
+  rest (`receivables.split`); the VAT of the invoice is shared the same way into each `Sale.tax_amount`. For
+  one BL nothing changes. **Provisional:** a partial credit note on one BL's line lowers the invoice as a
+  whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
+- A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
+- Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
+
 **D-105 · Lot page summary and the list of partnership lots with their frozen figures (P6-T07)** · accepted · 2026-10-12
 - The lot page already carried the result and the partner share (P6-T02/T03). It now opens with four headline figures (sales, lot costs, net result, partner's or owner's share) and the "Coût d'achat des kg vendus" step drills down to the cost of each sale, like sales and costs do.
 - The "Partage des bénéfices" list (`/partenariats`) gets the net result and the partner's share of each **closed** lot, read from `GET /lot-figures?batch_ids=` (closing app, frozen `LotResult` rows only, at most 200 ids). Open lots show "Pas encore clôturé": their live result is computed lot by lot and stays on the lot page, to keep the list cheap. The `partnerships` app does not import `closing` (the dependency runs the other way).

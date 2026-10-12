@@ -331,3 +331,37 @@ def test_an_unsupported_image_format_is_refused(media, category, actor):
 
     with pytest.raises(ValidationError, match="JPEG"):
         services.set_product_photo(product=product, actor=actor, upload=image_upload(image_format="GIF", name="a.gif"))
+
+
+def test_a_product_still_in_stock_cannot_be_archived_until_it_is_gone(category, actor):
+    from apps.inventory import services as inventory
+    from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
+
+    organization = category.organization
+    product = new_product(category, actor)
+    batch = BatchFactory.create(organization=organization, product=product)
+    room = StockLocationFactory.create(organization=organization)
+    inventory.post_movement(
+        organization=organization,
+        actor=actor,
+        kind=inventory.MovementKind.RECEIPT,
+        batch=batch,
+        quantity="12.500",
+        to_location=room,
+    )
+
+    with pytest.raises(ValidationError, match="encore en stock"):
+        services.set_product_active(product=product, actor=actor, is_active=False)
+    product.refresh_from_db()
+    assert product.is_active
+
+    inventory.post_movement(
+        organization=organization,
+        actor=actor,
+        kind=inventory.MovementKind.LOSS,
+        batch=batch,
+        quantity="12.500",
+        from_location=room,
+        reason="Perdu",
+    )
+    assert services.set_product_active(product=product, actor=actor, is_active=False).is_active is False
