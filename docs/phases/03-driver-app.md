@@ -38,10 +38,10 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [x] Report damaged/spoiled product with reason and photo; return unsold stock to the cold room.
 
 ### P3-T06 · End-of-day closing · M
-- [ ] Summary: sales, cash, other payments, credit sales, expenses, remaining stock; per product,
+- [x] Summary: sales, cash, other payments, credit sales, expenses, remaining stock; per product,
       loaded vs sold vs returned (client meeting 2026-10-11).
-- [ ] Driver enters counted cash → difference shown neutrally; driver can add a note.
-- [ ] Admin review screen: approve or ask for a justification. Approved day is locked.
+- [x] Driver enters counted cash → difference shown neutrally; driver can add a note.
+- [x] (approved day locks its closing, D-094) Admin review screen: approve or ask for a justification. Approved day is locked.
 
 ### P3-T07 · Offline mode · L → split before starting
 Read: ARCHITECTURE §4 rule 7.

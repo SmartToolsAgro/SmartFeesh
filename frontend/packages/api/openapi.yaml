@@ -915,6 +915,113 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/day-closings:
+    get:
+      operationId: listDayClosings
+      description: Days sent by the drivers, newest first. Filter by status.
+      parameters:
+      - in: query
+        name: status
+        schema:
+          enum:
+          - submitted
+          - justification
+          - approved
+          type: string
+          minLength: 1
+        description: |-
+          * `submitted` - À vérifier
+          * `justification` - Justification demandée
+          * `approved` - Approuvée
+      tags:
+      - day-closings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayClosingRow'
+          description: ''
+  /api/v1/day-closings/{closing_id}:
+    get:
+      operationId: getDayClosing
+      description: One day with its figures as the driver sent them.
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
+  /api/v1/day-closings/{closing_id}/approve:
+    post:
+      operationId: approveDayClosing
+      description: 'Approve the day (owner or manager): it is locked.'
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
+  /api/v1/day-closings/{closing_id}/request-justification:
+    post:
+      operationId: requestDayJustification
+      description: Ask the driver to explain, saying what; they send the day again
+        with a note.
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Justification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Justification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Justification'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
   /api/v1/day-labour:
     get:
       operationId: listDayLabour
@@ -3093,6 +3200,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DriverDay'
+          description: ''
+  /api/v1/my-day-closing:
+    post:
+      operationId: closeMyDay
+      description: |-
+        Send the end of the day with the cash counted and an optional note. Sent again only after the office
+        asked for a justification.
+      tags:
+      - my-day-closing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-day-summary:
+    get:
+      operationId: getMyDaySummary
+      description: |-
+        The driver's day so far: sales, cash, expenses and the stock per product, and the closing if sent.
+        404 until the day is started.
+      tags:
+      - my-day-summary
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyDaySummary'
           description: ''
   /api/v1/my-expense-categories:
     get:
@@ -7891,6 +8044,175 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    DayClosingDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+        review_note:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_by_name:
+          type: string
+          readOnly: true
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/DaySummary'
+          readOnly: true
+      required:
+      - counted_cash
+      - date
+      - difference
+      - driver_name
+      - driver_note
+      - expected_cash
+      - id
+      - review_note
+      - reviewed_at
+      - reviewed_by_name
+      - status
+      - submitted_at
+      - summary
+      - truck_name
+    DayClosingRow:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - counted_cash
+      - date
+      - difference
+      - driver_name
+      - expected_cash
+      - id
+      - status
+      - truck_name
+    DayClosingState:
+      type: object
+      description: What the driver sees of their closing.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+        review_note:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - counted_cash
+      - driver_note
+      - id
+      - review_note
+      - status
+      - submitted_at
+    DayClosingStatusEnum:
+      enum:
+      - submitted
+      - justification
+      - approved
+      type: string
+      description: |-
+        * `submitted` - À vérifier
+        * `justification` - Justification demandée
+        * `approved` - Approuvée
+    DayClosingWrite:
+      type: object
+      properties:
+        counted_cash:
+          type: string
+        note:
+          type: string
+          default: ''
+      required:
+      - counted_cash
     DayLabourEntry:
       type: object
       description: A day worked, with the expense it is (one record, D-054).
@@ -8054,6 +8376,117 @@ components:
           default: true
       required:
       - name
+    DayProduct:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        loaded:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        sold:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        lost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        remaining:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - loaded
+      - lost
+      - product_id
+      - product_name
+      - remaining
+      - returned
+      - sold
+    DaySummary:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        sales_count:
+          type: integer
+          readOnly: true
+        sales_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        other_payments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        on_credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expenses_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProduct'
+          readOnly: true
+      required:
+      - cash_received
+      - date
+      - driver_name
+      - expected_cash
+      - expenses_total
+      - on_credit
+      - opening_cash
+      - other_payments
+      - products
+      - sales_count
+      - sales_total
+      - truck_name
     DifferenceLine:
       type: object
       properties:
@@ -9870,6 +10303,14 @@ components:
       - base
       - computed_amount
       - rate
+    Justification:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+      required:
+      - reason
     LanguageEnum:
       enum:
       - fr
@@ -10850,6 +11291,21 @@ components:
       - batch_id
       - batch_number
       - quantity
+    MyDaySummary:
+      type: object
+      properties:
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/DaySummary'
+          readOnly: true
+        closing:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingState'
+          readOnly: true
+          nullable: true
+      required:
+      - closing
+      - summary
     MyStockLine:
       type: object
       description: What the driver's truck holds of one product, with today's price

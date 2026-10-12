@@ -107,3 +107,8 @@ def driver_day_of(membership: Membership, on: date_type | None = None) -> Driver
         .filter(driver_id=membership.user_id, date=on or timezone.localdate())
         .first()
     )
+
+
+def locked_driver_day(driver_day: DriverDay) -> DriverDay:
+    """The same day read again with its row locked (inside a transaction), with truck and driver."""
+    return DriverDay.objects.select_for_update().select_related("truck__location", "driver").get(pk=driver_day.pk)

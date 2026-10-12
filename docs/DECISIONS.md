@@ -1190,3 +1190,15 @@ today through `inventory.services.report_road_loss`: the usual threshold applies
 heavy ones wait for the owner) and the photo is joined in the same transaction. `POST /my-return` brings **everything**
 left on the truck back to the cold room of its latest validated load (else the first active cold room) as one validated
 return transfer; partial returns stay possible from the admin transfer screen.
+
+**D-094 · End-of-day closing of a driver's day (P3-T06)** · accepted, provisional points marked · 2026-10-12
+New app `dayclose`, model `DayClosing` (one per `fleet.DriverDay`): expected cash, counted cash, difference,
+driver note, the day's summary kept as sent, and the office's decision. **Expected cash = cash at the start + cash
+sales − the day's road expenses** (rejected ones left out); other payment methods and credit are shown, not counted
+in the till. The summary (`dayclose.selectors.day_summary`) is computed from sales (confirmed, by this driver, from
+the truck, that day), road expenses, and per product loaded / sold / lost / returned / remaining. The driver sends
+once (`POST /my-day-closing`); the difference is shown without judgement. The office (owner, manager; the accountant
+reads) lists days at `/journees` and either approves (locks the day: a second send or review is refused) or asks for a
+justification, after which the driver sends again with a note. Status names: submitted, justification, approved.
+**Not done:** approving a day does not yet block further sales or expenses by that driver the same day (**provisional**);
+the day's customer payments collected by the driver ("other payments") wait for a driver collection screen.
