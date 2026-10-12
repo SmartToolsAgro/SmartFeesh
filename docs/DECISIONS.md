@@ -1159,6 +1159,44 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - **Not done:** receipts for the driver app (Phase 3: drivers get 403 here), PDFs by e-mail or WhatsApp, Arabic
   layout (right-to-left, with P0-T08), e-invoice (TTN) QR code (D-016).
 
+
+**D-073 · Month-end stock valuation and cost of goods sold (P6-T05)** · accepted · 2026-10-11
+
+- **Profit is never purchases − sales.** The month's result is: sales (revenue without VAT) − cost of the goods
+  *sold* − spoilage − expenses − payroll. What was bought and is still in stock stays an asset.
+- **Valuation at the end of a day** (`inventory.selectors.stock_valuation`): the ledger replayed by date, all
+  places together (transfers cancel out), lot by lot at the lot's cost per kg. A past month-end gives the same
+  answer later, whatever was sold since.
+- **COGS and revenue come from the sale-line snapshots** (`sales.selectors.month_sales`: `SaleLineBatch` of
+  confirmed sales sold in the month), **less what credit notes issued in the month took back** (D-070). A sale
+  cancelled afterwards no longer counts: the month then drifts from its frozen copy (D-074 shows it).
+- **Roll-forward** (`ledger_by_kind`): opening value + receipts − supplier returns − sales + customer returns
+  − losses ± count corrections and adjustments = closing value, each movement valued once (kg × the cost it
+  carries, rounded). Any gap against the lot-by-lot valuation is only rounding and is shown
+  (`rounding_difference`). The check `cogs_matches_ledger` compares the ledger's cost of sales with the snapshots.
+- **Spoilage** of the month = losses, count corrections and adjustments at cost (a returned-and-lost customer
+  return is a loss too). **Expenses** = approved expenses dated in the month, all categories (lot costs, truck,
+  day labour, electricity, recurring rent and accountant...). **Payroll** = the month's approved salary
+  expense (`hr.monthly_personnel_expense`); the days × salary / 26 of employees on lots are an allocation to
+  lots, not a second cost.
+- Provisional: an expense covering several months (an insurance for a year) counts whole in the month it is dated;
+  no depreciation yet (truck, D-016 notes); VAT is not part of the result.
+
+**D-074 · Monthly closing for the accountant (P6-T06)** · accepted, provisional points marked · 2026-10-11
+
+- **Flow (Q9):** a month that is over is **reviewed** by the accountant (or the owner), then **approved** by the
+  owner, which freezes it (`MonthlyClosing`, immutable like `LotResult`; reopening keeps the copy as history,
+  with a reason and an audit entry). It does not change the partners' shares: those are settled per lot (D-040).
+- **Blocking checks** (review and approval are refused): expenses of the month not approved, salaries still
+  drafts, losses waiting for the owner. **Warnings:** draft sales, COGS different between snapshots and
+  ledger. **Listed but not tracked yet:** unexplained cash differences and open driver days (Phase 3).
+- **The review keeps a fingerprint of the figures** (revenue, COGS, spoilage, expenses, payroll, net result,
+  stock values). Approving after they moved is refused: "le comptable doit refaire la vérification".
+- **Locked** means the frozen copy is what the month says; a cost or sale recorded afterwards is not blocked
+  but shown as `live_net_result` against the frozen figure (provisional: no guard on dating records in a
+  closed month yet).
+- **API** (`/months`, `/months/<yyyy-mm>`, `review`, `approve`, `reopen`): the owner and the accountant read and
+  review; only the owner approves and reopens; managers and drivers get 403. The current month cannot be closed.
 **D-072 · Partner statement PDF (P6-T04)** · accepted · 2026-10-11
 
 - **One statement per partnership lot**, kind `partner_statement`, id = the partnership's (`GET /documents/partner_statement/<id>/pdf`,

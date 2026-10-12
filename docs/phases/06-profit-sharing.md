@@ -55,14 +55,14 @@ _Coarse plan: detail each task when the phase starts._
       balance. "Haka bayek": readable by the partner without explanation. _D-072; layout to check by eye._
 
 ### P6-T05 · Month-end inventory valuation and COGS · M
-- [ ] Stock value at month-end by batch; COGS of the month from sale-line snapshots.
-- [ ] Profit is never "purchases − sales": unsold stock stays an asset.
+- [x] Stock value at month-end by batch; COGS of the month from sale-line snapshots. _D-073._
+- [x] Profit is never "purchases − sales": unsold stock stays an asset. _D-073._
 
 ### P6-T06 · Monthly closing (accountant) · M
-- [ ] Monthly result for the accountant: sales, COGS, costs, net result; checks (unapproved expenses,
-      unexplained cash differences, open driver days).
-- [ ] Accountant review, then owner approval (Q9). Approve → lock + snapshot. It does not change
-      partner shares, which are settled per lot.
+- [x] Monthly result for the accountant: sales, COGS, costs, net result; checks (unapproved expenses,
+      unexplained cash differences, open driver days). _D-074; cash differences and driver days wait for Phase 3._
+- [x] Accountant review, then owner approval (Q9). Approve → lock + snapshot. It does not change
+      partner shares, which are settled per lot. _D-074._
 
 ### P6-T07 · Screens · M
 - [ ] Lot page: sales, costs, result, partner share, with drill-down to every record behind a number.

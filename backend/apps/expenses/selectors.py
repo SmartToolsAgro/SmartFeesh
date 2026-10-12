@@ -387,3 +387,60 @@ def day_labour_of(
 def day_labour_entry_of(organization: Organization, entry_id: int) -> DayLabourEntry:
     """One day worked. Raises DayLabourEntry.DoesNotExist outside the organization."""
     return day_labour_of(organization).get(pk=entry_id)
+
+
+# ---- Month figures (P6-T05, D-073) ----
+
+
+@dataclass(frozen=True)
+class CategoryTotal:
+    category_id: int
+    code: str
+    name: str
+    count: int
+    total: Decimal
+
+
+@dataclass(frozen=True)
+class MonthExpenses:
+    """The period's expenses: approved ones by category (what the books count), and the ones still waiting
+    for a decision (drafts and pending), which block the monthly closing."""
+
+    categories: tuple[CategoryTotal, ...]
+    total: Decimal
+    waiting_count: int
+    waiting_amount: Decimal
+
+
+def month_expenses(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> MonthExpenses:
+    rows = (
+        expenses_of(organization, date_from=date_from, date_to=date_to)
+        .filter(status=ExpenseStatus.APPROVED)
+        .order_by()
+        .values("category_id", "category__code", "category__name", "category__position")
+        .annotate(count=Count("id"), total=Sum("amount"))
+        .order_by("category__position", "category__name")
+    )
+    categories = tuple(
+        CategoryTotal(
+            category_id=row["category_id"],
+            code=row["category__code"],
+            name=row["category__name"],
+            count=row["count"],
+            total=row["total"],
+        )
+        for row in rows
+    )
+    waiting = expense_totals(expenses_of(organization, date_from=date_from, date_to=date_to))
+    waiting_count = (
+        expenses_of(organization, date_from=date_from, date_to=date_to)
+        .filter(status__in=[ExpenseStatus.DRAFT, ExpenseStatus.PENDING])
+        .order_by()
+        .count()
+    )
+    return MonthExpenses(
+        categories=categories,
+        total=sum((category.total for category in categories), ZERO),
+        waiting_count=waiting_count,
+        waiting_amount=waiting.waiting,
+    )
