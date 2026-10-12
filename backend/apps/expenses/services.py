@@ -1263,6 +1263,12 @@ def submit_road_expense(
     office to approve it. The receipt photo, when given, is joined in the same transaction."""
     if category.code not in ROAD_CATEGORY_CODES:
         raise ValidationError({"category": _("Cette catégorie n'est pas disponible depuis la route.")})
+    if client_uuid is not None:
+        # A retry of an entry already saved (a phone resending after a lost answer): answer with it as it is, even
+        # when the office decided it meanwhile and its receipt can no longer change.
+        existing = Expense.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            return existing
     expense = create_expense(
         organization=organization,
         actor=actor,

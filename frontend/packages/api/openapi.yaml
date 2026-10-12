@@ -2202,7 +2202,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/InvoiceCreate'
-        required: true
       security:
       - cookieAuth: []
       responses:
@@ -5331,6 +5330,11 @@ paths:
           * `draft` - Brouillon
           * `confirmed` - Confirmée
           * `cancelled` - Annulée
+      - in: query
+        name: uninvoiced
+        schema:
+          type: boolean
+          default: false
       tags:
       - sales
       security:
@@ -9940,6 +9944,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/SaleRef'
           readOnly: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRef'
+          readOnly: true
         customer:
           allOf:
           - $ref: '#/components/schemas/QuoteCustomer'
@@ -10070,6 +10079,7 @@ components:
       - prices_include_vat
       - remaining_to_pay
       - sale
+      - sales
       - status
       - subtotal
       - total_excl_tax
@@ -10199,8 +10209,11 @@ components:
         sale:
           type: integer
           minimum: 1
-      required:
-      - sale
+        sales:
+          type: array
+          items:
+            type: integer
+            minimum: 1
     InvoiceDetail:
       type: object
       properties:
@@ -10217,6 +10230,11 @@ components:
         sale:
           allOf:
           - $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRef'
           readOnly: true
         customer:
           allOf:
@@ -10414,6 +10432,7 @@ components:
       - prices_include_vat
       - remaining_to_pay
       - sale
+      - sales
       - seller
       - settings_fiscal_stamp
       - settings_valid_from
@@ -10443,6 +10462,9 @@ components:
           type: string
           readOnly: true
         product_name:
+          type: string
+          readOnly: true
+        sale_number:
           type: string
           readOnly: true
         lots:
@@ -10537,6 +10559,7 @@ components:
       - product_name
       - product_reference
       - quantity
+      - sale_number
       - unit_price
       - unit_price_excl_tax
       - vat_amount

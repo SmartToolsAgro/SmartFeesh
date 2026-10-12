@@ -1,11 +1,12 @@
-import { type SaleStatusEnum, useListSales } from "@frutti/api";
+import { createInvoice, type SaleStatusEnum, useListSales } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
+import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
+import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
+import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { canSell, SALE_STATUSES, STATUS_TONES } from "./shared";
 
@@ -21,15 +22,42 @@ export function SalesPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<SaleStatusEnum | "">("");
   const [offset, setOffset] = useState(0);
+  // "À facturer": the BL still to invoice, which can be ticked to make one invoice (D-096).
+  const [uninvoiced, setUninvoiced] = useState(false);
+  const [chosen, setChosen] = useState<Record<number, number>>({});
   const query = useDebounced(search.trim());
+  const queryClient = useQueryClient();
 
   const sales = useListSales(
-    { limit: PAGE_SIZE, offset, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
+    {
+      limit: PAGE_SIZE,
+      offset,
+      ...(status ? { status } : {}),
+      ...(query ? { search: query } : {}),
+      ...(uninvoiced ? { uninvoiced: true } : {}),
+    },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = sales.data;
   const list = page?.results ?? [];
-  const filtering = query !== "" || status !== "";
+  const filtering = query !== "" || status !== "" || uninvoiced;
+  const chosenIds = Object.keys(chosen).map(Number);
+
+  const groupInvoice = useMutation({
+    mutationFn: () => createInvoice({ sales: chosenIds }),
+    onSuccess: async (saved) => {
+      toast.success(t("admin.sales.groupInvoice.ready", { count: chosenIds.length }));
+      await queryClient.invalidateQueries();
+      void navigate(`/factures/${saved.id}`);
+    },
+    onError: (failure) => {
+      toast.error(Object.values(fieldErrors(failure))[0] ?? t("admin.sales.groupInvoice.failed"));
+    },
+  });
+  const startGroupInvoice = () => {
+    if (new Set(Object.values(chosen)).size > 1) toast.error(t("admin.sales.groupInvoice.mixed"));
+    else groupInvoice.mutate();
+  };
 
   const statusButton = (value: SaleStatusEnum | "", label: string) => (
     <button
@@ -88,6 +116,27 @@ export function SalesPage() {
           {statusButton("", t("admin.sales.allStatuses"))}
           {SALE_STATUSES.map((value) => statusButton(value, t(`admin.sales.statuses.${value}`)))}
         </div>
+        <button
+          type="button"
+          aria-pressed={uninvoiced}
+          onClick={() => {
+            setUninvoiced(!uninvoiced);
+            setChosen({});
+            setOffset(0);
+          }}
+          className={cn(
+            "rounded-control border border-line px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
+            uninvoiced && "bg-surface text-ink shadow-card",
+          )}
+        >
+          {t("admin.sales.groupInvoice.filter")}
+        </button>
+        {canWrite && uninvoiced && chosenIds.length > 0 && (
+          <Button variant="primary" disabled={groupInvoice.isPending} onClick={startGroupInvoice}>
+            <Icon name="receipt" />
+            {t("admin.sales.groupInvoice.action", { count: chosenIds.length })}
+          </Button>
+        )}
         <span className="ms-auto text-[0.85rem] text-ink-2" aria-live="polite">
           {page && t("admin.sales.count", { count: page.count })}
         </span>
@@ -112,6 +161,7 @@ export function SalesPage() {
           <Table>
             <thead>
               <tr>
+                {canWrite && uninvoiced && <Th>{null}</Th>}
                 <Th>{t("admin.sales.columns.number")}</Th>
                 <Th>{t("admin.sales.columns.date")}</Th>
                 <Th>{t("admin.sales.columns.customer")}</Th>
@@ -130,6 +180,21 @@ export function SalesPage() {
                   onClick={() => void navigate(`/ventes/${sale.id}`)}
                   className="cursor-pointer hover:bg-surface-2"
                 >
+                  {canWrite && uninvoiced && (
+                    <Td onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={t("admin.sales.groupInvoice.select", { number: sale.number })}
+                        checked={sale.id in chosen}
+                        onChange={(event) => {
+                          const next = { ...chosen };
+                          if (event.target.checked) next[sale.id] = sale.customer.id;
+                          else delete next[sale.id];
+                          setChosen(next);
+                        }}
+                      />
+                    </Td>
+                  )}
                   <Td className="num whitespace-nowrap">
                     <Link
                       to={`/ventes/${sale.id}`}
