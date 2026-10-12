@@ -539,7 +539,7 @@ def test_an_accepted_quote_becomes_a_sale_at_its_own_prices(
     assert selectors.live_sale_of(selectors.quote_of(organization, accepted.pk)) == converted
     assert AuditLog.objects.filter(action="quote.converted", target_id=str(accepted.pk)).exists()
 
-    with pytest.raises(ValidationError, match="déjà devenu la vente VE-0001"):
+    with pytest.raises(ValidationError, match=f"déjà devenu la vente BL-{timezone.localdate().year}-0001"):
         services.create_sale_from_quote(quote=accepted, actor=actor)
     services.cancel_sale(sale=converted, actor=actor, reason="Erreur de saisie")
     again = services.create_sale_from_quote(quote=accepted, actor=actor)

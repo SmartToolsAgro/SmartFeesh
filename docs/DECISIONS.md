@@ -1256,6 +1256,27 @@ the day's customer payments collected by the driver ("other payments") wait for 
 - **Not done:** one statement covering several lots of a partner (the three balances over time) and sending
   it by e-mail or WhatsApp; Arabic ("Haka bayek" in the partner's language) comes with P0-T08.
 
+**D-095 · The Bon de livraison (BL) is the source of truth for sales (P2-T10)** · accepted · 2026-10-12
+- Asked by Mahmoud: every sale movement (stock and money) is tracked from the BL once validated or printed;
+  the invoice stays an optional document made afterwards.
+- **A validated `Sale` is the BL.** No new table. `confirm_sale` already takes stock (FIFO), fixes cost and
+  records the receivable; it now also **replaces the draft number (`VE-0001`) by the BL number
+  `BL-2026-0001`** (`Sale.number`, so lists, payments, invoices and lot reports all show it). The draft number
+  is kept in the audit line `sale.confirmed` (`draft_number`).
+- **Numbering rule for every document code: `PREFIX-YEAR-NNNN` (4 digits), restarting each year** (counter
+  series `BL-2026`, same helper as invoices `FA-` and credit notes `AV-`). Taken inside the validating
+  transaction: a refused validation leaves no gap. Quotes `DV-`, drafts `VE-`, payments, expenses and
+  purchasing codes still use the old `PREFIX-NNNN`; moving them to the yearly format is a later pass.
+- **Offline driver:** a driver cannot validate offline (a sale stays a draft on the phone). When the
+  connection is back the server validates and gives the next free BL number of the year, so no number is ever
+  reserved on a phone and no clash is possible.
+- **Printing validates:** screen "Valider et imprimer le BL" confirms a draft then opens the PDF. The PDF
+  (`delivery_note`, `GET /documents/delivery_note/<sale id>/pdf`) exists only for a validated sale; shows kg,
+  prices, total, paid/due and a signature box.
+- **Walk-in customers also get a BL** (Mahmoud, 2026-10-12).
+- Sales validated before this change were renumbered by migration `0007` in validation order.
+- **Next (P2-T10 part 2):** one invoice for several BLs of the same customer (replaces
+  `one_live_invoice_per_sale`; an invoice line points to its BL line; a BL is invoiced at most once).
 **D-096 · Offline, first step: a hand-written service worker, no library (P3-T07a)** · accepted · 2026-10-12
 `apps/truck/public/sw.js` (about 80 lines) plus a web manifest and icons: the app opens without signal after its
 first visit and can be put on the home screen. The app files answer from the cache and refresh in the background;

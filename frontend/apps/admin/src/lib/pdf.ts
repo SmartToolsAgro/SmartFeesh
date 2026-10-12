@@ -1,6 +1,6 @@
 /** The PDF of a document is made by a background job: ask, and ask again until it is ready (D-071). */
 
-export type PdfKind = "quote" | "invoice" | "credit_note" | "receipt" | "partner_statement";
+export type PdfKind = "quote" | "invoice" | "credit_note" | "receipt" | "partner_statement" | "delivery_note";
 
 export class PdfError extends Error {}
 

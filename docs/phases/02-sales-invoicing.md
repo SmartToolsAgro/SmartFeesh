@@ -87,6 +87,13 @@ TTN / El Fatoora e-invoicing is not built in this phase (D-016); P2-T05 only kee
       (Quotes P2-T03, sales P2-T04b, customers P2-T01, invoices P2-T05, payments and balance P2-T06.)
 - [x] Quick counter-sale screen for the cold room (`/ventes/comptoir`, P2-T04b, D-052).
 
+### P2-T10 · Bon de livraison as source of truth (D-095) · M
+- [x] BL number `BL-2026-0001`, yearly restart, given at validation (replaces the draft number); walk-in sales get one too.
+- [x] BL PDF; "Valider et imprimer le BL" validates a draft first. UI says "BL" on the sale page.
+- [x] Offline driver: no offline validation; the server gives the next free number on reconnect.
+- [ ] Part 2: invoice from one or several BLs of a customer (N:1), BL invoiced at most once; migrate `one_live_invoice_per_sale`.
+- [ ] Part 2: BL list filter "non facturés"; driver app shows the BL number; other codes (DV, payments, expenses...) to `PREFIX-YEAR-NNNN`.
+
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.
