@@ -1,14 +1,24 @@
 import {
   createReceipt,
   type LastCost,
+  type Order,
   type ReceiptWrite,
+  useGetPurchaseOrder,
   useListLastPurchaseCosts,
+  useListPurchaseOrders,
   useListLocations,
   useListProducts,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDate, formatMoney, formatPercent, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import {
+  formatDate,
+  formatMoney,
+  formatPercent,
+  formatQuantity,
+  parseDecimalInput,
+  useTranslation,
+} from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -26,10 +36,11 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
-import { Navigate, useNavigate, useOutletContext } from "react-router";
+import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
 import { lineTotal, percentChange, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, refreshAfterReceipt, todayInTunis } from "./shared";
 
 type LineField = "product" | "ordered_quantity" | "invoiced_quantity" | "accepted_quantity" | "unit_cost" | "use_by";
@@ -63,6 +74,24 @@ const asTyped = (value: string) => value.replace(".", ",");
 
 const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 
+// "No purchase order" in the order select (a Radix item cannot have an empty value).
+const NO_ORDER = "none";
+
+/** The lines of a delivery against an order: what is still to come, at the agreed price. Most deliveries
+ * arrive as agreed, so the weights start at the remaining weight and the person lowers what did not come. */
+function linesOfOrder(order: Order): Line[] {
+  return order.lines
+    .filter((line) => line.remaining_quantity !== "0.000")
+    .map((line) => ({
+      ...newLine(),
+      product: String(line.product.id),
+      invoiced_quantity: asTyped(line.remaining_quantity),
+      accepted_quantity: asTyped(line.remaining_quantity),
+      unit_cost: asTyped(line.unit_cost),
+      costTouched: true,
+    }));
+}
+
 /** Record goods received from a supplier. Owners and managers only; the server checks it too. */
 export function ReceiptFormPage() {
   const { t } = useTranslation();
@@ -75,6 +104,11 @@ export function ReceiptFormPage() {
   const locations = useListLocations({ status: "active" });
   const products = useListProducts({ status: "active" });
 
+  const [params] = useSearchParams();
+  // `?commande=4` (from the order page) starts a delivery against that purchase order.
+  const [orderId, setOrderId] = useState<number | null>(() => idFrom(params.get("commande")));
+  const order = useGetPurchaseOrder(orderId ?? 0, { query: { enabled: orderId !== null } }).data;
+
   const [supplier, setSupplier] = useState("");
   const [location, setLocation] = useState("");
   const [receivedOn, setReceivedOn] = useState(todayInTunis);
@@ -82,6 +116,18 @@ export function ReceiptFormPage() {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [errors, setErrors] = useState<Errors>({});
+
+  // Choosing an order (or arriving from its page) fills the supplier and the lines, once per order.
+  const [filledFrom, setFilledFrom] = useState<number | null>(null);
+  if (order && filledFrom !== order.id) {
+    setFilledFrom(order.id);
+    setSupplier(String(order.supplier.id));
+    setLines(linesOfOrder(order));
+  }
+  const pendingOrders = useListPurchaseOrders(
+    { supplier: Number(supplier), status: "pending", limit: 100 },
+    { query: { enabled: supplier !== "" } },
+  );
 
   const lastCosts = useListLastPurchaseCosts({ supplier: Number(supplier) }, { query: { enabled: supplier !== "" } });
   const lastCostOf = useMemo(() => {
@@ -139,7 +185,8 @@ export function ReceiptFormPage() {
         }
         return parsed;
       };
-      const ordered = weight("ordered_quantity", true);
+      // Against an order, the order says what was asked for: no ordered weight is typed.
+      const ordered = order ? null : weight("ordered_quantity", true);
       const invoiced = weight("invoiced_quantity");
       const accepted = weight("accepted_quantity");
       const cost = parseDecimalInput(costOf(line).trim(), 3);
@@ -154,10 +201,12 @@ export function ReceiptFormPage() {
       });
     });
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    // An order picked but still loading: wait, or the delivery would be saved without it.
+    if (Object.keys(found).length > 0 || (orderId !== null && !order)) return;
     save.mutate({
       supplier: Number(supplier),
       location: Number(chosenLocation),
+      purchase_order: order?.id ?? null,
       received_on: receivedOn,
       supplier_reference: supplierReference.trim(),
       notes: notes.trim(),
@@ -189,6 +238,23 @@ export function ReceiptFormPage() {
       ? t("admin.receipts.form.lastCostChange", { ...values, change: formatPercent(change) })
       : t("admin.receipts.form.lastCost", values);
   }
+
+  // Orders of this supplier still waiting for goods, plus the chosen one if it is not (yet) among them.
+  const orderOptions = [
+    { value: NO_ORDER, label: t("admin.receipts.form.noPurchaseOrder") },
+    ...(pendingOrders.data?.results ?? []).map((one) => ({
+      value: String(one.id),
+      label: `${one.number} · ${formatDate(one.ordered_on)}`,
+    })),
+  ];
+  if (order && !orderOptions.some((option) => option.value === String(order.id))) {
+    orderOptions.push({ value: String(order.id), label: order.number });
+  }
+  const orderLineOf = (productId: string) => order?.lines.find((line) => String(line.product.id) === productId);
+  // Against an order, only its products can be received.
+  const productOptions = (products.data ?? [])
+    .filter((product) => !order || orderLineOf(String(product.id)) !== undefined)
+    .map((product) => ({ value: String(product.id), label: `${product.name} · ${product.reference}` }));
 
   const id = (name: string) => `${formId}-${name}`;
   const select = (
@@ -225,9 +291,22 @@ export function ReceiptFormPage() {
             "supplier",
             t("admin.receipts.form.supplier"),
             supplier,
-            setSupplier,
+            (value) => {
+              setSupplier(value);
+              // An order belongs to one supplier: another supplier means no order.
+              if (order && String(order.supplier.id) !== value) setOrderId(null);
+            },
             (suppliers.data ?? []).map((one) => ({ value: String(one.id), label: one.name })),
           )}
+          {supplier !== "" &&
+            orderOptions.length > 1 &&
+            select(
+              "purchase_order",
+              t("admin.receipts.form.purchaseOrder"),
+              orderId === null ? NO_ORDER : String(orderId),
+              (value) => setOrderId(value === NO_ORDER ? null : Number(value)),
+              orderOptions,
+            )}
           {select(
             "location",
             t("admin.receipts.form.location"),
@@ -263,6 +342,11 @@ export function ReceiptFormPage() {
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.receipts.form.lines")}</CardTitle>
           <p className="text-[0.85rem] text-ink-2">{t("admin.receipts.form.netWeightHint")}</p>
+          {order && (
+            <p className="text-[0.85rem] font-semibold text-sea">
+              {t("admin.receipts.form.orderHint")} ({order.number})
+            </p>
+          )}
           {lines.map((line, index) => {
             const hint = lastCostHint(line);
             const amount = amounts[index]?.invoiced;
@@ -291,14 +375,19 @@ export function ReceiptFormPage() {
                   t("admin.receipts.form.product"),
                   line.product,
                   (value) => setLine(line.key, () => ({ product: value })),
-                  (products.data ?? []).map((product) => ({
-                    value: String(product.id),
-                    label: `${product.name} · ${product.reference}`,
-                  })),
+                  productOptions,
                   "max-[960px]:col-span-2",
                 )}
-                {weightInput("ordered_quantity", t("admin.receipts.form.ordered"), (value) =>
-                  setLine(line.key, () => ({ ordered_quantity: value })),
+                {order ? (
+                  <Field label={t("admin.receipts.form.remaining")} htmlFor={id(lineKey(index, "remaining"))}>
+                    <p id={id(lineKey(index, "remaining"))} className="num py-2.5 text-ink-2">
+                      {formatQuantity(orderLineOf(line.product)?.remaining_quantity ?? "0")}
+                    </p>
+                  </Field>
+                ) : (
+                  weightInput("ordered_quantity", t("admin.receipts.form.ordered"), (value) =>
+                    setLine(line.key, () => ({ ordered_quantity: value })),
+                  )
                 )}
                 {weightInput("invoiced_quantity", t("admin.receipts.form.invoiced"), (value) =>
                   // Most deliveries are accepted as invoiced: the accepted weight follows until it is typed.

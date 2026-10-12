@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { InvoiceRef } from './invoiceRef';
+import type { OrderRef } from './orderRef';
 import type { ReceiptLine } from './receiptLine';
 import type { ReceiptLocation } from './receiptLocation';
 import type { Ref } from './ref';
@@ -14,6 +15,7 @@ export interface Receipt {
   readonly number: string;
   readonly supplier: Ref;
   readonly location: ReceiptLocation;
+  readonly purchase_order: OrderRef | null;
   readonly received_on: string;
   readonly supplier_reference: string;
   readonly notes: string;

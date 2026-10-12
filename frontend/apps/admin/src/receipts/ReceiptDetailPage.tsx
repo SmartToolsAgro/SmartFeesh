@@ -106,6 +106,15 @@ export function ReceiptDetailPage() {
             {data.supplier_reference || none}
           </Detail>
           <Detail label={t("admin.receipts.detail.createdBy")}>{data.created_by || none}</Detail>
+          <Detail label={t("admin.receipts.detail.purchaseOrder")} numeric>
+            {data.purchase_order ? (
+              <Link to={`/achats/bons/${data.purchase_order.id}`} className="font-semibold text-sea hover:underline">
+                {data.purchase_order.number}
+              </Link>
+            ) : (
+              t("admin.receipts.detail.noPurchaseOrder")
+            )}
+          </Detail>
           <Detail label={t("admin.receipts.detail.invoice")} numeric>
             {data.invoice ? (
               <Link to={`/achats/factures/${data.invoice.id}`} className="font-semibold text-sea hover:underline">

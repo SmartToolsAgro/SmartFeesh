@@ -1255,3 +1255,29 @@ the day's customer payments collected by the driver ("other payments") wait for 
   ledgers and the settlement date, so settling a lot or booking a late adjustment gives a new file.
 - **Not done:** one statement covering several lots of a partner (the three balances over time) and sending
   it by e-mail or WhatsApp; Arabic ("Haka bayek" in the partner's language) comes with P0-T08.
+
+**D-076 · Purchase orders (bon d'achat) and partial receipts (P1-T13)** · accepted · 2026-10-12
+Amends D-039 ("no `PurchaseOrder` yet"): the owner asked for a bon d'achat before the bon de réception (BR), with
+deliveries that can arrive in parts.
+- **`PurchaseOrder`** (`BA-0001`… per organization, same counter table as invoices) with lines (product, ordered kg,
+  agreed price per kg). It moves no stock and owes nothing: only receipts do. Saved = final: no edit; a mistake is
+  cancelled (before any delivery) and typed again.
+- **A receipt may point at an order** (`GoodsReceipt.purchase_order`, `GoodsReceiptLine.order_line`). It carries only
+  the products and weights that arrived: one order is received in as many BR as the supplier makes deliveries. Only
+  products of the order are accepted; the supplier must match. Typing a receipt without an order still works.
+- **Received = accepted kg** of the order's receipt lines; remaining = ordered − received, never below zero. More than
+  ordered is accepted (a delivery of 105 kg on 100 kg completes the line).
+- **Status follows the receipts** (`services.refresh_order_status`, under a row lock on the order): `open` → `partly_received`
+  → `received` when every line is in full. `close_order` (owner/manager) ends a partly received order whose rest will not
+  come (`closed`); `cancel_order` only when nothing was received (`cancelled`). Closed and cancelled orders take no receipt.
+- **Ordered kg on a linked receipt line stays empty:** the order carries what was asked for, so a partial delivery is not
+  flagged as a weight difference; invoiced vs accepted still is.
+- **The cost is still typed on every receipt line** (the real price of the day, D-020); the form starts from the order's
+  agreed price. Invoices (D-043) still charge receipts, not orders.
+- API: `listPurchaseOrders` (filters supplier, status incl. `pending`, search), `createPurchaseOrder`, `getPurchaseOrder`,
+  `cancelPurchaseOrder`, `closePurchaseOrder`; `createReceipt` takes `purchase_order`; `listReceipts` filters on it.
+  Same permissions as receipts (office reads, owner and manager write, D-032).
+- Screens: tab "Bons d'achat" in Achats (list, form, detail with ordered / received / remaining per line and its
+  receipts); "Recevoir" on the order opens the receipt form pre-filled with what remains; the receipt form also offers
+  the supplier's pending orders.
+- **Not done:** editing an order, a PDF of the bon d'achat (with P2-T08's PDF service), a supplier-facing copy.
