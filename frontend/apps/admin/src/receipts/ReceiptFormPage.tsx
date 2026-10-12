@@ -1,13 +1,14 @@
-import {
+﻿import {
   createReceipt,
   type LastCost,
   type Order,
   type ReceiptWrite,
   useGetPurchaseOrder,
   useListLastPurchaseCosts,
-  useListPurchaseOrders,
   useListLocations,
   useListProducts,
+  useListPurchaseOrders,
+  useListReceipts,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
@@ -40,6 +41,7 @@ import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-
 
 import { lineTotal, percentChange, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { useDebounced } from "../lib/useDebounced";
 import { canWriteResults } from "../partnerships/shared";
 import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, refreshAfterReceipt, todayInTunis } from "./shared";
@@ -134,6 +136,19 @@ export function ReceiptFormPage() {
     { supplier: Number(supplier), status: "pending", limit: 100 },
     { query: { enabled: supplier !== "" } },
   );
+
+  // The same delivery note twice for one supplier is most likely a double entry: warn, never block (a note
+  // can cover two deliveries).
+  const typedReference = useDebounced(supplierReference.trim());
+  const sameReference = useListReceipts(
+    { supplier: Number(supplier), search: typedReference, limit: 20 },
+    { query: { enabled: supplier !== "" && typedReference !== "" } },
+  );
+  const duplicate = typedReference
+    ? sameReference.data?.results.find(
+        (receipt) => receipt.supplier_reference.toLowerCase() === typedReference.toLowerCase(),
+      )
+    : undefined;
 
   const lastCosts = useListLastPurchaseCosts({ supplier: Number(supplier) }, { query: { enabled: supplier !== "" } });
   const lastCostOf = useMemo(() => {
@@ -343,6 +358,11 @@ export function ReceiptFormPage() {
               onChange={(event) => setSupplierReference(event.target.value)}
               autoComplete="off"
             />
+            {duplicate && supplierReference.trim() === typedReference && (
+              <p role="status" className="mt-1 text-[0.8rem] font-semibold text-warn">
+                {t("admin.receipts.form.duplicateReference", { number: duplicate.number })}
+              </p>
+            )}
           </Field>
         </Card>
 

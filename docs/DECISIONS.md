@@ -1383,6 +1383,18 @@ real phone.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
 
+**D-106 · Stock cannot leave before it arrived (review, round 2)** · accepted · 2026-10-12
+- `post_fifo_movements` and `selectors.allocate_fifo` (new `day` argument, given by `record_loss`) only take batches
+  with `received_on` on or before the document's day (the local day of `occurred_at`; today when none). A transfer,
+  loss or sale typed for an earlier day can no longer take a batch received afterwards, which made the daily replay of
+  the ledger (`kg_by_batch_by_day`, month-end valuation) show negative balances.
+- A document of today is unaffected (a batch is never received in the future). When only later batches exist for
+  that day, the document is refused with the usual "Stock insuffisant" message.
+- Tests that sell on past days must create their batch with an older `received_on`
+  (`sales/tests/test_payments.py::stocked` now does; it was the only test relying on the old behaviour).
+- Also: a product still in stock cannot be archived (PR #59); a receipt whose supplier delivery-note number is already
+  on another receipt of the same supplier shows a non-blocking warning in the form (a note can cover two deliveries).
+
 **D-111 · The driver collects customer payments on the phone (P3-T11)** · accepted · 2026-10-12
 `POST /my-payments` (driver only) calls `sales.services.record_customer_payment` (D-062): today's date, cash by
 default, allocated to the customer's oldest open sales. `CustomerPayment.client_uuid` (sales migration 0010, unique per
