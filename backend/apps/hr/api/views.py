@@ -103,9 +103,11 @@ class EmployeeListView(HrView):
         """A new employee. Without a reference it gets the next free `E-NNN`; the CNSS rate defaults to 17.07 %."""
         serializer = EmployeeWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = {key: value for key, value in serializer.validated_data.items() if key != "cnss_rate" or value}
+        # An omitted rate gets the default; a typed 0 % (an apprentice) stays 0.
         employee = services.create_employee(
-            organization=self.organization, actor=self.membership.user, **_employee_fields(self.organization, data)
+            organization=self.organization,
+            actor=self.membership.user,
+            **_employee_fields(self.organization, dict(serializer.validated_data)),
         )
         return self._answer(employee.pk, status.HTTP_201_CREATED)
 

@@ -48,6 +48,13 @@ def test_the_owner_creates_an_employee_with_money_as_strings_and_the_default_rat
     assert body["user"] is None
 
 
+def test_a_typed_zero_rate_stays_zero_and_only_an_omitted_rate_gets_the_default(api):
+    free = create_employee(api, cnss_rate="0")
+
+    assert free.status_code == 201
+    assert free.json()["cnss_rate"] == "0.00"
+
+
 def test_an_employee_is_linked_to_a_login_of_the_organization(api, owner):
     driver = MembershipFactory.create(role=Role.DRIVER, organization=owner.organization)
     stranger = MembershipFactory.create(role=Role.DRIVER)
