@@ -1,5 +1,6 @@
 """The owner's dashboard (P7-T01, D-104): the month so far, profit and cash apart, and the alerts."""
 
+import datetime as dt
 from decimal import Decimal
 
 import pytest
@@ -18,6 +19,12 @@ from .test_month import build_month, day_of, moment
 
 pytestmark = pytest.mark.django_db
 D = Decimal
+
+
+@pytest.fixture
+def last_month():
+    """The first day of the previous month."""
+    return (timezone.localdate().replace(day=1) - dt.timedelta(days=1)).replace(day=1)
 
 
 def test_only_the_owner_and_the_accountant_see_it(organization, owner):
