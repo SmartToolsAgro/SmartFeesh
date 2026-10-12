@@ -1348,6 +1348,19 @@ to guess what is stuck on a phone, and nothing is dropped silently. **Not done:*
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
 
+**D-103 · Arabic for the driver app, provisional (P3-T09)** · accepted, **texts to be reviewed by a native speaker** · 2026-10-12
+The language switch (`LanguageSwitch` in `@frutti/auth`: "Français | العربية", each name written in its own language)
+is on the driver login screen and above the screens of the driver app. Logged out it changes the page and the choice is
+saved on the account at login; logged in it is saved on the account at once (`PUT` language, D-023 route guard applies
+it). The phone remembers the last language for the next login screen (`localStorage`, device only). `ar.ts` now
+translates everything the driver app shows (`truck.*`, login, common, roles) in short plain sentences; **nothing else
+is translated**: the admin app stays French, and a missing key shows the French text. Arabic plurals are written once
+for all six forms. Amounts, weights and dates keep Western digits (`format.ts`). The layout was already built with
+logical CSS (D-025); the one physical `text-right` was fixed. **Not done:** server messages (validation errors, the
+reasons of a refused sale) come back in French: Django has no Arabic catalogue yet (`backend/locale/`), which needs the
+`.po` translations and gettext tooling; the native-speaker review of every Arabic text; a visual right-to-left check on a
+real phone.
+
 **D-101 · One invoice for several BL of a customer (P2-T10 part 2)** · accepted · 2026-10-12
 - `Invoice.sale` is gone: an invoice has `sales` (through `InvoiceSale`, with `is_live`). Partial unique
   `one_live_invoice_per_sale` moved to `InvoiceSale`: a BL is on one live invoice (draft or issued) at most;
@@ -1364,6 +1377,17 @@ still protects against overselling).
   whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
+
+**D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
+`GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
+month up to today. **Profit and cash are two separate groups.** Profit: sales, gross margin and net operating result come
+straight from `closing.monthly.month_report` (nothing is recomputed), plus last month's sales for the % change. Cash: money
+collected this month (what customers paid on the spot at a confirmed sale plus their later payments, voided ones left out:
+`sales.selectors.cash_collected`), what customers still owe and the overdue part (the ageing page's "customers who owe",
+`sales.selectors.receivables_overview`), and the stock value at cost (the month-end valuation, which for the current month is
+today's stock). Alerts: the five biggest overdue customers (and how many more), driver days not yet approved
+(`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
+**Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
 
 **D-112 · Data import from Excel and opening balances (P4-T01)** · accepted · 2026-10-12
 - New app `dataimport` (owner only, `openpyxl`). One Excel template per kind (products, suppliers, customers,

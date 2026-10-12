@@ -11,8 +11,9 @@ import {
 } from "@frutti/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 
+import { DashboardPage } from "./dashboard/DashboardPage";
 import { EmployeeDetailPage } from "./hr/EmployeeDetailPage";
 import { EmployeesPage } from "./hr/EmployeesPage";
 import { PayrollPage } from "./hr/PayrollPage";
@@ -30,6 +31,7 @@ import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
 import { ImportPage } from "./imports/ImportPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { TruckDayPage } from "./locations/TruckDayPage";
+import { MonthClosingPage } from "./closing/MonthClosingPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
@@ -129,6 +131,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,
   "/import": <ImportPage />,
+  "/cloture": <MonthClosingPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};
@@ -149,22 +152,6 @@ function Shell({ session }: { session: Session }) {
     >
       <Outlet context={session} />
     </AdminShell>
-  );
-}
-
-function Dashboard() {
-  const { t } = useTranslation();
-  const session = useOutletContext<Session>();
-  return (
-    <>
-      <PageHeader eyebrow={session.organization.name} title={t("admin.nav.dashboard")} />
-      <EmptyState
-        illustration="fridge"
-        title={t("admin.dashboard.hello", { name: session.user.first_name || session.user.username })}
-      >
-        {t("admin.dashboard.body")}
-      </EmptyState>
-    </>
   );
 }
 
@@ -193,7 +180,7 @@ function AppRoutes() {
           </RequireRole>
         }
       >
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<DashboardPage />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}

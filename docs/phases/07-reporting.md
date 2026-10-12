@@ -7,7 +7,7 @@ _Coarse plan: detail each task when the phase starts._
 ---
 
 ### P7-T01 · Dashboard · M
-- [ ] KPIs from the prototype: sales, cash collected, receivables, net operating result, stock value;
+- [x] KPIs from the prototype: sales, cash collected, receivables, net operating result, stock value;
       alerts list. Clearly separate profit from cash.
 
 ### P7-T02 · Commercial reports · M
