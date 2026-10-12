@@ -500,6 +500,14 @@ class SaleLineFields(TypedDict, total=False):
     discount_rate: Number | None
 
 
+class QuoteDeliveryFields(TypedDict):
+    """The part of one quote line a BL takes (D-115)."""
+
+    # The quote line's id.
+    quote_line: int
+    quantity: Number
+
+
 class PaymentFields(TypedDict, total=False):
     # What the customer pays on the spot; empty means nothing.
     amount_paid: Number | None
@@ -1107,20 +1115,54 @@ def create_sale_from_quote(
     sold_at: dt.datetime | None = None,
     payment: PaymentFields | None = None,
     confirm: bool = False,
+    lines: Sequence[QuoteDeliveryFields] | None = None,
 ) -> Sale:
-    """Turn an accepted quote, still valid, into a sale: same customer, products, kg, prices and discounts.
+    """Turn an accepted quote, still valid, into a sale (a BL): same customer, products, prices and discounts.
 
-    The place is the quote's unless another is given. The quote stays accepted and points to its sale
-    (`Sale.quote`): one live sale per quote, and another only once that one is cancelled.
+    A quote may be delivered in several BL (D-115). Without `lines` the BL takes every kilo not on a BL yet;
+    with `lines` it takes the kg given for each quote line, at most what is left on it. Kilos on a draft BL
+    count as taken; cancelling a BL frees them. The place is the quote's unless another is given. The quote
+    stays accepted and its sales point to it (`Sale.quote`). The quote is locked meanwhile, so two people
+    cannot deliver the same kilos twice.
     """
     quote = _locked(quote)
     if quote.status != QuoteStatus.ACCEPTED:
         raise ValidationError(_("Seul un devis accepté devient une vente."))
     if quote.valid_until < timezone.localdate():
         raise _expiry_error(quote)
-    live = quote.sales.exclude(status=SaleStatus.CANCELLED).first()
-    if live is not None:
-        raise ValidationError(_("Ce devis est déjà devenu la vente %(number)s.") % {"number": live.number})
+    quote_lines = {line.pk: line for line in quote.lines.select_related("product").order_by("id")}
+    delivery = selectors.quote_delivery(quote)
+    if all(delivery[pk].remaining <= 0 for pk in quote_lines):
+        numbers = ", ".join(sale.number for sale in selectors.live_sales_of(quote))
+        raise ValidationError(_("Ce devis est déjà livré en entier (%(numbers)s).") % {"numbers": numbers})
+    taken: list[tuple[QuoteLine, Decimal]] = []
+    if lines is None:
+        taken = [(line, delivery[pk].remaining) for pk, line in quote_lines.items() if delivery[pk].remaining > 0]
+    else:
+        errors: dict[str, str] = {}
+        seen: set[int] = set()
+        for index, fields in enumerate(lines):
+            line = quote_lines.get(fields["quote_line"])
+            if line is None or line.pk in seen:
+                errors[line_error_key(index, "quote_line")] = _("Ligne de devis inconnue.")
+                continue
+            seen.add(line.pk)
+            try:
+                quantity = checked_quantity(fields["quantity"], allow_zero=True)
+            except ValueError as error:
+                errors[line_error_key(index, "quantity")] = str(error)
+                continue
+            left = delivery[line.pk].remaining
+            if quantity > left:
+                errors[line_error_key(index, "quantity")] = _("Il reste %(kg)s kg à livrer sur cette ligne.") % {
+                    "kg": left
+                }
+            elif quantity > 0:
+                taken.append((line, quantity))
+        if errors:
+            raise ValidationError(errors)
+        if not taken:
+            raise ValidationError(_("Indiquez au moins un poids à livrer."))
     location = location or quote.location
     if location is None:
         raise ValidationError({"location": _("Indiquez d'où part la marchandise.")})
@@ -1133,11 +1175,11 @@ def create_sale_from_quote(
         lines=[
             {
                 "product": line.product,
-                "quantity": line.quantity,
+                "quantity": quantity,
                 "unit_price": line.unit_price,
                 "discount_rate": line.discount_rate,
             }
-            for line in quote.lines.select_related("product").order_by("id")
+            for line, quantity in taken
         ],
         notes=quote.notes,
         payment=payment,

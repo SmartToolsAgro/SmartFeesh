@@ -89,6 +89,8 @@ a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` an
 
 ## Recently done
 
+- 2026-10-12 · P2-T11 part 1: "Documents" page `/documents` (every DV, BL, FA, AV, BA, BR, FF as chains with their
+  actions, D-102); part 2: one devis delivered in several BL (D-115).
 - 2026-10-12 · P3-T01 to P3-T06 (driver app)
 - 2026-10-11 · P2-T05, P2-T06, P5-T02, P5-T05, P6-T01, P6-T02, P6-T03
 - 2026-10-11 · P1-T11, P2-T02, P2-T03, P2-T04, P5-T01, P5-T03, P5-T04

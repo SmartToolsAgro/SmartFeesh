@@ -403,8 +403,9 @@ class QuoteConvertView(QuoteView):
     )
     def post(self, request: Request, quote_id: int) -> Response:
         """Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
-        customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
-        quote stays accepted and links to its sale."""
+        customer, products, prices and discounts, from the quote's place unless `location` is given. Without
+        `lines` it takes every kilo not on a BL yet; with `lines`, the kg given per quote line, at most what is
+        left (a quote may be delivered in several BL, D-115). The quote stays accepted and links to its sales."""
         quote = self.quote(quote_id)
         serializer = QuoteConvertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -422,6 +423,7 @@ class QuoteConvertView(QuoteView):
             sold_at=data["sold_at"],
             payment=_payment(data),
             confirm=data["confirm_now"],
+            lines=data["lines"],
         )
         detail = SaleDetailSerializer(selectors.sale_of(self.organization, sale.pk)).data
         return Response(detail, status=status.HTTP_201_CREATED)

@@ -4,6 +4,8 @@ from .base import MIDDLEWARE, REST_FRAMEWORK, env
 DEBUG = False
 SECRET_KEY = env("DJANGO_SECRET_KEY")  # required: fails loudly if missing
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
+# Required: the login throttle must count across all server processes, not per process (D-108).
+_ = env("DJANGO_CACHE_URL")
 
 # HTTPS settings. Staging has no domain yet, so it runs on plain HTTP with these switched off in its
 # .env (D-027). Production must keep the defaults.
