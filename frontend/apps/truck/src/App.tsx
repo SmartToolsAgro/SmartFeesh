@@ -8,7 +8,8 @@ import { ClosingPage } from "./ClosingPage";
 import { DayPage } from "./DayPage";
 import { ExpensePage } from "./ExpensePage";
 import { LossPage } from "./LossPage";
-import { forgetSavedData, OfflineBanner } from "./offline";
+import { forgetSavedData } from "./offline";
+import { OfflineBanner } from "./OfflineBanner";
 import { SalePage } from "./SalePage";
 
 const queryClient = createQueryClient();
