@@ -101,6 +101,9 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         <Link to="/depense">{t("truck.expense.add")}</Link>
       </Button>
       <Button asChild size="lg" className="py-4 text-lg">
+        <Link to="/encaissement">{t("truck.payment.add")}</Link>
+      </Button>
+      <Button asChild size="lg" className="py-4 text-lg">
         <Link to="/perte">{t("truck.loss.add")}</Link>
       </Button>
       {day.isLoading ? null : started ? (

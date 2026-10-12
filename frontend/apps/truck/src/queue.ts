@@ -1,4 +1,4 @@
-import type { RoadExpenseWrite, RoadLossWrite, SaleWrite } from "@frutti/api";
+import type { RoadExpenseWrite, RoadLossWrite, RoadPaymentWrite, SaleWrite } from "@frutti/api";
 import { useEffect, useState } from "react";
 
 // What the phone could not send yet (P3-T07b and T07c, D-097). They live in IndexedDB, so they survive closing the
@@ -39,7 +39,12 @@ export interface QueuedLoss extends Waiting {
   data: RoadLossWrite;
 }
 
-export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss;
+export interface QueuedPayment extends Waiting {
+  kind: "payment";
+  data: RoadPaymentWrite;
+}
+
+export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss | QueuedPayment;
 
 const DATABASE = "frutti-truck";
 const STORE = "sales";

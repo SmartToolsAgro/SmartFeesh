@@ -198,3 +198,36 @@ def test_a_refused_send_is_reported_once_and_the_office_marks_it_dealt_with(day)
     assert day["office"].get(reverse("sync-problem-list")).json() == []
     assert day["api"].get(reverse("sync-problem-list")).status_code == 403
     assert day["office"].post(reverse("my-sync-problems"), body, format="json").status_code == 403
+
+
+def test_a_payment_collected_by_the_driver_counts_in_the_day_cash_and_is_recorded_once(day):
+    sell(day, "5", "100.000")  # 140 DT, 40 left on credit
+    owed = {c["name"]: c["owes"] for c in day["api"].get(reverse("my-customers")).json()}
+    assert owed["Restaurant Le Port"] == "40.000"
+    body = {"customer": day["customer"].pk, "amount": "30.000", "method": "cash", "client_uuid": str(uuid4())}
+
+    first = day["api"].post(reverse("my-payments"), body, format="json")
+    again = day["api"].post(reverse("my-payments"), body, format="json")
+
+    assert first.status_code == 201
+    assert again.json()["id"] == first.json()["id"]
+    assert [p["amount"] for p in day["api"].get(reverse("my-payments")).json()] == ["30.000"]
+    owed = {c["name"]: c["owes"] for c in day["api"].get(reverse("my-customers")).json()}
+    assert owed["Restaurant Le Port"] == "10.000"
+    summary = day["api"].get(reverse("my-day-summary")).json()["summary"]
+    assert (summary["payments_cash"], summary["expected_cash"]) == ("30.000", "180.000")  # 50 + 100 + 30
+    assert (
+        day["api"].post(reverse("my-payments"), {**body, "amount": "0", "client_uuid": None}, format="json").status_code
+        == 400
+    )
+    assert day["office"].post(reverse("my-payments"), body, format="json").status_code == 403
+
+
+def test_an_approved_day_refuses_new_customer_payments(day):
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "50.000"}, format="json")
+    closing = day["office"].get(reverse("day-closing-list")).json()[0]
+    day["office"].post(reverse("day-closing-approve", args=[closing["id"]]))
+
+    body = {"customer": day["customer"].pk, "amount": "5.000", "method": "cash"}
+
+    assert day["api"].post(reverse("my-payments"), body, format="json").status_code == 403
