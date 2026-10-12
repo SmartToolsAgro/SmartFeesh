@@ -1,7 +1,9 @@
 import { useTranslation } from "@frutti/i18n";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { useQueue } from "./queue";
+import { Button } from "@frutti/ui";
+
+import { removeQueued, useQueue } from "./queue";
 import { useSalesSync } from "./sync";
 
 /** Always visible when something waits: how many things are not sent yet, and any the server refused. */
@@ -22,7 +24,10 @@ export function SyncStatus() {
       )}
       {refused.map((item) => (
         <p key={item.uuid} className="rounded-control bg-bad-soft px-3 py-2 text-bad">
-          {t("truck.sync.refused", { what: item.label, reason: item.error })}
+          {t("truck.sync.refused", { what: item.label, reason: item.error })}{" "}
+          <Button className="ms-2" onClick={() => void removeQueued(item.uuid)}>
+            {t("truck.sync.understood")}
+          </Button>
         </p>
       ))}
     </div>

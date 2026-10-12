@@ -2,6 +2,7 @@
 
 import datetime as dt
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from django.urls import reverse
@@ -174,3 +175,26 @@ def test_customers_sold_to_lately_come_first(day):
     names = [c["name"] for c in day["api"].get(reverse("my-customers")).json()]
     assert names == ["Restaurant Le Port", "Aaa Hôtel"]
     assert other.pk
+
+
+def test_a_refused_send_is_reported_once_and_the_office_marks_it_dealt_with(day):
+    body = {
+        "kind": "sale",
+        "what": "Restaurant Le Port",
+        "reason": "Limite de crédit dépassée",
+        "client_uuid": str(uuid4()),
+    }
+
+    first = day["api"].post(reverse("my-sync-problems"), body, format="json")
+    again = day["api"].post(reverse("my-sync-problems"), body, format="json")
+
+    assert first.status_code == 201
+    assert again.json()["id"] == first.json()["id"]
+    listed = day["office"].get(reverse("sync-problem-list")).json()
+    assert [(p["kind"], p["label"], p["reason"]) for p in listed] == [
+        ("sale", "Restaurant Le Port", "Limite de crédit dépassée")
+    ]
+    assert day["office"].post(reverse("sync-problem-resolve", args=[first.json()["id"]])).json()["resolved_at"]
+    assert day["office"].get(reverse("sync-problem-list")).json() == []
+    assert day["api"].get(reverse("sync-problem-list")).status_code == 403
+    assert day["office"].post(reverse("my-sync-problems"), body, format="json").status_code == 403

@@ -1337,3 +1337,13 @@ on the phone when there is no connection; a server refusal is shown at once and 
 the kilos "promised", so a loss cannot be reported above what the truck holds. The **closing is refused while anything
 waits or there is no connection** (the button is disabled with the reason), so the figures the office receives are
 complete. Returning the unsold stock (`my-return`) is not queued: it needs a connection.
+
+**D-099 · Refused sends are reported to the office (P3-T07d)** · accepted · 2026-10-12
+When the server refuses an item waiting on a phone (D-097, D-098), the phone keeps it (status "refused"), shows it to the
+driver with the server's reason and a "Compris" button, and reports it with `POST /my-sync-problems` (kind, what, reason,
+the item's `client_uuid`: the same item reported twice makes one `dayclose.SyncProblem`). The report is retried on later
+runs until it works. The office sees the open ones at the top of `/journees` ("Envois refusés") and marks them "Traité"
+(`GET /sync-problems`, `POST /sync-problems/<id>/resolve`, owner and manager; the accountant reads). The office never has
+to guess what is stuck on a phone, and nothing is dropped silently. **Not done:** a notice to the driver when the office
+moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
+still protects against overselling).

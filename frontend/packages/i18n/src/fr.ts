@@ -242,6 +242,16 @@ export const fr = {
       approved: "Journée approuvée.",
       asked: "Question envoyée au chauffeur.",
       error: "L'action a échoué. Réessayez.",
+      problems: {
+        title: "Envois refusés",
+        body: "Ce que les téléphones n'ont pas pu envoyer : le serveur l'a refusé. À traiter avec le chauffeur.",
+        driver: "Chauffeur",
+        what: "Quoi",
+        reason: "Raison",
+        kinds: { sale: "Vente", expense: "Dépense", loss: "Perte" },
+        done: "Traité",
+        handled: "Marqué comme traité.",
+      },
     },
     truckDay: {
       title: "Camions du jour",
@@ -2822,7 +2832,8 @@ export const fr = {
     sync: {
       waiting_one: "{{count}} envoi attend le réseau.",
       waiting_other: "{{count}} envois attendent le réseau.",
-      refused: "« {{what}} » refusé par le serveur : {{reason}}",
+      refused: "« {{what}} » refusé par le serveur : {{reason}}. Le bureau est prévenu.",
+      understood: "Compris",
     },
     offline: {
       banner: "Pas de réseau : les chiffres affichés datent de la dernière connexion.",

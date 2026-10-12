@@ -1,6 +1,7 @@
 """Every write on day closings goes through these functions (ARCHITECTURE §3)."""
 
 import json
+import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -11,12 +12,12 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.core import audit
-from apps.core.models import User
+from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
 from apps.fleet import selectors as fleet
 
 from . import selectors
-from .models import DayClosing, DayClosingStatus
+from .models import DayClosing, DayClosingStatus, SyncProblem
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
@@ -109,3 +110,41 @@ def request_justification(*, closing: DayClosing, actor: User, reason: str) -> D
         after={"reason": closing.review_note},
     )
     return closing
+
+
+@transaction.atomic
+def report_sync_problem(
+    *, organization: Organization, actor: User, kind: str, label: str, reason: str, client_uuid: uuid.UUID
+) -> SyncProblem:
+    """A driver's phone says the server refused one of its sends. Reporting the same item again changes nothing."""
+    existing = SyncProblem.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+    if existing is not None:
+        return existing
+    problem = SyncProblem.objects.create(
+        organization=organization,
+        driver=actor,
+        kind=kind,
+        label=label[:150],
+        reason=reason[:500],
+        client_uuid=client_uuid,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="sync_problem.reported",
+        target=problem,
+        after={"kind": kind, "label": problem.label, "reason": problem.reason},
+    )
+    return problem
+
+
+@transaction.atomic
+def resolve_sync_problem(*, problem: SyncProblem, actor: User) -> SyncProblem:
+    """The office dealt with it (called the driver, redid the sale by hand...)."""
+    problem = SyncProblem.objects.select_for_update().get(pk=problem.pk)
+    if problem.resolved_at is None:
+        problem.resolved_at = timezone.now()
+        problem.resolved_by = actor
+        problem.save(update_fields=["resolved_at", "resolved_by", "updated_at"])
+        audit.record(organization=problem.organization, actor=actor, action="sync_problem.resolved", target=problem)
+    return problem

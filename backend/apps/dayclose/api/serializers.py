@@ -2,7 +2,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.dayclose.models import DayClosing, DayClosingStatus
+from apps.dayclose.models import DayClosing, DayClosingStatus, SyncProblem
 
 
 class DayProductSerializer(serializers.Serializer[Any]):
@@ -104,3 +104,24 @@ class DayClosingFilterSerializer(serializers.Serializer[Any]):
 
 class JustificationSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=300)
+
+
+class SyncProblemWriteSerializer(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=[("sale", "sale"), ("expense", "expense"), ("loss", "loss")])
+    # What the driver would call it: the customer, the category, the product.
+    what = serializers.CharField(allow_blank=True, max_length=150)
+    reason = serializers.CharField(allow_blank=True, max_length=500)
+    client_uuid = serializers.UUIDField()
+
+
+class SyncProblemSerializer(serializers.ModelSerializer[SyncProblem]):
+    driver_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SyncProblem
+        fields = ("id", "kind", "label", "reason", "driver_name", "created_at", "resolved_at")
+        read_only_fields = fields
+
+    def get_driver_name(self, problem: SyncProblem) -> str:
+        driver = problem.driver
+        return f"{driver.first_name} {driver.last_name}".strip() or driver.username
