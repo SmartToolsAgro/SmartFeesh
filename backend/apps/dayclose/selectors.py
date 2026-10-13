@@ -1,10 +1,12 @@
 """What a driver's day adds up to (P3-T06): sales, cash, expenses and the stock of the truck."""
 
 import datetime as dt
+import json
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -99,6 +101,50 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         "expected_cash": driver_day.opening_cash + cash + payments_cash - spent,
         "products": products,
     }
+
+
+# The figures of a day that only the day's own work changes. Left out: the names, and the stock still in the truck
+# (it moves again on the next days).
+_DAY_FIGURES = (
+    "opening_cash",
+    "sales_count",
+    "sales_total",
+    "cash_received",
+    "payments_cash",
+    "other_payments",
+    "on_credit",
+    "expenses_total",
+    "expected_cash",
+)
+_PRODUCT_FIGURES = ("loaded", "sold", "lost", "returned")
+
+
+def _day_figures(summary: dict[str, Any]) -> dict[str, Any]:
+    """The comparable part of a summary, as plain JSON values (a stored summary is already plain)."""
+    plain = json.loads(json.dumps(summary, cls=DjangoJSONEncoder))
+    return {
+        **{name: plain.get(name) for name in _DAY_FIGURES},
+        "products": {
+            str(row["product_id"]): [row.get(name) for name in _PRODUCT_FIGURES]
+            for row in plain.get("products", [])
+            if any(Decimal(str(row.get(name) or 0)) for name in _PRODUCT_FIGURES)
+        },
+    }
+
+
+def changed_since_sent(closing: DayClosing) -> bool:
+    """The driver worked after sending the day (a new load, more sales, a payment, an expense...): the figures the
+    office would check are no longer the day's. An approved day is locked, so it never counts as changed."""
+    if closing.status == DayClosingStatus.APPROVED:
+        return False
+    sent = _day_figures(closing.summary)
+    now = _day_figures(day_summary(closing.organization, closing.driver_day))
+    # A summary sent before a figure existed (payments_cash, D-111) is not compared on it.
+    for name in _DAY_FIGURES:
+        if name not in closing.summary:
+            sent.pop(name)
+            now.pop(name)
+    return sent != now
 
 
 def closing_of(driver_day: "DriverDay") -> DayClosing | None:

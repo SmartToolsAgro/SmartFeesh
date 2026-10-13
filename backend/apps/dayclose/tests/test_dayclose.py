@@ -149,6 +149,31 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
     assert day["office"].post(reverse("day-closing-approve", args=[closing["id"]])).status_code == 400
 
 
+def test_a_day_worked_on_after_sending_is_sent_again_before_the_office_approves_it(day):
+    sell(day, "1", "28.000")
+    sent = day["api"].post(reverse("my-day-closing"), {"counted_cash": "78.000"}, format="json").json()
+    assert sent["closing"]["changed_since_sent"] is False
+    closing_id = sent["closing"]["id"]
+
+    sell(day, "2", "56.000")  # the driver goes back out after sending
+
+    now = day["api"].get(reverse("my-day-summary")).json()
+    assert now["closing"]["changed_since_sent"] is True
+    assert day["office"].get(reverse("day-closing-detail", args=[closing_id])).json()["changed_since_sent"] is True
+    refused = day["office"].post(reverse("day-closing-approve", args=[closing_id]))
+    assert refused.status_code == 400
+    resent = day["api"].post(reverse("my-day-closing"), {"counted_cash": "134.000"}, format="json")
+    assert resent.status_code == 201
+    assert resent.json()["closing"]["changed_since_sent"] is False
+    detail = day["office"].get(reverse("day-closing-detail", args=[closing_id])).json()
+    assert (detail["expected_cash"], detail["counted_cash"], detail["summary"]["sales_count"]) == (
+        "134.000",
+        "134.000",
+        2,
+    )
+    assert day["office"].post(reverse("day-closing-approve", args=[closing_id])).json()["status"] == "approved"
+
+
 def test_only_the_right_people_use_the_screens(day):
     assert day["office"].get(reverse("my-day-summary")).status_code == 403
     assert day["api"].get(reverse("day-closing-list")).status_code == 403

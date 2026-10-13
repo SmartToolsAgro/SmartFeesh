@@ -26,4 +26,5 @@ export interface DayClosingDetail {
   readonly reviewed_at: string | null;
   readonly reviewed_by_name: string;
   readonly summary: DaySummary;
+  readonly changed_since_sent: boolean;
 }

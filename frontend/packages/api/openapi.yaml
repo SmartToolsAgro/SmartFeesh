@@ -9996,7 +9996,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/DaySummary'
           readOnly: true
+        changed_since_sent:
+          type: boolean
+          readOnly: true
       required:
+      - changed_since_sent
       - counted_cash
       - date
       - difference
@@ -10081,7 +10085,11 @@ components:
           type: string
           format: date-time
           readOnly: true
+        changed_since_sent:
+          type: boolean
+          readOnly: true
       required:
+      - changed_since_sent
       - counted_cash
       - driver_note
       - id

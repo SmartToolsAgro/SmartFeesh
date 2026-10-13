@@ -1693,3 +1693,16 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   were both "Maklouba rosé congelé M0"). It must be run on the server.
 - Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
   stays unassigned.
+
+**D-127 · A driver day worked on after it was sent is sent again (follow-up of D-094)** · accepted · 2026-10-13
+- Seen on staging: a driver sent the day, was loaded again and kept selling. The phone showed the new figures but the
+  closing kept the old count, could not be sent again ("déjà envoyée"), and the office would have approved figures
+  that were no longer the day's.
+- `dayclose.selectors.changed_since_sent(closing)` compares the sent summary with the day as it is now (opening cash,
+  sales, payments, credit, expenses, expected cash, and per product loaded / sold / lost / returned; not the stock
+  left in the truck, which moves on later days). Exposed as `changed_since_sent` on the driver's closing and the
+  office detail. An approved day never counts as changed.
+- While it is true, the driver can send the day again (new count, the summary saved again; audit
+  `day_closing.resubmitted`), and the office **cannot approve** (400) until the day is sent again; it can still ask
+  for a justification. The phone shows the count form again with a warning; the office dialog shows a warning and
+  the approve button is disabled. Selling after sending stays allowed (only an approved day is closed, D-109).

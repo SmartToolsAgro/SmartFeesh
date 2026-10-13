@@ -1753,7 +1753,8 @@ export const GetDayClosingResponse = zod.object({
   "returned": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemReturnedRegExp),
   "remaining": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemRemainingRegExp)
 }))
-})
+}),
+  "changed_since_sent": zod.boolean()
 })
 
 
@@ -1818,7 +1819,8 @@ export const ApproveDayClosingResponse = zod.object({
   "returned": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemReturnedRegExp),
   "remaining": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemRemainingRegExp)
 }))
-})
+}),
+  "changed_since_sent": zod.boolean()
 })
 
 
@@ -1891,7 +1893,8 @@ export const RequestDayJustificationResponse = zod.object({
   "returned": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemReturnedRegExp),
   "remaining": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemRemainingRegExp)
 }))
-})
+}),
+  "changed_since_sent": zod.boolean()
 })
 
 
@@ -7126,7 +7129,8 @@ export const CloseMyDayResponse = zod.object({
   "counted_cash": zod.stringFormat('decimal', closeMyDayResponseClosingOneCountedCashRegExp),
   "driver_note": zod.string(),
   "review_note": zod.string(),
-  "submitted_at": zod.iso.datetime({"offset":true})
+  "submitted_at": zod.iso.datetime({"offset":true}),
+  "changed_since_sent": zod.boolean()
 }).describe('What the driver sees of their closing.'),zod.null()])
 })
 
@@ -7181,7 +7185,8 @@ export const GetMyDaySummaryResponse = zod.object({
   "counted_cash": zod.stringFormat('decimal', getMyDaySummaryResponseClosingOneCountedCashRegExp),
   "driver_note": zod.string(),
   "review_note": zod.string(),
-  "submitted_at": zod.iso.datetime({"offset":true})
+  "submitted_at": zod.iso.datetime({"offset":true}),
+  "changed_since_sent": zod.boolean()
 }).describe('What the driver sees of their closing.'),zod.null()])
 })
 

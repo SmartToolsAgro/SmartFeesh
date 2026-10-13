@@ -78,15 +78,15 @@ _Last updated: 2026-10-13_
 - Uncommitted work once sat in the shared checkout with no owner. It is saved on `origin/wip-snapshot-2026-10-13`,
   not for merge: it no longer applies to `main`. Its owner should decide whether to rework or drop it.
 
-## Last session (2026-10-13)
+## Last session (2026-10-13, D-127)
 
-Team-lead session: merged #92 (lot picker), #96 (sidebar: data import in its own Administration group), #97 and #98
-(box steps 2 and 3), #99 (invoice PDF, D-125) and #100 (box step 4). Peers merged #93 (CNSS) and #94 (Paramètres).
-Docs for D-124 and P1-T14 were missing from `main`; this docs PR adds them, and renumbers the box question to Q27
-because Q26 is the CNSS question. Staging deploy of #100 passed.
+Bug fix from a staging report: a driver who sent the day, then was loaded again and kept selling, could not send the
+day again and the office saw stale figures. Now the day can be sent again when it changed after sending, and the
+office cannot approve it until then (D-127). Branch `claude/bold-gates-b8j6yz`.
 
 ## Recently done
 
+- 2026-10-13 · D-127 a driver day worked on after sending is sent again; the office cannot approve stale figures.
 - 2026-10-13 · P1-T14 returnable boxes, steps 1 to 4 (D-124): ledger and service (#95), receipt and transfer
   hooks (#97), admin "Caisses" page (#98), driver sale with boxes, pickups and day view (#100).
 - 2026-10-13 · D-125 invoice PDF in the client's paper layout; uploaded logo on PDFs, admin and driver headers and

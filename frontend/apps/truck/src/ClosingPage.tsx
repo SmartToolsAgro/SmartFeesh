@@ -51,7 +51,9 @@ export function ClosingPage() {
     );
   }
   const { summary, closing } = day.data;
-  const locked = closing?.status === "submitted" || closing?.status === "approved";
+  // Sent, but the driver worked after (a new load, more sales): the day is counted and sent again.
+  const changed = closing?.status === "submitted" && closing.changed_since_sent;
+  const locked = closing?.status === "approved" || (closing?.status === "submitted" && !changed);
   const countedValue = parseDecimalInput(counted.trim(), 3);
   const gap = countedValue === null ? null : (millimes(countedValue) - millimes(summary.expected_cash)) / 1000;
 
@@ -100,6 +102,7 @@ export function ClosingPage() {
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.sent")}</p>
           <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
+          {changed ? <p className="font-semibold text-warn">{t("truck.closing.changed")}</p> : null}
         </Card>
       ) : null}
       {locked ? null : (
