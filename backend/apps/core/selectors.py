@@ -2,7 +2,7 @@
 
 from django.db.models import QuerySet
 
-from .models import Membership, Organization, User
+from .models import Membership, Organization, Role, User
 
 type MembershipQuerySet = QuerySet[Membership]
 
@@ -20,3 +20,8 @@ def active_membership(user: User) -> Membership | None:
 def members_of(organization: Organization) -> MembershipQuerySet:
     """Every membership of one organization, active or not, with its user."""
     return Membership.objects.filter(organization=organization).select_related("user").order_by("user__username")
+
+
+def active_owner_count(organization: Organization) -> int:
+    """How many active owners the organization has (Paramètres > Users guards against losing the last one)."""
+    return Membership.objects.filter(organization=organization, role=Role.OWNER, is_active=True).count()

@@ -29,11 +29,14 @@ export const LoginResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "organization": zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
@@ -5994,11 +5997,14 @@ export const GetSessionResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "organization": zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
@@ -6023,11 +6029,14 @@ export const SetLanguageResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "organization": zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
@@ -6040,7 +6049,101 @@ export const SetLanguageResponse = zod.object({
 
 
 /**
- * Users of the organization and their roles. Owners and managers only.
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
+ */
+export const UploadMyAvatarBody = zod.object({
+  "photo": zod.instanceof(Blob)
+})
+
+export const UploadMyAvatarResponse = zod.object({
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "organization": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
+}),zod.null()])
+}).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
+
+
+/**
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
+ */
+export const RemoveMyAvatarResponse = zod.void()
+
+
+/**
+ * A user changes their own password; the old one proves it is really them (no email reset exists, D-123).
+ */
+export const changeMyPasswordBodyOldPasswordMax = 128;
+
+export const changeMyPasswordBodyNewPasswordMax = 128;
+
+
+
+export const ChangeMyPasswordBody = zod.object({
+  "old_password": zod.string().max(changeMyPasswordBodyOldPasswordMax),
+  "new_password": zod.string().max(changeMyPasswordBodyNewPasswordMax)
+})
+
+export const ChangeMyPasswordResponse = zod.void()
+
+
+/**
+ * A user's own display name, changed from their profile menu (not their role: only the owner sets that).
+ */
+export const updateMyProfileBodyFirstNameMax = 150;
+
+export const updateMyProfileBodyLastNameMax = 150;
+
+
+
+export const UpdateMyProfileBody = zod.object({
+  "first_name": zod.string().max(updateMyProfileBodyFirstNameMax).optional(),
+  "last_name": zod.string().max(updateMyProfileBodyLastNameMax).optional()
+})
+
+export const UpdateMyProfileResponse = zod.object({
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "organization": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
+}),zod.null()])
+}).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
+
+
+/**
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
  */
 export const ListMembersResponseItem = zod.object({
   "id": zod.int(),
@@ -6049,12 +6152,139 @@ export const ListMembersResponseItem = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
+ */
+export const createMemberBodyUsernameMax = 150;
+
+export const createMemberBodyPasswordMax = 128;
+
+export const createMemberBodyFirstNameDefault = ``;
+export const createMemberBodyFirstNameMax = 150;
+
+export const createMemberBodyLastNameDefault = ``;
+export const createMemberBodyLastNameMax = 150;
+
+export const createMemberBodyEmailOneDefault = ``;
+export const createMemberBodyEmailTwoMax = 0;
+
+
+
+export const CreateMemberBody = zod.object({
+  "username": zod.string().max(createMemberBodyUsernameMax),
+  "password": zod.string().max(createMemberBodyPasswordMax),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "first_name": zod.string().max(createMemberBodyFirstNameMax).default(createMemberBodyFirstNameDefault),
+  "last_name": zod.string().max(createMemberBodyLastNameMax).default(createMemberBodyLastNameDefault),
+  "email": zod.union([zod.email().default(createMemberBodyEmailOneDefault),zod.string().max(createMemberBodyEmailTwoMax)]).optional()
+})
+
+export const CreateMemberResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
+
+
+export const DeactivateMemberParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const DeactivateMemberResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
+
+
+export const ReactivateMemberParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const ReactivateMemberResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * The owner types a new password for someone else (shown once); no email or SMS reset exists (D-123).
+ */
+export const ResetMemberPasswordParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const resetMemberPasswordBodyNewPasswordMax = 128;
+
+
+
+export const ResetMemberPasswordBody = zod.object({
+  "new_password": zod.string().max(resetMemberPasswordBodyNewPasswordMax)
+})
+
+export const ResetMemberPasswordResponse = zod.void()
+
+
+export const SetMemberRoleParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const SetMemberRoleBody = zod.object({
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).optional().describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable')
+})
+
+export const SetMemberRoleResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
 
 
 /**
@@ -7070,6 +7300,34 @@ export const GetMyTruckDayResponse = zod.object({
 })),
   "amount": zod.stringFormat('decimal', getMyTruckDayResponseAmountRegExp)
 })
+
+
+/**
+ * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ */
+export const UploadOrganizationLogoParams = zod.object({
+  "organization_id": zod.int()
+})
+
+export const UploadOrganizationLogoBody = zod.object({
+  "photo": zod.instanceof(Blob)
+})
+
+export const UploadOrganizationLogoResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
+})
+
+
+/**
+ * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ */
+export const RemoveOrganizationLogoParams = zod.object({
+  "organization_id": zod.int()
+})
+
+export const RemoveOrganizationLogoResponse = zod.void()
 
 
 /**

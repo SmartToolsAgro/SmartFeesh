@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-12_
+_Last updated: 2026-10-13_
 
 ## Where we are
 
@@ -79,13 +79,12 @@ _Last updated: 2026-10-12_
 - Stock changes only through `inventory.services.post_movement` or `post_fifo_movements` (D-035, D-037);
   never write `StockOnHand`. Nobody picks batches by hand: take stock with `post_fifo_movements`.
 
-## Last session (2026-10-12)
+## Last session (2026-10-13)
 
-Driver app, one task per step: **P3-T01** (truck pick, day start with cash), **P3-T02/T03** (stock, sale,
-receipt), **P3-T04** (expenses), **P3-T05** (loss with photo, return of the unsold), **P3-T06** (closing and
-office review). PR #45 (contains #42, closed), then #47 for the sidebar e2e. Backend tests could not run on
-the author's machine (no PostgreSQL): CI is the only check. GitHub Actions had been blocked by billing for
-a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` and driver-only.
+D-123 (Paramètres: logo, users, own profile), built by a background agent that hit its session limit midway;
+finished here: the backend fixes (stale session after password change, avatar response, schema name clash,
+test fixtures) and the frontend pages. Backend core tests (149) and frontend typecheck, lint, format and vitest
+pass locally. Not yet clicked through in a browser.
 
 ## Recently done
 
@@ -95,6 +94,10 @@ a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` an
   filtered by category and the month's dates (`ExpensesPage` now reads filters from the URL); sales,
   spoilage and salaries link to their list pages without a date filter yet. Full itemized drill-down
   (individual sales/expense/loss/payroll rows behind each month total) is a follow-up, not done here.
+
+- 2026-10-13 · D-123 (owner request, not a phase-file task): Paramètres. Company logo (owner), users
+  list/add/role/deactivate/reset password (owner), "Mon profil" (photo, name, own password) from the
+  topbar. Migration `core.0002`. Backend tests and frontend checks pass; not yet checked in a browser.
 - 2026-10-12 · D-121 (owner request, not a phase-file task): a sale line can pick a lot by hand instead of
   FIFO. Built on the counter sale screen first; backend (`requested_batch`, `prefer_batch_id`, the new
   `locations/<id>/stock/<product_id>/batches` endpoint) works for any sale line, so the regular sale screen

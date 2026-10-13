@@ -80,7 +80,10 @@ def client_for(role: Role, organization: Any = None) -> APIClient:
 def _is_driver_area(path: str, method: str) -> bool:
     """What a driver may reach (D-023, D-042, D-091): their own screens, the catalogue to sell, their truck and
     their assignments, and sales from the truck of the day. The views narrow these to the driver's own rows."""
-    if path.startswith("/api/v1/my-") or path in {"/api/v1/me"}:
+    if path.startswith(("/api/v1/my-", "/api/v1/me/")) or path in {"/api/v1/me"}:
+        return True
+    # Any logged-in person's own profile and avatar, and reading a colleague's avatar picture (D-123).
+    if path == "/api/v1/users/<int:user_id>/avatar" and method == "get":
         return True
     reading = method == "get"
     if path.startswith(("/api/v1/categories", "/api/v1/products", "/api/v1/price-lists")):
@@ -122,10 +125,10 @@ OWNER_ONLY_WRITES = (
     "/api/v1/finance-settings",
     "/api/v1/stock-settings",
 )
-# Loading the company's data (P4-T01, D-112): the owner alone, even to read a template.
-OWNER_ONLY_AREA = ("/api/v1/imports",)
-# The people who run the system, and the API map: owner and manager only.
-OFFICE_ONLY = ("/api/v1/members", "/api/v1/schema")
+# Loading the company's data (P4-T01, D-112) and managing other users (D-123): the owner alone.
+OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members")
+# The API map: owner and manager only.
+OFFICE_ONLY = ("/api/v1/schema",)
 
 
 def test_every_route_checks_a_role():
@@ -188,7 +191,7 @@ def _should_forbid(role: Role, path: str, method: str) -> bool:
         # review of a month (D-060).
         if path in OFFICE_ONLY:
             return True
-        if path == "/api/v1/me" or path.endswith("/review"):
+        if path == "/api/v1/me" or path.startswith("/api/v1/me/") or path.endswith("/review"):
             return False
         return method in WRITES
     if role == Role.MANAGER:

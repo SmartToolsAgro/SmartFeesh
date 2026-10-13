@@ -12,5 +12,8 @@ export interface User {
   readonly username: string;
   readonly first_name: string;
   readonly last_name: string;
+  readonly email: string;
   readonly language: LanguageEnum;
+  /** @nullable */
+  readonly avatar_url: string | null;
 }

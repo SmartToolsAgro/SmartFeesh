@@ -39,6 +39,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Partage des bénéfices",
     "Clôture mensuelle",
     "Import de données",
+    "Paramètres",
   ]);
   await expect(modules.getByRole("link", { name: "Tableau de bord" })).toHaveAttribute("aria-current", "page");
 
