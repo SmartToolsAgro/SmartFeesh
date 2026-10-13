@@ -200,6 +200,11 @@ def changes_since_sent(closing: DayClosing) -> list[dict[str, Any]]:
     return rows
 
 
+def changed_since_sent(closing: DayClosing) -> bool:
+    """The day's records no longer say what the driver sent (D-132): the office waits for the day sent again."""
+    return bool(changes_since_sent(closing))
+
+
 def closings_of(
     organization: Organization,
     *,

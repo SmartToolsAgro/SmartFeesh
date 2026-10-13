@@ -207,6 +207,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
               {data.review_note}
             </p>
           )}
+          {data.changed_since_sent && <p className="font-semibold text-warn">{t("admin.dayClosings.changed")}</p>}
           {canDecide && data.status === "submitted" && asking && (
             <Input
               aria-label={t("admin.dayClosings.reason")}
@@ -231,7 +232,11 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             ) : (
               <Button onClick={() => setAsking(true)}>{t("admin.dayClosings.askWhy")}</Button>
             )}
-            <Button variant="primary" disabled={approve.isPending} onClick={() => approve.mutate({ closingId: id })}>
+            <Button
+              variant="primary"
+              disabled={approve.isPending || data.changed_since_sent}
+              onClick={() => approve.mutate({ closingId: id })}
+            >
               {t("admin.dayClosings.approve")}
             </Button>
           </>

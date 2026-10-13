@@ -648,6 +648,8 @@ export const fr = {
       },
       driverNote: "Mot du chauffeur",
       reviewNote: "Question du bureau",
+      changed:
+        "Le chauffeur a travaillé après l'envoi (chargement, ventes...) : ces chiffres ne sont plus ceux de la journée. Il doit la renvoyer avant l'approbation.",
       reason: "Que doit expliquer le chauffeur ?",
       askWhy: "Demander une justification",
       sendQuestion: "Envoyer la question",
@@ -3564,6 +3566,7 @@ export const fr = {
       waitRetrying: "L'envoi se fait tout seul, dès que possible.",
       retrySend: "Réessayer l'envoi",
       countedWas: "Argent compté : {{amount}}",
+      changed: "Vous avez travaillé après l'envoi (chargement, ventes...). Recomptez la caisse et renvoyez la journée.",
       approved: "Journée approuvée par le bureau",
       asked: "Le bureau demande : {{reason}}",
       failed: "La journée n'a pas pu être envoyée. Réessayez.",

@@ -1700,6 +1700,7 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   each missing article with its code as reference and its name as in the list, in kg, in a category "À classer"
   for the owner to sort, and **with no sale price**: prices are not taken from the list, the screens show "no
   price" until one is set on the price board. A code another product already has is left alone and reported.
+- Applied on staging on 2026-10-13: 2 codes written, 36 products created; a second run reports 38 unchanged.
 
 **D-127 · Admin can record returnable boxes on a receipt and on a load (bug, owner report)** · accepted · 2026-10-13
 - Found: the admin app had no way to post a box movement. The receipt and transfer APIs took `boxes` since P1-T14b,
@@ -1758,6 +1759,19 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   invoice, quote and sale (BL) pages, with the logo from Paramètres. The invoice shows its frozen seller; a
   quote or BL shows the finance settings in force (`useSeller`). The quote's customer link moved to "Suivi".
   The quote/sale customer payload gained `phone` for the client block.
+
+**D-132 · A driver day worked on after it was sent is sent again (follow-up of D-094)** · accepted · 2026-10-13
+- Seen on staging: a driver sent the day, was loaded again and kept selling. The phone showed the new figures but the
+  closing kept the old count, could not be sent again ("déjà envoyée"), and the office would have approved figures
+  that were no longer the day's.
+- `dayclose.selectors.changed_since_sent(closing)` compares the sent summary with the day as it is now (opening cash,
+  sales, payments, credit, expenses, expected cash, and per product loaded / sold / lost / returned; not the stock
+  left in the truck, which moves on later days). Exposed as `changed_since_sent` on the driver's closing and the
+  office detail. An approved day never counts as changed.
+- While it is true, the driver can send the day again (new count, the summary saved again; audit
+  `day_closing.resubmitted`), and the office **cannot approve** (400) until the day is sent again; it can still ask
+  for a justification. The phone shows the count form again with a warning; the office dialog shows a warning and
+  the approve button is disabled. Selling after sending stays allowed (only an approved day is closed, D-109).
 
 **D-133 · A driver's sale is dated when it was made, as the phone says, within limits (owner decision; follow-up of D-091, D-094, D-129, D-130)** · accepted · 2026-10-13
 - Before: for a driver `sold_at` was the server's clock, so a sale made without connection yesterday and sent today

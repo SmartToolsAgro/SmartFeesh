@@ -41,6 +41,9 @@ class DaySummarySerializer(serializers.Serializer[Any]):
 class DayClosingStateSerializer(serializers.ModelSerializer[DayClosing]):
     """What the driver sees of their closing."""
 
+    # The driver worked after sending: the day must be sent again (D-132).
+    changed_since_sent = serializers.SerializerMethodField()
+
     class Meta:
         model = DayClosing
         fields = (
@@ -52,8 +55,12 @@ class DayClosingStateSerializer(serializers.ModelSerializer[DayClosing]):
             "driver_note",
             "review_note",
             "submitted_at",
+            "changed_since_sent",
         )
         read_only_fields = fields
+
+    def get_changed_since_sent(self, closing: DayClosing) -> bool:
+        return selectors.changed_since_sent(closing)
 
 
 class MyDaySummarySerializer(serializers.Serializer[Any]):
@@ -126,6 +133,8 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
     # Where the day's records now differ from `summary`, the figures as sent (a sale received after the send,
     # D-134). Empty when nothing changed, and once approved.
     changes_since_sent = serializers.SerializerMethodField()
+    # Any such difference: the office waits for the day sent again (D-132).
+    changed_since_sent = serializers.SerializerMethodField()
 
     class Meta(DayClosingRowSerializer.Meta):
         fields: tuple[str, ...] = (
@@ -137,12 +146,16 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
             "reviewed_by_name",
             "summary",
             "changes_since_sent",
+            "changed_since_sent",
         )
         read_only_fields = fields
 
     @extend_schema_field(ChangedFigureSerializer(many=True))
     def get_changes_since_sent(self, closing: DayClosing) -> Any:
         return ChangedFigureSerializer(selectors.changes_since_sent(closing), many=True).data
+
+    def get_changed_since_sent(self, closing: DayClosing) -> bool:
+        return selectors.changed_since_sent(closing)
 
     def get_reviewed_by_name(self, closing: DayClosing) -> str:
         user = closing.reviewed_by

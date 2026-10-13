@@ -21,4 +21,5 @@ export interface DayClosingState {
   readonly driver_note: string;
   readonly review_note: string;
   readonly submitted_at: string;
+  readonly changed_since_sent: boolean;
 }

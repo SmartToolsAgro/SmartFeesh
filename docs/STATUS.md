@@ -7,9 +7,6 @@ _Last updated: 2026-10-13_
 - **Phase:** 1 is done except P1-T14 (returnable boxes): steps 1 to 4 are merged, with owner decisions 2 to 4 open.
   Phase 2 (sales) is mostly done, Phase 5 (costs) is done, Phase 6 has T01 to T03 done, and **Phase 3 (driver app)
   has T01 to T06 done**. Phase 0 agent work is done; its human items are under Blockers.
-- **In review, not merged:** PR #114 (`driver-day-history`, D-134): sending the closing ends the driver's day, a
-  second numbered day on the same date, "Mes journées" on the phone, and the office sees what changed since the send.
-  The team lead reviews and merges it. The next free decision number is D-135 (D-132 is reserved).
 - **On `main`:** the driver app (D-090 to D-094), the lot picker on counter sales (D-121), the month closing with
   partner shares (D-122), Paramètres with the company logo, users and own profile (D-123), employee CNSS withheld
   from gross (D-119, #93), the invoice PDF in the client's paper layout with the uploaded logo everywhere (D-125, #99),
@@ -31,12 +28,15 @@ _Last updated: 2026-10-13_
 1. **Owner decisions still open:**
    - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
      (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
-   - Product codes on staging (D-126): the dry run was done (2 codes match, 36 articles missing) and the owner chose
-     to create the missing articles. To run on the server once this is deployed:
-     `manage.py set_product_codes --organization 1 --create-missing`, then the same with `--apply`. The new
-     products have no price and sit in "À classer": the owner sets prices and sorts them.
-   - Staging check: no owner check yet of the closing fix (D-129) on a real phone. After #114 is merged, check on a
-     phone: send the closing, start a second day, sell, and read both days in "Mes journées" (D-134).
+   - Product codes on staging (D-126): **done 2026-10-13.** 2 codes written (crevette royale, Calamar) and 36
+     products created from the owner's list, with no price, in the category "À classer". The owner sets their
+     prices on the price board and sorts them into categories.
+   - Driver day after the closing: the owner chose "sending the closing ends the day; a later sale needs a new day"
+     (branch `driver-day-history`, PR #114, being brought onto main: it must carry D-129, D-130 and D-133). The
+     other answer, "resend the same day" (`claude/bold-gates-b8j6yz`), is dropped: do not merge it.
+   - Staging check: no owner check yet of the closing fixes (D-129, D-130, D-133) on a real phone.
+   - Uncommitted work in the shared checkout: resolved 2026-10-13. Its code was already on main, its one
+     unfinished piece (Q21 confirmed) is merged (#111), and the checkout is back on `main`.
    - Done since the last update (answers recorded): truck expected boxes = real ledger balance (D-124 decision 2,
      built in #107); box actions offline (decision 3, #107); truck-to-cold-room return (decision 4, #107); supplier
      boxes must be returned, no schedule; boxes on a load stay a field on the load transfer (#106); "Frais" is a real
@@ -44,13 +44,11 @@ _Last updated: 2026-10-13_
 2. **Browser check on staging** of the new screens: Paramètres, Utilisateurs, Mon profil (D-123); the driver box
    screens (D-124, #100); the invoice PDF (D-125).
 3. Phase 3 remaining, in this order: **P3-T07a to T07d** (offline), **P3-T09** Arabic, **P3-T10** printing.
-4. Phase 3 gaps (not yet tasks): creating a customer on the phone (D-091); a truck sale should use the load's price
-   (D-051); expenses, losses, payments and box pickups kept on the phone are still dated when they are sent (D-133
-   dates sales only). Closed by D-134 (PR #114, once merged): a day sent or approved takes no more sales or
-   expenses; the office's closing table shows the opening stock and the gap; a driver sends a day left running from
-   "Mes journées". Still open after D-134: the monthly closing's `driver_days_closed` check does not list the days
-   left running (D-074); the office list does not flag the days whose figures changed since the send (the dialog
-   does); a sale made in the 5 minutes before the closing and received just after it is refused (D-134, known limits).
+4. Phase 3 gaps (not yet tasks): an approved day should block more sales and expenses that day (D-094); a driver
+   cannot collect a customer payment on the phone yet; recent customers first and creating a customer on the phone
+   (D-091); a truck sale should use the load's price (D-051); the office's closing table does not show the opening
+   stock or the gap yet (D-130); expenses, losses, payments and box pickups kept on the phone are still dated when
+   they are sent, and a driver cannot close a day that is over (D-133 dates sales only).
 5. Other waves: P2-T07/T08/T09, P6-T04 to T07 (check `gh pr list` and `docs/phases/` for what landed).
 
 ## Blockers / waiting on client
@@ -89,25 +87,28 @@ _Last updated: 2026-10-13_
   logical CSS classes (D-025); token colours only (D-024); API calls through `@frutti/api`.
 - Stock changes only through `inventory.services.post_movement` or `post_fifo_movements` (D-035, D-037); never write
   `StockOnHand`. Nobody picks batches by hand except on the counter sale (D-121); take stock with `post_fifo_movements`.
-- Uncommitted work once sat in the shared checkout with no owner. It is saved on `origin/wip-snapshot-2026-10-13`,
-  not for merge: it no longer applies to `main`. Its owner should decide whether to rework or drop it.
+- `origin/wip-snapshot-2026-10-13` is a snapshot of old uncommitted work, kept for the record. Nothing in it is
+  missing from `main`: do not merge it.
+- CI runs on `ubuntu-24.04`, pinned (#115): `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19. Move on purpose.
 
 ## Last session (2026-10-13)
 
-Agent session on `driver-day-history` (PR #114, D-134). Merged `main` into the branch (never rebased) and carried
-D-129, D-130 and D-133 into its design: the closing screen and the history share `DayReport.tsx` (waiting sales,
-retry, opening stock, gap); a driver's day is a window of its date (`fleet.selectors.day_window`) and its stock is
-read from the ledger at the window's start and end, so a second day of the same date balances; a sale counts on the
-day that covers the moment it was made, a sale made after the send is refused until a new day is started, and the
-office's dialog lists what changed since the send (`dayclose.selectors.changes_since_sent`). Not merged: the team
-lead reviews it. Before that, the team lead merged #92 to #116.
+Team-lead session. Merged to `main`: #92 (lot picker), #96 (sidebar), #97 and #98 (box steps 2 and 3), #99 (invoice
+PDF, D-125), #100 (box step 4), #101 (box docs, D-124), #102 (Arabic box texts, provisional), #103 (Frais and product
+codes, D-126), #105 (month-cost changes, D-128), #106 (boxes entered on a receipt and a load, D-127), #107 (box
+follow-up, decisions 2 to 4), #108 (closing after a sale, D-129), #110 (opening stock and gap, D-130), #111 (Q21),
+#112 (document header and footer, D-131), #113 (sale dated when made, D-133), #115 (CI image pinned), #116 (create
+the missing articles). Open: #114 (driver day history, not ready). Every merge deployed to staging.
 
 ## Recently done
 
-- 2026-10-13 · D-134 (PR #114, in review) sending the closing ends the driver's day; second day on the same date;
-  "Mes journées"; each day balances its own stock; the office sees what changed since the send.
+- 2026-10-13 · D-132 a driver day worked on after it was sent (a new load, more sales) can be sent again; the office
+  cannot approve it until then (staging report).
 - 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that
-  match no product (code, name, kg, category "À classer", no price). Dry run on staging: 2 codes match, 36 to create.
+  match no product (code, name, kg, category "À classer", no price). Applied on staging: 2 codes written, 36 created.
+- 2026-10-13 · D-131 every document (quote, delivery note, credit note, receipt, partner statement) uses the
+  invoice's header and footer, in PDFs and on screen (#112). A PDF already generated keeps its old layout until
+  its document or the logo changes.
 - 2026-10-13 · D-133 a driver's sale is dated when it was made (the phone sends the time, the server checks it): that
   day's price and closing; refused in the future, on an approved day, or for kilos the truck did not hold that day.
 - 2026-10-13 · Q21 confirmed by the owner: general costs (rent, accountant) are split each day over the lots in
@@ -126,4 +127,6 @@ lead reviews it. Before that, the team lead merged #92 to #116.
 - 2026-10-13 · D-125 invoice PDF in the client's paper layout; uploaded logo on PDFs, admin and driver headers and
   the tab icon (#99).
 - 2026-10-13 · Admin sidebar: data import in its own Administration group (#96).
+- 2026-10-13 · D-119 employee CNSS withheld from gross (#93); D-123 Paramètres: company logo, users, own profile (#94).
 - 2026-10-13 · D-122 month closing: each partner's share of shared costs, clickable figures.
+- 2026-10-12 · D-121 counter sale lot picker (#92); P2-T11 Documents page; P3-T01 to P3-T06 (driver app).
