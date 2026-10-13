@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { CustomerBoxesCard } from "../boxes/CustomerBoxesCard";
 import { canCollect } from "../payments/shared";
 import { BalanceCard } from "./BalanceCard";
 import { CustomerDialog } from "./CustomerDialog";
@@ -160,6 +161,7 @@ export function CustomerDetailPage() {
         {!data.is_walk_in && (
           <BalanceCard customer={{ id: data.id, name: data.name }} canCollect={canCollect(session)} />
         )}
+        {!data.is_walk_in && <CustomerBoxesCard customerName={data.name} />}
       </div>
 
       <Dialog open={editing} onOpenChange={setEditing}>

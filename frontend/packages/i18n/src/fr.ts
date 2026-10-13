@@ -1926,6 +1926,63 @@ export const fr = {
       },
     },
     // ---- Stock: sections and transfers (P1-T09) ----
+    // ---- Stock: returnable boxes, read screens (P1-T14c) ----
+    boxes: {
+      title: "Caisses",
+      intro:
+        "Les caisses consignées (petites et grandes) entre le froid, les camions, les clients et les fournisseurs. Les chiffres se mettent à jour quand une réception, un transfert ou une livraison les déplace.",
+      kinds: {
+        location: "Emplacements (froid et camions)",
+        customer: "Clients",
+        supplier: "Fournisseurs",
+      },
+      kindLabels: {
+        receive: "Réception fournisseur",
+        load: "Chargement camion",
+        leave: "Départ chez le client",
+        collect: "Reprise chez le client",
+        return: "Retour au fournisseur",
+        write_off: "Casse ou perte",
+      },
+      types: {
+        small: "Petite caisse",
+        big: "Grande caisse",
+      },
+      columns: {
+        holder: "Nom",
+      },
+      supplierNote: "Chiffres = caisses dues au fournisseur (il nous les a prêtées).",
+      noHolders: "Aucune caisse pour le moment.",
+      unnamed: "Sans nom",
+      outside: "Hors stock",
+      history: {
+        title: "Historique des mouvements",
+        holder: "Lieu ou partenaire",
+        allHolders: "Tous",
+        boxType: "Type de caisse",
+        allBoxTypes: "Tous",
+        reset: "Effacer les filtres",
+        count: "{{count}} mouvement(s)",
+        page: "{{from}} à {{to}} sur {{count}}",
+        previous: "Précédent",
+        next: "Suivant",
+        empty: "Aucun mouvement de caisses pour le moment.",
+        noMatch: "Aucun mouvement ne correspond à ces filtres.",
+        reason: "Motif",
+        columns: {
+          date: "Date",
+          kind: "Mouvement",
+          boxType: "Type",
+          count: "Nombre",
+          from: "De",
+          to: "Vers",
+        },
+      },
+      customer: {
+        title: "Caisses chez le client",
+        ambiguous: "Plusieurs partenaires portent ce nom : les caisses affichées peuvent être incomplètes.",
+      },
+    },
     stockTabs: {
       label: "Rubriques du stock",
       places: "Emplacements",
@@ -1933,6 +1990,7 @@ export const fr = {
       transfers: "Transferts",
       losses: "Pertes",
       counts: "Inventaires",
+      boxes: "Caisses",
     },
     transfers: {
       title: "Transferts",

@@ -37,6 +37,7 @@ import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { UsersPage } from "./settings/UsersPage";
+import { BoxesPage } from "./boxes/BoxesPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
 import { ProductStockPage } from "./stock/ProductStockPage";
@@ -253,6 +254,8 @@ function AppRoutes() {
         <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
         {/* Stock screens (P1-T11) */}
         <Route path="/stock/mouvements" element={<MovementsPage />} />
+        {/* Returnable boxes (P1-T14c) */}
+        <Route path="/stock/caisses" element={<BoxesPage />} />
         <Route path="/stock/produits/:productId" element={<ProductStockPage />} />
         <Route path="/stock/lots/:batchId" element={<BatchStockPage />} />
         {/* Stock sections (P1-T09) */}
