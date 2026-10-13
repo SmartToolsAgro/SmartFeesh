@@ -2,8 +2,6 @@ import { acceptQuote, ApiError, refuseQuote, sendQuote, useGetQuote } from "@fru
 import type { Session } from "@frutti/auth";
 import { formatDate, formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import {
-  BRAND,
-  BrandMark,
   Button,
   Card,
   CardTitle,
@@ -28,6 +26,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
+import { useSeller } from "../lib/documentSeller";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
 import { DeliverDialog } from "./DeliverDialog";
@@ -69,6 +69,7 @@ export function QuoteDetailPage() {
   const id = Number(quoteId);
   const validId = Number.isInteger(id) && id > 0;
   const quote = useGetQuote(id, { query: { enabled: validId, retry: false } });
+  const seller = useSeller(session);
   const [refusing, setRefusing] = useState(false);
   const [reason, setReason] = useState("");
   // An accepted quote becomes one or several BL (D-115): the dialog proposes what is left to deliver.
@@ -121,7 +122,6 @@ export function QuoteDetailPage() {
   const title = t("admin.quotes.detail.title", { number: data.number });
   // Once a BL exists, the lines also show what is left to deliver.
   const started = data.sales.length > 0;
-  const address = [data.customer.address, data.customer.city].filter(Boolean).join(", ");
 
   return (
     <>
@@ -171,39 +171,19 @@ export function QuoteDetailPage() {
             </div>
           )}
           {/* The draft stamp sits in the top corner: keep the quote number clear of it. */}
-          <header
-            className={`mb-4 flex flex-wrap justify-between gap-4 border-b-2 border-ink pb-4 ${data.status === "draft" ? "pe-14" : ""}`}
-          >
-            <div>
-              <div className="flex items-center gap-2.5 font-display text-[1.1rem] font-extrabold">
-                <BrandMark className="size-[30px]" />
-                {BRAND.name}
-              </div>
-              <p className="mt-1.5 text-[0.82rem] text-ink-2">{t("admin.quotes.detail.tagline")}</p>
-            </div>
-            <div className="text-end">
-              <h2>{title}</h2>
-              <p className="num text-[0.85rem] text-ink-2">
-                {t("admin.quotes.detail.dated", {
-                  date: formatDate(data.quoted_on),
-                  until: formatDate(data.valid_until),
-                })}
-              </p>
-            </div>
-          </header>
-          <p className="mb-3">
-            <span className="eyebrow">{t("admin.quotes.detail.customer")}</span>
-            <br />
-            <Link to={`/clients/${data.customer.id}`} className="font-bold text-ink hover:underline">
-              {data.customer.name}
-            </Link>
-            {address && <span> · {address}</span>}
-            {data.customer.tax_id && (
-              <span className="num block text-[0.82rem] text-ink-2">
-                {t("admin.quotes.detail.taxId", { taxId: data.customer.tax_id })}
-              </span>
-            )}
-          </p>
+          <div className={data.status === "draft" ? "pe-14" : ""}>
+            <DocumentHeader
+              seller={seller}
+              logoUrl={session.organization.logo_url}
+              title={t("admin.documents.frame.quote")}
+              number={data.number}
+              date={data.quoted_on}
+              party={data.customer}
+              meta={
+                <p className="num">{t("admin.documents.frame.validUntil", { date: formatDate(data.valid_until) })}</p>
+              }
+            />
+          </div>
           <Table>
             <thead>
               <tr>
@@ -269,6 +249,7 @@ export function QuoteDetailPage() {
           {data.notes && (
             <p className="mt-4 border-t border-line pt-3 text-[0.9rem] whitespace-pre-line">{data.notes}</p>
           )}
+          <DocumentFooter seller={seller} />
         </article>
 
         <Card>
@@ -277,6 +258,11 @@ export function QuoteDetailPage() {
             {t(`admin.quotes.detail.statusNotes.${data.status}`, { date: formatDate(data.valid_until) })}
           </p>
           <dl className="flex flex-col gap-3">
+            <Detail label={t("admin.quotes.detail.customer")}>
+              <Link to={`/clients/${data.customer.id}`} className="font-semibold text-ink hover:underline">
+                {data.customer.name}
+              </Link>
+            </Detail>
             <Detail label={t("admin.quotes.detail.createdBy")}>
               {data.created_by || none} · <span className="num">{formatDateTime(data.created_at)}</span>
             </Detail>

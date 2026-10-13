@@ -16501,11 +16501,15 @@ components:
         tax_id:
           type: string
           readOnly: true
+        phone:
+          type: string
+          readOnly: true
       required:
       - address
       - city
       - id
       - name
+      - phone
       - reference
       - tax_id
     QuoteDeliveryLine:
@@ -18367,6 +18371,9 @@ components:
         tax_id:
           type: string
           readOnly: true
+        phone:
+          type: string
+          readOnly: true
         is_walk_in:
           type: boolean
           readOnly: true
@@ -18376,6 +18383,7 @@ components:
       - id
       - is_walk_in
       - name
+      - phone
       - reference
       - tax_id
     SaleDetail:

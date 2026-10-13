@@ -14,18 +14,12 @@
   .sentence { margin-bottom: 2mm; }
 {% endblock %}
 {% block heading %}Relevé du lot{% endblock %}
-{% block subtitle %}
-  <p class="muted">{{ batch.product_name }} · lot {{ batch.batch_number }}</p>
-  {% if closed %}<p class="muted small num">Lot clôturé le {{ closed_at|date:"d/m/Y" }}</p>
-  {% else %}<p class="banner">LOT EN COURS : CHIFFRES À CE JOUR</p>{% endif %}
+{% block banner %}{% if not closed %}<p class="fa-cancelled"><span class="banner">LOT EN COURS : CHIFFRES À CE JOUR</span></p>{% endif %}{% endblock %}
+{% block head_meta %}
+<p class="fa-meta">{{ batch.product_name }} · lot {{ batch.batch_number }}{% if closed %}<br><span class="num">Lot clôturé le {{ closed_at|date:"d/m/Y" }}</span>{% endif %}</p>
 {% endblock %}
 {% block body %}
 <div class="parties">
-  <div>
-    <h2>Partenaire</h2>
-    <p><b>{{ partner_name }}</b></p>
-    <p class="small muted">Fournisseur du lot, associé au partage du résultat.</p>
-  </div>
   <div>
     <h2>Notre accord sur ce lot</h2>
     <p>Mise de {{ partner_name }} : <b class="num">{{ partnership.partner_capital|money }} DT</b></p>
