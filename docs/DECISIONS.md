@@ -1690,4 +1690,6 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   of the product with the same name (case, accents and spaces ignored), through `update_product` (audited).
   No product is created and nothing else changes. Left alone and reported: no product with that name, several
   products with it, the code already on another product, and names the list gives twice (ART0047 and ART0055
-  are both "Maklouba rosé congelé M0": the owner must say which code is right). It must be run on the server.
+  were both "Maklouba rosé congelé M0"). It must be run on the server.
+- Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
+  stays unassigned.

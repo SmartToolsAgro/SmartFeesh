@@ -2,6 +2,9 @@
 
 Only the codes are taken from that list: `services.set_product_codes` writes each code into the `reference`
 of the existing product with the same name. Stock, prices and units in the list are ignored.
+
+The list gives "Maklouba rosé congelé M0" twice (ART0047 and ART0055): the owner chose ART0047, so ART0055 is
+left out and stays unassigned (2026-10-13).
 """
 
 PRODUCT_CODES: tuple[tuple[str, str], ...] = (
@@ -38,7 +41,6 @@ PRODUCT_CODES: tuple[tuple[str, str], ...] = (
     ("ART0052", "CALAMAR PANNE"),
     ("ART0053", "CALAMAR RONDELLE"),
     ("ART0054", "SERIOLE PETIT"),
-    ("ART0055", "Maklouba rosé congelé M0"),
     ("ART0056", "Maklouba rosé congelé M1"),
     ("ART0057", "Maklouba rosé congelé M2"),
     ("ART0058", "Maklouba rosé congelé M3"),

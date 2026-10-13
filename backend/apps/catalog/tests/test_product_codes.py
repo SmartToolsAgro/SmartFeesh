@@ -58,6 +58,16 @@ def test_codes_go_into_the_reference_of_the_product_with_the_same_name():
     assert AuditLog.objects.filter(action="product.updated").count() == 2
 
 
+def test_the_owner_list_gives_maklouba_m0_its_chosen_code():
+    organization = OrganizationFactory.create()
+    ProductFactory.create(organization=organization, name="Maklouba rosé congelé M0", reference="MAK-M0")
+
+    outcomes = services.set_product_codes(organization=organization, actor=None, codes=PRODUCT_CODES, apply=True)
+
+    assert references(organization)["Maklouba rosé congelé M0"] == "ART0047"
+    assert not any(outcome.status == "same_name_in_list" for outcome in outcomes)
+
+
 def test_the_command_reports_then_applies_the_owner_list(capsys):
     organization = OrganizationFactory.create()
     ProductFactory.create(organization=organization, name="Saumon entier", reference="SAU")
@@ -67,5 +77,8 @@ def test_the_command_reports_then_applies_the_owner_list(capsys):
     call_command("set_product_codes", "--organization", str(organization.pk), "--apply")
 
     assert references(organization)["Saumon entier"] == "ART0034"
-    assert len(PRODUCT_CODES) == 39
+    assert len(PRODUCT_CODES) == 38
+    # The owner chose ART0047 for "Maklouba rosé congelé M0"; ART0055 is assigned to nothing.
+    assert ("ART0047", "MAKLOUBA ROSE CONGELE M0") in PRODUCT_CODES
+    assert all(code != "ART0055" for code, _name in PRODUCT_CODES)
     assert "1 code(s) written" in capsys.readouterr().out
