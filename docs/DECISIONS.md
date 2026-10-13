@@ -431,7 +431,8 @@ and the Phase 6 plan written from them.
   lots on that truck's load that day, **by kg loaded** (provisional: the client said "split over the
   lots", not how).
 - **Rent, accountant and other general costs:** "like a salary" (client): monthly amount / 26 per day;
-  each day's amount split over the lots in stock that day by kg held (provisional: our reading).
+  each day's amount split over the lots in stock that day by kg held, the same way as the cold room
+  (**confirmed 2026-10-13**, Q21).
 - **Day labour:** one record (date, worker, amount paid, optional lot). Typed from the lot or from the
   calendar, it is the same record; without a lot it is a general cost.
 
@@ -910,8 +911,9 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   cost covering `months` months from `first_month` (bill over several months is spread equally, exact to
   the millime). Templates are owner-only; generated and multi-month costs follow the expense approval.
   Such an expense is changed/deleted only through its own endpoints.
-- Charge to lots (**Q21 provisional**): each month part / 26 per day, each day split over the lots in stock
-  anywhere that day by kg held (end-of-day ledger balance); days with nothing in stock charge nobody. Only
+- Charge to lots (**Q21 confirmed 2026-10-13**): each month part / 26 per day, each day split over the lots
+  in stock anywhere that day by kg held (end-of-day ledger balance, the same split as the cold room, D-041);
+  days with nothing in stock charge nobody. Only
   approved expenses count; days up to today. Screen "Frais généraux" (`/charges/frais-generaux`).
 
 **D-060 · Partnership lots and the partner's capital ledger (P6-T01)** · accepted, provisional points marked · 2026-10-11
