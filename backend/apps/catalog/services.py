@@ -495,19 +495,56 @@ class ProductCodeOutcome:
     code: str
     name: str
     # set, unchanged, not_found, several_products (more than one product has that name), same_name_in_list
-    # (more than one code has that name in the list) or code_taken (another product already has the code).
+    # (more than one code has that name in the list), code_taken (another product already has the code) or
+    # new (no product has that name: one is created, with `create_missing`).
     status: str
     product_id: int | None = None
     old_reference: str = ""
 
 
+# Where the products created from the owner's list go, for the owner to sort afterwards.
+UNSORTED_CATEGORY = "À classer"
+
+
+def _unsorted_category(organization: Organization, actor: User | None) -> Category:
+    existing = Category.objects.for_organization(organization).filter(name__iexact=UNSORTED_CATEGORY).first()
+    return existing or create_category(organization=organization, actor=actor, name=UNSORTED_CATEGORY)
+
+
+def _create_unpriced_product(
+    *, organization: Organization, actor: User | None, reference: str, name: str, category: Category
+) -> Product:
+    """A product with no sale price yet: the screens say so until one is set on the price board."""
+    product = Product(
+        organization=organization, base_unit=selectors.base_unit(), reference=reference, name=name, category=category
+    )
+    _clean_product(product)
+    product.save()
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="product.created",
+        target=product,
+        after={**_snapshot(product), "sale_price": None},
+    )
+    return product
+
+
 @transaction.atomic
 def set_product_codes(
-    *, organization: Organization, actor: User | None, codes: Sequence[tuple[str, str]], apply: bool
+    *,
+    organization: Organization,
+    actor: User | None,
+    codes: Sequence[tuple[str, str]],
+    apply: bool,
+    create_missing: bool = False,
 ) -> list[ProductCodeOutcome]:
     """Write each article code into the `reference` of the existing product with the same name; nothing else
-    changes and no product is created. A name that matches no product, several products or several codes is
-    left alone and reported. Without `apply` nothing is written: the outcomes say what would happen."""
+    changes on it. A name that matches several products or several codes is left alone and reported. A name
+    that matches no product is reported too, unless `create_missing`: the product is then created with that
+    code and name, in kg, in the "À classer" category and with no price (the owner's answer, D-126). Without
+    `apply` nothing is written: the outcomes say what would happen."""
+    unsorted: Category | None = None
     names_in_list: dict[str, int] = {}
     for _code, name in codes:
         names_in_list[_comparable_name(name)] = names_in_list.get(_comparable_name(name), 0) + 1
@@ -522,7 +559,21 @@ def set_product_codes(
             outcomes.append(ProductCodeOutcome(code, name, "same_name_in_list"))
             continue
         if not matches:
-            outcomes.append(ProductCodeOutcome(code, name, "not_found"))
+            if not create_missing:
+                outcomes.append(ProductCodeOutcome(code, name, "not_found"))
+                continue
+            if Product.objects.for_organization(organization).filter(reference__iexact=code).exists():
+                outcomes.append(ProductCodeOutcome(code, name, "code_taken"))
+                continue
+            created_id = None
+            if apply:
+                unsorted = unsorted or _unsorted_category(organization, actor)
+                created = _create_unpriced_product(
+                    organization=organization, actor=actor, reference=code, name=name.strip(), category=unsorted
+                )
+                by_name[key] = [created]
+                created_id = created.pk
+            outcomes.append(ProductCodeOutcome(code, name, "new", created_id))
             continue
         if len(matches) > 1:
             outcomes.append(ProductCodeOutcome(code, name, "several_products"))

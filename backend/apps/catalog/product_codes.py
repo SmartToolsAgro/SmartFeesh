@@ -1,7 +1,8 @@
 """The article codes of the owner's product list (forwarded 2026-10-13, D-126), as code and name.
 
-Only the codes are taken from that list: `services.set_product_codes` writes each code into the `reference`
-of the existing product with the same name. Stock, prices and units in the list are ignored.
+Only the codes and names are taken from that list: `services.set_product_codes` writes each code into the
+`reference` of the existing product with the same name and, when asked, creates the articles that match no
+product. Stock, prices and units in the list are ignored.
 
 The list gives "Maklouba rosé congelé M0" twice (ART0047 and ART0055): the owner chose ART0047, so ART0055 is
 left out and stays unassigned (2026-10-13).

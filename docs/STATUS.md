@@ -31,9 +31,10 @@ _Last updated: 2026-10-13_
 1. **Owner decisions still open:**
    - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
      (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
-   - Product codes on staging (D-126): the owner answered (ART0047 for "Maklouba rosé congelé M0", ART0055 unassigned).
-     The dry run and the apply are **not run yet**: the server access needed for them was not granted.
-     Dry run first, then apply after the owner approves the list.
+   - Product codes on staging (D-126): the dry run was done (2 codes match, 36 articles missing) and the owner chose
+     to create the missing articles. To run on the server once this is deployed:
+     `manage.py set_product_codes --organization 1 --create-missing`, then the same with `--apply`. The new
+     products have no price and sit in "À classer": the owner sets prices and sorts them.
    - Staging check: no owner check yet of the closing fix (D-129) on a real phone. After #114 is merged, check on a
      phone: send the closing, start a second day, sell, and read both days in "Mes journées" (D-134).
    - Done since the last update (answers recorded): truck expected boxes = real ledger balance (D-124 decision 2,
@@ -99,12 +100,14 @@ retry, opening stock, gap); a driver's day is a window of its date (`fleet.selec
 read from the ledger at the window's start and end, so a second day of the same date balances; a sale counts on the
 day that covers the moment it was made, a sale made after the send is refused until a new day is started, and the
 office's dialog lists what changed since the send (`dayclose.selectors.changes_since_sent`). Not merged: the team
-lead reviews it. Before that, the team lead merged #92 to #113.
+lead reviews it. Before that, the team lead merged #92 to #116.
 
 ## Recently done
 
 - 2026-10-13 · D-134 (PR #114, in review) sending the closing ends the driver's day; second day on the same date;
   "Mes journées"; each day balances its own stock; the office sees what changed since the send.
+- 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that
+  match no product (code, name, kg, category "À classer", no price). Dry run on staging: 2 codes match, 36 to create.
 - 2026-10-13 · D-133 a driver's sale is dated when it was made (the phone sends the time, the server checks it): that
   day's price and closing; refused in the future, on an approved day, or for kilos the truck did not hold that day.
 - 2026-10-13 · Q21 confirmed by the owner: general costs (rent, accountant) are split each day over the lots in

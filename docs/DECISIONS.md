@@ -1695,6 +1695,11 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   were both "Maklouba rosé congelé M0"). It must be run on the server.
 - Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
   stays unassigned.
+- Dry run on staging (2026-10-13): only 2 of the 38 codes matched a product (crevette royale, Calamar); the other
+  36 articles are not in the catalogue. Owner answer: create them. `set_product_codes --create-missing` creates
+  each missing article with its code as reference and its name as in the list, in kg, in a category "À classer"
+  for the owner to sort, and **with no sale price**: prices are not taken from the list, the screens show "no
+  price" until one is set on the price board. A code another product already has is left alone and reported.
 
 **D-127 · Admin can record returnable boxes on a receipt and on a load (bug, owner report)** · accepted · 2026-10-13
 - Found: the admin app had no way to post a box movement. The receipt and transfer APIs took `boxes` since P1-T14b,
