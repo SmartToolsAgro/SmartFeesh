@@ -28,11 +28,15 @@ _Last updated: 2026-10-13_
 1. **Owner decisions still open:**
    - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
      (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
-   - Product codes on staging (D-126): the dry run was done (2 codes match, 36 articles missing) and the owner chose
-     to create the missing articles. To run on the server once this is deployed:
-     `manage.py set_product_codes --organization 1 --create-missing`, then the same with `--apply`. The new
-     products have no price and sit in "À classer": the owner sets prices and sorts them.
-   - Staging check: no owner check yet of the closing fix (D-129) on a real phone.
+   - Product codes on staging (D-126): **done 2026-10-13.** 2 codes written (crevette royale, Calamar) and 36
+     products created from the owner's list, with no price, in the category "À classer". The owner sets their
+     prices on the price board and sorts them into categories.
+   - Driver day after the closing: the owner chose "sending the closing ends the day; a later sale needs a new day"
+     (branch `driver-day-history`, PR #114, being brought onto main: it must carry D-129, D-130 and D-133). The
+     other answer, "resend the same day" (`claude/bold-gates-b8j6yz`), is dropped: do not merge it.
+   - Staging check: no owner check yet of the closing fixes (D-129, D-130, D-133) on a real phone.
+   - Uncommitted work in the shared checkout: resolved 2026-10-13. Its code was already on main, its one
+     unfinished piece (Q21 confirmed) is merged (#111), and the checkout is back on `main`.
    - Done since the last update (answers recorded): truck expected boxes = real ledger balance (D-124 decision 2,
      built in #107); box actions offline (decision 3, #107); truck-to-cold-room return (decision 4, #107); supplier
      boxes must be returned, no schedule; boxes on a load stay a field on the load transfer (#106); "Frais" is a real
@@ -83,20 +87,26 @@ _Last updated: 2026-10-13_
   logical CSS classes (D-025); token colours only (D-024); API calls through `@frutti/api`.
 - Stock changes only through `inventory.services.post_movement` or `post_fifo_movements` (D-035, D-037); never write
   `StockOnHand`. Nobody picks batches by hand except on the counter sale (D-121); take stock with `post_fifo_movements`.
-- Uncommitted work once sat in the shared checkout with no owner. It is saved on `origin/wip-snapshot-2026-10-13`,
-  not for merge: it no longer applies to `main`. Its owner should decide whether to rework or drop it.
+- `origin/wip-snapshot-2026-10-13` is a snapshot of old uncommitted work, kept for the record. Nothing in it is
+  missing from `main`: do not merge it.
+- CI runs on `ubuntu-24.04`, pinned (#115): `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19. Move on purpose.
 
 ## Last session (2026-10-13)
 
 Team-lead session. Merged to `main`: #92 (lot picker), #96 (sidebar), #97 and #98 (box steps 2 and 3), #99 (invoice
 PDF, D-125), #100 (box step 4), #101 (box docs, D-124), #102 (Arabic box texts, provisional), #103 (Frais and product
 codes, D-126), #105 (month-cost changes, D-128), #106 (boxes entered on a receipt and a load, D-127), #107 (box
-follow-up, decisions 2 to 4), #108 (closing after a sale, D-129). Open PRs: none. Staging runs of #100 passed.
+follow-up, decisions 2 to 4), #108 (closing after a sale, D-129), #110 (opening stock and gap, D-130), #111 (Q21),
+#112 (document header and footer, D-131), #113 (sale dated when made, D-133), #115 (CI image pinned), #116 (create
+the missing articles). Open: #114 (driver day history, not ready). Every merge deployed to staging.
 
 ## Recently done
 
 - 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that
-  match no product (code, name, kg, category "À classer", no price). Dry run on staging: 2 codes match, 36 to create.
+  match no product (code, name, kg, category "À classer", no price). Applied on staging: 2 codes written, 36 created.
+- 2026-10-13 · D-131 every document (quote, delivery note, credit note, receipt, partner statement) uses the
+  invoice's header and footer, in PDFs and on screen (#112). A PDF already generated keeps its old layout until
+  its document or the logo changes.
 - 2026-10-13 · D-133 a driver's sale is dated when it was made (the phone sends the time, the server checks it): that
   day's price and closing; refused in the future, on an approved day, or for kilos the truck did not hold that day.
 - 2026-10-13 · Q21 confirmed by the owner: general costs (rent, accountant) are split each day over the lots in

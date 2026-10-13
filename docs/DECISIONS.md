@@ -1700,6 +1700,7 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   each missing article with its code as reference and its name as in the list, in kg, in a category "À classer"
   for the owner to sort, and **with no sale price**: prices are not taken from the list, the screens show "no
   price" until one is set on the price board. A code another product already has is left alone and reported.
+- Applied on staging on 2026-10-13: 2 codes written, 36 products created; a second run reports 38 unchanged.
 
 **D-127 · Admin can record returnable boxes on a receipt and on a load (bug, owner report)** · accepted · 2026-10-13
 - Found: the admin app had no way to post a box movement. The receipt and transfer APIs took `boxes` since P1-T14b,
