@@ -245,7 +245,7 @@ class SaleView(OfficeView):
         """A driver sells only from the truck of their day (D-042, D-046)."""
         if not fleet.may_use_location(self.membership, location_id):
             raise PermissionDenied(_("Un chauffeur ne vend que depuis son camion du jour."))
-        dayclose.refuse_if_day_approved(self.membership)
+        dayclose.refuse_if_day_closed(self.membership)
 
     def sale_fields(self, data: dict[str, Any]) -> dict[str, Any]:
         """The ids of a sale replaced by the rows they name in the organization; unknown ids are field errors."""

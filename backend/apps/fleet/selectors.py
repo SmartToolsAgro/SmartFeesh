@@ -1,6 +1,7 @@
 """Reusable read queries of trucks, and the "own truck" rule for drivers (ARCHITECTURE §4.8)."""
 
 from datetime import date as date_type
+from datetime import datetime
 from typing import Literal
 
 from django.db.models import QuerySet
@@ -100,13 +101,42 @@ def truck_ref_of_driver(membership: Membership) -> TruckRef | None:
 
 
 def driver_day_of(membership: Membership, on: date_type | None = None) -> DriverDay | None:
-    """The day this driver has opened (today by default), if any."""
+    """The last day this driver opened on that date (today by default), if any: the running one, or the last
+    one closed when they have not started another (D-126)."""
     return (
         DriverDay.objects.for_organization(membership.organization)
         .select_related("truck__location")
         .filter(driver_id=membership.user_id, date=on or timezone.localdate())
+        .order_by("-number")
         .first()
     )
+
+
+def driver_days_of(organization: Organization, *, driver_id: int) -> QuerySet[DriverDay]:
+    """A driver's days, newest first, with the truck."""
+    return (
+        DriverDay.objects.for_organization(organization)
+        .filter(driver_id=driver_id)
+        .select_related("truck__location", "driver")
+        .order_by("-date", "-number")
+    )
+
+
+def day_window(driver_day: DriverDay) -> tuple[datetime | None, datetime | None]:
+    """The moments this day covers among the records of its date (D-126): from the end of the driver's day before
+    it on the same date (none for the first one) to its own end (none while it runs)."""
+    previous = (
+        DriverDay.objects.filter(
+            organization_id=driver_day.organization_id,
+            driver_id=driver_day.driver_id,
+            date=driver_day.date,
+            number__lt=driver_day.number,
+        )
+        .order_by("-number")
+        .values_list("ended_at", flat=True)
+        .first()
+    )
+    return previous, driver_day.ended_at
 
 
 def locked_driver_day(driver_day: DriverDay) -> DriverDay:

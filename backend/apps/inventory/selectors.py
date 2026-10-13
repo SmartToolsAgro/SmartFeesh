@@ -427,10 +427,18 @@ class TruckDayLine:
         return line_total(self.sold_or_lost, self.unit_price)
 
 
-def truck_day(organization: Organization, *, location_id: int, day: dt.date) -> list[TruckDayLine]:
+def truck_day(
+    organization: Organization,
+    *,
+    location_id: int,
+    day: dt.date,
+    validated_after: dt.datetime | None = None,
+    validated_before: dt.datetime | None = None,
+) -> list[TruckDayLine]:
     """A truck's day per product from the validated transfers of that day: loaded (into the truck),
     returned (out of it), and loaded − returned, sold or lost. Works for any location; it means
-    something for a truck. Products sorted by name."""
+    something for a truck. Products sorted by name. `validated_after` / `validated_before` keep the
+    transfers validated in that part of the day (a driver's second day of the same date, D-126)."""
     lines = (
         TransferLine.objects.for_organization(organization)
         .filter(transfer__status=TransferStatus.VALIDATED, transfer__transferred_on=day)
@@ -438,6 +446,10 @@ def truck_day(organization: Organization, *, location_id: int, day: dt.date) -> 
         .select_related("product", "transfer")
         .order_by("transfer__validated_at", "transfer_id", "id")
     )
+    if validated_after is not None:
+        lines = lines.filter(transfer__validated_at__gte=validated_after)
+    if validated_before is not None:
+        lines = lines.filter(transfer__validated_at__lt=validated_before)
     totals: dict[int, dict[str, Any]] = {}
     for line in lines:
         entry = totals.setdefault(

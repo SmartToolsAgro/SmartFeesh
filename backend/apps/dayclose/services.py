@@ -15,6 +15,7 @@ from apps.core import audit
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
 from apps.fleet import selectors as fleet
+from apps.fleet import services as fleet_services
 
 from . import selectors
 from .models import DayClosing, DayClosingStatus, SyncProblem
@@ -42,7 +43,16 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Nu
         raise ValidationError({"counted_cash": _("Cette journée est déjà envoyée.")})
     if existing is not None and existing.status == DayClosingStatus.APPROVED:
         raise ValidationError({"counted_cash": _("Cette journée est approuvée : elle ne change plus.")})
+    now = timezone.now()
+    # Sending ends the day (D-126): what is recorded from now on belongs to the driver's next day.
+    driver_day = fleet_services.end_driver_day(driver_day=driver_day, ended_at=now)
     summary = selectors.day_summary(driver_day.organization, driver_day)
+    if existing is not None:
+        # Sent again after a justification: the stock left in the truck is what it was at the first send, not
+        # what the driver's next day left since.
+        left = {row["product_id"]: row["remaining"] for row in existing.summary.get("products", [])}
+        for row in summary["products"]:
+            row["remaining"] = left.get(row["product_id"], row["remaining"])
     expected: Decimal = summary["expected_cash"]
     fields: dict[str, Any] = {
         "status": DayClosingStatus.SUBMITTED,
@@ -51,7 +61,7 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Nu
         "difference": counted - expected,
         "driver_note": note.strip(),
         "summary": _plain(summary),
-        "submitted_at": timezone.now(),
+        "submitted_at": now,
     }
     if existing is None:
         closing = DayClosing.objects.create(organization=driver_day.organization, driver_day=driver_day, **fields)

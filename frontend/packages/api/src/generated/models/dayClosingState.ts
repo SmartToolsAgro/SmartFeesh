@@ -13,7 +13,11 @@ export interface DayClosingState {
   readonly id: number;
   readonly status: DayClosingStatusEnum;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly expected_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly counted_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly difference: string;
   readonly driver_note: string;
   readonly review_note: string;
   readonly submitted_at: string;

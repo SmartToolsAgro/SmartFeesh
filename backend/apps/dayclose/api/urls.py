@@ -5,6 +5,9 @@ from . import views
 urlpatterns = [
     path("my-day-summary", views.MyDaySummaryView.as_view(), name="my-day-summary"),
     path("my-day-closing", views.MyDayClosingView.as_view(), name="my-day-closing"),
+    path("my-days", views.MyDayListView.as_view(), name="my-day-list"),
+    path("my-days/<int:day_id>", views.MyDayDetailView.as_view(), name="my-day-detail"),
+    path("my-days/<int:day_id>/closing", views.MyPastDayClosingView.as_view(), name="my-past-day-closing"),
     path("my-sync-problems", views.MySyncProblemsView.as_view(), name="my-sync-problems"),
     path("sync-problems", views.SyncProblemListView.as_view(), name="sync-problem-list"),
     path(

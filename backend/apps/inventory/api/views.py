@@ -401,7 +401,7 @@ class MyLossesView(APIView):
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
-        dayclose.refuse_if_day_approved(membership)
+        dayclose.refuse_if_day_closed(membership)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})
@@ -435,7 +435,7 @@ class MyReturnView(APIView):
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
-        dayclose.refuse_if_day_approved(membership)
+        dayclose.refuse_if_day_closed(membership)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})

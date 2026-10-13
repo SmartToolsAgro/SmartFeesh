@@ -1658,3 +1658,27 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   endpoint needs a session). The admin app got a default `favicon.svg`.
 - The product list the owner forwarded (ART0002 to ART0060) is not imported by this change; the codes print
   as soon as products carry them as `reference` (through the data import or the product page).
+
+**D-126 · Several driver days on one date; the history of days (owner request, follow-up of D-094, replaces D-109's lock)** · accepted · 2026-10-13
+- **Sending the closing ends the day.** `DriverDay.ended_at` is set on the first send (`fleet.services.end_driver_day`,
+  inside `submit_day_closing`); from then on the driver gets 403 on sales, road expenses, losses, returns, customer
+  payments and box pickups (`dayclose.selectors.refuse_if_day_closed`, was `refuse_if_day_approved`). Before, only an
+  approved day was closed, so a driver could keep selling on a day already sent.
+- **The driver may start another day the same date** ("Commencer une nouvelle journée", new cash float). Days are
+  numbered per driver and date (`DriverDay.number`, unique; at most one running day per driver and date, a partial
+  unique constraint). `my-day` and the closing screen work on the last one.
+- **Each day counts its own window of the date:** from the end of the driver's previous day of that date (the
+  start of the date for the first) to its own end, on `created_at` for sales, customer payments, road expenses and
+  losses, and on `validated_at` for truck loads and returns (`fleet.selectors.day_window`). A single day per date
+  counts exactly what it did before. The morning's load belongs to the first day; the second shows what is left in
+  the truck, not a new load.
+- **Sent again after a justification:** the figures are recomputed over the same window, but the stock left in the
+  truck stays as it was at the first send (the next day has moved it since). Once a closing is sent, the phone shows
+  the figures as sent (`selectors.day_answer`), not live ones.
+- **History:** the driver sees their last 60 days (`GET my-days`, `GET my-days/<id>`) and can send a day from there
+  (`POST my-days/<id>/closing`): the answer to the office's question, or a day left running on an earlier date.
+  "Ma journée" shows a warning when the office asked about a day. The office's `/journees` page filters by driver or
+  truck name and dates (last 200 rows) and shows "journée 2" when a driver had several that date.
+- Migrations `fleet.0004` (number, ended_at, constraints) and `dayclose.0003` (days already sent end when their
+  closing was sent).
+- Not done: the monthly closing's "driver days closed" check still does not list days left running (D-074).

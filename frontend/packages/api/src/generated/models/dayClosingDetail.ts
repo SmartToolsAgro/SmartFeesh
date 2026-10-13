@@ -10,6 +10,7 @@ import type { DaySummary } from './daySummary';
 export interface DayClosingDetail {
   readonly id: number;
   readonly date: string;
+  readonly number: number;
   readonly truck_name: string;
   readonly driver_name: string;
   readonly status: DayClosingStatusEnum;

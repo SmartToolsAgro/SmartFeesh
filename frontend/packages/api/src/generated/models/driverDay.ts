@@ -8,7 +8,10 @@
 export interface DriverDay {
   readonly id: number;
   readonly date: string;
+  readonly number: number;
   readonly truck_name: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly opening_cash: string;
+  /** @nullable */
+  readonly ended_at: string | null;
 }

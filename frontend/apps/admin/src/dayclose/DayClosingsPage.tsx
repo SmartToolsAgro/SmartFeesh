@@ -31,6 +31,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
 
+import { useDebounced } from "../lib/useDebounced";
+
 const STATUSES = ["submitted", "justification", "approved"] as const;
 const TONES = { submitted: "warn", justification: "bad", approved: "good" } as const;
 
@@ -79,7 +81,11 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   const data = closing.data;
   return (
     <DialogContent>
-      <DialogTitle>{data ? `${data.truck_name} · ${formatDate(data.date)}` : t("common.loading")}</DialogTitle>
+      <DialogTitle>
+        {data
+          ? `${data.truck_name} · ${formatDate(data.date)}${data.number > 1 ? ` · ${t("admin.dayClosings.number", { number: data.number })}` : ""}`
+          : t("common.loading")}
+      </DialogTitle>
       <DialogDescription>{data?.driver_name ?? ""}</DialogDescription>
       {data && (
         <div className="flex flex-col gap-4">
@@ -221,14 +227,24 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
   );
 }
 
-/** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06). */
+/** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06), and their history (D-126). */
 export function DayClosingsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const canDecide = session.role === "owner" || session.role === "manager";
   const [status, setStatus] = useState<(typeof STATUSES)[number] | "">("submitted");
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [open, setOpen] = useState<number | null>(null);
-  const closings = useListDayClosings(status ? { status } : {});
+  const query = useDebounced(search.trim());
+  // "Toutes" with a driver and dates is the history of the drivers' days (D-126).
+  const closings = useListDayClosings({
+    ...(status ? { status } : {}),
+    ...(query ? { search: query } : {}),
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  });
   const list: readonly DayClosingRow[] = closings.data ?? [];
 
   const statusButton = (value: (typeof STATUSES)[number] | "", label: string) => (
@@ -259,6 +275,28 @@ export function DayClosingsPage() {
           {STATUSES.map((value) => statusButton(value, t(`admin.dayClosings.statuses.${value}`)))}
           {statusButton("", t("admin.dayClosings.all"))}
         </div>
+        <Input
+          type="search"
+          aria-label={t("admin.dayClosings.search")}
+          placeholder={t("admin.dayClosings.search")}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className="min-w-52 flex-[2_1_14rem]"
+        />
+        <Input
+          type="date"
+          aria-label={t("admin.dayClosings.dateFrom")}
+          value={dateFrom}
+          onChange={(event) => setDateFrom(event.target.value)}
+          className="w-40"
+        />
+        <Input
+          type="date"
+          aria-label={t("admin.dayClosings.dateTo")}
+          value={dateTo}
+          onChange={(event) => setDateTo(event.target.value)}
+          className="w-40"
+        />
       </Card>
       {closings.isPending ? (
         <p className="text-ink-2">{t("common.loading")}</p>
@@ -291,6 +329,9 @@ export function DayClosingsPage() {
                     <button type="button" className="font-semibold" onClick={() => setOpen(row.id)}>
                       {formatDate(row.date)}
                     </button>
+                    {row.number > 1 && (
+                      <span className="ms-2 text-ink-2">{t("admin.dayClosings.number", { number: row.number })}</span>
+                    )}
                   </Td>
                   <Td>{row.truck_name}</Td>
                   <Td>{row.driver_name}</Td>

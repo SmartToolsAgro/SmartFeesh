@@ -7,6 +7,9 @@
 import type { ListDayClosingsStatus } from './listDayClosingsStatus';
 
 export type ListDayClosingsParams = {
+date_from?: string;
+date_to?: string;
+search?: string;
 /**
  * * `submitted` - À vérifier
  * * `justification` - Justification demandée

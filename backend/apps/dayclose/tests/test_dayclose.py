@@ -263,3 +263,91 @@ def test_an_approved_day_refuses_new_customer_payments(day):
     body = {"customer": day["customer"].pk, "amount": "5.000", "method": "cash"}
 
     assert day["api"].post(reverse("my-payments"), body, format="json").status_code == 403
+
+
+# ---- Several days on one date and the history (D-126) ----
+
+
+def test_a_sent_day_is_closed_and_the_driver_starts_another_one_the_same_date(day):
+    sell(day, "5", "100.000")
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "150.000"}, format="json")
+
+    assert sell(day, "1", "28.000").status_code == 403  # sent: nothing more on it
+    assert day["api"].get(reverse("my-day")).json()["ended_at"] is not None
+
+    second = day["api"].post(reverse("my-day"), {"opening_cash": "20"}, format="json")
+    assert second.status_code == 201
+    assert second.json()["number"] == 2
+    # Asking again while it runs changes nothing.
+    assert day["api"].post(reverse("my-day"), {"opening_cash": "99"}, format="json").json()["id"] == second.json()["id"]
+    assert sell(day, "2", "56.000").status_code == 201
+
+    summary = day["api"].get(reverse("my-day-summary")).json()["summary"]
+    # Only this day's sale and cash; the morning's load belongs to the first day.
+    assert (summary["sales_count"], summary["sales_total"], summary["expected_cash"]) == (1, "56.000", "76.000")
+    assert summary["products"][0]["loaded"] == "0.000"
+    assert summary["products"][0]["sold"] == "2.000"
+
+    sent = day["api"].post(reverse("my-day-closing"), {"counted_cash": "76.000"}, format="json")
+    assert sent.status_code == 201
+    rows = day["office"].get(reverse("day-closing-list"), {"status": "submitted"}).json()
+    assert [(row["number"], row["expected_cash"]) for row in rows] == [(2, "76.000"), (1, "150.000")]
+
+
+def test_the_driver_sees_the_history_and_sends_a_justification_from_it(day):
+    sell(day, "5", "100.000")
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "140.000"}, format="json")
+    first = day["api"].get(reverse("my-day-list")).json()[0]
+    day["api"].post(reverse("my-day"), {"opening_cash": "0"}, format="json")
+    sell(day, "1", "28.000")  # on the second day: the first one's figures do not move
+    closing_id = day["office"].get(reverse("day-closing-list")).json()[0]["id"]
+    day["office"].post(
+        reverse("day-closing-justification", args=[closing_id]), {"reason": "Il manque 10 DT"}, format="json"
+    )
+
+    history = day["api"].get(reverse("my-day-list")).json()
+    assert [(row["number"], row["closing"] and row["closing"]["status"]) for row in history] == [
+        (2, None),
+        (1, "justification"),
+    ]
+    assert history[1]["closing"]["difference"] == "-10.000"
+    detail = day["api"].get(reverse("my-day-detail", args=[first["id"]])).json()
+    assert (detail["summary"]["sales_total"], detail["summary"]["products"][0]["remaining"]) == ("140.000", "7.000")
+
+    resent = day["api"].post(
+        reverse("my-past-day-closing", args=[first["id"]]),
+        {"counted_cash": "140.000", "note": "Pourboire"},
+        format="json",
+    )
+    assert resent.status_code == 201
+    summary = resent.json()["summary"]
+    # Same figures as the first send: the second day's sale and stock stay on the second day.
+    assert (summary["sales_total"], summary["products"][0]["remaining"]) == ("140.000", "7.000")
+    assert resent.json()["closing"]["status"] == "submitted"
+    # Still on the second day, which runs.
+    assert sell(day, "1", "28.000").status_code == 201
+
+
+def test_a_driver_only_sees_their_own_days(day):
+    other = client_for(MembershipFactory.create(role=Role.DRIVER))
+    first = day["api"].get(reverse("my-day-list")).json()[0]
+
+    assert other.get(reverse("my-day-list")).json() == []
+    assert other.get(reverse("my-day-detail", args=[first["id"]])).status_code == 404
+    assert (
+        other.post(reverse("my-past-day-closing", args=[first["id"]]), {"counted_cash": "1"}, format="json").status_code
+        == 404
+    )
+
+
+def test_the_office_history_filters_by_driver_and_dates(day):
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "50.000"}, format="json")
+    today = timezone.localdate()
+
+    def rows(**params):
+        return day["office"].get(reverse("day-closing-list"), params).json()
+
+    assert len(rows(search="Camion 1")) == 1
+    assert rows(search="personne") == []
+    assert len(rows(date_from=today.isoformat(), date_to=today.isoformat())) == 1
+    assert rows(date_from=(today + dt.timedelta(days=1)).isoformat()) == []

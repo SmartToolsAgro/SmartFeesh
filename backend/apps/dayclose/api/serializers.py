@@ -37,7 +37,16 @@ class DayClosingStateSerializer(serializers.ModelSerializer[DayClosing]):
 
     class Meta:
         model = DayClosing
-        fields = ("id", "status", "counted_cash", "driver_note", "review_note", "submitted_at")
+        fields = (
+            "id",
+            "status",
+            "expected_cash",
+            "counted_cash",
+            "difference",
+            "driver_note",
+            "review_note",
+            "submitted_at",
+        )
         read_only_fields = fields
 
 
@@ -52,8 +61,23 @@ class DayClosingWriteSerializer(serializers.Serializer[Any]):
     note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
+class MyDayRowSerializer(serializers.Serializer[Any]):
+    """One of the driver's days in their history, with its closing when sent."""
+
+    id = serializers.IntegerField(read_only=True)
+    date = serializers.DateField(read_only=True)
+    # 1, 2... when the driver opened several days on the same date (D-126).
+    number = serializers.IntegerField(read_only=True)
+    truck_name = serializers.CharField(source="truck.location.name", read_only=True)
+    opening_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    ended_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    # Not sent yet: null.
+    closing = DayClosingStateSerializer(read_only=True, allow_null=True)
+
+
 class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
     date = serializers.DateField(source="driver_day.date", read_only=True)
+    number = serializers.IntegerField(source="driver_day.number", read_only=True)
     truck_name = serializers.CharField(source="driver_day.truck.location.name", read_only=True)
     driver_name = serializers.SerializerMethodField()
     status = serializers.ChoiceField(choices=DayClosingStatus.choices, read_only=True)
@@ -63,6 +87,7 @@ class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
         fields: tuple[str, ...] = (
             "id",
             "date",
+            "number",
             "truck_name",
             "driver_name",
             "status",
@@ -102,6 +127,10 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
 
 class DayClosingFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=DayClosingStatus.choices, required=False)
+    # Matches the driver's name or login, or the truck.
+    search = serializers.CharField(required=False, allow_blank=True, default="")
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
 
 
 class JustificationSerializer(serializers.Serializer[Any]):

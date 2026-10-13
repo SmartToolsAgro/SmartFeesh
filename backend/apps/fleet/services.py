@@ -2,6 +2,7 @@
 
 import re
 from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -241,20 +242,42 @@ def unassign_truck(*, assignment: TruckAssignment, actor: User | None) -> None:
 def open_driver_day(
     *, organization: Organization, actor: User, truck: Truck, opening_cash: Decimal, date: date_type
 ) -> DriverDay:
-    """Open the driver's day on their truck with the cash they start with. Asking again changes nothing."""
+    """Open the driver's day on their truck with the cash they start with. Asking again while the day runs changes
+    nothing; once its closing is sent, it opens the next day of that date (D-126)."""
     if opening_cash < 0:
         raise ValidationError({"opening_cash": _("Le fonds de caisse ne peut pas être négatif.")})
-    existing = DriverDay.objects.for_organization(organization).filter(driver=actor, date=date).first()
-    if existing is not None:
-        return existing
+    # Lock the driver's days of that date so two taps cannot open two days.
+    days = list(
+        DriverDay.objects.for_organization(organization)
+        .select_for_update()
+        .filter(driver=actor, date=date)
+        .order_by("-number")
+    )
+    if days and days[0].ended_at is None:
+        return days[0]
+    number = days[0].number + 1 if days else 1
     day = DriverDay.objects.create(
-        organization=organization, truck=truck, driver=actor, date=date, opening_cash=opening_cash
+        organization=organization, truck=truck, driver=actor, date=date, number=number, opening_cash=opening_cash
     )
     audit.record(
         organization=organization,
         actor=actor,
         action="driver_day.opened",
         target=day,
-        after={"truck": truck.location.name, "date": str(date), "opening_cash": str(opening_cash)},
+        after={
+            "truck": truck.location.name,
+            "date": str(date),
+            "number": number,
+            "opening_cash": str(opening_cash),
+        },
     )
     return day
+
+
+def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:
+    """The driver sent the day's closing: the day is over and its records stop here (D-126). Called inside the
+    closing's transaction, on a locked row; ending it again keeps the first end."""
+    if driver_day.ended_at is None:
+        driver_day.ended_at = ended_at
+        driver_day.save(update_fields=["ended_at", "updated_at"])
+    return driver_day

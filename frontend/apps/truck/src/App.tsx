@@ -7,6 +7,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "rea
 import { ClosingPage } from "./ClosingPage";
 import { DayPage } from "./DayPage";
 import { ExpensePage } from "./ExpensePage";
+import { HistoryDayPage, HistoryPage } from "./HistoryPage";
 import { LossPage } from "./LossPage";
 import { forgetSavedData } from "./offline";
 import { OfflineBanner } from "./OfflineBanner";
@@ -75,6 +76,8 @@ function AppRoutes() {
         <Route path="/stock" element={<StockPage />} />
         <Route path="/vente" element={<SalePage />} />
         <Route path="/cloture" element={<ClosingPage />} />
+        <Route path="/historique" element={<HistoryPage />} />
+        <Route path="/historique/:dayId" element={<HistoryDayPage />} />
         <Route path="/depense" element={<ExpensePage />} />
         <Route path="/encaissement" element={<PaymentPage />} />
         <Route path="/perte" element={<LossPage />} />

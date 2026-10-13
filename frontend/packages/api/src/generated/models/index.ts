@@ -290,6 +290,7 @@ export * from './movedBatch';
 export * from './myBoxDay';
 export * from './myBoxPickupWrite';
 export * from './myBoxPickupWriteBoxes';
+export * from './myDayRow';
 export * from './myDaySummary';
 export * from './myStockLine';
 export * from './openSale';
