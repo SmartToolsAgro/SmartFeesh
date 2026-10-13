@@ -13,17 +13,12 @@ import { Button, Card, EmptyState, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { BoxCountInputs } from "./BoxCountInputs";
+import { boxCountsOf, hasBoxes, type BoxInputs, NO_BOXES } from "./boxes";
+import { messagesOf } from "./messages";
 import { enqueue, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
-
-// Every text the server put in an error answer, so the driver reads why a sale was refused.
-function messagesOf(body: unknown): string[] {
-  if (typeof body === "string") return [body];
-  if (Array.isArray(body)) return body.flatMap(messagesOf);
-  if (typeof body === "object" && body !== null) return Object.values(body).flatMap(messagesOf);
-  return [];
-}
 
 // Millimes, so sums of prices stay exact.
 const millimes = (value: string) => Math.round(Number(value) * 1000);
@@ -44,10 +39,13 @@ export function SalePage() {
   const [sending, setSending] = useState(false);
   const [uuid, setUuid] = useState(newUuid);
   const [error, setError] = useState("");
+  // Returnable boxes the client keeps after this sale (P1-T14d). They are sent with the sale, never queued.
+  const [boxInputs, setBoxInputs] = useState<BoxInputs>(NO_BOXES);
   const startNew = () => {
     setReceipt(null);
     setCustomer(null);
     setKilos({});
+    setBoxInputs(NO_BOXES);
     setPaid(null);
     setStep("goods");
     setError("");
@@ -80,9 +78,10 @@ export function SalePage() {
   const paidValue = parseDecimalInput(paidText.trim(), 3);
   const tooMuch = paidValue !== null && millimes(paidValue) > totalMillimes;
   const owedMillimes = paidValue === null ? 0 : Math.max(totalMillimes - millimes(paidValue), 0);
+  const boxCounts = boxCountsOf(boxInputs);
 
   const confirm = async () => {
-    if (paidValue === null || tooMuch || overstock) return;
+    if (paidValue === null || tooMuch || overstock || boxCounts === null) return;
     setError("");
     const data = {
       customer: customer.is_walk_in ? null : customer.id,
@@ -92,6 +91,7 @@ export function SalePage() {
       amount_paid: paidValue,
       payment_method: "cash" as const,
       lines: lines.map((line) => ({ product: line.product_id, quantity: kilos[line.product_id] ?? "" })),
+      boxes: boxCounts,
     };
     const waiting = (): QueuedSale => ({
       kind: "sale",
@@ -121,6 +121,9 @@ export function SalePage() {
     } catch (failure) {
       if (failure instanceof ApiError) {
         setError(messagesOf(failure.body).join(" ") || t("truck.sale.failed"));
+      } else if (hasBoxes(boxCounts)) {
+        // Boxes are not queued yet (P1-T14d): the sale stays on this screen, with its number, until the network is back.
+        setError(t("truck.boxes.needConnection"));
       } else {
         // No connection: keep the sale on the phone, it is sent as soon as the network is back.
         const kept = waiting();
@@ -183,6 +186,12 @@ export function SalePage() {
             </Card>
           )}
           <Card className="space-y-3">
+            <h2>{t("truck.boxes.leftTitle")}</h2>
+            <p className="text-sm text-ink-2">{t("truck.boxes.leftHint")}</p>
+            <BoxCountInputs inputs={boxInputs} onChange={setBoxInputs} />
+            {boxCounts === null ? <p className="text-bad">{t("truck.boxes.invalidCount")}</p> : null}
+          </Card>
+          <Card className="space-y-3">
             <p className="flex items-baseline justify-between">
               <span>{t("truck.sale.total")}</span>
               <span className="text-2xl font-bold">{formatMoney(totalText)}</span>
@@ -191,7 +200,7 @@ export function SalePage() {
               size="lg"
               variant="primary"
               className="py-4 text-lg"
-              disabled={lines.length === 0 || overstock}
+              disabled={lines.length === 0 || overstock || boxCounts === null}
               onClick={() => setStep("pay")}
             >
               {t("truck.sale.next")}
@@ -243,7 +252,7 @@ export function SalePage() {
   );
 }
 
-function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) => void }) {
+export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) => void }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const customers = useListMyCustomers({ search: search.trim() });

@@ -167,6 +167,8 @@ import type {
   MonthResult,
   MonthRow,
   MonthView,
+  MyBoxDay,
+  MyBoxPickupWrite,
   MyDaySummary,
   MyStockLine,
   Order,
@@ -11735,6 +11737,191 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getReviewMonthMutationOptions(options), queryClient);
     }
+
+export const getCollectMyBoxesUrl = () => {
+
+
+
+
+  return `/api/v1/my-box-pickups`
+}
+
+/**
+ * Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
+ * client holds fewer boxes of one type than asked, or when the driver's day is approved.
+ */
+export const collectMyBoxes = async (myBoxPickupWrite: MyBoxPickupWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyBoxDay> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MyBoxDay>(getCollectMyBoxesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(myBoxPickupWrite)
+  }
+);}
+
+
+
+
+
+export const getCollectMyBoxesMutationKey = () => ['collectMyBoxes'] as const;
+
+export const getCollectMyBoxesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectMyBoxes>>, TError,CollectMyBoxesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof collectMyBoxes>>, TError,CollectMyBoxesMutationVariables, TContext> => {
+
+const mutationKey = getCollectMyBoxesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof collectMyBoxes>>, CollectMyBoxesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  collectMyBoxes(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CollectMyBoxesMutationResult = NonNullable<Awaited<ReturnType<typeof collectMyBoxes>>>
+    export type CollectMyBoxesMutationBody = MyBoxPickupWrite
+    export type CollectMyBoxesMutationError = unknown
+    export type CollectMyBoxesMutationVariables = {data: MyBoxPickupWrite}
+
+    export const useCollectMyBoxes = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectMyBoxes>>, TError,CollectMyBoxesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof collectMyBoxes>>,
+        TError,
+        CollectMyBoxesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCollectMyBoxesMutationOptions(options), queryClient);
+    }
+
+export const getGetMyBoxDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-boxes`
+}
+
+/**
+ * Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
+ * the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+ */
+export const getMyBoxDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyBoxDay> => {
+
+  return apiFetch<MyBoxDay>(getGetMyBoxDayUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyBoxDayQueryKey = () => {
+    return [
+    `/api/v1/my-boxes`
+    ] as const;
+    }
+
+
+export const getGetMyBoxDayQueryOptions = <TData = Awaited<ReturnType<typeof getMyBoxDay>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyBoxDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyBoxDayQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyBoxDay>>> = ({ signal }) => getMyBoxDay({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyBoxDay>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyBoxDayQueryResult = NonNullable<Awaited<ReturnType<typeof getMyBoxDay>>>
+export type GetMyBoxDayQueryError = unknown
+
+
+export function useGetMyBoxDay<TData = Awaited<ReturnType<typeof getMyBoxDay>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyBoxDay>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyBoxDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyBoxDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyBoxDay<TData = Awaited<ReturnType<typeof getMyBoxDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyBoxDay>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyBoxDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyBoxDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyBoxDay<TData = Awaited<ReturnType<typeof getMyBoxDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyBoxDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyBoxDay<TData = Awaited<ReturnType<typeof getMyBoxDay>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyBoxDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyBoxDayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListMyCustomersUrl = (params?: ListMyCustomersParams,) => {
   const normalizedParams = new URLSearchParams();

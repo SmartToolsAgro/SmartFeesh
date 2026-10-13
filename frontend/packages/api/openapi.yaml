@@ -3671,6 +3671,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/MonthView'
           description: ''
+  /api/v1/my-box-pickups:
+    post:
+      operationId: collectMyBoxes
+      description: |-
+        Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
+        client holds fewer boxes of one type than asked, or when the driver's day is approved.
+      tags:
+      - my-box-pickups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyBoxPickupWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyBoxPickupWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyBoxPickupWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyBoxDay'
+          description: ''
+  /api/v1/my-boxes:
+    get:
+      operationId: getMyBoxDay
+      description: |-
+        Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
+        the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+      tags:
+      - my-boxes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyBoxDay'
+          description: ''
   /api/v1/my-customers:
     get:
       operationId: listMyCustomers
@@ -14062,6 +14108,40 @@ components:
       - batch_id
       - batch_number
       - quantity
+    MyBoxDay:
+      type: object
+      description: 'The driver''s boxes today: what the truck loaded, left at clients
+        and collected back, per box type.'
+      properties:
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TruckBoxDay'
+          readOnly: true
+      required:
+      - date
+      - lines
+      - truck_name
+    MyBoxPickupWrite:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+      required:
+      - customer
     MyDaySummary:
       type: object
       properties:
@@ -18701,6 +18781,11 @@ components:
           type: string
           format: uuid
           nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
       required:
       - lines
       - location
@@ -20301,6 +20386,32 @@ components:
           format: date
       required:
       - truck
+    TruckBoxDay:
+      type: object
+      description: One box type on the driver's truck today. Whole boxes only.
+      properties:
+        box_type:
+          allOf:
+          - $ref: '#/components/schemas/BoxTypeEnum'
+          readOnly: true
+        loaded:
+          type: integer
+          readOnly: true
+        left:
+          type: integer
+          readOnly: true
+        collected:
+          type: integer
+          readOnly: true
+        expected:
+          type: integer
+          readOnly: true
+      required:
+      - box_type
+      - collected
+      - expected
+      - left
+      - loaded
     TruckChoice:
       type: object
       properties:

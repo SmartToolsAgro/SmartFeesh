@@ -3519,6 +3519,28 @@ export const fr = {
       retry: "Réessayer",
       giveBack: "Rendre l'invendu",
     },
+    // ---- Returnable boxes on the road (P1-T14d, D-122) ----
+    boxes: {
+      small: "Petites caisses",
+      big: "Grandes caisses",
+      leftTitle: "Caisses laissées chez le client",
+      leftHint: "Les caisses restent chez le client jusqu'à la reprise.",
+      invalidCount: "Indiquez un nombre entier de caisses, zéro ou plus.",
+      needConnection:
+        "Pas de réseau : les caisses ne peuvent pas être enregistrées hors ligne. Réessayez quand le réseau revient.",
+      dayTitle: "Mes caisses aujourd'hui",
+      dayLine: "Chargées {{loaded}} · laissées chez les clients {{left}} · reprises {{collected}}",
+      expected: "Attendues dans le camion : {{count}}",
+      pickupAdd: "Reprendre des caisses",
+      pickupTitle: "Reprise de caisses",
+      pickupWho: "Quel client rend des caisses ?",
+      pickupSave: "Enregistrer la reprise",
+      pickupSaved: "Reprise enregistrée.",
+      pickupAnother: "Autre reprise",
+      pickupNone: "Indiquez au moins une caisse.",
+      pickupFailed: "La reprise n'a pas pu être enregistrée. Réessayez.",
+      back: "Retour à Ma journée",
+    },
     crash: {
       title: "Cet écran a rencontré un problème",
       body: "Rien n'est perdu. Revenez à « Ma journée » ou rechargez l'application.",

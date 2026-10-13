@@ -1,5 +1,7 @@
 import {
+  type MyBoxDay,
   useAssignTruck,
+  useGetMyBoxDay,
   useGetMyDay,
   useGetMyTruckDay,
   useListMyStock,
@@ -12,6 +14,8 @@ import { Button, Card, EmptyState, Field, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
+
+import { formatBoxCount } from "./boxes";
 
 // "Ma journée", three steps and nothing else: pick the truck, check the load, start the day.
 export function DayPage() {
@@ -59,6 +63,35 @@ function PickTruck() {
   );
 }
 
+// The boxes of today per box type: what came, what the clients kept, what came back, and what should be on the truck.
+function BoxDayCard({ day }: { day: MyBoxDay }) {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <h2 className="mb-3">{t("truck.boxes.dayTitle")}</h2>
+      <ul className="divide-y divide-line">
+        {day.lines.map((line) => (
+          <li key={line.box_type} className="space-y-1 py-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-lg font-semibold">
+                {line.box_type === "small" ? t("truck.boxes.small") : t("truck.boxes.big")}
+              </span>
+              <span className="font-bold">{t("truck.boxes.expected", { count: formatBoxCount(line.expected) })}</span>
+            </div>
+            <p className="text-sm text-ink-2">
+              {t("truck.boxes.dayLine", {
+                loaded: formatBoxCount(line.loaded),
+                left: formatBoxCount(line.left),
+                collected: formatBoxCount(line.collected),
+              })}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -73,6 +106,8 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
   });
   // Kilos left on the truck from an earlier day are not in today's load: show them as "in the truck".
   const stock = useListMyStock({ query: { retry: false } });
+  // Returnable boxes of the truck today (P1-T14d): read only, nothing is posted at closing.
+  const boxes = useGetMyBoxDay({ query: { retry: false } });
   const loadedToday = load.data?.lines.filter((line) => Number(line.loaded) > 0) ?? [];
   const lines =
     loadedToday.length > 0
@@ -110,6 +145,10 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
           </ul>
         </Card>
       )}
+      {boxes.data === undefined ? null : <BoxDayCard day={boxes.data} />}
+      <Button asChild size="lg" className="py-4 text-lg">
+        <Link to="/reprise">{t("truck.boxes.pickupAdd")}</Link>
+      </Button>
       <Button asChild size="lg" className="py-4 text-lg">
         <Link to="/depense">{t("truck.expense.add")}</Link>
       </Button>

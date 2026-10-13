@@ -313,6 +313,26 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
         return self.number
 
 
+class SaleBoxLine(OrganizationScopedModel):
+    """Boxes left with the client for one sale, per box type (D-122): a count, not kg. Written with the draft,
+    posted as `leave` movements when the sale is confirmed, reversed by `collect` when it is cancelled. The box
+    type is checked by `boxes.services`, not here, so this app never imports the boxes models."""
+
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="box_lines")
+    box_type = models.CharField(max_length=10)
+    count = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["sale", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(count__gt=0), name="sale_box_line_count_positive"),
+            models.UniqueConstraint(fields=["sale", "box_type"], name="one_sale_box_line_per_type"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.sale} · {self.box_type} · {self.count}"
+
+
 class SaleLine(OrganizationScopedModel):
     """One product of a sale: kg, the price per kg actually charged and an optional discount in percent.
 

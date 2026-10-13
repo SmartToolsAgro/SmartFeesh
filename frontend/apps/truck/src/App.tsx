@@ -11,6 +11,7 @@ import { LossPage } from "./LossPage";
 import { forgetSavedData } from "./offline";
 import { OfflineBanner } from "./OfflineBanner";
 import { PaymentPage } from "./PaymentPage";
+import { PickupPage } from "./PickupPage";
 import { SalePage } from "./SalePage";
 import { ScreenError } from "./ScreenError";
 import { StockPage } from "./StockPage";
@@ -77,6 +78,7 @@ function AppRoutes() {
         <Route path="/depense" element={<ExpensePage />} />
         <Route path="/encaissement" element={<PaymentPage />} />
         <Route path="/perte" element={<LossPage />} />
+        <Route path="/reprise" element={<PickupPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

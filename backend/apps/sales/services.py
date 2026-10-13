@@ -2,7 +2,7 @@
 
 import datetime as dt
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, TypedDict, Unpack
@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 
+from apps.boxes import services as box_services
 from apps.catalog import selectors as catalog
 from apps.core import audit
 from apps.core.images import reencoded_photo
@@ -46,6 +47,7 @@ from .models import (
     QuoteLine,
     QuoteStatus,
     Sale,
+    SaleBoxLine,
     SaleLine,
     SaleLineBatch,
     SalePaymentMethod,
@@ -611,6 +613,48 @@ def _prepared_sale(
     return checked_lines, paid
 
 
+def _checked_sale_boxes(boxes: Mapping[str, object] | None) -> dict[str, int]:
+    """The non-zero box counts of a sale, or a ValidationError naming each problem (boxes.<box type>)."""
+    errors: dict[str, str] = {}
+    counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
+    if errors:
+        raise ValidationError(errors)
+    return counts
+
+
+def _write_sale_boxes(sale: Sale, box_counts: Mapping[str, int]) -> None:
+    """Replace the boxes left with the client by this sale's (none when no box is left)."""
+    SaleBoxLine.objects.bulk_create(
+        [
+            SaleBoxLine(organization_id=sale.organization_id, sale=sale, box_type=box_type, count=count)
+            for box_type, count in box_counts.items()
+        ]
+    )
+
+
+def _post_sale_boxes(sale: Sale, actor: User | None, kind: str, *, from_customer: bool) -> None:
+    """Move the sale's boxes between the client and the place the goods leave from, in the caller's
+    transaction: leave when confirmed, collect when cancelled. A refusal rolls the whole sale back."""
+    counts = {line.box_type: line.count for line in sale.box_lines.all()}
+    if not counts:
+        return
+    customer_holder = box_services.holder_for(organization=sale.organization, customer=sale.customer)
+    location_holder = box_services.holder_for(organization=sale.organization, location=sale.location)
+    from_holder, to_holder = (customer_holder, location_holder) if from_customer else (location_holder, customer_holder)
+    try:
+        box_services.post_box_counts(
+            organization=sale.organization,
+            actor=actor,
+            kind=kind,
+            counts=counts,
+            from_holder=from_holder,
+            to_holder=to_holder,
+            source=sale,
+        )
+    except ValidationError as error:
+        raise ValidationError({"boxes": error.messages}) from error
+
+
 def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dict[str, Any]) -> None:
     """Replace the lines and set the sale's totals and payment from them (no VAT yet: P2-T05)."""
     SaleLine.objects.bulk_create(
@@ -688,6 +732,7 @@ def create_sale(
     approve_credit: bool = False,
     quote: Quote | None = None,
     typed_source: str = PriceSource.TYPED,
+    boxes: Mapping[str, object] | None = None,
 ) -> Sale:
     """Type a sale as a draft; with `confirm`, also confirm it (one transaction: a refusal leaves nothing).
 
@@ -703,6 +748,7 @@ def create_sale(
         customer = partners.ensure_walk_in_customer(organization=organization, actor=actor)
     sold_at = sold_at or timezone.now()
     checked_lines, paid = _prepared_sale(organization, customer, location, sold_at, lines, payment or {}, typed_source)
+    box_counts = _checked_sale_boxes(boxes)
     sale = Sale.objects.create(
         organization=organization,
         number=_next_number(organization, SALE_SERIES),
@@ -715,6 +761,7 @@ def create_sale(
         client_uuid=client_uuid,
     )
     _write_sale_lines(sale, checked_lines, paid)
+    _write_sale_boxes(sale, box_counts)
     audit.record(organization=organization, actor=actor, action="sale.created", target=sale, after=_sale_snapshot(sale))
     if confirm:
         return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
@@ -756,8 +803,9 @@ def update_sale(
     payment: PaymentFields | None = None,
     confirm: bool = False,
     approve_credit: bool = False,
+    boxes: Mapping[str, object] | None = None,
 ) -> Sale:
-    """Change a draft: customer, place, moment, notes, payment and lines (all replaced). With `confirm`,
+    """Change a draft: customer, place, moment, notes, payment, lines and boxes (all replaced). With `confirm`,
     confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment."""
     sale = _locked_draft_sale(sale)
     organization = sale.organization
@@ -768,6 +816,7 @@ def update_sale(
     # A sale made from a quote keeps "quote" as the source of the prices typed again from it.
     typed_source = PriceSource.QUOTE if sale.quote_id is not None else PriceSource.TYPED
     checked_lines, paid = _prepared_sale(organization, customer, location, sold_at, lines, payment or {}, typed_source)
+    box_counts = _checked_sale_boxes(boxes)
     sale.customer = customer
     sale.location = location
     sale.sold_at = sold_at
@@ -779,6 +828,8 @@ def update_sale(
     sale.credit_decided_at = None
     sale.lines.all().delete()
     _write_sale_lines(sale, checked_lines, paid)
+    sale.box_lines.all().delete()
+    _write_sale_boxes(sale, box_counts)
     audit.record(
         organization=organization,
         actor=actor,
@@ -1028,6 +1079,8 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool) -> Sa
                 errors.setdefault(key, messages[0])
     if errors:
         raise ValidationError(errors)
+    # The boxes leave with the goods, in this same transaction: a refused box movement refuses the sale (D-122).
+    _post_sale_boxes(sale, actor, box_services.BoxMovementKind.LEAVE, from_customer=False)
     sale.cost_total = sum((line.cost_amount or Decimal("0.000") for line in lines), Decimal("0.000"))
     sale.amount_due = sale.total - sale.amount_paid
     sale.status = SaleStatus.CONFIRMED
@@ -1129,6 +1182,9 @@ def cancel_sale(*, sale: Sale, actor: User | None, reason: str = "") -> Sale:
             except ValidationError as error:
                 messages = getattr(error, "message_dict", {})
                 raise ValidationError({"location": messages.get("to_location", error.messages)[0]}) from None
+    if sale.status == SaleStatus.CONFIRMED:
+        # The boxes the client kept come back with the goods (D-122); refused when the client no longer has them.
+        _post_sale_boxes(sale, actor, box_services.BoxMovementKind.COLLECT, from_customer=True)
     sale.status = SaleStatus.CANCELLED
     sale.cancelled_by = actor
     sale.cancelled_at = timezone.now()

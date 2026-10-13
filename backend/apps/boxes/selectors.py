@@ -1,12 +1,17 @@
 """Read helpers for returnable boxes. Every read is scoped to one organization."""
 
+import datetime as dt
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from django.db.models import Q, QuerySet, Sum
 
 from apps.core.models import Organization
 
-from .models import BoxHolder, BoxMovement
+from .models import BoxHolder, BoxMovement, BoxMovementKind, BoxType
+
+if TYPE_CHECKING:
+    from apps.inventory.models import StockLocation
 
 
 @dataclass(frozen=True)
@@ -14,6 +19,21 @@ class BoxBalance:
     holder: BoxHolder
     box_type: str
     count: int
+
+
+@dataclass(frozen=True)
+class TruckBoxDay:
+    """One box type on one truck over one day: what came, what went to clients, what came back."""
+
+    box_type: str
+    loaded: int
+    left: int
+    collected: int
+
+    @property
+    def expected(self) -> int:
+        """What the driver should have on the truck: loaded, less left with clients, plus collected back."""
+        return self.loaded - self.left + self.collected
 
 
 def _holder_totals(organization: Organization) -> dict[tuple[int, str], tuple[int, int]]:
@@ -80,6 +100,29 @@ def balance_of(organization: Organization, holder: BoxHolder, box_type: str) -> 
         if row.holder.pk == holder.pk and row.box_type == box_type:
             return row.count
     return 0
+
+
+def truck_day(organization: Organization, location: "StockLocation", day: dt.date) -> list[TruckBoxDay]:
+    """Per box type, what one truck (a stock location) loaded, left with clients and collected on `day`.
+    Only movements of that day count; the balance on the truck is not this day's expected count."""
+
+    def totals(movements: QuerySet[BoxMovement]) -> dict[str, int]:
+        rows = movements.order_by().values("box_type").annotate(total=Sum("count"))
+        return {row["box_type"]: row["total"] for row in rows}
+
+    today = BoxMovement.objects.for_organization(organization).filter(created_at__date=day)
+    loaded = totals(today.filter(kind=BoxMovementKind.LOAD, to_holder__location=location))
+    left = totals(today.filter(kind=BoxMovementKind.LEAVE, from_holder__location=location))
+    collected = totals(today.filter(kind=BoxMovementKind.COLLECT, to_holder__location=location))
+    return [
+        TruckBoxDay(
+            box_type=box_type,
+            loaded=loaded.get(box_type, 0),
+            left=left.get(box_type, 0),
+            collected=collected.get(box_type, 0),
+        )
+        for box_type in BoxType.values
+    ]
 
 
 def movements_of(
