@@ -476,11 +476,13 @@ def allocation_error_key(index: int, field: str) -> str:
 
 
 def _next_payment_number(organization: Organization) -> str:
-    PaymentCounter.objects.bulk_create([PaymentCounter(organization=organization)], ignore_conflicts=True)
-    counter = PaymentCounter.objects.select_for_update().get(organization=organization)
+    """PS-2026-0001... per organization and year (D-120); payments made before it keep `PS-0001`."""
+    year = timezone.localdate().year
+    PaymentCounter.objects.bulk_create([PaymentCounter(organization=organization, year=year)], ignore_conflicts=True)
+    counter = PaymentCounter.objects.select_for_update().get(organization=organization, year=year)
     counter.last_number += 1
     counter.save(update_fields=["last_number"])
-    return f"{PAYMENT_NUMBER_PREFIX}{counter.last_number:04d}"
+    return f"{PAYMENT_NUMBER_PREFIX}{year}-{counter.last_number:04d}"
 
 
 def _remaining(record: SalaryRecord) -> Decimal:

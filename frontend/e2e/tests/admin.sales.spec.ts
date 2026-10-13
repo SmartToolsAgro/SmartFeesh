@@ -129,9 +129,9 @@ test("an accepted quote is converted into a sale and the two link to each other"
   await line.getByLabel("Poids (kg)").fill("2");
   await line.getByLabel("Prix (DT/kg)").fill("30");
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
-  await expect(page.getByText(/Devis DV-\d+ enregistré et envoyé/)).toBeVisible();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
   await page.getByRole("button", { name: "Accepté par le client" }).click();
-  await expect(page.getByText(/Devis DV-\d+ accepté/)).toBeVisible();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 
   await page.getByRole("button", { name: "Convertir en vente" }).click();
@@ -148,4 +148,35 @@ test("an accepted quote is converted into a sale and the two link to each other"
   await expect(page.getByText("Accepté", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /^BL-\d{4}-\d+$/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Convertir en vente" })).toHaveCount(0);
+});
+
+test("a quote is delivered in two BL: the first one takes part of it", async ({ page }) => {
+  test.slow();
+  await page.goto("/devis/nouveau");
+  await choose(page, page, "Client", "Traiteur Les Saveurs · C-008");
+  await choose(page, page, "Stock consulté", FRESH_ROOM);
+  const line = page.getByRole("group", { name: "Produit 1" });
+  await choose(page, line, "Produit", "Poulpe · PO-006");
+  await line.getByLabel("Poids (kg)").fill("2");
+  await line.getByLabel("Prix (DT/kg)").fill("30");
+  await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
+  await page.getByRole("button", { name: "Accepté par le client" }).click();
+  await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
+  const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
+
+  // The dialog proposes the 2 kg; half a kilo goes on a first BL, kept as a draft.
+  await page.getByRole("button", { name: "Convertir en vente" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("À livrer (kg) · Poulpe")).toHaveValue("2");
+  await dialog.getByLabel("À livrer (kg) · Poulpe").fill("0,5");
+  await dialog.getByRole("button", { name: "Créer le brouillon" }).click();
+
+  await expect(page.getByText(/Vente VE-\d+ créée depuis le devis/)).toBeVisible();
+  await expect(page.getByRole("row", { name: /Poulpe/ })).toContainText(/15,000\sDT/);
+  await page.getByRole("link", { name: quoteNumber }).click();
+
+  // The quote still has 1.5 kg to deliver, so it can become another BL.
+  await expect(page.getByText(/Reste à livrer : 1,500\skg/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Convertir en vente" })).toBeVisible();
 });

@@ -4,7 +4,11 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { CashDifference } from './cashDifference';
+import type { ExpiringBatch } from './expiringBatch';
+import type { LowStock } from './lowStock';
 import type { OverdueCustomer } from './overdueCustomer';
+import type { PendingTerms } from './pendingTerms';
 
 export interface Dashboard {
   readonly month: string;
@@ -28,4 +32,12 @@ export interface Dashboard {
   readonly overdue_customer_count: number;
   readonly days_waiting: number;
   readonly expenses_waiting: number;
+  readonly low_stock: readonly LowStock[];
+  readonly low_stock_count: number;
+  readonly expiring: readonly ExpiringBatch[];
+  readonly expiring_count: number;
+  readonly cash_differences: readonly CashDifference[];
+  readonly cash_difference_count: number;
+  readonly pending_terms: readonly PendingTerms[];
+  readonly pending_terms_count: number;
 }

@@ -95,9 +95,12 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   const [dueDate, setDueDate] = useState(() => invoice?.due_date ?? "");
   const [supplierReference, setSupplierReference] = useState(invoice?.supplier_reference ?? "");
   const [notes, setNotes] = useState(invoice?.notes ?? "");
-  const [chosen, setChosen] = useState<Set<number>>(
-    () => new Set(invoice?.receipts.map(({ receipt }) => receipt.id) ?? []),
-  );
+  // `?reception=12` (from the "Documents" page) ticks that receipt on a new invoice.
+  const [chosen, setChosen] = useState<Set<number>>(() => {
+    if (invoice) return new Set(invoice.receipts.map(({ receipt }) => receipt.id));
+    const fromLink = idFrom(params.get("reception"));
+    return new Set(fromLink === null ? [] : [fromLink]);
+  });
   const [errors, setErrors] = useState<Errors>({});
 
   const shownDueDate = dueDate || addDays(invoiceDate, DEFAULT_PAYMENT_DAYS);

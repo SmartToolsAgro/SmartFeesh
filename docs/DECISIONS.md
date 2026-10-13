@@ -1348,6 +1348,29 @@ to guess what is stuck on a phone, and nothing is dropped silently. **Not done:*
 moves stock to or from their truck during the day (the stock shown refreshes at the next connection; the server check
 still protects against overselling).
 
+**D-108 · Security review of the API: what was found and closed (P4-T05)** · accepted · 2026-10-12
+- `apps/core/tests/test_api_security.py` walks **every route** of the API: each has a role permission (none relies on
+  "any logged-in user"), a logged-out visitor gets 401 everywhere, and each role (owner, manager, accountant, driver)
+  gets 403 exactly where D-023, D-060 and D-091 say. A new view that forgets its permission class fails there. On a fully
+  seeded company, the owner of *another* company asks every route with the real ids: no row, no change, empty lists
+  (D-022). Approved expenses, bills, salaries, posted invoices and validated transfers refuse PUT/PATCH/DELETE (they
+  already did; the test now pins it). The views write nothing themselves, and the admin is read-only for business data.
+- **Holes found, each with a test, and closed:** (1) `/api/v1/schema` was readable by every logged-in user, a driver
+  included: now owner and manager only. (2) No limit on the size of a request: the 8 MB photo check ran after the whole
+  upload was on disk; `RequestSizeLimitMiddleware` answers 413 above `MAX_REQUEST_BYTES` (10 MB, as nginx) before reading.
+  (3) The login limits of D-023 lived in each gunicorn worker's memory (3 workers: 24 attempts a minute, not 8): the
+  cache is Redis when `DJANGO_CACHE_URL` is set, and **production refuses to start without it** (staging compose sets
+  it). (4) The Django admin login (`/django-admin/login/`) had no throttle at all: `AdminLoginThrottleMiddleware`, 8 a
+  minute per address. (5) A driver could swap or drop their truck assignment after opening the day, then sell from
+  another truck than the one the day's cash and closing are counted on: refused once the day is open (the office can
+  still move it); asking again for the same truck is still accepted.
+- Settings pinned by tests: cookies HttpOnly and SameSite=Lax, `X-Frame-Options: DENY`, production HTTPS-only with secure
+  cookies and HSTS by default, CSRF token required for a logged-in session to write.
+- **Not changed, on purpose:** no general rate limit on the rest of the API (the driver app replays queues of sales after
+  a lost connection: a limit would need tuning with real use; put `limit_req` on the reverse proxy if abuse appears).
+  A PDF receipt is checked by its `%PDF-` header and size only, then served as `application/pdf` (nosniff in production).
+  Sales and invoices views are reviewed in a follow-up after PR #55.
+
 **D-100 · A partner named at the goods receipt, capital and rates filled in later (P6)** · accepted, provisional points marked · 2026-10-12
 - On a receipt line the owner may pick a **partner** (the receipt's own supplier is allowed: the same person can be supplier and partner). The lot gets a `LotPartnership` with `terms_pending = true`, capital 0 and rates 0, created in the receipt's transaction by `partnerships.services.designate_partner` (no capital ledger entry yet). Only the owner may do it (400 on `lines.N.partner` for others).
 - The owner completes it with the usual edit (`update_partnership`); sending both rates clears `terms_pending`, and the capital becomes the first ledger entry. **While pending, the terms may be filled in even after sales** (the shares are only computed at closing); once filled, the usual rule applies (fixed after the first sale).
@@ -1382,6 +1405,29 @@ real phone.
   whole, so its effect is spread over the BL; the stock goes back to the right BL's place.
 - A BL on a draft grouped invoice cannot be cancelled until that draft is deleted.
 - Screen: "Ventes" → filter "À facturer", tick BL, "Facturer la sélection" (same customer, checked on the server).
+
+**D-102 · One "Documents" page reads every document from the apps that own them (P2-T11)** · accepted · 2026-10-12
+Asked by Mahmoud from another ERP's screen: one list of every document, children under their parent, the next action on
+each row. **Devis = commande client, bon d'achat = commande fournisseur** (Mahmoud): no CC or CF document. A BL may
+start without a devis and a BR without a bon d'achat. **No new table and no generic `Document` model**: each app
+describes its own documents with `apps.core.documents.DocumentRow` from its selectors (`sales.selectors.document_rows`:
+DV, BL, FA, AV; `purchasing.selectors.document_rows`: BA, BR, FF) and the read-only app `doclist` merges them
+(`GET /document-index`, newest day first, at most 1000 rows with `truncated`). A row carries its `parents` as keys
+(`"BL:12"`; an FF lists all its BR, an FA its BL), a `tone` for the colour (draft, waiting, done, cancelled), the model's
+own status label, the PDF kind when one exists in that state, and **`actions`: what the person may do next, computed
+on the server** from the same rules as the services and empty for the accountant (drivers get 403). The page draws the
+tree itself (each document under the first parent present; a parent outside the period makes it a root) and runs each
+action through the endpoint of the owning app (`sendQuote`, `confirmSale`, `issueInvoice`, `postSupplierInvoice`...),
+or opens the existing form for what needs one (edit, credit note, receipt from an order, supplier invoice, payment):
+the forms keep their rules (price in force, FIFO, credit limit) in one place instead of a second copy in a side panel.
+Type and status filters run in the browser so the chips can count every type of the period; period and search run on
+the server. `/achats/factures/nouvelle?reception=<id>` now ticks that receipt. **Not done:** one devis in several BL
+(P2-T11 part 2, agreed with Mahmoud), supplier return RF (no supplier credit note yet, and `RF-` numbers supplier
+payments).
+
+**D-105 · Lot page summary and the list of partnership lots with their frozen figures (P6-T07)** · accepted · 2026-10-12
+- The lot page already carried the result and the partner share (P6-T02/T03). It now opens with four headline figures (sales, lot costs, net result, partner's or owner's share) and the "Coût d'achat des kg vendus" step drills down to the cost of each sale, like sales and costs do.
+- The "Partage des bénéfices" list (`/partenariats`) gets the net result and the partner's share of each **closed** lot, read from `GET /lot-figures?batch_ids=` (closing app, frozen `LotResult` rows only, at most 200 ids). Open lots show "Pas encore clôturé": their live result is computed lot by lot and stays on the lot page, to keep the list cheap. The `partnerships` app does not import `closing` (the dependency runs the other way).
 
 **D-113 · Commercial and stock reports (P7-T02, P7-T03)** · accepted · 2026-10-12
 New app `reports` (read-only; owner, manager and accountant, never a driver) and the page **Rapports** (menu "Pilotage",
@@ -1430,6 +1476,14 @@ today's stock). Alerts: the five biggest overdue customers (and how many more), 
 (`dayclose.selectors.waiting_for_office`) and expenses sent for approval (`expenses.selectors.waiting_for_approval`).
 **Not done:** lots with pending partner terms (needs #58), low stock and expiring batches (P7-T07), charts (kept simple).
 
+**D-114 · In-app alerts on the dashboard (P7-T07)** · accepted · 2026-10-12
+The dashboard's alerts card (D-104) gains three alerts, each from a read-only selector in the app that owns the data, each
+showing at most five items and a count of all: **low stock** (`inventory.low_stock_products`: active products under their
+`min_stock`, emptiest first), **lots expiring** (`inventory.expiring_batches`: kilos still in stock, `use_by` within 3 days or
+already past; the 3 days is `closing.dashboard.EXPIRY_ALERT_DAYS`, provisional, to confirm with the client) and **unexplained
+cash differences** (`dayclose.selectors.unexplained_cash_differences`: driver days not approved with counted cash different
+from expected, where the driver left no note or the office asked for a justification and has not got it). **Fourth alert:** partner lots whose terms are still to fill in (D-100, `partnerships.selectors.pending_terms`, links to the lot). **Not done:** SMS/WhatsApp (Phase 8); no per-user read/dismiss state.
+
 **D-112 · Data import from Excel and opening balances (P4-T01)** · accepted · 2026-10-12
 - New app `dataimport` (owner only, `openpyxl`). One Excel template per kind (products, suppliers, customers,
   employees), downloaded from **Import de données** (`GET /imports/<kind>/template`): French titles on row 1
@@ -1444,6 +1498,22 @@ today's stock). Alerts: the five biggest overdue customers (and how many more), 
   their type by French label or code; numbers accept a comma; dates are JJ/MM/AAAA.
 - Opening balances (customer and supplier debts, opening stock per location and lot) come in later slices of the
   same task.
+
+**D-115 · A devis is delivered in as many BL as needed (P2-T11 part 2)** · accepted · 2026-10-12
+Agreed with Mahmoud: the kilos left on a devis stay open for another BL. The constraint `one_live_sale_per_quote` is
+gone (migration `0011`); nothing new is stored. What is left is **computed**: `sales.selectors.quote_delivery` adds the
+kilos of every sale made from the quote that is not cancelled, **drafts included** (their kilos are spoken for), and
+matches them to the quote lines **by product** (a BL whose lines were retyped still counts; a product quoted twice fills
+its first line first; kilos beyond the quote are ignored). `create_sale_from_quote(lines=[{quote_line, quantity}])` takes
+part of each line and refuses more than what is left ("Il reste 2.000 kg à livrer sur cette ligne", under the line);
+without `lines` it takes everything left; a quote delivered in full is refused. The quote is row-locked meanwhile, so two
+people cannot deliver the same kilos. Cancelling a BL frees its kilos. API: `POST /quotes/<id>/convert` takes `lines`; a
+quote reads `sales` (all its BL, oldest first; `sale` stays = the last one), `remaining_quantity`, and per line
+`delivered_quantity` / `remaining_quantity`. Screens: one dialog (`quotes/DeliverDialog`) for the devis page and the
+"Documents" page, prefilled with the kg left; the devis page shows "Reste à livrer" per line and all its BL; on
+"Documents" a devis keeps "→ BL" until it is delivered in full, then turns green. **Not done:** the same for a bon
+d'achat needed nothing (partial receipts exist since D-076); a devis has no "close the rest" action yet (the rest simply
+stays open until its validity date).
 
 **D-116 · Financial reports (P7-T04)** · accepted · 2026-10-12
 Five reports on the **Finances** tab of Rapports, **owner and accountant only** (the manager and drivers get 403: this is
@@ -1489,3 +1559,63 @@ hidden in "deductions", which stay for what is typed by hand (advances, absences
 approved salaries keep their figures (rate 0): they are history and immutable; draft salaries get the employee's rate in
 the migration. The import template has a column for the rate. **Not done:** income tax (IRPP) and other legal
 withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); the CNSS declaration itself.
+
+- **Opening debts** (slice 3): kinds `customer_debts` and `supplier_debts`, one row per debt (party by reference,
+  amount, date, notes). A customer debt is a confirmed `Sale` with `is_opening` (number `OUV-<year>-0001`, no
+  lines, no stock, attached to the archived place "Solde d'ouverture"): it ages from its date, payments are
+  allocated to it, and it is never invoiced nor counted in sales counts or lot results. A supplier debt is a
+  posted `SupplierInvoice` with `is_opening`, its amount typed and no receipts; payments settle it like any other.
+  A re-sent file skips a debt already there (same party, amount, date). Cancelled with a reason if wrong.
+
+**D-120 · Yearly numbers for quotes, expenses, salary payments and supplier payments (P2-T10 follow-up)** · accepted · 2026-10-12
+- New documents of these four kinds are numbered `PREFIX-YEAR-NNNN` and restart every year, like BL, invoices and
+  credit notes: `DV-2026-0001` (quotes), `DP-2026-0001` (expenses), `PS-2026-0001` (salary payments),
+  `RF-2026-0001` (supplier payments). The year is the day the document is created.
+- **Existing records keep their old number** (`DV-0001`): history is not renamed. Both styles coexist; the old
+  counters stay as they were (provisional: a later pass may renumber if the accountant asks).
+- Counters: sales and expenses use one counter row per `PREFIX-YEAR` series; hr `PaymentCounter` and purchasing
+  `DocumentCounter` gained a `year` column (0 = the numbers without year), so the unique key is
+  organization (+ kind) + year.
+- **Still plain sequential** (not in this decision): draft sales `VE-`, customer payments `RG-`, supplier invoices
+  `FF-`, transfers, losses, counts, goods receipts, purchase orders.
+
+**D-121 · Picking a lot by hand on a sale line (owner request, counter sale)** · accepted · 2026-10-12
+- FIFO (D-009) stays the default everywhere, but a sale line may now name the lot it wants kilos from first:
+  `SaleLine.requested_batch`, resolved and checked (same organization, same product as the line) in
+  `sales.services._checked_batches`. `inventory.services.post_fifo_movements` takes an optional
+  `prefer_batch_id`: that lot moves to the front of the FIFO order, the rest keeps oldest-first. Stock never
+  goes negative (`on_hand_never_negative`, D-006): a short lot is topped up from the other lots automatically,
+  same as a line with no lot named; the till warns before sending the sale when the typed weight is more than
+  the chosen lot holds, but does not block it.
+- New read endpoint `GET /inventory/locations/<id>/stock/<product_id>/batches` (`inventory.selectors.location_batches`)
+  lists a product's lots at one location, oldest first, each with its supplier and the location's name — a
+  hint for the till (which cold room, which supplier), **never printed on a devis or a BL**.
+- Built first for the counter sale screen (`CounterSalePage.tsx`); `SaleWriteSerializer` accepts `batch` on
+  every line (`SaleLineWriteSerializer`), so a regular sale or quote-to-BL screen can get the same picker
+  later without a backend change.
+- Considered and rejected: truly letting the chosen lot's on-hand go negative. It would mean relaxing
+  `on_hand_never_negative` for every module sharing `StockOnHand` (losses, transfers, counts) and teaching
+  `rebuild_on_hand` (D-038) to treat a negative ledger as a known state instead of corruption — too large a
+  change for what the owner actually needed (sell now, reconcile the lot later).
+
+**D-122 · Clôture mensuelle: clickable figures and each partner's share of the shared costs (owner request)** · accepted · 2026-10-13
+- The owner pointed out that rent, electricity, fuel and the other costs the lot result engine already
+  splits over the lots in stock (D-041) land on partnership lots too: a partner effectively carries part of
+  these charges, and the month closing should show it, not just the month's own total.
+- New `closing.partner_costs.month_partner_cost_shares`: for every partnership (any status) with a cost
+  line dated in the month (`closing.selectors.cost_rows_for_batch`, reusing the lot result engine's cost
+  rows), groups the **raw cost** their lots carried by category and totals it per partner — not weighted by
+  the partner's profit or loss %, so it answers "where did this charge go", the same breakdown already on
+  the lot page (`LotResultCard`), just totalled across lots. An employee's day/monthly cost has no single
+  category (its title is their name): grouped under a fixed `employee` key instead. Exposed as
+  `MonthReport.partner_costs`, a new card on `/cloture` next to "Dépenses approuvées".
+- `expenses.LotCostLine` and `closing.engine.CostRow` gained `category_id` (the underlying `ExpenseCategory`
+  id, `None` for an employee's day): what the new card's category rows link to on `/charges?category=…`.
+- Made existing month-closing figures clickable: the stock valuation rows already had a lot id (link to
+  `/stock/lots/<id>`); "Dépenses par catégorie" rows now link to `/charges` filtered by that category and
+  the month's date range (`ExpensesPage` reads `category`/`date_from`/`date_to` from the URL on mount);
+  "Ventes", "Pertes et écarts d'inventaire" and "Salaires du mois" link to their list pages without a date
+  filter (those screens do not take one yet — a smaller follow-up, not blocking this).
+- Not done here: a full itemized drill-down (the individual sales, expense lines, losses and payroll
+  entries behind each month-level total) would need new list endpoints per line; this session reused what
+  already exists (lot-level cost rows, stock valuation rows, expense categories) rather than add new ones.

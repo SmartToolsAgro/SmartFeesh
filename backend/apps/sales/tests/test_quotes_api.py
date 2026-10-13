@@ -15,6 +15,8 @@ from apps.sales.models import Quote, QuoteStatus
 
 pytestmark = pytest.mark.django_db
 
+YEAR = timezone.localdate().year
+
 
 @pytest.fixture
 def manager():
@@ -74,7 +76,7 @@ def test_creating_a_quote_answers_it_with_amounts_as_strings(api, customer, crev
 
     assert response.status_code == 201
     body = response.json()
-    assert (body["number"], body["status"], body["notes"]) == ("DV-0001", "draft", "Merci")
+    assert (body["number"], body["status"], body["notes"]) == (f"DV-{YEAR}-0001", "draft", "Merci")
     assert body["customer"]["name"] == "Restaurant Le Corail"
     assert body["location"] == {"id": room.pk, "name": "Chambre froide 1"}
     assert body["valid_until"] == (timezone.localdate() + dt.timedelta(days=3)).isoformat()
@@ -88,6 +90,8 @@ def test_creating_a_quote_answers_it_with_amounts_as_strings(api, customer, crev
             "gross_amount": "210.000",
             "discount_amount": "21.000",
             "amount": "189.000",
+            "delivered_quantity": "0.000",
+            "remaining_quantity": "5.000",
         }
     ]
     assert (body["subtotal"], body["discount_total"], body["total_excl_tax"], body["tax_amount"], body["total"]) == (
@@ -174,12 +178,12 @@ def test_the_list_filters_by_current_status_customer_and_search(api, customer, c
         assert response.status_code == 200
         return [row["number"] for row in response.json()["results"]]
 
-    assert numbers() == ["DV-0002", "DV-0001", "DV-0003"]
+    assert numbers() == [f"DV-{YEAR}-0002", f"DV-{YEAR}-0001", f"DV-{YEAR}-0003"]
     assert numbers(status="sent") == [sent["number"]]
     assert numbers(status="expired") == [old["number"]]
-    assert numbers(customer=customer.pk) == ["DV-0001"]
-    assert numbers(search="thyna") == ["DV-0002", "DV-0003"]
-    assert numbers(date_to=(timezone.localdate() - dt.timedelta(days=1)).isoformat()) == ["DV-0003"]
+    assert numbers(customer=customer.pk) == [f"DV-{YEAR}-0001"]
+    assert numbers(search="thyna") == [f"DV-{YEAR}-0002", f"DV-{YEAR}-0003"]
+    assert numbers(date_to=(timezone.localdate() - dt.timedelta(days=1)).isoformat()) == [f"DV-{YEAR}-0003"]
 
 
 @pytest.mark.parametrize(

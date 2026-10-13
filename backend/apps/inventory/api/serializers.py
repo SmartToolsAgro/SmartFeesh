@@ -104,6 +104,21 @@ class LocationStockSerializer(serializers.Serializer[Any]):
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
 
+class LocationBatchSerializer(serializers.Serializer[Any]):
+    """One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).
+
+    `location_name` is a hint for the till, never printed on a devis or a BL.
+    """
+
+    batch_id = serializers.IntegerField(read_only=True)
+    batch_number = serializers.CharField(source="batch.number", read_only=True)
+    received_on = serializers.DateField(source="batch.received_on", read_only=True)
+    supplier_id = serializers.IntegerField(source="batch.supplier_id", read_only=True)
+    supplier_name = serializers.CharField(source="batch.supplier.name", read_only=True)
+    location_name = serializers.CharField(source="location.name", read_only=True)
+    quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+
+
 # ---- Transfers (P1-T09) ----
 
 

@@ -11,6 +11,11 @@ urlpatterns = [
     path("batches/<int:batch_id>", views.BatchDetailView.as_view(), name="batch-detail"),
     # P1-T09 · transfers
     path("locations/<int:location_id>/stock", views.LocationStockView.as_view(), name="location-stock"),
+    path(
+        "locations/<int:location_id>/stock/<int:product_id>/batches",
+        views.LocationBatchesView.as_view(),
+        name="location-batches",
+    ),
     path("transfers", views.TransferListView.as_view(), name="transfer-list"),
     path("my-losses", views.MyLossesView.as_view(), name="my-losses"),
     path("my-return", views.MyReturnView.as_view(), name="my-return"),

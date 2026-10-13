@@ -169,7 +169,22 @@ function Explanation({ result }: { result: ComputedResult }) {
           </StepRow>
         );
       case "cogs":
-        return <StepRow key={key} label={t("admin.lotResult.steps.cogs")} sign={step.sign} amount={step.amount} />;
+        return (
+          <StepRow key={key} label={t("admin.lotResult.steps.cogs")} sign={step.sign} amount={step.amount}>
+            {result.sales.length > 0 &&
+              result.sales.map((sale, row) => (
+                <Line key={`${sale.sale_id}-${row}`} amount={sale.cost}>
+                  <Link to={`/ventes/${sale.sale_id}`} className="font-semibold text-sea hover:underline">
+                    {t("admin.lotResult.lines.sale", { number: sale.sale_number, customer: sale.customer })}
+                  </Link>{" "}
+                  <span className="text-ink-2">
+                    {formatDate(sale.sold_on)} ·{" "}
+                    {t("admin.lotResult.lines.cogsDetail", { quantity: formatQuantity(sale.quantity) })}
+                  </span>
+                </Line>
+              ))}
+          </StepRow>
+        );
       case "spoilage":
         return (
           <StepRow
@@ -444,6 +459,20 @@ export function LotResultCard({ batchId, session }: { batchId: number; session: 
                 {t("admin.lotResult.facts.stockValue")} : <span className="num">{formatMoney(result.stock_value)}</span>
               </p>
             )}
+            <dl className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(8rem,1fr))]">
+              <Fact label={t("admin.lotResult.summary.revenue")}>{formatMoney(result.revenue)}</Fact>
+              <Fact label={t("admin.lotResult.summary.costs")}>{formatMoney(result.costs_total)}</Fact>
+              <Fact label={t("admin.lotResult.summary.net")}>{formatMoney(result.net_result)}</Fact>
+              <Fact
+                label={
+                  result.partner
+                    ? t("admin.lotResult.summary.partnerShare", { name: result.partner.partner_name })
+                    : t("admin.lotResult.summary.ownerShare")
+                }
+              >
+                {formatMoney(result.partner ? result.partner.share : result.owner_share)}
+              </Fact>
+            </dl>
             <Explanation result={result} />
             {data.state === "closed" &&
               data.live_net_result !== null &&

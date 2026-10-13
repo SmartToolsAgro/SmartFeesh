@@ -28,9 +28,9 @@ test("Camion 2's fuel of the day is split over the lots it loaded, to the millim
   await openExpenses(page);
   await page.getByRole("searchbox").fill("Gasoil");
 
-  await page.getByRole("link", { name: "DP-0001" }).click();
+  await page.getByRole("link", { name: /^DP-\d{4}-0001$/ }).click();
 
-  await expect(page.getByRole("heading", { name: "DP-0001", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^DP-\d{4}-0001$/, level: 1 })).toBeVisible();
   await expect(page.getByText("Approuvée", { exact: true })).toBeVisible();
   await expect(page.getByText(/Frais du jour de Camion 2/)).toBeVisible();
   const split = page.getByRole("table");
@@ -53,12 +53,12 @@ test("the owner records an expense with a receipt and approves it at once", asyn
     .setInputFiles({ name: "ticket.png", mimeType: "image/png", buffer: PHOTO });
   await page.getByRole("button", { name: "Enregistrer et approuver" }).click();
 
-  await expect(page.getByText(/Dépense DP-\d+ enregistrée et approuvée/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: /^DP-\d+$/, level: 1 })).toBeVisible();
+  await expect(page.getByText(/Dépense DP-\d{4}-\d+ enregistrée et approuvée/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^DP-\d{4}-\d+$/, level: 1 })).toBeVisible();
   await expect(page.getByText("Approuvée", { exact: true })).toBeVisible();
   await expect(page.getByText(/12,500\sDT/).first()).toBeVisible();
   await expect(page.getByText("Charge générale")).toBeVisible();
-  await expect(page.getByRole("img", { name: /Justificatif de la dépense DP-\d+/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Justificatif de la dépense DP-\d{4}-\d+/ })).toBeVisible();
   await expect(page.getByText(/ne se modifie plus/)).toBeVisible();
 });
 
@@ -66,7 +66,7 @@ test("an expense waiting for approval can only be refused with a reason", async 
   await openExpenses(page);
   await page.getByRole("group", { name: "Statut des dépenses" }).getByRole("button", { name: "À approuver" }).click();
   await page.getByRole("searchbox").fill("comptables");
-  await page.getByRole("link", { name: "DP-0004" }).click();
+  await page.getByRole("link", { name: /^DP-\d{4}-0004$/ }).click();
 
   await expect(page.getByRole("note")).toContainText("En attente d'approbation");
   await page.getByRole("button", { name: "Refuser", exact: true }).click();
@@ -81,7 +81,7 @@ test("an expense waiting for approval can only be refused with a reason", async 
 test("a cost typed on a lot shows in the lot's costs", async ({ page }) => {
   await openExpenses(page);
   await page.getByRole("searchbox").fill("Transport port");
-  await page.getByRole("link", { name: "DP-0002" }).click();
+  await page.getByRole("link", { name: /^DP-\d{4}-0002$/ }).click();
 
   await page.getByRole("link", { name: /^Lot L-\d+ · Crevette Royale$/ }).click();
 

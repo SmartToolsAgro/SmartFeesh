@@ -4,7 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
-import type { QuoteLineWrite } from './quoteLineWrite';
+import type { SaleLineWrite } from './saleLineWrite';
 import type { SaleWritePaymentMethod } from './saleWritePaymentMethod';
 
 export interface SaleWrite {
@@ -24,7 +24,7 @@ export interface SaleWrite {
   /** @nullable */
   sold_at?: string | null;
   notes?: string;
-  lines: QuoteLineWrite[];
+  lines: SaleLineWrite[];
   confirm_now?: boolean;
   approve_credit?: boolean;
   /** @nullable */

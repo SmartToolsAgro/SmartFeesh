@@ -201,8 +201,19 @@ def holdings_oldest_first(organization: Organization, *, product_id: int, locati
     return (
         StockOnHand.objects.for_organization(organization)
         .filter(product_id=product_id, location_id=location_id, quantity__gt=0)
-        .select_related("batch")
+        .select_related("batch", "batch__supplier")
         .order_by(*(f"batch__{field}" for field in FIFO_ORDER))
+    )
+
+
+def location_batches(organization: Organization, *, product_id: int, location_id: int) -> QuerySet[StockOnHand]:
+    """The lots of one product sitting at one location, oldest first (the FIFO order): for picking a lot by
+    hand on a sale (overriding FIFO). Each row carries its batch (with the supplier) and the location.
+
+    Shown as a hint only (which cold room, which supplier): never printed on a devis or a BL.
+    """
+    return holdings_oldest_first(organization, product_id=product_id, location_id=location_id).select_related(
+        "location"
     )
 
 
@@ -1076,4 +1087,46 @@ def losses_by_product(organization: Organization, *, date_from: dt.date, date_to
     return [
         ProductLoss(pk, names[pk], lost_kg[pk], lost_value[pk], diff_kg[pk], diff_value[pk])
         for pk in sorted(names, key=lambda k: names[k].lower())
+    ]
+
+
+# ---- Alerts for the owner's dashboard (P7-T07, D-114) ----
+
+
+@dataclass(frozen=True)
+class ExpiringBatch:
+    """A lot still on hand whose use-by date is close, or already past."""
+
+    batch_id: int
+    batch_number: str
+    product_name: str
+    use_by: dt.date
+    quantity: Decimal
+
+
+def low_stock_products(organization: Organization) -> list[ProductStock]:
+    """Active products holding less than their minimum stock, emptiest first (by how far under they are)."""
+    low = [stock for stock in product_stocks(organization) if stock.product.is_active and stock.is_low]
+    return sorted(low, key=lambda stock: (stock.quantity - stock.product.min_stock, stock.product.name))
+
+
+def expiring_batches(organization: Organization, *, today: dt.date, within_days: int) -> list[ExpiringBatch]:
+    """Lots with kilos still in stock (any place) whose use-by date is within `within_days` days from today or
+    already past, soonest first. A lot with no use-by date never shows."""
+    rows = (
+        StockOnHand.objects.for_organization(organization)
+        .filter(quantity__gt=0, batch__use_by__isnull=False, batch__use_by__lte=today + dt.timedelta(days=within_days))
+        .values("batch_id", "batch__number", "batch__product__name", "batch__use_by")
+        .annotate(total=Sum("quantity"))
+        .order_by("batch__use_by", "batch_id")
+    )
+    return [
+        ExpiringBatch(
+            batch_id=row["batch_id"],
+            batch_number=row["batch__number"],
+            product_name=row["batch__product__name"],
+            use_by=row["batch__use_by"] or today,
+            quantity=row["total"],
+        )
+        for row in rows
     ]

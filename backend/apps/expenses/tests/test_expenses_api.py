@@ -19,6 +19,8 @@ from .conftest import category, client_for, load, member, receive
 
 pytestmark = pytest.mark.django_db
 
+YEAR = timezone.localdate().year
+
 
 @pytest.fixture(autouse=True)
 def media_root():
@@ -43,7 +45,7 @@ def test_an_expense_is_created_and_answered_with_amounts_as_strings(api, fuel, t
 
     assert response.status_code == 201
     body = response.json()
-    assert (body["number"], body["status"], body["amount"]) == ("DP-0001", "draft", "45.500")
+    assert (body["number"], body["status"], body["amount"]) == (f"DP-{YEAR}-0001", "draft", "45.500")
     assert body["category"] == {"id": fuel.pk, "code": "fuel", "name": "Carburant"}
     assert body["truck"] == {"id": truck.pk, "name": "Camion 2", "plate": "102 TU 2002"}
     assert (body["batch"], body["receipt_url"], body["shares"]) == (None, None, [])

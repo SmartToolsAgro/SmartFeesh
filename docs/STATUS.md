@@ -89,10 +89,25 @@ a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` an
 
 ## Recently done
 
+- 2026-10-13 · Clôture mensuelle (owner request, D-122): a new card shows each partner's share of the
+  month's shared costs (rent, electricity, fuel, salaries), by category, from the raw cost their lots
+  carried. Existing figures made clickable: stock rows to the lot page, expense categories to `/charges`
+  filtered by category and the month's dates (`ExpensesPage` now reads filters from the URL); sales,
+  spoilage and salaries link to their list pages without a date filter yet. Full itemized drill-down
+  (individual sales/expense/loss/payroll rows behind each month total) is a follow-up, not done here.
+
+- 2026-10-12 · D-121 (owner request, not a phase-file task): a sale line can pick a lot by hand instead of
+  FIFO. Built on the counter sale screen first; backend (`requested_batch`, `prefer_batch_id`, the new
+  `locations/<id>/stock/<product_id>/batches` endpoint) works for any sale line, so the regular sale screen
+  can get the same picker later with no backend change. Migration `sales.0013`. A short lot tops up from the
+  other lots automatically (warned, never negative — D-006 stays). Not yet committed/pushed.
+- 2026-10-12 · Driver app fixes: "Mon stock" tab built (was a placeholder); "Ma journée" shows the kilos
+  still in the truck when nothing was loaded today; a screen that crashes shows a message instead of a blank page.
+- 2026-10-12 · P2-T11 part 1: "Documents" page `/documents` (every DV, BL, FA, AV, BA, BR, FF as chains with their
+  actions, D-102); part 2: one devis delivered in several BL (D-115).
 - 2026-10-12 · P3-T01 to P3-T06 (driver app)
 - 2026-10-11 · P2-T05, P2-T06, P5-T02, P5-T05, P6-T01, P6-T02, P6-T03
 - 2026-10-11 · P1-T11, P2-T02, P2-T03, P2-T04, P5-T01, P5-T03, P5-T04
 - 2026-10-11 · P1-T08, P1-T09, P1-T10, P1-T12, P2-T01 (first parallel wave)
 - 2026-10-11 · Plan updated after the client meeting (per-lot profit)
-- 2026-10-11 · P1-T07 goods receipts
 - 2026-10-11 · P1-T06c rebuild and nightly check

@@ -188,15 +188,19 @@ class SalaryPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
 
 
 class PaymentCounter(OrganizationScopedModel):
-    """The last salary payment number given in an organization, locked while a number is taken."""
+    """The last salary payment number given in an organization for one year (0 = the numbers before D-120, which
+    had no year), locked while a number is taken."""
 
+    year = models.PositiveIntegerField(default=0)
     last_number = models.PositiveIntegerField(default=0)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["organization"], name="one_salary_payment_counter")]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "year"], name="one_salary_payment_counter_per_year")
+        ]
 
     def __str__(self) -> str:
-        return f"{self.organization} · {self.last_number}"
+        return f"{self.organization} · {self.year} · {self.last_number}"
 
 
 class LotWorkDay(OrganizationScopedModel, TimeStampedModel):

@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
 
     from apps.catalog.models import Product
-    from apps.inventory.models import StockLocation
+    from apps.inventory.models import Batch, StockLocation
     from apps.partners.models import Customer
 
 # ---- Quotes (P2-T03, D-050) ----
@@ -321,7 +321,7 @@ def create_quote(
     valid_until, checked_lines = _prepared(organization, customer, location, quoted_on, valid_until, lines)
     quote = Quote.objects.create(
         organization=organization,
-        number=_next_number(organization, QUOTE_SERIES),
+        number=_next_yearly_number(organization, QUOTE_SERIES, timezone.localdate().year),
         customer=customer,
         location=location,
         quoted_on=quoted_on,
@@ -498,6 +498,16 @@ class SaleLineFields(TypedDict, total=False):
     unit_price: Number | None
     # Percent with at most 2 decimals; empty means none.
     discount_rate: Number | None
+    # Picked by hand instead of FIFO (D-121); empty takes the oldest lot first, as always.
+    batch: "Batch | None"
+
+
+class QuoteDeliveryFields(TypedDict):
+    """The part of one quote line a BL takes (D-115)."""
+
+    # The quote line's id.
+    quote_line: int
+    quantity: Number
 
 
 class PaymentFields(TypedDict, total=False):
@@ -555,6 +565,30 @@ def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, s
     return {"amount_paid": paid, "payment_method": method, "payment_reference": reference}
 
 
+def _checked_batches(
+    organization: Organization,
+    lines: Sequence[SaleLineFields],
+    checked_lines: list[dict[str, Any]],
+    errors: dict[str, str],
+) -> None:
+    """Resolve each line's lot picked by hand (D-121): must be of that organization and the line's product.
+
+    Mutates `checked_lines` in place, adding `requested_batch` (None keeps FIFO, the default).
+    """
+    for index, (line, checked) in enumerate(zip(lines, checked_lines, strict=True)):
+        batch = line.get("batch")
+        checked["requested_batch"] = None
+        if batch is None:
+            continue
+        product = checked.get("product")
+        if batch.organization_id != organization.pk:
+            errors[line_error_key(index, "batch")] = _("Lot inconnu.")
+        elif product is not None and batch.product_id != product.pk:
+            errors[line_error_key(index, "batch")] = _("Ce lot ne correspond pas au produit de la ligne.")
+        else:
+            checked["requested_batch"] = batch
+
+
 def _prepared_sale(
     organization: Organization,
     customer: "Customer",
@@ -569,6 +603,7 @@ def _prepared_sale(
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
     checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source)
+    _checked_batches(organization, lines, checked_lines, errors)
     total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
     paid = _checked_payment(total, payment, errors)
     if errors:
@@ -588,6 +623,7 @@ def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dic
                 unit_price=values["unit_price"],
                 price_source=values["price_source"],
                 below_minimum=values["below_minimum"],
+                requested_batch=values.get("requested_batch"),
                 discount_rate=values["discount_rate"],
                 gross_amount=values["gross_amount"],
                 discount_amount=values["discount_amount"],
@@ -815,6 +851,77 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     raise ValidationError({"credit_limit": message})
 
 
+OPENING_RECEIVABLE_PREFIX = "OUV"
+
+
+@transaction.atomic
+def create_opening_receivable(
+    *,
+    organization: Organization,
+    actor: User | None,
+    customer: "Customer",
+    amount: Number,
+    owed_on: dt.date,
+    notes: str = "",
+) -> Sale:
+    """What a customer already owed when the system started: a confirmed sale without lines or stock (D-112).
+
+    It is a receivable like any other (balance, ageing from `owed_on`, payments allocated to it) but is never
+    invoiced and is left out of sales counts and lot results. `OUV-<year>-0001`; immutable, like every confirmed
+    sale: a mistake is cancelled with a reason."""
+    errors: dict[str, str] = {}
+    if customer.organization_id != organization.pk:
+        errors["customer"] = _("Client inconnu.")
+    elif customer.is_walk_in:
+        errors["customer"] = _("Le client de passage ne peut pas avoir de dette.")
+    try:
+        total = checked_amount(amount)
+    except (ValueError, TypeError):
+        total = Decimal("0.000")
+        errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    else:
+        if total <= 0:
+            errors["amount"] = _("Le montant doit être supérieur à 0.")
+    if owed_on > timezone.localdate():
+        errors["owed_on"] = _("La date ne peut pas être dans le futur.")
+    if errors:
+        raise ValidationError(errors)
+    location = inventory.opening_balance_location(organization=organization, actor=actor)
+    moment = timezone.make_aware(dt.datetime.combine(owed_on, dt.time(12, 0)))
+    now = timezone.now()
+    sale = Sale.objects.create(
+        organization=organization,
+        number=_next_yearly_number(organization, OPENING_RECEIVABLE_PREFIX, owed_on.year),
+        status=SaleStatus.CONFIRMED,
+        customer=customer,
+        location=location,
+        sold_at=moment,
+        notes=notes.strip(),
+        subtotal=total,
+        total_excl_tax=total,
+        total=total,
+        cost_total=Decimal("0.000"),
+        amount_due=total,
+        is_opening=True,
+        created_by=actor,
+        confirmed_by=actor,
+        confirmed_at=now,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="sale.opening_receivable",
+        target=sale,
+        after={
+            "number": sale.number,
+            "customer": customer.reference,
+            "amount": str(total),
+            "owed_on": owed_on.isoformat(),
+        },
+    )
+    return sale
+
+
 def record_receivable(sale: Sale) -> None:
     """A confirmed sale is a receivable: its outstanding amount is refreshed (the customer's balance itself is
     always computed from the documents, `receivables.customer_balance`)."""
@@ -830,7 +937,12 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
 
 
 def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
-    """Take the line's kilos out of the sale's place, oldest batch first, and keep which batches went."""
+    """Take the line's kilos out of the sale's place and keep which batches went.
+
+    Oldest batch first (FIFO, the default) unless a lot was picked by hand (D-121): that lot is then taken
+    from first and, if it is not enough, the rest still comes from the other lots, oldest first — stock
+    never goes negative. The till warns beforehand when the picked lot looks short.
+    """
     movements = inventory.post_fifo_movements(
         organization=sale.organization,
         actor=actor,
@@ -841,6 +953,7 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
         reason=sale.number,
         source=line,
         occurred_at=sale.sold_at,
+        prefer_batch_id=line.requested_batch_id,
     )
     revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
     rows = [
@@ -1036,20 +1149,54 @@ def create_sale_from_quote(
     sold_at: dt.datetime | None = None,
     payment: PaymentFields | None = None,
     confirm: bool = False,
+    lines: Sequence[QuoteDeliveryFields] | None = None,
 ) -> Sale:
-    """Turn an accepted quote, still valid, into a sale: same customer, products, kg, prices and discounts.
+    """Turn an accepted quote, still valid, into a sale (a BL): same customer, products, prices and discounts.
 
-    The place is the quote's unless another is given. The quote stays accepted and points to its sale
-    (`Sale.quote`): one live sale per quote, and another only once that one is cancelled.
+    A quote may be delivered in several BL (D-115). Without `lines` the BL takes every kilo not on a BL yet;
+    with `lines` it takes the kg given for each quote line, at most what is left on it. Kilos on a draft BL
+    count as taken; cancelling a BL frees them. The place is the quote's unless another is given. The quote
+    stays accepted and its sales point to it (`Sale.quote`). The quote is locked meanwhile, so two people
+    cannot deliver the same kilos twice.
     """
     quote = _locked(quote)
     if quote.status != QuoteStatus.ACCEPTED:
         raise ValidationError(_("Seul un devis accepté devient une vente."))
     if quote.valid_until < timezone.localdate():
         raise _expiry_error(quote)
-    live = quote.sales.exclude(status=SaleStatus.CANCELLED).first()
-    if live is not None:
-        raise ValidationError(_("Ce devis est déjà devenu la vente %(number)s.") % {"number": live.number})
+    quote_lines = {line.pk: line for line in quote.lines.select_related("product").order_by("id")}
+    delivery = selectors.quote_delivery(quote)
+    if all(delivery[pk].remaining <= 0 for pk in quote_lines):
+        numbers = ", ".join(sale.number for sale in selectors.live_sales_of(quote))
+        raise ValidationError(_("Ce devis est déjà livré en entier (%(numbers)s).") % {"numbers": numbers})
+    taken: list[tuple[QuoteLine, Decimal]] = []
+    if lines is None:
+        taken = [(line, delivery[pk].remaining) for pk, line in quote_lines.items() if delivery[pk].remaining > 0]
+    else:
+        errors: dict[str, str] = {}
+        seen: set[int] = set()
+        for index, fields in enumerate(lines):
+            line = quote_lines.get(fields["quote_line"])
+            if line is None or line.pk in seen:
+                errors[line_error_key(index, "quote_line")] = _("Ligne de devis inconnue.")
+                continue
+            seen.add(line.pk)
+            try:
+                quantity = checked_quantity(fields["quantity"], allow_zero=True)
+            except ValueError as error:
+                errors[line_error_key(index, "quantity")] = str(error)
+                continue
+            left = delivery[line.pk].remaining
+            if quantity > left:
+                errors[line_error_key(index, "quantity")] = _("Il reste %(kg)s kg à livrer sur cette ligne.") % {
+                    "kg": left
+                }
+            elif quantity > 0:
+                taken.append((line, quantity))
+        if errors:
+            raise ValidationError(errors)
+        if not taken:
+            raise ValidationError(_("Indiquez au moins un poids à livrer."))
     location = location or quote.location
     if location is None:
         raise ValidationError({"location": _("Indiquez d'où part la marchandise.")})
@@ -1062,11 +1209,11 @@ def create_sale_from_quote(
         lines=[
             {
                 "product": line.product,
-                "quantity": line.quantity,
+                "quantity": quantity,
                 "unit_price": line.unit_price,
                 "discount_rate": line.discount_rate,
             }
-            for line in quote.lines.select_related("product").order_by("id")
+            for line, quantity in taken
         ],
         notes=quote.notes,
         payment=payment,
@@ -1478,6 +1625,8 @@ def _lots_of(line: SaleLine) -> str:
 def _checked_sale_to_invoice(sale: Sale) -> None:
     if sale.status != SaleStatus.CONFIRMED:
         raise ValidationError(_("Seule une vente confirmée se facture."))
+    if sale.is_opening:
+        raise ValidationError(_("Un solde d'ouverture ne se facture pas : la facture existe déjà sur papier."))
     if sale.customer.is_walk_in:
         raise ValidationError(
             {"customer": _("Une vente au client de passage ne se facture pas : la facture nomme son client.")}

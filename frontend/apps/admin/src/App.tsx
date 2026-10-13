@@ -65,6 +65,7 @@ import { SuppliersPage } from "./suppliers/SuppliersPage";
 import { CountPage } from "./counts/CountPage";
 import { CountsPage } from "./counts/CountsPage";
 import { DayClosingsPage } from "./dayclose/DayClosingsPage";
+import { DocumentsPage } from "./doclist/DocumentsPage";
 import { LossDetailPage } from "./losses/LossDetailPage";
 import { LossesPage } from "./losses/LossesPage";
 import { LossFormPage } from "./losses/LossFormPage";
@@ -110,6 +111,7 @@ function useNav(): AdminNavGroup[] {
     {
       label: t("admin.groups.finance"),
       items: [
+        { to: "/documents", label: t("admin.nav.documents"), icon: "receipt" },
         { to: "/charges", label: t("admin.nav.expenses"), icon: "wallet" },
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
@@ -122,6 +124,7 @@ function useNav(): AdminNavGroup[] {
 
 // Screens that exist; every other entry of the menu shows "coming soon".
 const SCREENS: Record<string, ReactNode> = {
+  "/documents": <DocumentsPage />,
   "/stock": <LocationsPage />,
   "/camions": <TruckDayPage />,
   "/journees": <DayClosingsPage />,

@@ -91,6 +91,22 @@ def create_location(
     return location
 
 
+OPENING_LOCATION_NAME = "Solde d'ouverture"
+
+
+@transaction.atomic
+def opening_balance_location(*, organization: Organization, actor: User | None) -> StockLocation:
+    """The archived, empty "place" that opening customer debts hang on (a sale needs one). It holds no stock, takes
+    none and never shows in pickers: created and archived the first time it is asked for."""
+    found = StockLocation.objects.for_organization(organization).filter(name__iexact=OPENING_LOCATION_NAME).first()
+    if found is not None:
+        return found
+    location = create_location(
+        organization=organization, actor=actor, kind=LocationKind.OTHER, name=OPENING_LOCATION_NAME
+    )
+    return set_location_active(location=location, actor=actor, is_active=False)
+
+
 @transaction.atomic
 def update_location(
     *, location: StockLocation, actor: User | None, name: str | None = None, counter_sales: bool | None = None
@@ -389,14 +405,17 @@ def post_fifo_movements(
     source: models.Model | None = None,
     client_uuid: uuid.UUID | None = None,
     occurred_at: dt.datetime | None = None,
+    prefer_batch_id: int | None = None,
 ) -> list[StockMovement]:
     """Take `quantity` kg of a product out of `from_location`, oldest batch first, one movement per batch.
 
-    Used by transfers, sales and losses: nobody picks batches by hand (D-009). Every on-hand row of the
-    product at both locations is locked first, in location then batch order, the same order as
-    `post_movement`, so two requests never wait for each other forever. Refused as a whole (ValidationError
-    per field) when the location holds less than asked. A `client_uuid` already used returns the
-    movements it posted.
+    Used by transfers, sales and losses: nobody picks batches by hand (D-009) — except a sale line may ask
+    to take its kilos from one lot first (`prefer_batch_id`, D-121): that lot moves to the front of the
+    order, and if it is not enough the rest still comes from the other lots, oldest first, same as always
+    (never below zero). Every on-hand row of the product at both locations is locked first, in location
+    then batch order, the same order as `post_movement`, so two requests never wait for each other forever.
+    Refused as a whole (ValidationError per field) when the location holds less than asked in total. A
+    `client_uuid` already used returns the movements it posted.
     """
     if client_uuid is not None:
         posted = _posted_parts(organization, client_uuid)
@@ -429,6 +448,8 @@ def post_fifo_movements(
         ),
         key=lambda row: tuple(getattr(row.batch, field) for field in FIFO_ORDER),
     )
+    if prefer_batch_id is not None:
+        holdings = sorted(holdings, key=lambda row: row.batch_id != prefer_batch_id)
     allocations = selectors.fifo_split(holdings, amount)
     if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
         raise selectors.not_enough_stock(sum((row.quantity for row in holdings), Decimal("0.000")), from_location)

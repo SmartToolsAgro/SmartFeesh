@@ -44,6 +44,8 @@ services:
       DJANGO_SECURE_HSTS_SECONDS: "0"
       # Host nginx, then the web container.
       DJANGO_NUM_PROXIES: "2"
+      # Shared by the three server processes, so the login limits (D-023) count across all of them.
+      DJANGO_CACHE_URL: redis://redis:6379/1
       CELERY_BROKER_URL: redis://redis:6379/0
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: staging

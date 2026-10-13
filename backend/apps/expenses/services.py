@@ -140,17 +140,19 @@ OPEN_STATUSES = frozenset({ExpenseStatus.DRAFT, ExpenseStatus.PENDING})
 
 
 def _next_number(organization: Organization, series: str) -> str:
-    """DP-0001, DP-0002... per organization and series, taken under a row lock (same scheme as D-043).
+    """DP-2026-0001, DP-2026-0002... per organization, series and year, taken under a row lock (D-120).
 
-    A deleted draft leaves a gap: these are not fiscal numbers.
+    A deleted draft leaves a gap: these are not fiscal numbers. Expenses numbered before D-120 keep `DP-0001`.
     """
+    year = timezone.localdate().year
+    counter_series = f"{series}-{year}"
     DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
+        [DocumentCounter(organization=organization, series=counter_series)], ignore_conflicts=True
     )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
+    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=counter_series)
     counter.last_number += 1
     counter.save(update_fields=["last_number"])
-    return f"{series}-{counter.last_number:04d}"
+    return f"{counter_series}-{counter.last_number:04d}"
 
 
 def _checked_expense(

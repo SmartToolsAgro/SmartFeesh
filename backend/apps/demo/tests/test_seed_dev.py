@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.utils import timezone
 
 from apps.catalog import selectors as catalog
 from apps.core.models import Membership, Organization, Role, User
@@ -13,6 +14,8 @@ from apps.partners import selectors as partners
 from apps.purchasing import selectors as purchasing
 
 pytestmark = pytest.mark.django_db
+
+YEAR = timezone.localdate().year
 
 
 def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_batches_and_stock(settings):
@@ -78,7 +81,7 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
 
     # Every batch was received into a cold room, and Camion 1 was loaded once.
     # + Camion 2's demo load and return, + the 1.5 kg of mussels lost on Camion 1, + the demo sales' lines
-    assert inventory.movements_of(organization).count() == 15 + 4 + 2 + 4 + 1 + 6
+    assert inventory.movements_of(organization).count() == 15 + 4 + 2 + 4 + 1 + 7
     rooms = {location.name: location for location in inventory.locations_of(organization)}
     # 38.5 kg, then 7 kg sold to Restaurant Le Corail (P2-T04 demo sales)
     assert inventory.quantity_on_hand(organization, location_id=truck.location_id) == Decimal("31.500")
@@ -87,8 +90,9 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert inventory.quantity_on_hand(
         organization, location_id=rooms["Chambre froide 1 (frais)"].pk, product_id=shrimp.pk
     ) == Decimal("42.000")  # 53 kg, then 8 kg loaded on Camion 2 and 1 kg back, then 4 kg sold
+    # 107 kg, then the whole 20 kg Symphonie Marine partnership lot sold to Poissonnerie El Bahr (D-060)
     assert inventory.quantity_on_hand(organization, location_id=rooms["Chambre froide 2 (congelé)"].pk) == Decimal(
-        "107.000"
+        "87.000"
     )
 
     # The demo receipt: 60 kg of dorade accepted for 62 ordered and invoiced.
@@ -102,7 +106,7 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert (invoice.number, invoice.status, invoice.total) == ("FF-0001", "partly_paid", Decimal("1471.500"))
     assert [link.receipt for link in invoice.receipt_links.all()] == [receipt]
     (payment,) = purchasing.payments_of(organization)
-    assert (payment.number, payment.method, payment.amount) == ("RF-0001", "cheque", Decimal("500.000"))
+    assert (payment.number, payment.method, payment.amount) == (f"RF-{YEAR}-0001", "cheque", Decimal("500.000"))
     balance = purchasing.supplier_balance(organization, receipt.supplier_id)
     assert (balance.invoiced, balance.paid, balance.balance) == (
         Decimal("1471.500"),

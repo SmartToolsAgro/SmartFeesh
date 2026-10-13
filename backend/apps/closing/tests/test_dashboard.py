@@ -7,10 +7,14 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.catalog.tests.factories import ProductFactory
 from apps.closing import monthly
 from apps.core.models import Role
 from apps.expenses import selectors as expense_selectors
 from apps.expenses import services as expense_services
+from apps.inventory import services as inventory
+from apps.inventory.models import MovementKind
+from apps.inventory.tests.factories import BatchFactory
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import services as sales
 
@@ -98,3 +102,77 @@ def test_profit_and_cash_are_kept_apart(organization, owner, actor, cold_room, l
     assert data["overdue_customers"] == [{"customer_id": late.pk, "name": "Café Retard", "overdue": "162.500"}]
     assert data["overdue_customer_count"] == 1
     assert data["expenses_waiting"] == 1
+
+
+def test_low_stock_and_expiring_lots_are_alerts(organization, owner, cold_room):
+    today = timezone.localdate()
+    low = ProductFactory.create(organization=organization, name="Crevette", min_stock=D("10.000"))
+    fine = ProductFactory.create(organization=organization, name="Dorade", min_stock=D("10.000"))
+    no_minimum = ProductFactory.create(organization=organization, name="Poulpe", min_stock=D("0.000"))
+
+    def receive(product, kg, use_by=None):
+        batch = BatchFactory.create(organization=organization, product=product, received_on=today, use_by=use_by)
+        inventory.post_movement(
+            organization=organization,
+            actor=None,
+            kind=MovementKind.RECEIPT,
+            batch=batch,
+            quantity=kg,
+            to_location=cold_room,
+        )
+        return batch
+
+    soon = receive(low, "4.000", use_by=today + dt.timedelta(days=2))
+    receive(fine, "50.000", use_by=today + dt.timedelta(days=10))  # not close yet
+    receive(no_minimum, "1.000")  # no use-by date: never expires, no minimum: never low
+
+    data = client_for(owner).get(reverse("dashboard")).json()
+
+    assert data["low_stock_count"] == 1
+    assert data["low_stock"] == [{"product_id": low.pk, "name": "Crevette", "quantity": "4.000", "min_stock": "10.000"}]
+    assert data["expiring_count"] == 1
+    assert data["expiring"] == [
+        {
+            "batch_id": soon.pk,
+            "batch_number": soon.number,
+            "product_name": "Crevette",
+            "use_by": (today + dt.timedelta(days=2)).isoformat(),
+            "quantity": "4.000",
+        }
+    ]
+
+
+def test_a_partner_named_at_the_receipt_is_an_alert_until_the_terms_are_filled(organization, owner, actor, cold_room):
+    from apps.partners.tests.factories import SupplierFactory
+    from apps.partnerships import selectors as partnership_selectors
+    from apps.partnerships import services as partnerships
+
+    partner = SupplierFactory.create(organization=organization, name="Hamadi Pêche")
+    batch = BatchFactory.create(organization=organization, product=ProductFactory.create(organization=organization))
+    inventory.post_movement(
+        organization=organization,
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=batch,
+        quantity="10.000",
+        to_location=cold_room,
+    )
+    created = partnerships.designate_partner(organization=organization, actor=actor, batch=batch, partner=partner)
+
+    data = client_for(owner).get(reverse("dashboard")).json()
+    assert data["pending_terms_count"] == 1
+    assert (data["pending_terms"][0]["batch_number"], data["pending_terms"][0]["partner_name"]) == (
+        batch.number,
+        "Hamadi Pêche",
+    )
+
+    partnerships.update_partnership(
+        partnership=created,
+        actor=actor,
+        owner_capital="100.000",
+        partner_capital="50.000",
+        profit_rate="40",
+        loss_rate="25",
+    )
+    assert client_for(owner).get(reverse("dashboard")).json()["pending_terms_count"] == 0
+    assert not partnership_selectors.pending_terms(organization).exists()

@@ -11,6 +11,8 @@
  * * `customers` - customers
  * * `employees` - employees
  * * `opening_stock` - opening_stock
+ * * `customer_debts` - customer_debts
+ * * `supplier_debts` - supplier_debts
  */
 export type ImportReportKindEnum = typeof ImportReportKindEnum[keyof typeof ImportReportKindEnum];
 
@@ -21,4 +23,6 @@ export const ImportReportKindEnum = {
   customers: 'customers',
   employees: 'employees',
   opening_stock: 'opening_stock',
+  customer_debts: 'customer_debts',
+  supplier_debts: 'supplier_debts',
 } as const;

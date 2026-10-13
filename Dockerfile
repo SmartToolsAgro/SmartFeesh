@@ -28,8 +28,9 @@ WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/ ./
-# Placeholder values: collectstatic needs settings to load, not the real secrets.
-RUN DJANGO_SECRET_KEY=build-only DJANGO_ALLOWED_HOSTS=build python manage.py collectstatic --noinput
+# Placeholder values: collectstatic needs settings to load, not the real secrets (nothing connects to the cache).
+RUN DJANGO_SECRET_KEY=build-only DJANGO_ALLOWED_HOSTS=build DJANGO_CACHE_URL=redis://build-only:6379/0 \
+    python manage.py collectstatic --noinput
 RUN useradd --system --no-create-home app  && mkdir -p /app/media && chown app /app/media
 # Uploaded photos; a named volume mounted here starts with this owner (deploy/compose.staging.yml).
 VOLUME /app/media

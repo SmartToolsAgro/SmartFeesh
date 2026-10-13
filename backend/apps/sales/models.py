@@ -49,7 +49,7 @@ class Quote(OrganizationScopedModel, TimeStampedModel):
 
     Its prices are kept on its lines, so later price changes never touch it (D-020). Only a draft
     changes; once sent it is frozen, and the customer's answer (accepted, refused) or its validity date
-    (expired) closes it. An accepted quote becomes a sale in P2-T04. Nothing is reserved in the stock.
+    (expired) closes it. An accepted quote becomes one or several sales (BL, D-115). Nothing is reserved in the stock.
     """
 
     # "DV-0001", "DV-0002"... per organization, given by `services.create_quote`.
@@ -228,7 +228,8 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     location = models.ForeignKey("inventory.StockLocation", on_delete=models.PROTECT, related_name="+")
     # When the sale was made: its prices are the ones in force then, and its movements happen then.
     sold_at = models.DateTimeField()
-    # The accepted quote it came from, if any. One live (not cancelled) sale per quote.
+    # The accepted quote it came from, if any. A quote may be delivered in several sales (BL), each taking
+    # part of its kilos (D-115).
     quote = models.ForeignKey(Quote, null=True, blank=True, on_delete=models.PROTECT, related_name="sales")
     notes = models.TextField(blank=True)
     # Totals computed by the services from the lines, as on quotes.
@@ -276,6 +277,8 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     credit_decided_at = models.DateTimeField(null=True, blank=True)
+    # What a customer owed when the system started (P4-T01, D-112): no lines, no stock, never invoiced.
+    is_opening = models.BooleanField(default=False)
     # Sent by an app that may retry (the driver app, the seed): the same request never makes two sales.
     client_uuid = models.UUIDField(null=True, blank=True)
 
@@ -287,12 +290,6 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
                 fields=["organization", "client_uuid"],
                 condition=models.Q(client_uuid__isnull=False),
                 name="sale_client_uuid_unique_per_organization",
-            ),
-            # A quote becomes one sale; once that sale is cancelled it may become another.
-            models.UniqueConstraint(
-                fields=["quote"],
-                condition=models.Q(quote__isnull=False) & ~models.Q(status="cancelled"),
-                name="one_live_sale_per_quote",
             ),
             models.CheckConstraint(
                 condition=models.Q(
@@ -327,6 +324,12 @@ class SaleLine(OrganizationScopedModel):
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
     quantity = QuantityField()
+    # Picked by hand instead of FIFO (D-121); empty takes the oldest lot first, as always. Honoured at
+    # confirmation: this lot is taken from first; short, the rest still comes from the other lots oldest
+    # first (`batches` then lists more than one), stock never going negative.
+    requested_batch = models.ForeignKey(
+        "inventory.Batch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     unit_price = MoneyField()
     price_source = models.CharField(max_length=20, choices=PriceSource.choices)
     # The price was below the product's minimum when typed: a warning, never a block (D-049).

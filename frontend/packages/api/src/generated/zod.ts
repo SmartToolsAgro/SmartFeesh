@@ -1557,6 +1557,10 @@ export const getDashboardResponseReceivablesRegExp = new RegExp('^-?\\d{0,11}(?:
 export const getDashboardResponseReceivablesOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDashboardResponseStockValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDashboardResponseOverdueCustomersItemOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseLowStockItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseLowStockItemMinStockRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseExpiringItemQuantityRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDashboardResponseCashDifferencesItemDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetDashboardResponse = zod.object({
@@ -1576,7 +1580,36 @@ export const GetDashboardResponse = zod.object({
 })),
   "overdue_customer_count": zod.int(),
   "days_waiting": zod.int(),
-  "expenses_waiting": zod.int()
+  "expenses_waiting": zod.int(),
+  "low_stock": zod.array(zod.object({
+  "product_id": zod.int(),
+  "name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getDashboardResponseLowStockItemQuantityRegExp),
+  "min_stock": zod.stringFormat('decimal', getDashboardResponseLowStockItemMinStockRegExp)
+})),
+  "low_stock_count": zod.int(),
+  "expiring": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "use_by": zod.iso.date(),
+  "quantity": zod.stringFormat('decimal', getDashboardResponseExpiringItemQuantityRegExp)
+})),
+  "expiring_count": zod.int(),
+  "cash_differences": zod.array(zod.object({
+  "closing_id": zod.int(),
+  "day": zod.iso.date(),
+  "driver_name": zod.string(),
+  "difference": zod.stringFormat('decimal', getDashboardResponseCashDifferencesItemDifferenceRegExp)
+})),
+  "cash_difference_count": zod.int(),
+  "pending_terms": zod.array(zod.object({
+  "partnership_id": zod.int(),
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "partner_name": zod.string()
+})),
+  "pending_terms_count": zod.int()
 })
 
 
@@ -2051,6 +2084,54 @@ export const UpdateDayLabourerResponse = zod.object({
   "usual_daily_pay": zod.stringFormat('decimal', updateDayLabourerResponseUsualDailyPayRegExp).nullable(),
   "notes": zod.string(),
   "is_active": zod.boolean()
+})
+
+
+/**
+ * Quotes, BL, invoices, credit notes, purchase orders, receipts and supplier invoices of the organization,
+ * newest day first (at most 1000; `truncated` says when there were more). Each row names the documents it
+ * came from (`parents`) and the actions the person may take next (`actions`), so the page can draw the
+ * chain DV → BL → FA → AV and BA → BR → FF and offer only what would succeed.
+ */
+export const listDocumentsQuerySearchDefault = ``;
+export const listDocumentsQuerySearchMax = 100;
+
+export const listDocumentsQueryTypesDefault = ``;
+export const listDocumentsQueryTypesMax = 50;
+
+
+
+export const ListDocumentsQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "search": zod.string().max(listDocumentsQuerySearchMax).default(listDocumentsQuerySearchDefault),
+  "tone": zod.enum(['draft', 'waiting', 'done', 'cancelled']).optional().describe('* `draft` - draft\n* `waiting` - waiting\n* `done` - done\n* `cancelled` - cancelled'),
+  "types": zod.string().max(listDocumentsQueryTypesMax).default(listDocumentsQueryTypesDefault)
+})
+
+export const listDocumentsResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDocumentsResponse = zod.object({
+  "results": zod.array(zod.object({
+  "key": zod.string(),
+  "type": zod.enum(['DV', 'BL', 'FA', 'AV', 'BA', 'BR', 'FF']).describe('* `DV` - DV\n* `BL` - BL\n* `FA` - FA\n* `AV` - AV\n* `BA` - BA\n* `BR` - BR\n* `FF` - FF'),
+  "id": zod.int(),
+  "number": zod.string(),
+  "partner_side": zod.enum(['customer', 'supplier']).describe('* `customer` - customer\n* `supplier` - supplier'),
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "date": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listDocumentsResponseResultsItemAmountRegExp),
+  "status": zod.string(),
+  "status_label": zod.string(),
+  "tone": zod.enum(['draft', 'waiting', 'done', 'cancelled']).describe('* `draft` - draft\n* `waiting` - waiting\n* `done` - done\n* `cancelled` - cancelled'),
+  "parents": zod.array(zod.string()),
+  "actions": zod.array(zod.string()),
+  "pdf": zod.string()
+})),
+  "total": zod.int(),
+  "truncated": zod.boolean()
 })
 
 
@@ -3331,7 +3412,7 @@ export const RunImportBody = zod.object({
 })
 
 export const RunImportResponse = zod.object({
-  "kind": zod.enum(['products', 'suppliers', 'customers', 'employees', 'opening_stock']).describe('* `products` - products\n* `suppliers` - suppliers\n* `customers` - customers\n* `employees` - employees\n* `opening_stock` - opening_stock'),
+  "kind": zod.enum(['products', 'suppliers', 'customers', 'employees', 'opening_stock', 'customer_debts', 'supplier_debts']).describe('* `products` - products\n* `suppliers` - suppliers\n* `customers` - customers\n* `employees` - employees\n* `opening_stock` - opening_stock\n* `customer_debts` - customer_debts\n* `supplier_debts` - supplier_debts'),
   "dry_run": zod.boolean(),
   "committed": zod.boolean(),
   "created": zod.int(),
@@ -4598,6 +4679,29 @@ export const ListLocationStockResponse = zod.array(ListLocationStockResponseItem
 
 
 /**
+ * The lots of one product at this location, oldest first: to pick one by hand on a sale (D-121).
+ */
+export const ListLocationBatchesParams = zod.object({
+  "location_id": zod.int(),
+  "product_id": zod.int()
+})
+
+export const listLocationBatchesResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ListLocationBatchesResponseItem = zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_id": zod.int(),
+  "supplier_name": zod.string(),
+  "location_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', listLocationBatchesResponseQuantityRegExp)
+}).describe('One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).\n\n`location_name` is a hint for the till, never printed on a devis or a BL.')
+export const ListLocationBatchesResponse = zod.array(ListLocationBatchesResponseItem)
+
+
+/**
  * Losses, newest day first, paginated (`limit`, `offset`). Filter by status, location or `search`
  * (number, product, location).
  */
@@ -4937,6 +5041,33 @@ export const GetLotCostsResponse = zod.object({
 
 
 /**
+ * The frozen figures (sales, costs, net result, partner share) of the closed lots among `batch_ids`.
+ * An open lot has no row: its result is live and read lot by lot.
+ */
+export const ListLotFiguresQueryParams = zod.object({
+  "batch_ids": zod.string().optional().describe('Lot ids, comma-separated (at most 200).')
+})
+
+export const listLotFiguresResponseRevenueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponseCostsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponseNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponsePartnerShareRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listLotFiguresResponseCapitalToReturnRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListLotFiguresResponseItem = zod.object({
+  "batch_id": zod.int(),
+  "outcome": zod.enum(['profit', 'zero', 'loss']).describe('* `profit` - Bénéfice\n* `zero` - Nul\n* `loss` - Perte'),
+  "revenue": zod.stringFormat('decimal', listLotFiguresResponseRevenueRegExp),
+  "costs_total": zod.stringFormat('decimal', listLotFiguresResponseCostsTotalRegExp),
+  "net_result": zod.stringFormat('decimal', listLotFiguresResponseNetResultRegExp),
+  "partner_share": zod.stringFormat('decimal', listLotFiguresResponsePartnerShareRegExp),
+  "capital_to_return": zod.stringFormat('decimal', listLotFiguresResponseCapitalToReturnRegExp)
+}).describe('The main figures of one closed lot, for the list of partnership lots.')
+export const ListLotFiguresResponse = zod.array(ListLotFiguresResponseItem)
+
+
+/**
  * Days worked on lots, newest first, each with its cost (days × salary / 26). Filter by `employee`,
  * `batch` or `month`.
  */
@@ -5146,7 +5277,8 @@ export const CloseLotResponse = zod.object({
   "source_type": zod.string(),
   "source_id": zod.int().nullable(),
   "reference": zod.string(),
-  "detail": zod.string()
+  "detail": zod.string(),
+  "category_id": zod.int().nullable()
 }))
 })),
   "partner": zod.union([zod.object({
@@ -5416,7 +5548,8 @@ export const ReopenLotResponse = zod.object({
   "source_type": zod.string(),
   "source_id": zod.int().nullable(),
   "reference": zod.string(),
-  "detail": zod.string()
+  "detail": zod.string(),
+  "category_id": zod.int().nullable()
 }))
 })),
   "partner": zod.union([zod.object({
@@ -5588,7 +5721,8 @@ export const GetLotResultResponse = zod.object({
   "source_type": zod.string(),
   "source_id": zod.int().nullable(),
   "reference": zod.string(),
-  "detail": zod.string()
+  "detail": zod.string(),
+  "category_id": zod.int().nullable()
 }))
 })),
   "partner": zod.union([zod.object({
@@ -5959,6 +6093,8 @@ export const getMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-?\\
 export const getMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6005,6 +6141,19 @@ export const GetMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', getMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', getMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', getMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', getMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', getMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', getMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', getMonthResponseReportOneStockOnePurchasesRegExp),
@@ -6086,6 +6235,8 @@ export const approveMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^
 export const approveMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6132,6 +6283,19 @@ export const ApproveMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', approveMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', approveMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', approveMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', approveMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', approveMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', approveMonthResponseReportOneStockOnePurchasesRegExp),
@@ -6221,6 +6385,8 @@ export const reopenMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-
 export const reopenMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6267,6 +6433,19 @@ export const ReopenMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', reopenMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', reopenMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', reopenMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', reopenMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', reopenMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOnePurchasesRegExp),
@@ -6357,6 +6536,8 @@ export const reviewMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-
 export const reviewMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6403,6 +6584,19 @@ export const ReviewMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', reviewMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', reviewMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', reviewMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', reviewMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', reviewMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOnePurchasesRegExp),
@@ -8254,6 +8448,7 @@ export const listQuotesResponseResultsItemDiscountTotalRegExp = new RegExp('^-?\
 export const listQuotesResponseResultsItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listQuotesResponseResultsItemTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listQuotesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listQuotesResponseResultsItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const ListQuotesResponse = zod.object({
@@ -8297,7 +8492,13 @@ export const ListQuotesResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
-}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()])
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "remaining_quantity": zod.stringFormat('decimal', listQuotesResponseResultsItemRemainingQuantityRegExp)
 }))
 })
 
@@ -8332,12 +8533,15 @@ export const createQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?
 export const createQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const createQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseLinesItemDeliveredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const CreateQuoteResponse = zod.object({
@@ -8378,6 +8582,12 @@ export const CreateQuoteResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "remaining_quantity": zod.stringFormat('decimal', createQuoteResponseRemainingQuantityRegExp),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8390,7 +8600,9 @@ export const CreateQuoteResponse = zod.object({
   "discount_rate": zod.stringFormat('decimal', createQuoteResponseLinesItemDiscountRateRegExp),
   "gross_amount": zod.stringFormat('decimal', createQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', createQuoteResponseLinesItemDiscountAmountRegExp),
-  "amount": zod.stringFormat('decimal', createQuoteResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', createQuoteResponseLinesItemAmountRegExp),
+  "delivered_quantity": zod.stringFormat('decimal', createQuoteResponseLinesItemDeliveredQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', createQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
 })
 
@@ -8407,12 +8619,15 @@ export const getQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\
 export const getQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseLinesItemDeliveredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const GetQuoteResponse = zod.object({
@@ -8453,6 +8668,12 @@ export const GetQuoteResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "remaining_quantity": zod.stringFormat('decimal', getQuoteResponseRemainingQuantityRegExp),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8465,7 +8686,9 @@ export const GetQuoteResponse = zod.object({
   "discount_rate": zod.stringFormat('decimal', getQuoteResponseLinesItemDiscountRateRegExp),
   "gross_amount": zod.stringFormat('decimal', getQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', getQuoteResponseLinesItemDiscountAmountRegExp),
-  "amount": zod.stringFormat('decimal', getQuoteResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', getQuoteResponseLinesItemAmountRegExp),
+  "delivered_quantity": zod.stringFormat('decimal', getQuoteResponseLinesItemDeliveredQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', getQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
 })
 
@@ -8503,12 +8726,15 @@ export const updateQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?
 export const updateQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const updateQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseLinesItemDeliveredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const UpdateQuoteResponse = zod.object({
@@ -8549,6 +8775,12 @@ export const UpdateQuoteResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "remaining_quantity": zod.stringFormat('decimal', updateQuoteResponseRemainingQuantityRegExp),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8561,7 +8793,9 @@ export const UpdateQuoteResponse = zod.object({
   "discount_rate": zod.stringFormat('decimal', updateQuoteResponseLinesItemDiscountRateRegExp),
   "gross_amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemDiscountAmountRegExp),
-  "amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemAmountRegExp),
+  "delivered_quantity": zod.stringFormat('decimal', updateQuoteResponseLinesItemDeliveredQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', updateQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
 })
 
@@ -8579,12 +8813,15 @@ export const acceptQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?
 export const acceptQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const acceptQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const acceptQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const acceptQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const acceptQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const acceptQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const acceptQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const acceptQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const acceptQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseLinesItemDeliveredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const acceptQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const AcceptQuoteResponse = zod.object({
@@ -8625,6 +8862,12 @@ export const AcceptQuoteResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "remaining_quantity": zod.stringFormat('decimal', acceptQuoteResponseRemainingQuantityRegExp),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8637,15 +8880,18 @@ export const AcceptQuoteResponse = zod.object({
   "discount_rate": zod.stringFormat('decimal', acceptQuoteResponseLinesItemDiscountRateRegExp),
   "gross_amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemDiscountAmountRegExp),
-  "amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemAmountRegExp),
+  "delivered_quantity": zod.stringFormat('decimal', acceptQuoteResponseLinesItemDeliveredQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', acceptQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
 })
 
 
 /**
  * Turn an accepted quote, still valid, into a sale (a draft, or confirmed with `confirm_now`): same
- * customer, products, kg, prices and discounts, from the quote's place unless `location` is given. The
- * quote stays accepted and links to its sale.
+ * customer, products, prices and discounts, from the quote's place unless `location` is given. Without
+ * `lines` it takes every kilo not on a BL yet; with `lines`, the kg given per quote line, at most what is
+ * left (a quote may be delivered in several BL, D-115). The quote stays accepted and links to its sales.
  */
 export const ConvertQuoteToSaleParams = zod.object({
   "quote_id": zod.int()
@@ -8658,6 +8904,9 @@ export const convertQuoteToSaleBodyPaymentReferenceMax = 50;
 
 
 export const convertQuoteToSaleBodyConfirmNowDefault = false;
+export const convertQuoteToSaleBodyLinesItemQuantityMax = 20;
+
+
 
 export const ConvertQuoteToSaleBody = zod.object({
   "amount_paid": zod.string().nullish(),
@@ -8666,7 +8915,11 @@ export const ConvertQuoteToSaleBody = zod.object({
   "payment_reference": zod.string().max(convertQuoteToSaleBodyPaymentReferenceMax).default(convertQuoteToSaleBodyPaymentReferenceDefault),
   "location": zod.int().min(1).nullish(),
   "sold_at": zod.iso.datetime({"offset":true}).nullish(),
-  "confirm_now": zod.boolean().default(convertQuoteToSaleBodyConfirmNowDefault)
+  "confirm_now": zod.boolean().default(convertQuoteToSaleBodyConfirmNowDefault),
+  "lines": zod.array(zod.object({
+  "quote_line": zod.int().min(1),
+  "quantity": zod.string().max(convertQuoteToSaleBodyLinesItemQuantityMax)
+})).nullish()
 })
 
 export const convertQuoteToSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -8796,12 +9049,15 @@ export const refuseQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?
 export const refuseQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const refuseQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const refuseQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const refuseQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const refuseQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const refuseQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const refuseQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const refuseQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const refuseQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseLinesItemDeliveredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const refuseQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const RefuseQuoteResponse = zod.object({
@@ -8842,6 +9098,12 @@ export const RefuseQuoteResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "remaining_quantity": zod.stringFormat('decimal', refuseQuoteResponseRemainingQuantityRegExp),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8854,7 +9116,9 @@ export const RefuseQuoteResponse = zod.object({
   "discount_rate": zod.stringFormat('decimal', refuseQuoteResponseLinesItemDiscountRateRegExp),
   "gross_amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemDiscountAmountRegExp),
-  "amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemAmountRegExp),
+  "delivered_quantity": zod.stringFormat('decimal', refuseQuoteResponseLinesItemDeliveredQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', refuseQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
 })
 
@@ -8872,12 +9136,15 @@ export const sendQuoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\
 export const sendQuoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const sendQuoteResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const sendQuoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const sendQuoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const sendQuoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const sendQuoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const sendQuoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const sendQuoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const sendQuoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseLinesItemDeliveredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const sendQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const SendQuoteResponse = zod.object({
@@ -8918,6 +9185,12 @@ export const SendQuoteResponse = zod.object({
   "number": zod.string(),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "remaining_quantity": zod.stringFormat('decimal', sendQuoteResponseRemainingQuantityRegExp),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -8930,7 +9203,9 @@ export const SendQuoteResponse = zod.object({
   "discount_rate": zod.stringFormat('decimal', sendQuoteResponseLinesItemDiscountRateRegExp),
   "gross_amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemDiscountAmountRegExp),
-  "amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemAmountRegExp),
+  "delivered_quantity": zod.stringFormat('decimal', sendQuoteResponseLinesItemDeliveredQuantityRegExp),
+  "remaining_quantity": zod.stringFormat('decimal', sendQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
 })
 
@@ -10665,6 +10940,7 @@ export const createSaleBodyPaymentReferenceMax = 50;
 
 
 export const createSaleBodyNotesDefault = ``;
+
 export const createSaleBodyConfirmNowDefault = false;
 export const createSaleBodyApproveCreditDefault = false;
 
@@ -10681,7 +10957,8 @@ export const CreateSaleBody = zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
-  "discount_rate": zod.string().nullish()
+  "discount_rate": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish()
 })),
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(createSaleBodyApproveCreditDefault),
@@ -10924,6 +11201,7 @@ export const updateSaleBodyPaymentReferenceMax = 50;
 
 
 export const updateSaleBodyNotesDefault = ``;
+
 export const updateSaleBodyConfirmNowDefault = false;
 export const updateSaleBodyApproveCreditDefault = false;
 
@@ -10940,7 +11218,8 @@ export const UpdateSaleBody = zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
-  "discount_rate": zod.string().nullish()
+  "discount_rate": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish()
 })),
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(updateSaleBodyApproveCreditDefault),

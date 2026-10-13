@@ -15,6 +15,8 @@ from .factories import EmployeeFactory
 
 pytestmark = pytest.mark.django_db
 
+YEAR = timezone.localdate().year
+
 THIS_MONTH = timezone.localdate().replace(day=1)
 
 
@@ -252,7 +254,7 @@ def test_a_payment_settles_salaries_and_the_unpaid_amount_falls():
         allocations=[{"salary_record": record, "amount": "400.000"}],
     )
 
-    assert payment.number == "PS-0001"
+    assert payment.number == f"PS-{YEAR}-0001"
     assert selectors.unpaid_by_employee(organization) == {employee.pk: Decimal("600.000")}
     summary = selectors.payroll_summary(organization, month=THIS_MONTH)
     assert (summary.paid, summary.outstanding, summary.unpaid_total, summary.unpaid_records) == (
