@@ -55,8 +55,9 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
 class DriverDay(OrganizationScopedModel, TimeStampedModel):
     """A driver's working day on a truck, opened from the phone with the cash float in hand (P3-T01).
 
-    Sending the closing ends it; the driver may then start another one the same date (D-126), numbered 1, 2...
-    Each one counts what was recorded between the end of the one before (or the start of the date) and its end.
+    Sending the closing ends it; the driver may then start another one the same date (D-134), numbered 1, 2...
+    Each one covers the date from the end of the one before (or the start of the date) to its own end
+    (`selectors.day_window`); a sale counts on the day that covers the moment it was made.
     """
 
     truck = models.ForeignKey(Truck, on_delete=models.PROTECT, related_name="driver_days")

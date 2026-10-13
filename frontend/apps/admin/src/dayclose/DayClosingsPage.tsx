@@ -1,5 +1,7 @@
 import {
+  type ChangedFigure,
   type DayClosingRow,
+  type DayProduct,
   useApproveDayClosing,
   useGetDayClosing,
   useListDayClosings,
@@ -46,6 +48,60 @@ function Line({ label, value }: { label: string; value: string }) {
       <span className="text-ink-2">{label}</span>
       <span className="num font-semibold">{value}</span>
     </p>
+  );
+}
+
+/** The opening stock and the gap of a product (D-130): a day sent before they existed has neither. */
+function stockOf(product: DayProduct): { opening?: string; unexplained?: string } {
+  const kept: Partial<Pick<DayProduct, "opening" | "unexplained">> = product;
+  return { opening: kept.opening, unexplained: kept.unexplained };
+}
+
+const PRODUCT_FIGURES: ReadonlySet<ChangedFigure["figure"]> = new Set([
+  "opening",
+  "loaded",
+  "sold",
+  "lost",
+  "returned",
+  "remaining",
+]);
+
+function changedValue(change: ChangedFigure, value: string): string {
+  if (change.figure === "sales_count") return String(Number(value));
+  return PRODUCT_FIGURES.has(change.figure) ? formatQuantity(value) : formatMoney(value);
+}
+
+/** What the records say now against what the driver sent (D-134): a sale received after the send, or a
+ * correction by the office. It informs; the office still approves or asks. */
+function ChangesSinceSent({ changes }: { changes: readonly ChangedFigure[] }) {
+  const { t } = useTranslation();
+  if (changes.length === 0) return null;
+  return (
+    <div role="status" className="flex flex-col gap-2 rounded-control bg-warn-soft px-3 py-2">
+      <p className="font-semibold text-warn">{t("admin.dayClosings.changed.title")}</p>
+      <p className="text-[0.88rem]">{t("admin.dayClosings.changed.body")}</p>
+      <Table>
+        <thead>
+          <tr>
+            <Th>{t("admin.dayClosings.changed.figure")}</Th>
+            <Th className="text-end">{t("admin.dayClosings.changed.sent")}</Th>
+            <Th className="text-end">{t("admin.dayClosings.changed.live")}</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {changes.map((change) => (
+            <tr key={`${change.figure}-${change.product_name}`}>
+              <Td>
+                {t(`admin.dayClosings.changed.figures.${change.figure}`)}
+                {change.product_name === "" ? "" : ` · ${change.product_name}`}
+              </Td>
+              <Td className="num text-end">{changedValue(change, change.sent)}</Td>
+              <Td className="num text-end font-semibold">{changedValue(change, change.live)}</Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
   );
 }
 
@@ -104,28 +160,39 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             <Line label={t("admin.dayClosings.counted")} value={formatMoney(data.counted_cash)} />
             <Line label={t("admin.dayClosings.difference")} value={signed(data.difference)} />
           </div>
+          <ChangesSinceSent changes={data.changes_since_sent} />
           <Table>
             <thead>
               <tr>
                 <Th>{t("admin.dayClosings.product")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.stockOpening")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.loaded")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.sold")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.lost")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.returned")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.left")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.unexplained")}</Th>
               </tr>
             </thead>
             <tbody>
-              {data.summary.products.map((product) => (
-                <tr key={product.product_id}>
-                  <Td>{product.product_name}</Td>
-                  <Td className="num text-end">{formatQuantity(product.loaded)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.sold)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.lost)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.returned)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.remaining)}</Td>
-                </tr>
-              ))}
+              {data.summary.products.map((product) => {
+                // The truck's stock when the day started and the gap the records do not explain (D-130), as sent.
+                const { opening, unexplained } = stockOf(product);
+                return (
+                  <tr key={product.product_id}>
+                    <Td>{product.product_name}</Td>
+                    <Td className="num text-end">{opening === undefined ? "" : formatQuantity(opening)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.loaded)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.sold)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.lost)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.returned)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.remaining)}</Td>
+                    <Td className={cn("num text-end", Number(unexplained ?? 0) !== 0 && "font-semibold text-bad")}>
+                      {unexplained === undefined ? "" : formatQuantity(unexplained)}
+                    </Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Table>
           {data.driver_note !== "" && (
@@ -227,7 +294,7 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
   );
 }
 
-/** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06), and their history (D-126). */
+/** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06), and their history (D-134). */
 export function DayClosingsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
@@ -238,7 +305,7 @@ export function DayClosingsPage() {
   const [dateTo, setDateTo] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const query = useDebounced(search.trim());
-  // "Toutes" with a driver and dates is the history of the drivers' days (D-126).
+  // "Toutes" with a driver and dates is the history of the drivers' days (D-134).
   const closings = useListDayClosings({
     ...(status ? { status } : {}),
     ...(query ? { search: query } : {}),

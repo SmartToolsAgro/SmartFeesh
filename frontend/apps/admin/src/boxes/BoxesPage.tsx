@@ -1,10 +1,14 @@
 import { type BoxMovement, type BoxTypeEnum, useListBoxBalances, useListBoxMovements } from "@frutti/api";
+import type { Session } from "@frutti/auth";
 import { formatDate, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, EmptyState, Pill, PageHeader, Table, Td, Th } from "@frutti/ui";
+import { Button, Card, CardTitle, EmptyState, Icon, Pill, PageHeader, Table, Td, Th } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useNavigate, useOutletContext } from "react-router";
 
 import { StockTabs } from "../lib/StockTabs";
+import { canRecordReceipts } from "../receipts/shared";
+import { canRecordTransfers } from "../transfers/shared";
 import {
   BOX_TYPES,
   type HolderCounts,
@@ -24,20 +28,47 @@ const KIND_TONES = {
   leave: "coral",
   collect: "neutral",
   return: "neutral",
+  truck_return: "sea",
   write_off: "bad",
 } as const;
 
 /** The returnable boxes (caisses): what each holder has now, and the history of moves (P1-T14). Read only. */
 export function BoxesPage() {
   const { t } = useTranslation();
+  const session = useOutletContext<Session>();
+  const navigate = useNavigate();
   const balances = useListBoxBalances();
   const holders = useMemo(() => holdersFromBalances(balances.data ?? []), [balances.data]);
+  // Boxes come in with a receipt or a load: the places to record them, for whoever may record them.
+  const canRecord = canRecordReceipts(session) || canRecordTransfers(session);
 
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.goods")} title={t("admin.boxes.title")} />
       <StockTabs />
       <p className="text-ink-2">{t("admin.boxes.intro")}</p>
+
+      {balances.data?.length === 0 && (
+        <Card className="mt-4 flex flex-col items-start gap-3" data-testid="boxes-empty">
+          <p className="text-ink-2">{t("admin.boxes.empty.text")}</p>
+          {canRecord && (
+            <div className="flex flex-wrap gap-2">
+              {canRecordReceipts(session) && (
+                <Button variant="primary" onClick={() => void navigate("/achats/nouvelle")}>
+                  <Icon name="plus" />
+                  {t("admin.boxes.empty.receipt")}
+                </Button>
+              )}
+              {canRecordTransfers(session) && (
+                <Button onClick={() => void navigate("/stock/transferts/nouveau")}>
+                  <Icon name="truck" />
+                  {t("admin.boxes.empty.load")}
+                </Button>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
 
       {balances.isError ? (
         <p role="alert" className="text-bad">

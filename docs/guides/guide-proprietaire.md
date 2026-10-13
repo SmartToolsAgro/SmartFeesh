@@ -155,8 +155,9 @@ Rubriques : **Dépenses**, **Calendrier journaliers**, **Journaliers**, **Chambr
 - **Frais généraux** : **Ajouter un frais mensuel** (loyer, comptable, assurance), puis chaque mois **Générer le mois**
   (ou **Générer et approuver**). **Facture sur plusieurs mois** répartit une facture annuelle à parts égales.
 
-**(provisoire)** Les frais généraux et les frais de camion sont répartis entre les lots selon des règles encore à confirmer
-avec le client (voir les questions Q21, Q24 et Q25 de `docs/OPEN_QUESTIONS.md`).
+Les frais généraux sont répartis chaque jour entre les lots en stock selon les kilos, comme la chambre froide (confirmé le
+13/10/2026, question Q21). **(provisoire)** Restent à confirmer avec le client : le nombre de jours comptés pour les frais
+généraux et la répartition des frais de camion (questions Q25 et Q24 de `docs/OPEN_QUESTIONS.md`).
 
 ## 8. Le personnel et les salaires (menu « Personnel & salaires »)
 
@@ -231,7 +232,7 @@ enregistré après la clôture n'est pas bloqué : l'écran montre l'écart avec
 
 | Sujet | Règle actuelle | À confirmer avec |
 |---|---|---|
-| Frais généraux (loyer, comptable) | Un 26e du montant mensuel par jour, réparti entre les lots en stock selon les kilos | Le client (Q21, Q25) |
+| Frais généraux (loyer, comptable) : jours comptés | Un 26e du montant mensuel pour chaque jour avec du stock (la répartition entre les lots selon les kilos est confirmée, Q21) | Le client (Q25) |
 | Frais de camion du jour | Répartis entre les lots chargés, au prorata des kilos | Le client (Q24) |
 | Prix d'une vente du chauffeur | Prix du client, sinon prix du jour ; le total affiché peut différer du reçu | Le client |
 | Seuil de validation des pertes | 2 kg | Le client |

@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import PermissionDenied
 
@@ -24,14 +25,22 @@ ZERO = Decimal("0.000")
 
 
 def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
-    """The day's figures for this driver on this truck, computed from the records. A driver who opens a second day
-    on the same date splits the date: each day counts what was recorded within its window (D-126)."""
+    """The figures of one driver's day on its truck, computed from the records, over the day's own window
+    (`fleet.day_window`, D-134): a driver who starts a second day on the same date splits the date.
+
+    A sale counts on the day that covers the moment it was made (`sold_at`, D-133), also when it reached the
+    server later. Customer payments and road expenses count when they were recorded (they are dated when they
+    are sent). The stock is read from the ledger on one clock (`occurred_at`): what the truck held when the day
+    started (`opening`), what was loaded, returned and lost during it, and what it held when it ended
+    (`remaining`; while the day runs, what it holds now). So opening + loaded - returned - sold - lost is what
+    is left, for a first day and for a second day of the same date, and `unexplained` is only stock that moved
+    without a sale of this driver, a loss or a transfer."""
     day = driver_day.date
     location_id = driver_day.truck.location_id
     start, end = fleet.day_window(driver_day)
 
     def inside(moment: dt.datetime) -> bool:
-        return (start is None or moment >= start) and (end is None or moment < end)
+        return start <= moment < end
 
     day_sales = [
         sale
@@ -43,7 +52,7 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
             date_from=day,
             date_to=day,
         )
-        if inside(sale.created_at)
+        if inside(sale.sold_at)
     ]
     cash = sum((s.amount_paid for s in day_sales if s.payment_method == "cash"), ZERO)
     paid = sum((s.amount_paid for s in day_sales), ZERO)
@@ -70,33 +79,44 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
             sold[line.product_id] = sold.get(line.product_id, ZERO) + line.quantity
     loaded: dict[int, Decimal] = {}
     returned: dict[int, Decimal] = {}
-    for row in inventory.truck_day(
-        organization, location_id=location_id, day=day, validated_after=start, validated_before=end
-    ):
-        names[row.product_id] = row.product_name
-        loaded[row.product_id] = row.loaded
-        returned[row.product_id] = row.returned
     lost: dict[int, Decimal] = {}
-    for loss in inventory.losses_of(organization, status="approved", location_id=location_id):
-        if loss.lost_on == day and inside(loss.created_at):
-            names[loss.product_id] = loss.product.name
-            lost[loss.product_id] = lost.get(loss.product_id, ZERO) + loss.quantity
+    for moves in inventory.location_moves_between(organization, location_id=location_id, start=start, end=end):
+        names[moves.product_id] = moves.product_name
+        loaded[moves.product_id] = moves.loaded
+        returned[moves.product_id] = moves.returned
+        lost[moves.product_id] = moves.lost
+    opening: dict[int, Decimal] = {}
+    for stock in inventory.location_stock_at(organization, location_id=location_id, moment=start):
+        names[stock["product_id"]] = stock["product__name"]
+        opening[stock["product_id"]] = stock["quantity"]
+    # Left in the truck: what it holds now while the day's window is open, what the ledger held when it closed
+    # otherwise (the driver's next day has moved the stock since).
+    left_now = end > timezone.now()
+    left_rows = (
+        inventory.location_stock(organization, location_id=location_id)
+        if left_now
+        else inventory.location_stock_at(organization, location_id=location_id, moment=end)
+    )
     remaining: dict[int, Decimal] = {}
-    for stock in inventory.location_stock(organization, location_id=location_id):
+    for stock in left_rows:
         names[stock["product_id"]] = stock["product__name"]
         remaining[stock["product_id"]] = stock["quantity"]
-    products = [
-        {
+    products: list[dict[str, Any]] = []
+    for product_id, name in sorted(names.items(), key=lambda item: item[1]):
+        figures: dict[str, Any] = {
             "product_id": product_id,
             "product_name": name,
+            "opening": opening.get(product_id, ZERO),
             "loaded": loaded.get(product_id, ZERO),
             "sold": sold.get(product_id, ZERO),
             "lost": lost.get(product_id, ZERO),
             "returned": returned.get(product_id, ZERO),
             "remaining": remaining.get(product_id, ZERO),
         }
-        for product_id, name in sorted(names.items(), key=lambda item: item[1])
-    ]
+        # What the day's records say should be left, against the ledger: a gap is stock that moved without a
+        # sale, loss or transfer of this driver (another seller, a hand adjustment, a cancelled sale...).
+        left = figures["opening"] + figures["loaded"] - figures["returned"] - figures["sold"] - figures["lost"]
+        products.append({**figures, "unexplained": figures["remaining"] - left})
     driver = driver_day.driver
     return {
         "date": day,
@@ -120,10 +140,64 @@ def closing_of(driver_day: "DriverDay") -> DayClosing | None:
 
 
 def day_answer(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
-    """A driver's day as the phone shows it: the figures as sent once the closing is sent, live before."""
+    """A driver's day as the phone shows it: the figures as sent once the closing is sent (they do not move,
+    D-134), the day's records before. When the office asked for a justification the driver is about to send
+    again, so the records are shown: they are what the new send will keep."""
     closing = closing_of(driver_day)
-    summary = closing.summary if closing is not None else day_summary(organization, driver_day)
+    as_sent = closing is not None and closing.status != DayClosingStatus.JUSTIFICATION
+    summary = closing.summary if closing is not None and as_sent else day_summary(organization, driver_day)
     return {"summary": summary, "closing": closing}
+
+
+# The figures compared between a closing as sent and the day's records now: of the day, then per product.
+DAY_FIGURES = (
+    "sales_count",
+    "sales_total",
+    "cash_received",
+    "payments_cash",
+    "other_payments",
+    "on_credit",
+    "expenses_total",
+    "expected_cash",
+)
+PRODUCT_FIGURES = ("opening", "loaded", "sold", "lost", "returned", "remaining")
+CHANGED_FIGURES = (*DAY_FIGURES, *PRODUCT_FIGURES)
+
+
+def changes_since_sent(closing: DayClosing) -> list[dict[str, Any]]:
+    """Where the day's records, read now, no longer say what the driver sent (D-134): one row per figure that
+    differs, with the value as sent and the value now; `product_name` is empty for a figure of the whole day.
+
+    A sent closing never changes by itself. A sale made before it was sent and received after it (D-133) is
+    still recorded on that day while the office has not approved it, as is anything the office corrects
+    afterwards (an expense rejected, a sale cancelled): the snapshot keeps what was sent and this list shows
+    the office the difference before it approves. Empty when nothing moved, and for an approved closing, which
+    is locked. A figure the snapshot does not have (an older closing) is not compared."""
+    if closing.status == DayClosingStatus.APPROVED:
+        return []
+    sent: dict[str, Any] = closing.summary
+    live = day_summary(closing.organization, closing.driver_day)
+    rows: list[dict[str, Any]] = []
+
+    def compare(figure: str, product_name: str, before: Any, after: Any) -> None:
+        before, after = Decimal(str(before)), Decimal(str(after))
+        if before != after:
+            rows.append({"figure": figure, "product_name": product_name, "sent": before, "live": after})
+
+    for figure in DAY_FIGURES:
+        if figure in sent:
+            compare(figure, "", sent[figure], live[figure])
+    sent_products = {row["product_id"]: row for row in sent.get("products", [])}
+    live_products = {row["product_id"]: row for row in live["products"]}
+    # A figure no sent product has is one the snapshot was made without (opening, before D-130).
+    known = [f for f in PRODUCT_FIGURES if not sent_products or any(f in row for row in sent_products.values())]
+    names = {row["product_id"]: row["product_name"] for row in (*sent_products.values(), *live_products.values())}
+    for product_id, name in sorted(names.items(), key=lambda item: (item[1], item[0])):
+        before_row = sent_products.get(product_id, {})
+        after_row = live_products.get(product_id, {})
+        for figure in known:
+            compare(figure, name, before_row.get(figure, ZERO), after_row.get(figure, ZERO))
+    return rows
 
 
 def closings_of(
@@ -161,11 +235,53 @@ def closing_by_id(organization: Organization, closing_id: int) -> DayClosing:
 
 
 def refuse_if_day_closed(membership: Membership) -> None:
-    """Once the driver sent the closing, the day is over (D-126, replaces D-109): nothing more is sold, spent or
-    lost on it. The driver starts another day first."""
+    """Once the driver sent the closing, the day is over (D-134, replaces D-109): nothing more is spent, lost,
+    returned or collected on it. The driver starts another day first. (A sale has its own check, on the moment
+    it was made: `refuse_sale_outside_day`.)"""
     driver_day = fleet.driver_day_of(membership)
     if driver_day is not None and driver_day.ended_at is not None:
         raise PermissionDenied(_("Votre journée est clôturée : commencez une nouvelle journée."))
+
+
+def refuse_sale_outside_day(membership: Membership, made_at: dt.datetime | None = None) -> None:
+    """Whether a driver's sale may still be recorded, from the moment it was made (now by default; `made_at`
+    is the phone's time once checked, D-133) and the driver's days of that date (D-134).
+
+    The sale belongs to the day that covers that moment. Refused with 403 when:
+    - every day of that date had already ended at that moment: the sale was made after the closing was sent,
+      and the driver must start a new day first;
+    - the day it belongs to is approved by the office (D-094): nothing is added to it.
+    A day sent but not approved still takes a sale made before it was sent: the figures the driver sent stay
+    as sent, and the office sees that the day's records have changed since (`changes_since_sent`).
+    No day started on that date: accepted, the sale belongs to no closing (D-133)."""
+    moment = made_at or timezone.now()
+    today = timezone.localdate()
+    day = timezone.localtime(moment).date()
+    days = fleet.driver_days_on(membership, day)
+    if not days:
+        return
+    driver_day = fleet.day_covering(days, moment)
+    if driver_day is None:
+        if day == today:
+            raise PermissionDenied(_("Votre journée est clôturée : commencez une nouvelle journée."))
+        raise PermissionDenied(
+            _(
+                "Votre journée du %(day)s était déjà clôturée quand cette vente a été faite : "
+                "elle n'est pas enregistrée. Prévenez le bureau."
+            )
+            % {"day": day.strftime("%d/%m/%Y")}
+        )
+    approved = DayClosing.objects.for_organization(membership.organization).filter(
+        driver_day=driver_day, status=DayClosingStatus.APPROVED
+    )
+    if not approved.exists():
+        return
+    if day == today:
+        raise PermissionDenied(_("Votre journée est approuvée par le bureau : elle est fermée."))
+    raise PermissionDenied(
+        _("Votre journée du %(day)s est approuvée par le bureau : elle est fermée, plus rien ne s'y ajoute.")
+        % {"day": day.strftime("%d/%m/%Y")}
+    )
 
 
 def sync_problems_of(organization: Organization, *, open_only: bool = True) -> QuerySet[SyncProblem]:

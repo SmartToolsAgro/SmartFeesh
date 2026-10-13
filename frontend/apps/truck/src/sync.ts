@@ -1,8 +1,16 @@
-import { addMyExpense, ApiError, collectMyPayment, createSale, reportMyLoss, reportSyncProblem } from "@frutti/api";
+import {
+  addMyExpense,
+  ApiError,
+  collectMyBoxes,
+  collectMyPayment,
+  createSale,
+  reportMyLoss,
+  reportSyncProblem,
+} from "@frutti/api";
 import type { QueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-import { listQueue, markRefused, markReported, type QueuedItem, removeQueued } from "./queue";
+import { listQueue, madeAtOf, markRefused, markReported, type QueuedItem, removeQueued } from "./queue";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -10,6 +18,45 @@ function messagesOf(body: unknown): string[] {
   if (Array.isArray(body)) return body.flatMap(messagesOf);
   if (typeof body === "object" && body !== null) return Object.values(body).flatMap(messagesOf);
   return [];
+}
+
+/** A send that gets no answer in this time counts as no connection (a weak signal can hang a request for minutes). */
+export const SEND_TIMEOUT_MS = 25_000;
+
+/** Answers that mean "try again later", not "the server refused this item": the item stays pending. */
+const RETRY_LATER = new Set([408, 429, 502, 503, 504]);
+
+/**
+ * Why the last run could not send everything: "offline" (no connection or no answer), "session" (the login
+ * ended, sign in again) or "server" (busy or restarting). null when the last run sent all it had.
+ */
+export type SyncProblem = "offline" | "session" | "server" | null;
+
+let problem: SyncProblem = null;
+const problemListeners = new Set<() => void>();
+
+function setProblem(next: SyncProblem): void {
+  if (next === problem) return;
+  problem = next;
+  problemListeners.forEach((listener) => listener());
+}
+
+export function getSyncProblem(): SyncProblem {
+  return problem;
+}
+
+/** The last sync problem, kept up to date on screen. */
+export function useSyncProblem(): SyncProblem {
+  const [current, setCurrent] = useState<SyncProblem>(problem);
+  useEffect(() => {
+    const update = () => setCurrent(problem);
+    problemListeners.add(update);
+    update();
+    return () => {
+      problemListeners.delete(update);
+    };
+  }, []);
+  return current;
 }
 
 let sending = false;
@@ -24,18 +71,45 @@ async function tellOffice(item: QueuedItem): Promise<void> {
   }
 }
 
-function sendItem(item: QueuedItem): Promise<unknown> {
-  if (item.kind === "sale") return createSale(item.data);
-  if (item.kind === "expense") return addMyExpense(item.data);
-  if (item.kind === "payment") return collectMyPayment(item.data);
-  return reportMyLoss(item.data);
+function sendItem(item: QueuedItem, options: RequestInit): Promise<unknown> {
+  // A sale goes with the time it was made, not the time it is sent (D-133): the server dates it from that.
+  if (item.kind === "sale") return createSale({ ...item.data, sold_at: madeAtOf(item) }, options);
+  if (item.kind === "expense") return addMyExpense(item.data, options);
+  if (item.kind === "payment") return collectMyPayment(item.data, options);
+  if (item.kind === "pickup") return collectMyBoxes(item.data, options);
+  return reportMyLoss(item.data, options);
 }
 
-/** Send what waits one by one, oldest first. Stops at the first sign of no connection or no login. */
+/** One send, given up after SEND_TIMEOUT_MS: the request is aborted and the timeout reads as "no connection". */
+async function sendWithTimeout(item: QueuedItem): Promise<unknown> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new TypeError("timeout"));
+    }, SEND_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([sendItem(item, { signal: controller.signal }), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Send what waits one by one, oldest first. Stops at the first sign of no connection, no login or a busy server,
+ * and says which one it was (see `useSyncProblem`).
+ */
 export async function sendWaiting(queryClient: QueryClient): Promise<void> {
-  if (sending || !navigator.onLine) return;
+  if (sending) return;
+  if (!navigator.onLine) {
+    setProblem("offline");
+    return;
+  }
   sending = true;
   let sent = false;
+  let stopped: SyncProblem = null;
   try {
     for (const item of await listQueue()) {
       if (item.status === "refused") {
@@ -43,24 +117,32 @@ export async function sendWaiting(queryClient: QueryClient): Promise<void> {
         continue;
       }
       try {
-        await sendItem(item);
+        await sendWithTimeout(item);
         await removeQueued(item.uuid);
         sent = true;
       } catch (failure) {
-        // The connection dropped or the session ended: keep everything and try again later.
-        if (!(failure instanceof ApiError) || failure.status === 401) break;
-        const refused = {
-          ...item,
-          status: "refused" as const,
-          error: messagesOf(failure.body).join(" ") || failure.message,
-        };
-        await markRefused(item, refused.error);
-        await tellOffice(refused);
+        if (!(failure instanceof ApiError)) {
+          // The connection dropped or did not answer: keep everything and try again later.
+          stopped = "offline";
+          break;
+        }
+        if (failure.status === 401) {
+          stopped = "session";
+          break;
+        }
+        if (RETRY_LATER.has(failure.status)) {
+          stopped = "server";
+          break;
+        }
+        const error = messagesOf(failure.body).join(" ") || failure.message;
+        await markRefused(item, error);
+        await tellOffice({ ...item, status: "refused", error });
       }
     }
   } finally {
     sending = false;
   }
+  setProblem(stopped);
   if (sent) await queryClient.invalidateQueries();
 }
 

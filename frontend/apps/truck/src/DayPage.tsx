@@ -115,7 +115,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
       ? loadedToday.map((line) => ({ ...line, quantity: line.loaded }))
       : (stock.data ?? []).filter((line) => Number(line.quantity) > 0);
   const running = day.data !== undefined && day.data.ended_at === null;
-  // The day's closing was sent: the driver may start another one the same date (D-126).
+  // The day's closing was sent: the driver may start another one the same date (D-134).
   const ended = day.data !== undefined && day.data.ended_at !== null;
   const cashValue = parseDecimalInput(cash.trim(), 3);
   // A day the office asked about waits in the history for the driver's answer.

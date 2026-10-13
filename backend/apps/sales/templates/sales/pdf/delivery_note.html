@@ -1,17 +1,9 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
 {% block heading %}Bon de livraison{% endblock %}
-{% block subtitle %}
-  <p class="muted num">{{ sold_on|day }} · au départ de {{ location.name }}</p>
-  {% if cancelled %}<p class="banner">ANNULÉ</p>{% endif %}
-{% endblock %}
+{% block banner %}{% if cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉ</span></p>{% endif %}{% endblock %}
+{% block head_meta %}<p class="fa-meta">Au départ de {{ location.name }}</p>{% endblock %}
 {% block body %}
 <div class="parties">
-  <div>
-    <h2>Client</h2>
-    <p><b>{{ customer.name }}</b></p>
-    {% if customer.address or customer.city %}<p>{{ customer.address }}{% if customer.address and customer.city %}, {% endif %}{{ customer.city }}</p>{% endif %}
-    {% if customer.tax_id %}<p class="small muted">M.F. {{ customer.tax_id }}</p>{% endif %}
-  </div>
   <div>
     <h2>Livraison</h2>
     <p>Prix en dinars tunisiens (DT), par kilo, hors TVA.</p>

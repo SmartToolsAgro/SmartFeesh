@@ -2,7 +2,7 @@ import type { ExpenseStatusEnum, PaymentMethodEnum, WorkTypeEnum } from "@frutti
 import type { Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
-/** After an expense or a day worked changes, refresh every list that shows them (and lot costs). */
+/** After an expense or a day worked changes, refresh every list that shows them (lot costs, the month result). */
 export function refreshExpenses(queryClient: QueryClient) {
   const prefixes = [
     "/api/v1/expenses",
@@ -14,6 +14,8 @@ export function refreshExpenses(queryClient: QueryClient) {
     "/api/v1/electricity-bills",
     "/api/v1/recurring-costs",
     "/api/v1/general-costs",
+    "/api/v1/months",
+    "/api/v1/dashboard",
   ];
   return queryClient.invalidateQueries({
     predicate: (query) =>

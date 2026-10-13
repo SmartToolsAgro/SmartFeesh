@@ -2377,7 +2377,7 @@ paths:
         Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
         `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
-        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`.
+        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
       tags:
       - invoices
       requestBody:
@@ -3693,7 +3693,8 @@ paths:
       operationId: collectMyBoxes
       description: |-
         Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
-        client holds fewer boxes of one type than asked, or when the driver's day is approved.
+        client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+        already used returns the day as it is after that pickup (the driver app retries).
       tags:
       - my-box-pickups
       requestBody:
@@ -3721,8 +3722,8 @@ paths:
     get:
       operationId: getMyBoxDay
       description: |-
-        Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
-        the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+        Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+        and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day.
       tags:
       - my-boxes
       security:
@@ -3888,7 +3889,7 @@ paths:
     get:
       operationId: listMyDays
       description: The driver's own days, newest first (the last 60), each with its
-        closing when sent (D-126).
+        closing when sent (D-134).
       tags:
       - my-days
       security:
@@ -6522,7 +6523,11 @@ paths:
         and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
         who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
         Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
-        day, at the present moment.
+        day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
+        day's price, also when it was kept without connection and sent later. Within 5 minutes of the
+        server's clock the server's own time is used; further in the future is refused (400), as is a day the
+        office has approved or a truck the driver did not have that day (403), and stock the truck has not
+        held since that day (400).
       tags:
       - sales
       requestBody:
@@ -8427,6 +8432,7 @@ components:
       - leave
       - collect
       - return
+      - truck_return
       - write_off
       type: string
       description: |-
@@ -8435,6 +8441,7 @@ components:
         * `leave` - Départ chez client
         * `collect` - Reprise chez client
         * `return` - Retour fournisseur
+        * `truck_return` - Retour du camion en chambre froide
         * `write_off` - Casse ou perte
     BoxTypeEnum:
       enum:
@@ -8684,6 +8691,33 @@ components:
       required:
       - new_password
       - old_password
+    ChangedFigure:
+      type: object
+      description: One figure of a day that the records, read now, no longer give
+        as the driver sent it (D-134).
+      properties:
+        figure:
+          allOf:
+          - $ref: '#/components/schemas/FigureEnum'
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        sent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        live:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - figure
+      - live
+      - product_name
+      - sent
     CloseLot:
       type: object
       properties:
@@ -9139,6 +9173,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        fees:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         total_incl_tax:
           type: string
           format: decimal
@@ -9178,6 +9217,7 @@ components:
       - created_by
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - id
       - invoice
@@ -10085,7 +10125,13 @@ components:
           allOf:
           - $ref: '#/components/schemas/DaySummary'
           readOnly: true
+        changes_since_sent:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangedFigure'
+          readOnly: true
       required:
+      - changes_since_sent
       - counted_cash
       - date
       - difference
@@ -10386,6 +10432,11 @@ components:
         product_name:
           type: string
           readOnly: true
+        opening:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
         loaded:
           type: string
           format: decimal
@@ -10411,14 +10462,21 @@ components:
           format: decimal
           pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
           readOnly: true
+        unexplained:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - loaded
       - lost
+      - opening
       - product_id
       - product_name
       - remaining
       - returned
       - sold
+      - unexplained
     DaySummary:
       type: object
       properties:
@@ -11359,6 +11417,38 @@ components:
       - product_name
       - quantity
       - use_by
+    FigureEnum:
+      enum:
+      - sales_count
+      - sales_total
+      - cash_received
+      - payments_cash
+      - other_payments
+      - on_credit
+      - expenses_total
+      - expected_cash
+      - opening
+      - loaded
+      - sold
+      - lost
+      - returned
+      - remaining
+      type: string
+      description: |-
+        * `sales_count` - sales_count
+        * `sales_total` - sales_total
+        * `cash_received` - cash_received
+        * `payments_cash` - payments_cash
+        * `other_payments` - other_payments
+        * `on_credit` - on_credit
+        * `expenses_total` - expenses_total
+        * `expected_cash` - expected_cash
+        * `opening` - opening
+        * `loaded` - loaded
+        * `sold` - sold
+        * `lost` - lost
+        * `returned` - returned
+        * `remaining` - remaining
     FinanceSettings:
       type: object
       description: One version of the finance settings.
@@ -11888,6 +11978,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        fees:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         total_incl_tax:
           type: string
           format: decimal
@@ -11959,6 +12054,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - id
       - issued_at
@@ -12054,6 +12150,9 @@ components:
         fiscal_stamp:
           type: string
           nullable: true
+        fees:
+          type: string
+          nullable: true
         withholding_applied:
           type: boolean
           default: false
@@ -12083,6 +12182,9 @@ components:
           items:
             $ref: '#/components/schemas/InvoiceVatAmount'
         fiscal_stamp:
+          type: string
+          nullable: true
+        fees:
           type: string
           nullable: true
         withholding_applied:
@@ -12171,6 +12273,11 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fees:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12309,6 +12416,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - fiscal_stamp_overridden
       - id
@@ -14262,6 +14370,10 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
       required:
       - customer
     MyDayRow:
@@ -16621,11 +16733,15 @@ components:
         tax_id:
           type: string
           readOnly: true
+        phone:
+          type: string
+          readOnly: true
       required:
       - address
       - city
       - id
       - name
+      - phone
       - reference
       - tax_id
     QuoteDeliveryLine:
@@ -18487,6 +18603,9 @@ components:
         tax_id:
           type: string
           readOnly: true
+        phone:
+          type: string
+          readOnly: true
         is_walk_in:
           type: boolean
           readOnly: true
@@ -18496,6 +18615,7 @@ components:
       - id
       - is_walk_in
       - name
+      - phone
       - reference
       - tax_id
     SaleDetail:
@@ -20150,12 +20270,14 @@ components:
       - expense
       - loss
       - payment
+      - pickup
       type: string
       description: |-
         * `sale` - sale
         * `expense` - expense
         * `loss` - loss
         * `payment` - payment
+        * `pickup` - pickup
     Transfer:
       type: object
       properties:
@@ -20316,7 +20438,13 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
       required:
+      - boxes
       - confirmed_at
       - confirmed_by
       - created_at

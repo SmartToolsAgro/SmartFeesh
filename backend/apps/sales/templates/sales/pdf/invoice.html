@@ -1,35 +1,10 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
 {% comment %}
-  The layout of the paper invoice the company already uses (D-125): logo and company top left, boxed number,
-  date and client top right, a ruled lines table, fees and totals boxes, the amount in words, the signature.
+  The layout of the paper invoice the company already uses (D-125); its header (logo and company, boxed number,
+  date and client) and footer are the shared ones of pdf_base.html (D-131). Here: a ruled lines table, fees and totals boxes, the amount in words, the signature.
   Additions over the paper form: units, lots, delivery notes, due date, VAT per rate, withholding and notes.
 {% endcomment %}
 {% block style %}
-  @page {
-    margin: 12mm 12mm 22mm;
-    @bottom-left { content: element(footer); vertical-align: top; width: 100%; }
-    @bottom-right { content: none; }
-  }
-  body { font-family: "Liberation Sans", Arial, "DejaVu Sans", sans-serif; font-size: 9.5pt; color: #111; }
-  .page-footer { position: running(footer); width: 100%; border-top: 0.3mm solid #333; padding-top: 1.5mm; font-size: 8.5pt; display: flex; justify-content: space-between; }
-  .page-footer .pages::after { content: "Page " counter(page) " / " counter(pages); }
-  .box { border: 0.3mm solid #333; }
-  .shade { background: #e6e6e6; }
-  .fa-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; }
-  .fa-brand { width: 85mm; padding-top: 4mm; }
-  .fa-brand img { display: block; max-width: 60mm; max-height: 30mm; margin: 0 0 6mm 8mm; }
-  .fa-brand .name { font-size: 15pt; font-weight: 700; color: #0f5e7a; margin: 0 0 6mm 8mm; }
-  .fa-brand p { font-size: 10pt; line-height: 1.3; }
-  .fa-head { width: 84mm; }
-  .fa-number { text-align: center; font-size: 11pt; padding: 2mm; margin-bottom: 5mm; border-width: 0.4mm; }
-  table.grid { width: 100%; border-collapse: collapse; }
-  table.grid th, table.grid td { border: 0.3mm solid #333; padding: 0.8mm 1.5mm; text-align: center; font-weight: 400; }
-  table.grid th { background: #e6e6e6; font-weight: 700; font-size: 10pt; }
-  .fa-client { margin-top: 7mm; font-size: 10pt; }
-  .fa-client table { border-collapse: collapse; }
-  .fa-client th { text-align: left; font-weight: 700; padding: 0.3mm 4mm 0.3mm 0; vertical-align: top; white-space: nowrap; }
-  .fa-client td { padding: 0.3mm 0; }
-  .fa-meta { margin-top: 4mm; font-size: 8.5pt; color: #333; }
   table.fa-lines { width: 100%; border-collapse: collapse; margin-top: 6mm; border: 0.3mm solid #333; }
   table.fa-lines thead { display: table-header-group; }
   table.fa-lines th { border: 0.3mm solid #333; padding: 1.5mm 1mm; font-size: 10pt; text-align: center; white-space: nowrap; }
@@ -50,45 +25,14 @@
   .fa-words { margin-top: 5mm; font-size: 10pt; page-break-inside: avoid; }
   .fa-sign { display: flex; justify-content: flex-end; align-items: center; gap: 6mm; margin-top: 3mm; page-break-inside: avoid; }
   .fa-sign .stamp { width: 70mm; height: 22mm; }
-  .fa-cancelled { margin-top: 2mm; text-align: center; }
 {% endblock %}
-{% block header %}
-<div class="page-footer">
-  <span>{% if seller.address %}Adresse : {{ seller.address|one_line }}{% endif %}{% if seller.phone %}{% if seller.address %} · {% endif %}Téléphone : {{ seller.phone }}{% endif %}</span>
-  <span class="pages"></span>
-</div>
-<div class="fa-top">
-  <div class="fa-brand">
-    {% if logo %}<img src="{{ logo }}" alt="{{ seller.name }}">{% else %}<p class="name">{{ seller.name }}</p>{% endif %}
-    {% if seller.address %}<p>{{ seller.address|linebreaksbr }}</p>{% endif %}
-    {% if seller.phone %}<p>Tél : {{ seller.phone }}</p>{% endif %}
-    {% if seller.tax_id %}<p>MF : {{ seller.tax_id }}</p>{% endif %}
-    {% if seller.unique_identifier %}<p>Identifiant Unique : {{ seller.unique_identifier }}</p>{% endif %}
-    {% if seller.trade_register %}<p>RC : {{ seller.trade_register }}</p>{% endif %}
-  </div>
-  <div class="fa-head">
-    <div class="box shade fa-number">Facture N° {{ number }}</div>
-    {% if cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉE PAR AVOIR</span></p>{% endif %}
-    <table class="grid">
-      <thead><tr><th>Date</th><th>Client</th></tr></thead>
-      <tbody><tr><td class="num">{{ invoice.issued_on|day }}</td><td>{{ invoice.customer_name }}</td></tr></tbody>
-    </table>
-    <div class="fa-client">
-      <table>
-        <tr><th>Client:</th><td><b>{{ invoice.customer_name }}</b></td></tr>
-        <tr><th>Code Client:</th><td>{{ customer_reference }}</td></tr>
-        <tr><th>Type:</th><td>{{ customer_type }}</td></tr>
-        <tr><th>Adresse:</th><td>{{ invoice.customer_address }}{% if invoice.customer_address and invoice.customer_city %}, {% endif %}{{ invoice.customer_city }}</td></tr>
-        <tr><th>Téléphone:</th><td>{{ customer_phone }}</td></tr>
-        <tr><th>MF:</th><td>{{ invoice.customer_tax_id }}</td></tr>
-      </table>
-    </div>
-    <p class="fa-meta">
-      {% if several_sales %}Bons de livraison{% else %}Bon de livraison{% endif %} : {{ sale_numbers }}<br>
-      {% if invoice.due_on %}Échéance : {{ invoice.due_on|day }}{% else %}Payable à réception{% endif %}
-    </p>
-  </div>
-</div>
+{% block heading %}Facture{% endblock %}
+{% block banner %}{% if cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉE PAR AVOIR</span></p>{% endif %}{% endblock %}
+{% block head_meta %}
+<p class="fa-meta">
+  {% if several_sales %}Bons de livraison{% else %}Bon de livraison{% endif %} : {{ sale_numbers }}<br>
+  {% if invoice.due_on %}Échéance : {{ invoice.due_on|day }}{% else %}Payable à réception{% endif %}
+</p>
 {% endblock %}
 {% block body %}
 <table class="fa-lines">
@@ -124,7 +68,7 @@
 <div class="fa-bottom">
   <div class="fa-fees">
     <table class="kv num">
-      <tr><th>Frais</th><td>{{ 0|money }} TND</td></tr>
+      <tr><th>Frais</th><td>{{ invoice.fees|money }} TND</td></tr>
       <tr><th>Timbre fiscal</th><td>{{ invoice.fiscal_stamp|money }} TND</td></tr>
     </table>
     {% if vat_lines|length > 1 %}

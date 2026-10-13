@@ -8,8 +8,9 @@ import { Link } from "react-router";
 import { DayReport } from "./DayReport";
 import { sendError } from "./sendError";
 
-// "Clôture": the day in a few lines, the cash counted, and one button to send it to the office. Sending ends the
-// day; the driver may then start another one from "Ma journée" (D-126).
+// "Clôture": the day in a few lines, the cash counted, and one button to send it to the office (the figures, the
+// wait for the phone's unsent sales and the form are in DayReport, shared with the history). Sending ends the day;
+// the driver may then start another one from "Ma journée" (D-134).
 export function ClosingPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();

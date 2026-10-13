@@ -1,18 +1,24 @@
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.dayclose import selectors
 from apps.dayclose.models import DayClosing, DayClosingStatus, SyncProblem
 
 
 class DayProductSerializer(serializers.Serializer[Any]):
     product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(read_only=True)
+    # What the truck held at the start of the day, from the ledger (kept over from earlier days).
+    opening = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     loaded = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     sold = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     lost = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     returned = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     remaining = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    # Left on the truck minus what the day's records explain: negative when kilos went out without a record.
+    unexplained = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
 
 class DaySummarySerializer(serializers.Serializer[Any]):
@@ -66,7 +72,7 @@ class MyDayRowSerializer(serializers.Serializer[Any]):
 
     id = serializers.IntegerField(read_only=True)
     date = serializers.DateField(read_only=True)
-    # 1, 2... when the driver opened several days on the same date (D-126).
+    # 1, 2... when the driver opened several days on the same date (D-134).
     number = serializers.IntegerField(read_only=True)
     truck_name = serializers.CharField(source="truck.location.name", read_only=True)
     opening_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
@@ -102,9 +108,24 @@ class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
         return f"{driver.first_name} {driver.last_name}".strip() or driver.username
 
 
+class ChangedFigureSerializer(serializers.Serializer[Any]):
+    """One figure of a day that the records, read now, no longer give as the driver sent it (D-134)."""
+
+    # Which figure: one of the day (`sales_total`...) or of a product (`sold`...).
+    figure = serializers.ChoiceField(choices=[(name, name) for name in selectors.CHANGED_FIGURES], read_only=True)
+    # Empty for a figure of the whole day.
+    product_name = serializers.CharField(read_only=True)
+    # DT, kg, or a number of sales for `sales_count`.
+    sent = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    live = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
 class DayClosingDetailSerializer(DayClosingRowSerializer):
     summary = DaySummarySerializer(read_only=True)
     reviewed_by_name = serializers.SerializerMethodField()
+    # Where the day's records now differ from `summary`, the figures as sent (a sale received after the send,
+    # D-134). Empty when nothing changed, and once approved.
+    changes_since_sent = serializers.SerializerMethodField()
 
     class Meta(DayClosingRowSerializer.Meta):
         fields: tuple[str, ...] = (
@@ -115,8 +136,13 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
             "reviewed_at",
             "reviewed_by_name",
             "summary",
+            "changes_since_sent",
         )
         read_only_fields = fields
+
+    @extend_schema_field(ChangedFigureSerializer(many=True))
+    def get_changes_since_sent(self, closing: DayClosing) -> Any:
+        return ChangedFigureSerializer(selectors.changes_since_sent(closing), many=True).data
 
     def get_reviewed_by_name(self, closing: DayClosing) -> str:
         user = closing.reviewed_by
@@ -139,7 +165,13 @@ class JustificationSerializer(serializers.Serializer[Any]):
 
 class SyncProblemWriteSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(
-        choices=[("sale", "sale"), ("expense", "expense"), ("loss", "loss"), ("payment", "payment")]
+        choices=[
+            ("sale", "sale"),
+            ("expense", "expense"),
+            ("loss", "loss"),
+            ("payment", "payment"),
+            ("pickup", "pickup"),
+        ]
     )
     # What the driver would call it: the customer, the category, the product.
     what = serializers.CharField(allow_blank=True, max_length=150)

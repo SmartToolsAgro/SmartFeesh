@@ -1,9 +1,11 @@
+import datetime as dt
 from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
 from django.http import Http404
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -241,18 +243,42 @@ class SaleView(OfficeView):
         data = SaleDetailSerializer(self.sale(sale_id), context={"show_costs": not self.is_driver}).data
         return Response(data, status=status_code)
 
-    def check_location(self, location_id: int) -> None:
-        """A driver sells only from the truck of their day (D-042, D-046)."""
-        if not fleet.may_use_location(self.membership, location_id):
-            raise PermissionDenied(_("Un chauffeur ne vend que depuis son camion du jour."))
-        dayclose.refuse_if_day_closed(self.membership)
+    def check_location(
+        self, location_id: int, on: dt.date | None = None, *, made_at: dt.datetime | None = None
+    ) -> None:
+        """A driver sells only from the truck of their day (D-042, D-046): today, or `on` for a sale made on an
+        earlier day and sent later (D-133). And only on a day that takes the sale (D-134): the driver's day
+        that covers the moment the sale was made (`made_at`, now by default) must not have been sent before
+        that moment, nor be approved by the office (D-094)."""
+        if not fleet.may_use_location(self.membership, location_id, on):
+            if on is None or on == timezone.localdate():
+                raise PermissionDenied(_("Un chauffeur ne vend que depuis son camion du jour."))
+            raise PermissionDenied(
+                _("Ce camion n'était pas le vôtre le %(day)s : la vente n'est pas enregistrée.")
+                % {"day": on.strftime("%d/%m/%Y")}
+            )
+        dayclose.refuse_sale_outside_day(self.membership, made_at)
 
-    def sale_fields(self, data: dict[str, Any]) -> dict[str, Any]:
-        """The ids of a sale replaced by the rows they name in the organization; unknown ids are field errors."""
+    def sale_fields(self, data: dict[str, Any], *, new: bool = False) -> dict[str, Any]:
+        """The ids of a sale replaced by the rows they name in the organization; unknown ids are field errors.
+        `new` is a sale being created: only then does a driver's phone say when it was made (D-133)."""
         errors: dict[str, str] = {}
         organization = self.organization
-        self.check_location(data["location"])
-        fields: dict[str, Any] = {"customer": None, "notes": data["notes"], "payment": _payment(data)}
+        sold_at: dt.datetime | None = data["sold_at"]
+        made_on: dt.date | None = None
+        if self.is_driver:
+            # The sale is dated when it was made, as the phone says, once checked: not in the future, on a day
+            # the driver had this truck and the office has not approved. Without a time, or for a draft being
+            # changed, the moment stays the server's.
+            sold_at = services.moment_from_phone(sold_at) if new else None
+            made_on = timezone.localtime(sold_at).date() if sold_at is not None else None
+        self.check_location(data["location"], made_on, made_at=sold_at if self.is_driver else None)
+        fields: dict[str, Any] = {
+            "customer": None,
+            "notes": data["notes"],
+            "payment": _payment(data),
+            "sold_at": sold_at,
+        }
         if data["customer"] is not None:
             try:
                 fields["customer"] = partners.customer_of(organization, data["customer"])
@@ -262,11 +288,6 @@ class SaleView(OfficeView):
             fields["location"] = inventory.location_of(organization, data["location"])
         except ObjectDoesNotExist:
             errors["location"] = _("Emplacement inconnu.")
-        if self.is_driver:
-            # A driver sells now, from the truck of the day: the moment is the server's.
-            fields["sold_at"] = None
-        else:
-            fields["sold_at"] = data["sold_at"]
         lines = []
         for index, line in enumerate(data["lines"]):
             try:
@@ -337,14 +358,25 @@ class SaleListView(SaleView, ListAPIView[Sale]):
         and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
         who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
         Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
-        day, at the present moment."""
+        day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
+        day's price, also when it was kept without connection and sent later. Within 5 minutes of the
+        server's clock the server's own time is used; further in the future is refused (400), as is a day the
+        office has approved or a truck the driver did not have that day (403), and stock the truck has not
+        held since that day (400)."""
         serializer = SaleWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = self.sale_fields(serializer.validated_data)
+        # A phone that lost the answer sends the same sale again: it gets the sale back, even if the day has been
+        # approved since (D-094). Checked before the day and the time, or the retry would be refused as a new sale.
+        recorded = selectors.sale_by_client_uuid(self.organization, serializer.validated_data["client_uuid"])
+        if recorded is not None:
+            return self.answer(recorded.pk, status_code=status.HTTP_201_CREATED)
+        data = self.sale_fields(serializer.validated_data, new=True)
         sale = services.create_sale(
             organization=self.organization,
             actor=self.membership.user,
             client_uuid=serializer.validated_data["client_uuid"],
+            # A phone's time is checked against the ledger too: the truck must have held the kilos since.
+            stock_held_since=self.is_driver,
             **data,
         )
         return self.answer(sale.pk, status_code=status.HTTP_201_CREATED)
@@ -508,6 +540,7 @@ def _invoice_choices(data: dict[str, Any]) -> dict[str, Any]:
         "vat_rates": [line["vat_rate"] for line in data["lines"]] or None,
         "vat_amounts": {row["rate"]: row["amount"] for row in data["vat_amounts"]},
         "fiscal_stamp": data["fiscal_stamp"],
+        "fees": data["fees"],
         "withholding_applied": data["withholding_applied"],
         "withholding_rate": data["withholding_rate"],
         "notes": data["notes"],
@@ -557,7 +590,7 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
         """Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
         `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
-        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`."""
+        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`."""
         serializer = InvoiceCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

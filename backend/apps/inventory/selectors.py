@@ -2,7 +2,7 @@
 
 import datetime as dt
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
@@ -22,6 +22,7 @@ from .models import (
     FIFO_ORDER,
     Batch,
     LocationKind,
+    MovementKind,
     StockCount,
     StockCountLine,
     StockLocation,
@@ -217,21 +218,75 @@ def location_batches(organization: Organization, *, product_id: int, location_id
     )
 
 
-def fifo_split(holdings: Sequence[StockOnHand], quantity: Decimal) -> list[Allocation]:
+def takeable(row: StockOnHand, limits: Mapping[int, Decimal] | None = None) -> Decimal:
+    """What can be taken from one on-hand row: all of it, or at most its lot's limit when `limits` is given
+    (a lot without a limit gives nothing)."""
+    if limits is None:
+        return row.quantity
+    return max(min(row.quantity, limits.get(row.batch_id, Decimal("0.000"))), Decimal("0.000"))
+
+
+def fifo_split(
+    holdings: Sequence[StockOnHand], quantity: Decimal, limits: Mapping[int, Decimal] | None = None
+) -> list[Allocation]:
     """Take `quantity` from `holdings` (already oldest first), emptying each batch before the next.
 
-    Returns less than asked when the holdings are not enough; the caller decides what that means.
+    With `limits` (`{batch id: kg}`), a batch gives at most its limit (see `least_held_since`). Returns less
+    than asked when the holdings are not enough; the caller decides what that means.
     """
     allocations: list[Allocation] = []
     left = quantity
     for row in holdings:
         if left <= 0:
             break
-        taken = min(row.quantity, left)
+        taken = min(takeable(row, limits), left)
         if taken > 0:
             allocations.append((row.batch, taken))
             left -= taken
     return allocations
+
+
+def least_held_since(
+    organization: Organization, *, location_id: int, product_id: int, day: dt.date
+) -> dict[int, Decimal]:
+    """Per lot, the least one location held of a product at the **end of any day from `day` until now**,
+    replaying the ledger by the date each movement happened (`occurred_at`, local day): `{batch id: kg}`.
+
+    A movement posted today for that earlier day (a driver's sale that reached the server late, D-133) may
+    take at most this much of a lot. More, and the place would have held less than nothing at the start of a
+    day in between: the kilos were not there that day, or they have left since. Lots that never came to the
+    location are left out. Read-only.
+    """
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(product_id=product_id)
+        .filter(Q(from_location_id=location_id) | Q(to_location_id=location_id))
+        .order_by()
+        .values_list("batch_id", "from_location_id", "to_location_id", "quantity", "occurred_at")
+    )
+    zero = Decimal("0.000")
+    opening: dict[int, Decimal] = {}
+    changes: dict[int, dict[dt.date, Decimal]] = {}
+    for batch_id, _from_id, to_id, kg, occurred_at in rows:
+        change = kg if to_id == location_id else -kg
+        moved_on = _local_day(occurred_at)
+        opening.setdefault(batch_id, zero)
+        if moved_on < day:
+            opening[batch_id] += change
+        else:
+            by_day = changes.setdefault(batch_id, {})
+            by_day[moved_on] = by_day.get(moved_on, zero) + change
+    least: dict[int, Decimal] = {}
+    for batch_id, held in opening.items():
+        by_day = changes.get(batch_id, {})
+        # The end of `day` itself first (nothing moved that day: what it held before), then every later day.
+        held += by_day.pop(day, zero)
+        lowest = held
+        for moved_on in sorted(by_day):
+            held += by_day[moved_on]
+            lowest = min(lowest, held)
+        least[batch_id] = lowest
+    return least
 
 
 def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationError:
@@ -239,6 +294,19 @@ def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationE
         {
             "quantity": _("Stock insuffisant : %(available)s kg à « %(location)s ».")
             % {"available": available, "location": location.name}
+        }
+    )
+
+
+def not_enough_stock_since(available: Decimal, location: StockLocation, day: dt.date) -> ValidationError:
+    """The refusal of a movement dated on an earlier day that asks more than the place has held since."""
+    return ValidationError(
+        {
+            "quantity": _(
+                "Stock insuffisant à cette date : « %(location)s » n'a gardé que %(available)s kg de ce produit "
+                "depuis le %(day)s."
+            )
+            % {"available": available, "location": location.name, "day": day.strftime("%d/%m/%Y")}
         }
     )
 
@@ -323,6 +391,96 @@ def on_hand_differences(organization: Organization) -> list[OnHandDifference]:
     with connection.cursor() as cursor:
         cursor.execute(_DIFFERENCES_SQL, {"organization": organization.pk})
         return [OnHandDifference(*row) for row in cursor.fetchall()]
+
+
+def location_stock_at(organization: Organization, *, location_id: int, moment: dt.datetime) -> list[dict[str, Any]]:
+    """What one location held just before `moment` per product, from the ledger: every movement dated
+    (`occurred_at`) before it. Same keys as `location_stock`. Read at the moment a driver's day starts, it is
+    the day's opening stock; read at the moment it ended, what was left (dayclose.day_summary)."""
+    before = StockMovement.objects.for_organization(organization).filter(occurred_at__lt=moment).order_by()
+    incoming = before.filter(to_location_id=location_id).values("product_id", "product__name")
+    outgoing = before.filter(from_location_id=location_id).values("product_id", "product__name")
+    balance: dict[int, dict[str, Any]] = {}
+    for sign, rows in ((1, incoming.annotate(total=Sum("quantity"))), (-1, outgoing.annotate(total=Sum("quantity")))):
+        for row in rows:
+            entry = balance.setdefault(
+                row["product_id"],
+                {"product_id": row["product_id"], "product__name": row["product__name"], "quantity": Decimal("0.000")},
+            )
+            entry["quantity"] += sign * row["total"]
+    return sorted(
+        (entry for entry in balance.values() if entry["quantity"] != 0),
+        key=lambda entry: (entry["product__name"], entry["product_id"]),
+    )
+
+
+def location_stock_before(organization: Organization, *, location_id: int, day: dt.date) -> list[dict[str, Any]]:
+    """What one location held at the start of `day` (local time) per product, from the ledger: every movement
+    dated before that day. Same keys as `location_stock`. A truck keeps what it did not sell or return, so
+    this is its opening stock, which loaded-today figures leave out."""
+    start = timezone.make_aware(dt.datetime.combine(day, dt.time.min))
+    return location_stock_at(organization, location_id=location_id, moment=start)
+
+
+@dataclass(frozen=True)
+class LocationMoves:
+    """One product at one location over a stretch of time, from the ledger: kg that came in by transfer, kg
+    that left by transfer, and kg written off by a loss document."""
+
+    product_id: int
+    product_name: str
+    loaded: Decimal
+    returned: Decimal
+    lost: Decimal
+
+
+def location_moves_between(
+    organization: Organization, *, location_id: int, start: dt.datetime, end: dt.datetime
+) -> list[LocationMoves]:
+    """Per product, what was loaded into a location, returned from it and lost there between two moments
+    (`start` included, `end` excluded), read from the ledger by the date each movement happened
+    (`occurred_at`): the same clock as `location_stock_at`, so opening + loaded - returned - lost - sold is
+    what the ledger holds at `end` (a driver's day, D-134). A transfer or a loss typed for an earlier day is
+    dated at noon of that day (D-039), a loss waiting for approval when it is approved. Losses are those of
+    loss documents; a damaged customer return (credit note) comes in and goes out and is not counted."""
+    loss_type = ContentType.objects.get_for_model(StockLoss)
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(occurred_at__gte=start, occurred_at__lt=end)
+        .filter(
+            Q(kind=MovementKind.TRANSFER, to_location_id=location_id)
+            | Q(kind=MovementKind.TRANSFER, from_location_id=location_id)
+            | Q(kind=MovementKind.LOSS, from_location_id=location_id, source_type=loss_type)
+        )
+        .order_by()
+        .values("product_id", "product__name", "kind", "to_location_id")
+        .annotate(total=Sum("quantity"))
+    )
+    zero = Decimal("0.000")
+    totals: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        entry = totals.setdefault(
+            row["product_id"], {"name": row["product__name"], "loaded": zero, "returned": zero, "lost": zero}
+        )
+        if row["kind"] == MovementKind.LOSS:
+            entry["lost"] += row["total"]
+        elif row["to_location_id"] == location_id:
+            entry["loaded"] += row["total"]
+        else:
+            entry["returned"] += row["total"]
+    return sorted(
+        (
+            LocationMoves(
+                product_id=product_id,
+                product_name=entry["name"],
+                loaded=entry["loaded"],
+                returned=entry["returned"],
+                lost=entry["lost"],
+            )
+            for product_id, entry in totals.items()
+        ),
+        key=lambda moves: (moves.product_name, moves.product_id),
+    )
 
 
 def location_stock(organization: Organization, *, location_id: int) -> list[dict[str, Any]]:
@@ -427,18 +585,10 @@ class TruckDayLine:
         return line_total(self.sold_or_lost, self.unit_price)
 
 
-def truck_day(
-    organization: Organization,
-    *,
-    location_id: int,
-    day: dt.date,
-    validated_after: dt.datetime | None = None,
-    validated_before: dt.datetime | None = None,
-) -> list[TruckDayLine]:
+def truck_day(organization: Organization, *, location_id: int, day: dt.date) -> list[TruckDayLine]:
     """A truck's day per product from the validated transfers of that day: loaded (into the truck),
     returned (out of it), and loaded − returned, sold or lost. Works for any location; it means
-    something for a truck. Products sorted by name. `validated_after` / `validated_before` keep the
-    transfers validated in that part of the day (a driver's second day of the same date, D-126)."""
+    something for a truck. Products sorted by name."""
     lines = (
         TransferLine.objects.for_organization(organization)
         .filter(transfer__status=TransferStatus.VALIDATED, transfer__transferred_on=day)
@@ -446,10 +596,6 @@ def truck_day(
         .select_related("product", "transfer")
         .order_by("transfer__validated_at", "transfer_id", "id")
     )
-    if validated_after is not None:
-        lines = lines.filter(transfer__validated_at__gte=validated_after)
-    if validated_before is not None:
-        lines = lines.filter(transfer__validated_at__lt=validated_before)
     totals: dict[int, dict[str, Any]] = {}
     for line in lines:
         entry = totals.setdefault(

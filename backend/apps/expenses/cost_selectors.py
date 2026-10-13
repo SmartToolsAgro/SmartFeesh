@@ -352,7 +352,7 @@ def general_period_of(organization: Organization, period_id: int) -> GeneralCost
 
 
 def general_lines(organization: Organization, *, batch_id: int, today: dt.date) -> list[ComputedLine]:
-    """A lot's share of the general costs, "like a salary" (D-041, Q21 provisional): each approved general
+    """A lot's share of the general costs, "like a salary" (D-041, Q21 confirmed 2026-10-13): each approved general
     cost carries monthly amount / 26 per day, split over the lots in stock that day by kg held; one line
     per cost and month."""
     first = inventory.first_movement_day(organization, batch_id=batch_id)

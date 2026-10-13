@@ -41,6 +41,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
 import { formatRate } from "../quotes/shared";
@@ -90,6 +91,7 @@ type DraftValues = {
   rates: string[];
   amounts: Record<string, string>;
   stamp: string;
+  fees: string;
   withholdingApplied: boolean;
   withholdingRate: string;
   notes: string;
@@ -103,6 +105,7 @@ function draftOf(invoice: InvoiceDetail): DraftValues {
       invoice.vat_lines.filter((row) => row.amount_overridden).map((row) => [row.rate, toInput(row.amount)]),
     ),
     stamp: invoice.fiscal_stamp_overridden ? toInput(invoice.fiscal_stamp) : "",
+    fees: isZero(invoice.fees) ? "" : toInput(invoice.fees),
     withholdingApplied: invoice.withholding_applied,
     withholdingRate: invoice.withholding_rate_overridden ? toInput(invoice.withholding_rate) : "",
     notes: invoice.notes,
@@ -156,6 +159,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
           .map(([rate, text]) => ({ rate, amount: money(text, `vat_amounts.${rate}`) }))
       : [];
     const stamp = values.stamp.trim() === "" ? null : money(values.stamp, "fiscal_stamp");
+    const fees = values.fees.trim() === "" ? null : money(values.fees, "fees");
     const withholdingRate = values.withholdingApplied ? percent(values.withholdingRate, "withholding_rate") : null;
     return {
       found,
@@ -164,6 +168,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         lines,
         vat_amounts: vatAmounts,
         fiscal_stamp: stamp,
+        fees,
         withholding_applied: values.withholdingApplied,
         withholding_rate: withholdingRate,
         notes: values.notes.trim(),
@@ -211,7 +216,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
 
   const busy = save.isPending || discard.isPending;
   const generalError = Object.entries(errors).find(
-    ([key]) => !/^(lines\.|vat_amounts\.|fiscal_stamp$|withholding_rate$)/.test(key),
+    ([key]) => !/^(lines\.|vat_amounts\.|fiscal_stamp$|fees$|withholding_rate$)/.test(key),
   )?.[1];
 
   return (
@@ -298,6 +303,17 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
             placeholder={toInput(invoice.settings_fiscal_stamp ?? invoice.fiscal_stamp)}
             onChange={(event) => set({ stamp: event.target.value })}
             aria-invalid={errors.fiscal_stamp ? true : undefined}
+          />
+        </Field>
+
+        <Field label={t("admin.invoices.form.fees")} htmlFor={`${formId}-fees`} error={errors.fees}>
+          <Input
+            id={`${formId}-fees`}
+            inputMode="decimal"
+            value={values.fees}
+            placeholder="0,000"
+            onChange={(event) => set({ fees: event.target.value })}
+            aria-invalid={errors.fees ? true : undefined}
           />
         </Field>
 
@@ -474,6 +490,9 @@ function Totals({ invoice }: { invoice: InvoiceDetail }) {
         <TotalRow label={t("admin.invoices.document.totalNoVat")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
       )}
       {stamp && <TotalRow label={t("admin.invoices.document.stamp")}>{formatMoney(invoice.fiscal_stamp)}</TotalRow>}
+      {!isZero(invoice.fees) && (
+        <TotalRow label={t("admin.invoices.document.fees")}>{formatMoney(invoice.fees)}</TotalRow>
+      )}
       <TotalRow
         label={invoice.apply_vat ? t("admin.invoices.document.totalIncl") : t("admin.invoices.document.total")}
         grand
@@ -495,29 +514,6 @@ function Totals({ invoice }: { invoice: InvoiceDetail }) {
         </>
       )}
     </dl>
-  );
-}
-
-function Party({ title, party }: { title: string; party: InvoiceDetail["seller"] }) {
-  const { t } = useTranslation();
-  return (
-    <div>
-      <div className="eyebrow">{title}</div>
-      <div className="font-semibold">{party.name}</div>
-      {party.address && <div>{party.address}</div>}
-      {party.city && <div>{party.city}</div>}
-      {party.phone && <div className="num">{party.phone}</div>}
-      {party.tax_id && (
-        <div className="num">
-          {t("admin.invoices.document.taxId")} {party.tax_id}
-        </div>
-      )}
-      {party.trade_register && (
-        <div className="num">
-          {t("admin.invoices.document.tradeRegister")} {party.trade_register}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -584,6 +580,7 @@ export function InvoicePage() {
     invoice.apply_vat,
     invoice.notes,
     invoice.fiscal_stamp,
+    invoice.fees,
     invoice.withholding_rate,
     invoice.withholding_applied,
     invoice.lines.map((line) => line.vat_rate).join("/"),
@@ -611,31 +608,33 @@ export function InvoicePage() {
 
       <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start gap-4 max-[1000px]:grid-cols-1 print:block">
         <Card role="region" aria-label={t("admin.invoices.document.label", { number: title })}>
-          <div className="mb-4 grid grid-cols-2 gap-6 max-[640px]:grid-cols-1">
-            <Party title={t("admin.invoices.document.seller")} party={invoice.seller} />
-            <Party title={t("admin.invoices.document.billTo")} party={invoice.bill_to} />
-          </div>
-          <div className="mb-4 flex flex-wrap gap-x-8 gap-y-1 text-[0.9rem]">
-            <span>
-              {t("admin.invoices.document.date")}{" "}
-              <span className="num font-semibold">{invoice.issued_on ? formatDate(invoice.issued_on) : "—"}</span>
-            </span>
-            {invoice.due_on && (
-              <span>
-                {t("admin.invoices.document.dueOn")}{" "}
-                <span className="num font-semibold">{formatDate(invoice.due_on)}</span>
-              </span>
-            )}
-            <span>
-              {t("admin.invoices.document.sale")}{" "}
-              <span className="num font-semibold">{invoice.sales.map((sale) => sale.number).join(", ")}</span>
-            </span>
-          </div>
+          <DocumentHeader
+            seller={invoice.seller}
+            logoUrl={session.organization.logo_url}
+            title={t("admin.documents.frame.invoice")}
+            number={title}
+            date={invoice.issued_on}
+            // The customer's code and phone are not frozen on the invoice: they are read from the customer.
+            party={{ ...invoice.bill_to, reference: invoice.customer.reference, phone: invoice.customer.phone }}
+            meta={
+              <>
+                <p className="num">
+                  {t("admin.invoices.document.sale")} {invoice.sales.map((sale) => sale.number).join(", ")}
+                </p>
+                {invoice.due_on && (
+                  <p className="num">
+                    {t("admin.invoices.document.dueOn")} {formatDate(invoice.due_on)}
+                  </p>
+                )}
+              </>
+            }
+          />
           <LinesTable invoice={invoice} />
           <Totals invoice={invoice} />
           {invoice.notes && (
             <p className="mt-4 border-t border-line pt-3 text-[0.9rem] whitespace-pre-line">{invoice.notes}</p>
           )}
+          <DocumentFooter seller={invoice.seller} />
         </Card>
 
         <div className="flex flex-col gap-4">

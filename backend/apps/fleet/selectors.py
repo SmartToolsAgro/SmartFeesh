@@ -1,7 +1,7 @@
 """Reusable read queries of trucks, and the "own truck" rule for drivers (ARCHITECTURE §4.8)."""
 
 from datetime import date as date_type
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from typing import Literal
 
 from django.db.models import QuerySet
@@ -68,15 +68,16 @@ def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truc
     )
 
 
-def may_use_location(membership: Membership, location_id: int) -> bool:
+def may_use_location(membership: Membership, location_id: int, on: date_type | None = None) -> bool:
     """Whether this member may see or change the stock of a location.
 
     Owners, managers and the accountant: any location of their organization. A driver: only the location
-    of their truck of the day. Any other role: none. Views must still scope rows by organization (D-022).
+    of their truck of the day (today, or `on` for something that happened on an earlier day, D-133). Any
+    other role: none. Views must still scope rows by organization (D-022).
     """
     if membership.role in OFFICE_ROLES:
         return True
-    truck = truck_of_driver(membership)
+    truck = truck_of_driver(membership, on)
     return truck is not None and truck.location_id == location_id
 
 
@@ -102,7 +103,7 @@ def truck_ref_of_driver(membership: Membership) -> TruckRef | None:
 
 def driver_day_of(membership: Membership, on: date_type | None = None) -> DriverDay | None:
     """The last day this driver opened on that date (today by default), if any: the running one, or the last
-    one closed when they have not started another (D-126)."""
+    one closed when they have not started another (D-134)."""
     return (
         DriverDay.objects.for_organization(membership.organization)
         .select_related("truck__location")
@@ -122,9 +123,29 @@ def driver_days_of(organization: Organization, *, driver_id: int) -> QuerySet[Dr
     )
 
 
-def day_window(driver_day: DriverDay) -> tuple[datetime | None, datetime | None]:
-    """The moments this day covers among the records of its date (D-126): from the end of the driver's day before
-    it on the same date (none for the first one) to its own end (none while it runs)."""
+def driver_days_on(membership: Membership, on: date_type) -> list[DriverDay]:
+    """The days this driver opened on one date, in the order they were opened (1, 2...)."""
+    return list(
+        DriverDay.objects.for_organization(membership.organization)
+        .filter(driver_id=membership.user_id, date=on)
+        .order_by("number")
+    )
+
+
+def day_covering(days: list[DriverDay], moment: datetime) -> DriverDay | None:
+    """Among a driver's days of one date (in order), the one a moment of that date falls in (D-134): the first
+    that had not ended yet at that moment. None when every day had already ended: the closing was sent and no
+    other day was started."""
+    return next((day for day in days if day.ended_at is None or moment < day.ended_at), None)
+
+
+def day_window(driver_day: DriverDay) -> tuple[datetime, datetime]:
+    """The moments a driver's day covers, `start` included and `end` excluded (D-134). It starts when the
+    driver's day before it on the same date ended, or with the date (local midnight) for the first one. It ends
+    when its closing was first sent, and at the latest with the date: a day left running, or closed on a later
+    date from the history, still covers its own date only."""
+    midnight = timezone.make_aware(datetime.combine(driver_day.date, time.min))
+    next_midnight = timezone.make_aware(datetime.combine(driver_day.date + timedelta(days=1), time.min))
     previous = (
         DriverDay.objects.filter(
             organization_id=driver_day.organization_id,
@@ -136,7 +157,9 @@ def day_window(driver_day: DriverDay) -> tuple[datetime | None, datetime | None]
         .values_list("ended_at", flat=True)
         .first()
     )
-    return previous, driver_day.ended_at
+    start = midnight if previous is None else min(max(previous, midnight), next_midnight)
+    end = next_midnight if driver_day.ended_at is None else min(driver_day.ended_at, next_midnight)
+    return start, max(start, end)
 
 
 def locked_driver_day(driver_day: DriverDay) -> DriverDay:

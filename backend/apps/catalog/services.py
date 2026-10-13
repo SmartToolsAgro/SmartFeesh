@@ -1,6 +1,8 @@
 """Every write on the catalogue goes through these functions (ARCHITECTURE §3)."""
 
 import datetime as dt
+import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, TypedDict, Unpack
@@ -476,3 +478,69 @@ def update_price_list(
             after=after,
         )
     return price_list
+
+
+# ---- Article codes from the owner's list (D-126) ----
+
+
+def _comparable_name(name: str) -> str:
+    """A product name compared without case, accents or extra spaces: "Maklouba rosé" = "MAKLOUBA ROSE "."""
+    decomposed = unicodedata.normalize("NFKD", name)
+    plain = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join(plain.casefold().split())
+
+
+@dataclass(frozen=True)
+class ProductCodeOutcome:
+    code: str
+    name: str
+    # set, unchanged, not_found, several_products (more than one product has that name), same_name_in_list
+    # (more than one code has that name in the list) or code_taken (another product already has the code).
+    status: str
+    product_id: int | None = None
+    old_reference: str = ""
+
+
+@transaction.atomic
+def set_product_codes(
+    *, organization: Organization, actor: User | None, codes: Sequence[tuple[str, str]], apply: bool
+) -> list[ProductCodeOutcome]:
+    """Write each article code into the `reference` of the existing product with the same name; nothing else
+    changes and no product is created. A name that matches no product, several products or several codes is
+    left alone and reported. Without `apply` nothing is written: the outcomes say what would happen."""
+    names_in_list: dict[str, int] = {}
+    for _code, name in codes:
+        names_in_list[_comparable_name(name)] = names_in_list.get(_comparable_name(name), 0) + 1
+    by_name: dict[str, list[Product]] = {}
+    for product in Product.objects.for_organization(organization).order_by("id"):
+        by_name.setdefault(_comparable_name(product.name), []).append(product)
+    outcomes: list[ProductCodeOutcome] = []
+    for code, name in codes:
+        key = _comparable_name(name)
+        matches = by_name.get(key, [])
+        if names_in_list[key] > 1:
+            outcomes.append(ProductCodeOutcome(code, name, "same_name_in_list"))
+            continue
+        if not matches:
+            outcomes.append(ProductCodeOutcome(code, name, "not_found"))
+            continue
+        if len(matches) > 1:
+            outcomes.append(ProductCodeOutcome(code, name, "several_products"))
+            continue
+        product = matches[0]
+        if product.reference.casefold() == code.casefold():
+            outcomes.append(ProductCodeOutcome(code, name, "unchanged", product.pk, product.reference))
+            continue
+        taken = (
+            Product.objects.for_organization(organization)
+            .filter(reference__iexact=code)
+            .exclude(pk=product.pk)
+            .exists()
+        )
+        if taken:
+            outcomes.append(ProductCodeOutcome(code, name, "code_taken", product.pk, product.reference))
+            continue
+        if apply:
+            update_product(product=product, actor=actor, reference=code)
+        outcomes.append(ProductCodeOutcome(code, name, "set", product.pk, product.reference))
+    return outcomes

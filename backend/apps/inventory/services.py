@@ -408,6 +408,7 @@ def post_fifo_movements(
     client_uuid: uuid.UUID | None = None,
     occurred_at: dt.datetime | None = None,
     prefer_batch_id: int | None = None,
+    held_since_then: bool = False,
 ) -> list[StockMovement]:
     """Take `quantity` kg of a product out of `from_location`, oldest batch first, one movement per batch.
 
@@ -418,6 +419,11 @@ def post_fifo_movements(
     then batch order, the same order as `post_movement`, so two requests never wait for each other forever.
     Refused as a whole (ValidationError per field) when the location holds less than asked in total. A
     `client_uuid` already used returns the movements it posted.
+
+    With `held_since_then` and an `occurred_at` on an earlier day (a driver's sale that reached the server
+    after its day, D-133), a lot gives at most what the location has held of it at the end of every day since
+    (`selectors.least_held_since`): the movement is dated on its own day, so the kilos must have been there
+    that day and must not have left since, or a day in between would start below zero.
     """
     if client_uuid is not None:
         posted = _posted_parts(organization, client_uuid)
@@ -452,9 +458,15 @@ def post_fifo_movements(
     )
     if prefer_batch_id is not None:
         holdings = sorted(holdings, key=lambda row: row.batch_id != prefer_batch_id)
-    allocations = selectors.fifo_split(holdings, amount)
+    limits = None
+    if held_since_then and day < timezone.localdate():
+        limits = selectors.least_held_since(organization, location_id=from_location.pk, product_id=product_id, day=day)
+    allocations = selectors.fifo_split(holdings, amount, limits)
     if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
-        raise selectors.not_enough_stock(sum((row.quantity for row in holdings), Decimal("0.000")), from_location)
+        available = sum((selectors.takeable(row, limits) for row in holdings), Decimal("0.000"))
+        if limits is not None:
+            raise selectors.not_enough_stock_since(available, from_location, day)
+        raise selectors.not_enough_stock(available, from_location)
 
     return [
         post_movement(
@@ -687,8 +699,9 @@ def _prepared_transfer(
     kind = transfer_kind(from_location, to_location)
     checked_lines = _checked_transfer_lines(organization, kind, lines, moment_of(transferred_on), errors)
     box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
-    # Boxes follow a load only: the one box movement that fits a transfer is "load" (D-122).
-    if box_counts and kind != TransferKind.LOAD:
+    # Boxes follow a load (D-122), or a return from a truck to a cold room (P1-T14e, D-124); no other transfer.
+    returns_to_cold_room = kind == TransferKind.RETURN and to_location.kind == LocationKind.COLD_ROOM
+    if box_counts and kind != TransferKind.LOAD and not returns_to_cold_room:
         errors["boxes"] = _("Les caisses ne se transfèrent que vers un camion, au chargement.")
     if errors:
         raise ValidationError(errors)
@@ -854,11 +867,16 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
     # the source, say) refuses the whole validation and leaves the stock where it was.
     box_lines = list(transfer.box_lines.all())
     if box_lines:
+        box_kind = (
+            box_services.BoxMovementKind.TRUCK_RETURN
+            if transfer.kind == TransferKind.RETURN
+            else box_services.BoxMovementKind.LOAD
+        )
         try:
             box_services.post_box_counts(
                 organization=organization,
                 actor=actor,
-                kind=box_services.BoxMovementKind.LOAD,
+                kind=box_kind,
                 counts={line.box_type: line.count for line in box_lines},
                 from_holder=box_services.holder_for(organization=organization, location=transfer.from_location),
                 to_holder=box_services.holder_for(organization=organization, location=transfer.to_location),

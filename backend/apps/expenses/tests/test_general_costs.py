@@ -309,3 +309,37 @@ def test_a_general_cost_draft_is_deleted_through_its_own_record(organization, ac
             first_month=current_month(),
             months=61,
         )
+
+
+def test_changing_a_template_updates_its_months_not_yet_approved(organization, actor):
+    rent = category(organization, "rent")
+    cost = recurring(organization, actor, rent)
+    last_month = add_months(current_month(), -1)
+    services.update_recurring_cost(
+        cost=cost, actor=actor, name="Loyer", category=rent, monthly_amount="1300", start_month=last_month
+    )
+    [approved] = services.generate_recurring_costs(
+        organization=organization, actor=actor, month=last_month, approve=True
+    )
+    [draft] = services.generate_recurring_costs(organization=organization, actor=actor, month=current_month())
+
+    services.update_recurring_cost(
+        cost=cost,
+        actor=actor,
+        name="Loyer dépôt",
+        category=rent,
+        monthly_amount="1450",
+        start_month=last_month,
+        payee="M. Ben Ali",
+    )
+
+    draft.expense.refresh_from_db()
+    approved.expense.refresh_from_db()
+    assert (draft.expense.amount, draft.expense.description, draft.expense.payee) == (
+        D("1450.000"),
+        "Loyer dépôt",
+        "M. Ben Ali",
+    )
+    assert draft.expense.status == ExpenseStatus.DRAFT
+    # An approved month never changes: a correction is a new expense.
+    assert (approved.expense.amount, approved.expense.description) == (D("1300.000"), "Loyer")

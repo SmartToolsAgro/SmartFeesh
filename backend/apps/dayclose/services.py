@@ -32,7 +32,8 @@ def _plain(value: Any) -> Any:
 @transaction.atomic
 def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Number, note: str = "") -> DayClosing:
     """The driver sends the end of their day with the cash they counted. Allowed once, and again only after the
-    office asked for a justification. An approved day never changes."""
+    office asked for a justification. An approved day never changes. The figures are kept as they are at this
+    moment (`DayClosing.summary`); nothing recorded later rewrites them."""
     try:
         counted = checked_amount(counted_cash)
     except (ValueError, TypeError):
@@ -44,15 +45,11 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Nu
     if existing is not None and existing.status == DayClosingStatus.APPROVED:
         raise ValidationError({"counted_cash": _("Cette journée est approuvée : elle ne change plus.")})
     now = timezone.now()
-    # Sending ends the day (D-126): what is recorded from now on belongs to the driver's next day.
+    # Sending ends the day (D-134): what is made from now on belongs to the driver's next day. Sent again after
+    # a justification, the day keeps its first end, so the figures are those of the same window: a sale made
+    # in it and received since is now in them, and the stock left is what the ledger held when the day ended.
     driver_day = fleet_services.end_driver_day(driver_day=driver_day, ended_at=now)
     summary = selectors.day_summary(driver_day.organization, driver_day)
-    if existing is not None:
-        # Sent again after a justification: the stock left in the truck is what it was at the first send, not
-        # what the driver's next day left since.
-        left = {row["product_id"]: row["remaining"] for row in existing.summary.get("products", [])}
-        for row in summary["products"]:
-            row["remaining"] = left.get(row["product_id"], row["remaining"])
     expected: Decimal = summary["expected_cash"]
     fields: dict[str, Any] = {
         "status": DayClosingStatus.SUBMITTED,

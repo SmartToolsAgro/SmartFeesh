@@ -243,7 +243,7 @@ def open_driver_day(
     *, organization: Organization, actor: User, truck: Truck, opening_cash: Decimal, date: date_type
 ) -> DriverDay:
     """Open the driver's day on their truck with the cash they start with. Asking again while the day runs changes
-    nothing; once its closing is sent, it opens the next day of that date (D-126)."""
+    nothing; once its closing is sent, it opens the next day of that date (D-134)."""
     if opening_cash < 0:
         raise ValidationError({"opening_cash": _("Le fonds de caisse ne peut pas être négatif.")})
     # Lock the driver's days of that date so two taps cannot open two days.
@@ -275,7 +275,7 @@ def open_driver_day(
 
 
 def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:
-    """The driver sent the day's closing: the day is over and its records stop here (D-126). Called inside the
+    """The driver sent the day's closing: the day is over and its records stop here (D-134). Called inside the
     closing's transaction, on a locked row; ending it again keeps the first end."""
     if driver_day.ended_at is None:
         driver_day.ended_at = ended_at

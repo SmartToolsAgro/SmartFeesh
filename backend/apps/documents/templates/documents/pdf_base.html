@@ -6,14 +6,15 @@
 <style>
   /* Colours follow the app's tokens: deep sea blue, ink, soft lines. */
   :root { --ink: #0c2633; --ink-2: #4a6270; --sea: #0f5e7a; --line: #d6e0e6; --soft: #eef5f8; --bad: #b3261e; }
+  /* The page frame of the company's paper invoice (D-125), shared by every document (D-131): the address and
+     page number at the foot of each page. */
   @page {
     size: A4;
-    margin: 16mm 15mm 20mm;
-    @bottom-left { content: "{{ seller.name }}"; font: 7.5pt "DejaVu Sans", sans-serif; color: #4a6270; }
-    @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 7.5pt "DejaVu Sans", sans-serif; color: #4a6270; }
+    margin: 12mm 12mm 22mm;
+    @bottom-left { content: element(footer); vertical-align: top; width: 100%; }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 9.5pt/1.4 "DejaVu Sans", "Liberation Sans", Arial, sans-serif; color: var(--ink); }
+  body { margin: 0; font: 9.5pt/1.4 "Liberation Sans", Arial, "DejaVu Sans", sans-serif; color: #111; }
   h1 { font-size: 17pt; margin: 0 0 2mm; letter-spacing: .01em; }
   h2 { font-size: 8pt; margin: 0 0 1.5mm; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); font-weight: 700; }
   p { margin: 0; }
@@ -21,10 +22,26 @@
   .small { font-size: 8pt; }
   .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .r { text-align: right; }
-  header.doc-head { display: flex; justify-content: space-between; gap: 10mm; padding-bottom: 5mm; border-bottom: 0.6mm solid var(--ink); margin-bottom: 6mm; }
-  .brand { font-size: 13pt; font-weight: 700; color: var(--sea); margin-bottom: 1.5mm; }
-  .brand-logo { display: block; max-width: 52mm; max-height: 22mm; margin-bottom: 2mm; }
-  .doc-title { text-align: right; }
+  .page-footer { position: running(footer); width: 100%; border-top: 0.3mm solid #333; padding-top: 1.5mm; font-size: 8.5pt; display: flex; justify-content: space-between; }
+  .page-footer .pages::after { content: "Page " counter(page) " / " counter(pages); }
+  .box { border: 0.3mm solid #333; }
+  .shade { background: #e6e6e6; }
+  .fa-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; margin-bottom: 6mm; }
+  .fa-brand { width: 85mm; padding-top: 4mm; }
+  .fa-brand img { display: block; max-width: 60mm; max-height: 30mm; margin: 0 0 6mm 8mm; }
+  .fa-brand .name { font-size: 15pt; font-weight: 700; color: #0f5e7a; margin: 0 0 6mm 8mm; }
+  .fa-brand p { font-size: 10pt; line-height: 1.3; }
+  .fa-head { width: 84mm; }
+  .fa-number { text-align: center; font-size: 11pt; padding: 2mm; margin-bottom: 5mm; border-width: 0.4mm; }
+  table.grid { width: 100%; border-collapse: collapse; }
+  table.grid th, table.grid td { border: 0.3mm solid #333; padding: 0.8mm 1.5mm; text-align: center; font-weight: 400; }
+  table.grid th { background: #e6e6e6; font-weight: 700; font-size: 10pt; }
+  .fa-client { margin-top: 7mm; font-size: 10pt; }
+  .fa-client table { border-collapse: collapse; }
+  .fa-client th { text-align: left; font-weight: 700; padding: 0.3mm 4mm 0.3mm 0; vertical-align: top; white-space: nowrap; }
+  .fa-client td { padding: 0.3mm 0; }
+  .fa-meta { margin-top: 4mm; font-size: 8.5pt; color: #333; }
+  .fa-cancelled { margin-top: 2mm; text-align: center; }
   .parties { display: flex; gap: 8mm; margin-bottom: 6mm; }
   .parties > div { flex: 1; background: var(--soft); border-radius: 2mm; padding: 3mm 4mm; }
   .parties b { font-size: 10.5pt; }
@@ -47,20 +64,47 @@
 </style>
 </head>
 <body>
+{% comment %}
+  The header and footer of the paper invoice (D-125) on every document (D-131). A document sets `doc_date` and
+  `party` (label, name, address, phone, tax_id; `reference` and `type` print as rows when the key is present),
+  names itself in `heading`, and may add `banner` (under the number) and `head_meta` (under the party).
+{% endcomment %}
+{% block footer %}
+<div class="page-footer">
+  <span>{% if seller.address %}Adresse : {{ seller.address|one_line }}{% endif %}{% if seller.phone %}{% if seller.address %} · {% endif %}Téléphone : {{ seller.phone }}{% endif %}</span>
+  <span class="pages"></span>
+</div>
+{% endblock %}
 {% block header %}
-<header class="doc-head">
-  <div>
-    {% if logo %}<img class="brand-logo" src="{{ logo }}" alt="{{ seller.name }}">{% endif %}
-    <div class="brand">{{ seller.name }}</div>
-    {% if seller.address %}<p class="small">{{ seller.address }}</p>{% endif %}
-    {% if seller.phone %}<p class="small">Tél. {{ seller.phone }}</p>{% endif %}
-    {% if seller.tax_id %}<p class="small">M.F. {{ seller.tax_id }}{% if seller.trade_register %} · RC {{ seller.trade_register }}{% endif %}</p>{% endif %}
+<div class="fa-top">
+  <div class="fa-brand">
+    {% if logo %}<img src="{{ logo }}" alt="{{ seller.name }}">{% else %}<p class="name">{{ seller.name }}</p>{% endif %}
+    {% if seller.address %}<p>{{ seller.address|linebreaksbr }}</p>{% endif %}
+    {% if seller.phone %}<p>Tél : {{ seller.phone }}</p>{% endif %}
+    {% if seller.tax_id %}<p>MF : {{ seller.tax_id }}</p>{% endif %}
+    {% with unique=seller.tax_id|unique_id %}{% if unique %}<p>Identifiant Unique : {{ unique }}</p>{% endif %}{% endwith %}
+    {% if seller.trade_register %}<p>RC : {{ seller.trade_register }}</p>{% endif %}
   </div>
-  <div class="doc-title">
-    <h1>{% block heading %}{% endblock %} {{ number }}</h1>
-    {% block subtitle %}{% endblock %}
+  <div class="fa-head">
+    <div class="box shade fa-number">{% block heading %}{% endblock %} N° {{ number }}</div>
+    {% block banner %}{% endblock %}
+    <table class="grid">
+      <thead><tr><th>Date</th><th>{{ party.label }}</th></tr></thead>
+      <tbody><tr><td class="num">{{ doc_date|day }}</td><td>{{ party.name }}</td></tr></tbody>
+    </table>
+    <div class="fa-client">
+      <table>
+        <tr><th>{{ party.label }}:</th><td><b>{{ party.name }}</b></td></tr>
+        {% if "reference" in party %}<tr><th>Code {{ party.label }}:</th><td>{{ party.reference }}</td></tr>{% endif %}
+        {% if "type" in party %}<tr><th>Type:</th><td>{{ party.type }}</td></tr>{% endif %}
+        <tr><th>Adresse:</th><td>{{ party.address }}</td></tr>
+        <tr><th>Téléphone:</th><td>{{ party.phone }}</td></tr>
+        <tr><th>MF:</th><td>{{ party.tax_id }}</td></tr>
+      </table>
+    </div>
+    {% block head_meta %}{% endblock %}
   </div>
-</header>
+</div>
 {% endblock %}
 
 {% block body %}{% endblock %}

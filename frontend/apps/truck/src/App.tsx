@@ -4,6 +4,7 @@ import { Sprite, Toaster, TruckShell, type TruckTab, useFavicon } from "@frutti/
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
+import { BackToDay } from "./BackToDay";
 import { ClosingPage } from "./ClosingPage";
 import { DayPage } from "./DayPage";
 import { ExpensePage } from "./ExpensePage";
@@ -56,6 +57,7 @@ function Shell({ session }: { session: Session }) {
       <ScreenError resetKey={location.pathname}>
         <Outlet />
       </ScreenError>
+      <BackToDay pathname={location.pathname} />
     </TruckShell>
   );
 }

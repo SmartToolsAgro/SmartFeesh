@@ -66,6 +66,7 @@ class InvoiceAmounts:
     total_incl_tax: Decimal
     withholding_amount: Decimal
     net_to_pay: Decimal
+    fees: Decimal = ZERO
     # Typed VAT amounts that cannot apply, by rate, with the reason (an amount above what the rate holds).
     refused_overrides: dict[Decimal, str] = field(default_factory=dict)
 
@@ -95,8 +96,10 @@ def compute(
     fiscal_stamp: Decimal,
     withholding_rate: Decimal | None,
     vat_overrides: dict[Decimal, Decimal] | None = None,
+    fees: Decimal = ZERO,
 ) -> InvoiceAmounts:
-    """Every amount of an invoice from its lines. `withholding_rate` None means no withholding."""
+    """Every amount of an invoice from its lines. `withholding_rate` None means no withholding. `fees` (Frais)
+    add to the total like the stamp: no VAT on them and no withholding (D-126)."""
     overrides = vat_overrides or {}
     refused: dict[Decimal, str] = {}
     results: list[LineResult | None] = [None] * len(lines)
@@ -132,7 +135,7 @@ def compute(
     final = [result for result in results if result is not None]
     total_excl_tax = sum((result.amount_excl_tax for result in final), ZERO)
     vat_total = sum((group.amount for group in groups), ZERO)
-    total_incl_tax = total_excl_tax + vat_total + fiscal_stamp
+    total_incl_tax = total_excl_tax + vat_total + fiscal_stamp + fees
     withholding = ZERO
     if withholding_rate is not None and withholding_rate > 0:
         withholding = money((total_excl_tax + vat_total) * withholding_rate / HUNDRED)
@@ -145,5 +148,6 @@ def compute(
         total_incl_tax=total_incl_tax,
         withholding_amount=withholding,
         net_to_pay=total_incl_tax - withholding,
+        fees=fees,
         refused_overrides=refused,
     )

@@ -3,7 +3,7 @@ from django.db.models import OuterRef, Subquery
 
 
 def end_closed_days(apps, schema_editor):  # type: ignore[no-untyped-def]
-    """A day whose closing was already sent is over (D-126): it ends when the closing was sent."""
+    """A day whose closing was already sent is over (D-134): it ends when the closing was sent."""
     DriverDay = apps.get_model("fleet", "DriverDay")
     DayClosing = apps.get_model("dayclose", "DayClosing")
     sent = DayClosing.objects.filter(driver_day_id=OuterRef("pk")).values("submitted_at")[:1]

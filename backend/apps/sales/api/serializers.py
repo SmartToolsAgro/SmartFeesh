@@ -55,6 +55,8 @@ class QuoteCustomerSerializer(serializers.Serializer[Any]):
     address = serializers.CharField(read_only=True)
     city = serializers.CharField(read_only=True)
     tax_id = serializers.CharField(read_only=True)
+    # Printed in the client block of every document's header (D-131).
+    phone = serializers.CharField(read_only=True)
 
 
 class QuoteLocationSerializer(serializers.Serializer[Any]):
@@ -414,7 +416,7 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     customer = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     # The cold room (open to counter sales) or the truck the goods leave from.
     location = serializers.IntegerField(min_value=1)
-    # Empty: now. Drivers always sell now.
+    # Empty: now. A driver's phone sends when the sale was made; the server checks it before using it (D-133).
     sold_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     lines = SaleLineWriteSerializer(many=True, allow_empty=True)
@@ -687,6 +689,7 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
             "total_excl_tax",
             "vat_total",
             "fiscal_stamp",
+            "fees",
             "total_incl_tax",
             "withholding_amount",
             "net_amount",
@@ -735,6 +738,7 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
             "total_excl_tax",
             "vat_total",
             "fiscal_stamp",
+            "fees",
             "total_incl_tax",
             "withholding_applied",
             "withholding_rate",
@@ -926,6 +930,8 @@ class InvoiceChoicesSerializer(serializers.Serializer[Any]):
     # Typed VAT amounts per rate; errors come back on `vat_amounts.<rate>`.
     vat_amounts = InvoiceVatAmountSerializer(many=True, required=False, default=list)
     fiscal_stamp = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # "Frais" in DT, outside VAT; empty: none (D-126).
+    fees = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     withholding_applied = serializers.BooleanField(required=False, default=False)
     withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")

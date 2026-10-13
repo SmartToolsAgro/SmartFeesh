@@ -1,4 +1,4 @@
-import type { RoadExpenseWrite, RoadLossWrite, RoadPaymentWrite, SaleWrite } from "@frutti/api";
+import type { MyBoxPickupWrite, RoadExpenseWrite, RoadLossWrite, RoadPaymentWrite, SaleWrite } from "@frutti/api";
 import { useEffect, useState } from "react";
 
 // What the phone could not send yet (P3-T07b and T07c, D-097). They live in IndexedDB, so they survive closing the
@@ -19,6 +19,7 @@ interface Waiting {
 
 export interface QueuedSale extends Waiting {
   kind: "sale";
+  /** With `sold_at`, the moment the sale was made by the phone's clock (D-133). */
   data: SaleWrite;
   /** What the screen showed when the sale was made, for the receipt on the phone. */
   estimate: {
@@ -44,7 +45,13 @@ export interface QueuedPayment extends Waiting {
   data: RoadPaymentWrite;
 }
 
-export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss | QueuedPayment;
+/** Boxes a client hands back to the truck (P1-T14e): the `client_uuid` in the data makes a retry post once. */
+export interface QueuedPickup extends Waiting {
+  kind: "pickup";
+  data: MyBoxPickupWrite;
+}
+
+export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss | QueuedPayment | QueuedPickup;
 
 const DATABASE = "frutti-truck";
 const STORE = "sales";
@@ -120,6 +127,14 @@ export function useQueue(): QueuedItem[] {
     };
   }, []);
   return queue;
+}
+
+/**
+ * When a waiting sale was made (D-133). One kept by an earlier version of the app has no `sold_at`: it was put
+ * in the queue the moment it was made, so that time is used.
+ */
+export function madeAtOf(sale: QueuedSale): string {
+  return sale.data.sold_at ?? sale.createdAt;
 }
 
 /** Kilos per product already promised by waiting sales and losses: they are no longer in the truck. */

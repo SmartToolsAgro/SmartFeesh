@@ -431,7 +431,8 @@ and the Phase 6 plan written from them.
   lots on that truck's load that day, **by kg loaded** (provisional: the client said "split over the
   lots", not how).
 - **Rent, accountant and other general costs:** "like a salary" (client): monthly amount / 26 per day;
-  each day's amount split over the lots in stock that day by kg held (provisional: our reading).
+  each day's amount split over the lots in stock that day by kg held, the same way as the cold room
+  (**confirmed 2026-10-13**, Q21).
 - **Day labour:** one record (date, worker, amount paid, optional lot). Typed from the lot or from the
   calendar, it is the same record; without a lot it is a general cost.
 
@@ -910,8 +911,9 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   cost covering `months` months from `first_month` (bill over several months is spread equally, exact to
   the millime). Templates are owner-only; generated and multi-month costs follow the expense approval.
   Such an expense is changed/deleted only through its own endpoints.
-- Charge to lots (**Q21 provisional**): each month part / 26 per day, each day split over the lots in stock
-  anywhere that day by kg held (end-of-day ledger balance); days with nothing in stock charge nobody. Only
+- Charge to lots (**Q21 confirmed 2026-10-13**): each month part / 26 per day, each day split over the lots
+  in stock anywhere that day by kg held (end-of-day ledger balance, the same split as the cold room, D-041);
+  days with nothing in stock charge nobody. Only
   approved expenses count; days up to today. Screen "Frais généraux" (`/charges/frais-generaux`).
 
 **D-060 · Partnership lots and the partner's capital ledger (P6-T01)** · accepted, provisional points marked · 2026-10-11
@@ -1635,6 +1637,25 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   to people in the same organization.
 - Not yet: printing the logo on documents (planned with the PDF templates). Done in D-125.
 
+**D-124 · Returnable boxes (caisses): a count ledger, separate from kg stock (Q27)** · accepted · 2026-10-13
+- Two box types (small, big). Boxes are **counted in whole units** in their own append-only movement table
+  (`BoxMovement`: organization, box type, count, from and to, source document, posted through a service in a
+  transaction). They are never products and never touch `StockOnHand`, kg, FIFO or lots (no lot tracking).
+- Holders are **locations** (cold rooms, trucks), **clients** and **suppliers**. Balances are derived from the
+  ledger: boxes per location, boxes held by each client, boxes owed to each supplier. A box left at a client
+  stays out of the truck until collected.
+- Supplier boxes: boxes received from a supplier must go back to that supplier. Each supplier has a balance
+  "boxes owed", separate from money (supplier payables) and from partner capital (three-balances rule).
+- Sign convention (step 1, `apps/boxes`): locations and clients show arrivals minus departures; a **supplier shows
+  receipts minus returns**, i.e. what we owe it, which is never negative.
+- No deposit and no money in the box ledger (owner answer). No tare: box weight is not in kg figures.
+- Lost or broken boxes are a **company overhead** (write-off movement with a reason), not charged to clients or
+  drivers, and not part of a lot's costs (so they do not change partner profit, D-040 / D-041).
+- Driver app: count on loading, "boxes left" on a sale, "boxes collected" on a pickup visit, and a box
+  reconciliation at the evening closing (D-094), the same way as kg. Admin: a "Caisses" page under Stock and a
+  box section on the client page.
+- **Status after PR #100:** built: steps 1 to 4 of the ledger (#95 ledger, #97 receipt and transfer hooks, #98 admin "Caisses" page, #100 sale with boxes online, pickups online, day view with loaded, left and collected counts). **Open, owner decisions, not built:** (2) the truck's "expected boxes" is the real ledger balance, not today only; (3) box actions (sales with boxes, pickups) go into the driver offline queue with idempotent retries; (4) a truck-to-cold-room "return" movement, posted with the transfer. Also open: Arabic box texts, and a browser check of the driver screens.
+
 **D-125 · Invoice PDF follows the company's paper invoice; the uploaded logo everywhere (owner request)** · accepted · 2026-10-13
 - The owner sent their current paper invoice (facture 2026M30013) and asked for the same page "with a small
   enhancement". `sales/pdf/invoice.html` now draws that layout: logo and company block top left (address,
@@ -1659,26 +1680,197 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - The product list the owner forwarded (ART0002 to ART0060) is not imported by this change; the codes print
   as soon as products carry them as `reference` (through the data import or the product page).
 
-**D-126 · Several driver days on one date; the history of days (owner request, follow-up of D-094, replaces D-109's lock)** · accepted · 2026-10-13
-- **Sending the closing ends the day.** `DriverDay.ended_at` is set on the first send (`fleet.services.end_driver_day`,
-  inside `submit_day_closing`); from then on the driver gets 403 on sales, road expenses, losses, returns, customer
-  payments and box pickups (`dayclose.selectors.refuse_if_day_closed`, was `refuse_if_day_approved`). Before, only an
-  approved day was closed, so a driver could keep selling on a day already sent.
+**D-126 · "Frais" on invoices; the owner's article codes as product references (owner decision)** · accepted · 2026-10-13
+- `Invoice.fees` ("Frais", DT): an amount the office types on the draft (empty = none), printed in the Frais
+  box of the PDF (D-125) and on the invoice page. It adds to the total like the fiscal stamp: no VAT on it and
+  no withholding (`total_incl_tax = HT + TVA + timbre + frais`), so the customer owes it through `net_to_pay`.
+  It is not lot revenue: lot profit still comes from the sale lines only.
+- `CreditNote.fees`: a full credit note gives back all the fees still on the invoice, a partial one none (like
+  the stamp), so a cancelled invoice leaves nothing owed. Migration `sales.0015`.
+- The owner's product list: only the article codes are taken (`catalog/product_codes.py`, ART0002 to ART0060).
+  `manage.py set_product_codes --organization <id>` reports, `--apply` writes each code into the `reference`
+  of the product with the same name (case, accents and spaces ignored), through `update_product` (audited).
+  No product is created and nothing else changes. Left alone and reported: no product with that name, several
+  products with it, the code already on another product, and names the list gives twice (ART0047 and ART0055
+  were both "Maklouba rosé congelé M0"). It must be run on the server.
+- Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
+  stays unassigned.
+
+**D-127 · Admin can record returnable boxes on a receipt and on a load (bug, owner report)** · accepted · 2026-10-13
+- Found: the admin app had no way to post a box movement. The receipt and transfer APIs took `boxes` since P1-T14b,
+  but the admin forms never sent it, and the Caisses page was read only. The box types are a fixed choice
+  (`BoxType`, small and big), not a table, so "no box type exists" was not the cause. Nothing was seeded wrongly.
+- Fix: a "Caisses reçues avec la livraison" card on the receipt form and a "Caisses chargées dans le camion" card on
+  a load (shown only for a load), both sending the counts the server already takes. A draft load reloads its saved
+  counts: `TransferDetail` now returns `boxes`, because saving a draft replaces them. The empty Caisses page links to
+  both forms for whoever may record them.
+- Still open, not built: an opening balance (boxes already at clients, in cold rooms, or owed to suppliers). It needs
+  a movement kind with one side outside the ledger, and a decision on the sign for a supplier. Proposed as a small
+  owner-approved follow-up, not in this change.
+- Load question (owner): keep the count as a field on the load transfer (one document, posted in the same transaction
+  as the kg), not as a separate movement screen. A separate movement would need its own source document and could drift from the load.
+
+**D-128 · Editing a monthly cost template updates its months not yet approved (owner report)** · accepted · 2026-10-13
+- The owner changed a monthly cost (Frais généraux) and the month result did not move: the template change only
+  applied to months generated later. Now `update_recurring_cost` also rewrites the expense of every month already
+  generated whose expense is still a draft or waiting for approval (amount, category, name, payee, payment method),
+  through `update_expense` (audited). An approved month keeps its amount: a correction is a new expense.
+- The month result counts approved expenses only, so the change shows there once the expense is approved.
+- The admin refreshes the month screen and the dashboard after any expense change (`refreshExpenses`).
+**D-129 · Closing waits for the phone's waiting sales and says why; a sale sent again is not refused (follow-up of D-090, D-091, D-094)** · accepted · 2026-10-13
+- The closing stays blocked while any item of the phone queue is pending (D-090). The page now says how many wait and why (no connection, no answer, server busy, session ended), has a retry button, and sends them as it opens. Pure gate in `closingGate.ts`.
+- A send gives up after 25 s (`SEND_TIMEOUT_MS`, `sync.ts`), so one hung request no longer blocks every later sync until the page is reloaded.
+- 408, 429, 502, 503 and 504 keep the item pending (the server is busy, it did not refuse the item). Other 4xx and 500 still make it refused and reported to the office. 401 keeps it pending and reports the ended session.
+- Backend: a sale the server already has under the same `client_uuid` is answered 201 with that sale, checked before the day-approved check, so a retry after approval is not refused as a new sale. A new sale on an approved day is still 403 (D-094).
+
+**D-130 · A truck's day starts from what it held, not from today's loads (bug on staging, 2026-10-13)** · accepted · 2026-10-13
+- Cause: the driver's Clôture showed "vendu" above "chargé" (Crevette 109 sold, 100 loaded). Nothing was oversold:
+  the ledger never goes below zero (`post_fifo_movements` refuses, DB check `on_hand_never_negative`). The kilos
+  sold had stayed on the truck from an earlier day, and `truck_day` only counts today's validated transfers.
+- `inventory.selectors.location_stock_before`: what a location held at the start of the day, from the ledger
+  (movements dated before it). `day_summary` shows it per product as `opening`.
+- `unexplained` = left (ledger) - (opening + loaded - returned - sold - lost). It is never clamped: a gap is shown in
+  red with "prévenez le bureau" (stock out or in without a sale, loss or transfer of this driver).
+- Historical ledger rows and closing snapshots are not changed; old snapshots simply lack the two new fields.
+- Driver screens other than Ma journée get a "Retour à Ma journée" button under their content (`BackToDay`).
+- Not changed (open): an offline sale is dated when it is sent (`sold_at` is the server's moment for a driver),
+  so a sale made yesterday and sent today counts as today's sale and its price is today's. (Changed by D-133.)
+
+**D-131 · Every document uses the invoice's header and footer, in the PDFs and on screen (owner request)** · accepted · 2026-10-13
+- The owner asked that every printed PDF and every document view in the app carry the frame of the facture
+  (D-125). The header and footer moved from `sales/pdf/invoice.html` into `documents/pdf_base.html`: logo or
+  company name, address, Tél, MF, Identifiant Unique, RC top left; boxed "<Document> N° …", a Date | Client
+  box and the client block (Client, Code Client, Type, Adresse, Téléphone, MF) top right; "Adresse : … ·
+  Téléphone : …" and "Page x / y" at the foot of every page. Devis, bon de livraison, avoir, reçu and the
+  partner statement now print it; each keeps its own body (lines, totals, signatures).
+- A provider gives the header `doc_date` and `party` (a dict: label, name, address, phone, tax_id, plus
+  `reference` / `type` when that row should print); `banner` (status stamp) and `head_meta` (BL numbers,
+  due date, validity…) are template blocks. The partner statement shows "Partenaire" where the others show
+  "Client", dated the closing day (closed lot) or the printing day (open lot, which re-renders daily).
+- The Identifiant Unique is read from the tax id by `documents.services.unique_identifier` (template filter
+  `unique_id`), so every document prints it, not only the invoice.
+- In the admin app, `lib/DocumentFrame.tsx` (`DocumentHeader`, `DocumentFooter`) draws the same frame on the
+  invoice, quote and sale (BL) pages, with the logo from Paramètres. The invoice shows its frozen seller; a
+  quote or BL shows the finance settings in force (`useSeller`). The quote's customer link moved to "Suivi".
+  The quote/sale customer payload gained `phone` for the client block.
+
+**D-133 · A driver's sale is dated when it was made, as the phone says, within limits (owner decision; follow-up of D-091, D-094, D-129, D-130)** · accepted · 2026-10-13
+- Before: for a driver `sold_at` was the server's clock, so a sale made without connection yesterday and sent today
+  was today's sale, at today's price, in today's closing.
+- Now the phone sends the moment the driver validated the sale in `sold_at` (the field `POST /sales` already had),
+  sent at once or kept in the queue; `sync.ts` sends it with the queued sale. A sale queued by the earlier app has
+  none and takes the time it was queued (`madeAtOf`), the same moment. The phone is not trusted: the server checks
+  the time before using it (`sales.services.moment_from_phone`, then the sale view), in this order:
+  1. A sale already recorded under the same `client_uuid` is answered as recorded, before any check (D-129, kept).
+  2. **Clock tolerance: 5 minutes, both ways** (the existing `CLOCK_MARGIN`). Within it the server's own clock dates
+     the sale: an online sale is dated exactly as before, and a phone a little fast or slow never moves a sale to
+     another day around midnight. No time sent: the server's clock, as before.
+  3. More than 5 minutes in the future: refused, 400 on `sold_at`, naming the time and asking to check the phone.
+  4. The driver's truck **of that day** (D-042: the day's assignment, else the usual truck): another truck is 403.
+  5. The driver's day **of that date** must not be approved (D-094): 403 "Votre journée du JJ/MM/AAAA est approuvée
+     par le bureau : elle est fermée, plus rien ne s'y ajoute." A day sent but not approved still takes the sale.
+     Only the sale's own day counts: a later day already approved does not refuse it.
+  6. The stock (below): 400 on the line.
+- **No day started on that date: the sale is accepted.** Starting a day needs a connection and selling does not, and
+  an online sale never needed a started day; refusing would throw away every sale of a driver who had no signal all
+  day. Such a sale is dated on its day, from the truck the driver had that day, and belongs to no day closing.
+- **What follows the date.** Everything reads `sold_at`: the price in force at that moment, the sales lists, the day
+  summary and closing of that day (`dayclose.selectors.day_summary`), the customer's balance and ageing (the sale's
+  day until it is invoiced, then the invoice's), reports, month figures and lot results. `confirmed_at` and
+  `created_at` still say when the sale reached the server.
+- **Stock ledger.** A movement has `occurred_at` (when it happened) and `created_at` (when it was recorded); the day
+  figures replay the ledger by `occurred_at`. The late sale's movements are appended today and dated at the sale:
+  no row is rewritten or reordered. Recomputed, the opening stock (D-130) of every later day drops by its kilos,
+  which is right: they had left the truck. New check, for a driver's sale dated on an earlier day only
+  (`post_fifo_movements(held_since_then=True)`, `inventory.selectors.least_held_since`): a lot gives at most the
+  lowest end-of-day balance the truck has had of it from the sale's day until now. So no day in between starts
+  below zero, and the lot taken was on the truck that day (profit per lot). Otherwise 400 "Stock insuffisant à
+  cette date : « Camion » n'a gardé que X kg de ce produit depuis le JJ/MM/AAAA." Checked per day, not per hour:
+  a load typed afterwards is dated at noon (D-039), so hours inside a day prove nothing.
+- **Refusals reach the office.** Any refusal above is a 400 or 403: the queue marks the sale refused and reports it
+  as a sync problem (D-099, D-129); nothing changed there. Online, the driver reads the message on the sale screen.
+- **Not corrected by a late sale** (known, accepted):
+  - Closing figures kept "as sent" (`DayClosing.summary`): the snapshot of the sale's day when it was already sent,
+    and of the days in between, approved or not, keep the old cash and stock. Only live figures move.
+  - The BL number is the next of the year the sale is confirmed in, not of the year it was made in.
+  - Returnable boxes: a box movement only has its recording date, so the boxes count on the day they are recorded.
+  - Expenses, losses, customer payments and box pickups kept on the phone are still dated when they are sent.
+  - A month already closed changes in its live figures (shown as drift, D-074), like a sale typed late by the office.
+  - The price is the server's price in force at that moment, not the one the phone showed (P3-T02, D-051 open).
+  - Lots: among what the truck has held since, FIFO runs when the sale is recorded; sales recorded in between may
+    already have taken the older lot.
+  - A phone clock set wrong in the past cannot be seen, as long as the driver had the truck and the kilos that day.
+  - The check on stock held since is not applied to a sale typed late by the office, nor to a driver's draft that
+    waits for a credit approval and is confirmed later.
+  - A driver still cannot close a day that is over (the closing endpoints are today's only). (Changed by D-134:
+    the history sends a day left running.)
+
+**D-134 · Sending the closing ends the driver's day; several days on one date; the history of days (owner decision 2026-10-13; follow-up of D-094, replaces D-109's lock; carries D-129, D-130 and D-133)** · accepted · 2026-10-13
+- **The owner's rule: sending ends the day.** A sent closing never changes by itself, and a later sale needs a new
+  day. (The other proposal, "send the same day again", branch `claude/bold-gates-b8j6yz`, is dropped.)
+  `DriverDay.ended_at` is set on the first send (`fleet.services.end_driver_day`, inside `submit_day_closing`). From
+  then on the driver gets 403 "Votre journée est clôturée : commencez une nouvelle journée." on road expenses,
+  losses, returns, customer payments and box pickups (`dayclose.selectors.refuse_if_day_closed`, was
+  `refuse_if_day_approved`), and on sales (below). Before, only an approved day was closed.
 - **The driver may start another day the same date** ("Commencer une nouvelle journée", new cash float). Days are
-  numbered per driver and date (`DriverDay.number`, unique; at most one running day per driver and date, a partial
-  unique constraint). `my-day` and the closing screen work on the last one.
-- **Each day counts its own window of the date:** from the end of the driver's previous day of that date (the
-  start of the date for the first) to its own end, on `created_at` for sales, customer payments, road expenses and
-  losses, and on `validated_at` for truck loads and returns (`fleet.selectors.day_window`). A single day per date
-  counts exactly what it did before. The morning's load belongs to the first day; the second shows what is left in
-  the truck, not a new load.
-- **Sent again after a justification:** the figures are recomputed over the same window, but the stock left in the
-  truck stays as it was at the first send (the next day has moved it since). Once a closing is sent, the phone shows
-  the figures as sent (`selectors.day_answer`), not live ones.
+  numbered per driver and date (`DriverDay.number`; at most one running day per driver and date, a partial unique
+  constraint). `my-day` and the closing screen work on the last one.
+- **A day is a window of its date** (`fleet.selectors.day_window`): from the end of the driver's day before it on
+  that date (local midnight for the first) to its own end, and at the latest the end of the date. The windows of a
+  date touch: nothing falls between two days.
+- **Which day a sale belongs to (D-133 carried):** the day whose window covers the moment the sale was made
+  (`sold_at`), not the moment it reached the server. `dayclose.selectors.refuse_sale_outside_day`, called by the
+  sale view after the truck check, with D-133's order kept (a sale already recorded under its `client_uuid` is
+  answered first, D-129; then the clock checks; then the truck of that day):
+  1. No day started on that date: accepted, the sale belongs to no closing (D-133, unchanged).
+  2. The moment is after the end of every day of that date (the closing was sent, no new day): 403, "Votre journée
+     est clôturée : commencez une nouvelle journée." for today, and for an earlier date "Votre journée du
+     JJ/MM/AAAA était déjà clôturée quand cette vente a été faite : elle n'est pas enregistrée. Prévenez le bureau."
+  3. The day that covers it is approved: 403 with D-133's messages. Only that day counts: day 1 approved does not
+     stop a sale of day 2.
+  4. Otherwise accepted. In particular **a sale made before the closing was sent and received after it is recorded
+     on that day** while the office has not approved it (the owner's limit for a late sale).
+- **A refusal never waits for ever.** Each one is a 403: the phone's queue marks the sale refused and reports it to
+  the office (D-099, D-129, `sync.ts` unchanged). Online, the driver reads the message on the sale screen.
+- **The sent figures stay as sent.** `DayClosing.summary` is not rewritten by a late sale. The phone shows a sent
+  day as sent (`selectors.day_answer`; the day's records again once the office asked a question, since the driver
+  is about to send them). The office's closing dialog shows the figures as sent and, above the stock
+  table, "Les chiffres ont changé depuis l'envoi du chauffeur": one line per figure that differs, sent against now
+  (`selectors.changes_since_sent`, field `changes_since_sent` of `GET day-closings/<id>`). It does not block: the
+  office approves as sent, or asks for a justification, and the driver's new send takes the figures of the same
+  window as they are then (the day keeps its first end). Empty once approved (an approved day takes no late sale).
+- **Stock per day (D-130 carried, corrected for a second day).** D-130 read the opening stock at the start of the
+  calendar date, so a second day showed a false gap (opening 0, 7 kg "unexplained"). Now everything is read from the
+  ledger on one clock, `occurred_at`: `opening` is the truck's balance at the start of the window
+  (`inventory.selectors.location_stock_at`), `loaded` / `returned` / `lost` are the transfer and loss movements dated
+  inside it (`location_moves_between`), `sold` the driver's sales made inside it, `remaining` the balance at the end
+  of the window (what the truck holds now while the window is open). So opening + loaded - returned - sold - lost =
+  left for a first and a second day, and `unexplained` is only stock that moved with no sale of this driver, loss or
+  transfer. A single day per date gives the same figures as before. Customer payments and road expenses are cut on
+  `created_at` (they are dated when they are sent, D-133).
+- **The driver's screens (D-129, D-130 carried).** The closing screen and the history share `DayReport.tsx`: the
+  wait for the phone's unsent items with its reason and the retry button (`closingGate.ts`), the send as it opens,
+  the opening stock and the gap in red. A day sent before D-130 has no opening stock in its kept figures and is
+  shown without it. The office's stock table now shows "Au départ" and "Écart" too.
 - **History:** the driver sees their last 60 days (`GET my-days`, `GET my-days/<id>`) and can send a day from there
   (`POST my-days/<id>/closing`): the answer to the office's question, or a day left running on an earlier date.
   "Ma journée" shows a warning when the office asked about a day. The office's `/journees` page filters by driver or
   truck name and dates (last 200 rows) and shows "journée 2" when a driver had several that date.
 - Migrations `fleet.0004` (number, ended_at, constraints) and `dayclose.0003` (days already sent end when their
-  closing was sent).
-- Not done: the monthly closing's "driver days closed" check still does not list days left running (D-074).
+  closing was sent). The Arabic texts of the history are provisional (D-103).
+- **Known limits:**
+  - Within the 5 minutes of clock tolerance the server's clock dates the sale (D-133): a sale made in the last
+    minutes before the closing and received just after it counts as made after it, and is refused until a new day
+    is started. The closing screen does not let the driver send while a sale waits on the phone (D-129), so this
+    needs two phones or a request still in flight.
+  - A sale made between the end of a day and the start of the next is refused while no new day exists; received
+    once the next day is started, it is that day's sale (its window starts where the first one ended).
+  - The stock a late sale may take is checked per day, not per hour (D-133): a sale made in the first day and
+    received during the second takes kilos loaded since, and the first day's stock left can then read below zero.
+    The equation still holds and the office sees the change.
+  - A sale made after an earlier date's closing can no longer get a new day of that date: it stays refused and the
+    office types it.
+  - A day sent before this change may have sales made after its send (then allowed until approval): they are in no
+    day's window and in no closing.
+  - The office list does not flag the days whose figures changed; the dialog does (it reads the day's records).
+  - The monthly closing's "driver days closed" check still does not list days left running (D-074).

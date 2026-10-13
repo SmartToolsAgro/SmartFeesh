@@ -7483,7 +7483,7 @@ export const getCreateInvoiceUrl = () => {
  * Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
  * once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
  * `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
- * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`.
+ * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
  */
 export const createInvoice = async (invoiceCreate?: InvoiceCreate, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceDetail> => {
 
@@ -11750,7 +11750,8 @@ export const getCollectMyBoxesUrl = () => {
 
 /**
  * Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
- * client holds fewer boxes of one type than asked, or when the driver's day is approved.
+ * client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+ * already used returns the day as it is after that pickup (the driver app retries).
  */
 export const collectMyBoxes = async (myBoxPickupWrite: MyBoxPickupWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyBoxDay> => {
 
@@ -11835,8 +11836,8 @@ export const getGetMyBoxDayUrl = () => {
 }
 
 /**
- * Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
- * the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+ * Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+ * and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day.
  */
 export const getMyBoxDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyBoxDay> => {
 
@@ -12408,7 +12409,7 @@ export const getListMyDaysUrl = () => {
 }
 
 /**
- * The driver's own days, newest first (the last 60), each with its closing when sent (D-126).
+ * The driver's own days, newest first (the last 60), each with its closing when sent (D-134).
  */
 export const listMyDays = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyDayRow[]> => {
 
@@ -21203,7 +21204,11 @@ export const getCreateSaleUrl = () => {
  * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
  * who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
  * Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
- * day, at the present moment.
+ * day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
+ * day's price, also when it was kept without connection and sent later. Within 5 minutes of the
+ * server's clock the server's own time is used; further in the future is refused (400), as is a day the
+ * office has approved or a truck the driver did not have that day (403), and stock the truck has not
+ * held since that day (400).
  */
 export const createSale = async (saleWrite: SaleWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
 

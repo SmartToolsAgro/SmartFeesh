@@ -37,7 +37,7 @@ function DayStatus({ row }: { row: MyDayRow }) {
   );
 }
 
-// "Mes journées": the driver's days, newest first; one tap opens its figures (D-126).
+// "Mes journées": the driver's days, newest first; one tap opens its figures (D-134).
 export function HistoryPage() {
   const { t } = useTranslation();
   const days = useListMyDays({ query: { retry: false } });

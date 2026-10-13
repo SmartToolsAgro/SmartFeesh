@@ -86,7 +86,7 @@ class MyDayListView(APIView):
 
     @extend_schema(operation_id="listMyDays", responses=MyDayRowSerializer(many=True))
     def get(self, request: Request) -> Response:
-        """The driver's own days, newest first (the last 60), each with its closing when sent (D-126)."""
+        """The driver's own days, newest first (the last 60), each with its closing when sent (D-134)."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         rows = fleet.driver_days_of(membership.organization, driver_id=membership.user_id).select_related("closing")
