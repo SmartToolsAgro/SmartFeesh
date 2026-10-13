@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.core.models import AuditLog
-from apps.core.tests.factories import MembershipFactory
+from apps.core.tests.factories import MembershipFactory, OrganizationFactory
 from apps.hr import selectors, services
 from apps.hr.models import SalaryStatus
 
@@ -414,8 +414,9 @@ def test_other_deductions_come_off_after_the_cnss_and_the_rate_can_be_changed_on
 
 
 def test_a_new_employee_gets_the_provisional_default_rate_and_the_payroll_summary_adds_it_up():
+    # Its own organization: the other factories' employees would add to the month's totals.
     employee = services.create_employee(
-        organization=EmployeeFactory.create().organization, actor=None, name="Nouvelle", monthly_salary="2000.000"
+        organization=OrganizationFactory.create(), actor=None, name="Nouvelle", monthly_salary="2000.000"
     )
     assert employee.employee_cnss_rate == Decimal("9.18")
 
