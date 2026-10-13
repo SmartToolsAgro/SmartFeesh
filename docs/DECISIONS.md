@@ -1582,7 +1582,6 @@ have it), and Arabic texts.
   `on_hand_never_negative` for every module sharing `StockOnHand` (losses, transfers, counts) and teaching
   `rebuild_on_hand` (D-038) to treat a negative ledger as a known state instead of corruption — too large a
   change for what the owner actually needed (sell now, reconcile the lot later).
-
 **D-122 · Clôture mensuelle: clickable figures and each partner's share of the shared costs (owner request)** · accepted · 2026-10-13
 - The owner pointed out that rent, electricity, fuel and the other costs the lot result engine already
   splits over the lots in stock (D-041) land on partnership lots too: a partner effectively carries part of

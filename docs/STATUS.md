@@ -95,7 +95,6 @@ a while (jobs failed in 2 s); it works again. Driver endpoints are all `my-*` an
   filtered by category and the month's dates (`ExpensesPage` now reads filters from the URL); sales,
   spoilage and salaries link to their list pages without a date filter yet. Full itemized drill-down
   (individual sales/expense/loss/payroll rows behind each month total) is a follow-up, not done here.
-
 - 2026-10-12 · D-121 (owner request, not a phase-file task): a sale line can pick a lot by hand instead of
   FIFO. Built on the counter sale screen first; backend (`requested_batch`, `prefer_batch_id`, the new
   `locations/<id>/stock/<product_id>/batches` endpoint) works for any sale line, so the regular sale screen
