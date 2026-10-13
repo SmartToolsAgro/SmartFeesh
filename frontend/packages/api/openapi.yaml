@@ -2360,7 +2360,7 @@ paths:
         Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
         `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
-        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`.
+        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
       tags:
       - invoices
       requestBody:
@@ -9047,6 +9047,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        fees:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         total_incl_tax:
           type: string
           format: decimal
@@ -9086,6 +9091,7 @@ components:
       - created_by
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - id
       - invoice
@@ -11766,6 +11772,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        fees:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         total_incl_tax:
           type: string
           format: decimal
@@ -11837,6 +11848,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - id
       - issued_at
@@ -11932,6 +11944,9 @@ components:
         fiscal_stamp:
           type: string
           nullable: true
+        fees:
+          type: string
+          nullable: true
         withholding_applied:
           type: boolean
           default: false
@@ -11961,6 +11976,9 @@ components:
           items:
             $ref: '#/components/schemas/InvoiceVatAmount'
         fiscal_stamp:
+          type: string
+          nullable: true
+        fees:
           type: string
           nullable: true
         withholding_applied:
@@ -12049,6 +12067,11 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fees:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12187,6 +12210,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - fiscal_stamp_overridden
       - id

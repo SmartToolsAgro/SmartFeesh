@@ -34,6 +34,8 @@ export interface Invoice {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly fiscal_stamp: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly fees: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly total_incl_tax: string;
   readonly withholding_applied: boolean;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */

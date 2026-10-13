@@ -977,6 +977,8 @@ export const fr = {
         amountAt: "TVA à {{rate}} % (DT)",
         amountsHint: "Laissez vide pour le montant calculé ; un montant saisi est signalé et journalisé.",
         stamp: "Timbre fiscal (DT)",
+        // D-126: fees typed by the office, outside VAT, added to the total.
+        fees: "Frais (DT, hors TVA)",
         withholding: "Retenue à la source",
         withholdingRate: "Taux de retenue (%)",
         notes: "Mention sur la facture",
@@ -1013,6 +1015,7 @@ export const fr = {
         vatExempt: "Exonéré de TVA",
         vatTyped: "montant saisi (calculé : {{computed}})",
         stamp: "Timbre fiscal",
+        fees: "Frais",
         totalIncl: "Total TTC",
         total: "Total à payer",
         withholding: "Retenue à la source ({{rate}} %)",
