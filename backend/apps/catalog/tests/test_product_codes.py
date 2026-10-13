@@ -1,8 +1,9 @@
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 
-from apps.catalog import services
-from apps.catalog.models import Product
+from apps.catalog import selectors, services
+from apps.catalog.models import KILOGRAM, Category, Product
 from apps.catalog.product_codes import PRODUCT_CODES
 from apps.catalog.tests.factories import ProductFactory
 from apps.core.models import AuditLog
@@ -82,3 +83,58 @@ def test_the_command_reports_then_applies_the_owner_list(capsys):
     assert ("ART0047", "MAKLOUBA ROSE CONGELE M0") in PRODUCT_CODES
     assert all(code != "ART0055" for code, _name in PRODUCT_CODES)
     assert "1 code(s) written" in capsys.readouterr().out
+
+
+def test_missing_articles_are_created_without_a_price_when_asked():
+    organization = OrganizationFactory.create()
+    ProductFactory.create(organization=organization, name="Calamar", reference="CA-005")
+    ProductFactory.create(organization=organization, name="Autre", reference="ART0016")
+    codes = [("ART0032", "Calamar"), ("ART0016", "poulpe gros"), ("ART0050", " FILET PANGA ")]
+    products = Product.objects.for_organization(organization)
+    unsorted = Category.objects.for_organization(organization).filter(name="À classer")
+
+    preview = services.set_product_codes(
+        organization=organization, actor=None, codes=codes, apply=False, create_missing=True
+    )
+
+    # "poulpe gros" matches no product, but another product already has its code: it is not created.
+    assert [outcome.status for outcome in preview] == ["set", "code_taken", "new"]
+    assert products.count() == 2  # a preview creates nothing
+    assert not unsorted.exists()
+
+    services.set_product_codes(organization=organization, actor=None, codes=codes, apply=True, create_missing=True)
+
+    created = products.get(reference="ART0050")
+    assert (created.name, created.category.name, created.base_unit.code) == ("FILET PANGA", "À classer", KILOGRAM)
+    assert not created.prices.exists()
+    assert selectors.price_in_force(created, timezone.now()) is None
+    assert references(organization)["Calamar"] == "ART0032"
+    assert products.count() == 3
+    assert AuditLog.objects.filter(action="product.created").count() == 1
+    assert AuditLog.objects.filter(action="category.created").count() == 1
+
+    again = services.set_product_codes(
+        organization=organization, actor=None, codes=codes, apply=True, create_missing=True
+    )
+
+    # Run twice, it creates nothing more: the new product now matches by name and has its code.
+    assert [outcome.status for outcome in again] == ["unchanged", "code_taken", "unchanged"]
+    assert products.count() == 3
+    assert unsorted.count() == 1
+
+
+def test_the_command_creates_the_missing_articles_only_when_told(capsys):
+    organization = OrganizationFactory.create()
+    products = Product.objects.for_organization(organization)
+
+    call_command("set_product_codes", "--organization", str(organization.pk), "--apply")
+    assert not products.exists()
+    call_command("set_product_codes", "--organization", str(organization.pk), "--create-missing")
+    assert not products.exists()
+    assert "38 product(s) to create" in capsys.readouterr().out
+
+    call_command("set_product_codes", "--organization", str(organization.pk), "--create-missing", "--apply")
+
+    assert products.count() == 38
+    assert set(products.values_list("category__name", flat=True)) == {"À classer"}
+    assert "38 product(s) created" in capsys.readouterr().out

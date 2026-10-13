@@ -28,9 +28,10 @@ _Last updated: 2026-10-13_
 1. **Owner decisions still open:**
    - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
      (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
-   - Product codes on staging (D-126): the owner answered (ART0047 for "Maklouba rosé congelé M0", ART0055 unassigned).
-     The dry run and the apply are **not run yet**: the server access needed for them was not granted.
-     Dry run first, then apply after the owner approves the list.
+   - Product codes on staging (D-126): the dry run was done (2 codes match, 36 articles missing) and the owner chose
+     to create the missing articles. To run on the server once this is deployed:
+     `manage.py set_product_codes --organization 1 --create-missing`, then the same with `--apply`. The new
+     products have no price and sit in "À classer": the owner sets prices and sorts them.
    - Staging check: no owner check yet of the closing fix (D-129) on a real phone.
    - Done since the last update (answers recorded): truck expected boxes = real ledger balance (D-124 decision 2,
      built in #107); box actions offline (decision 3, #107); truck-to-cold-room return (decision 4, #107); supplier
@@ -94,6 +95,8 @@ follow-up, decisions 2 to 4), #108 (closing after a sale, D-129). Open PRs: none
 
 ## Recently done
 
+- 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that
+  match no product (code, name, kg, category "À classer", no price). Dry run on staging: 2 codes match, 36 to create.
 - 2026-10-13 · D-133 a driver's sale is dated when it was made (the phone sends the time, the server checks it): that
   day's price and closing; refused in the future, on an approved day, or for kilos the truck did not hold that day.
 - 2026-10-13 · Q21 confirmed by the owner: general costs (rent, accountant) are split each day over the lots in
