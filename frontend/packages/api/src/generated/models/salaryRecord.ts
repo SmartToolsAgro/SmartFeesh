@@ -23,10 +23,14 @@ export interface SalaryRecord {
   readonly deductions: string;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   readonly cnss_rate: string;
+  /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
+  readonly employee_cnss_rate: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly gross: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly employer_cnss: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly employee_cnss: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly net: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

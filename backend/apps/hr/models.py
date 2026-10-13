@@ -9,6 +9,9 @@ from apps.core.money import MoneyField
 
 # Provisional (D-055): the employer rate of the sample data (`docs/spec/sample/employees.csv`), 17.07 %.
 DEFAULT_EMPLOYER_CNSS_RATE = Decimal("17.07")
+# Provisional (D-119): the employee's own CNSS contribution, withheld from the gross salary, 9.18 %. To be confirmed
+# by the accountant, like the employer rate.
+DEFAULT_EMPLOYEE_CNSS_RATE = Decimal("9.18")
 
 
 class Employee(OrganizationScopedModel, TimeStampedModel):
@@ -29,6 +32,8 @@ class Employee(OrganizationScopedModel, TimeStampedModel):
     cnss_number = models.CharField(max_length=30, blank=True)
     # Employer contribution in percent of the gross salary (two decimals).
     cnss_rate = models.DecimalField(max_digits=5, decimal_places=2, default=DEFAULT_EMPLOYER_CNSS_RATE)
+    # The employee's own contribution in percent of the gross salary: withheld, so it lowers what they receive.
+    employee_cnss_rate = models.DecimalField(max_digits=5, decimal_places=2, default=DEFAULT_EMPLOYEE_CNSS_RATE)
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="employee"
     )
@@ -44,6 +49,10 @@ class Employee(OrganizationScopedModel, TimeStampedModel):
             models.CheckConstraint(condition=models.Q(monthly_salary__gte=0), name="employee_salary_not_negative"),
             models.CheckConstraint(
                 condition=models.Q(cnss_rate__gte=0) & models.Q(cnss_rate__lte=100), name="employee_cnss_rate_percent"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(employee_cnss_rate__gte=0) & models.Q(employee_cnss_rate__lte=100),
+                name="employee_own_cnss_rate_percent",
             ),
         ]
 
@@ -68,7 +77,8 @@ class SalaryRecord(OrganizationScopedModel, TimeStampedModel):
     base_salary = MoneyField()
     bonus = MoneyField(default=Decimal("0.000"))
     overtime = MoneyField(default=Decimal("0.000"))
-    # Advances recovered, absences...: lowers what the employee receives, not the cost to the company.
+    # Advances recovered, absences...: lowers what the employee receives, not the cost to the company. The
+    # employee's own CNSS is not in here: it has its own line (`employee_cnss`).
     deductions = MoneyField(default=Decimal("0.000"))
     # The rate used, kept so that a later change of the employee's rate leaves this month alone.
     cnss_rate = models.DecimalField(max_digits=5, decimal_places=2)
@@ -76,7 +86,11 @@ class SalaryRecord(OrganizationScopedModel, TimeStampedModel):
     gross = MoneyField()
     # Employer contribution: gross × rate, rounded once. Paid to the CNSS, not to the employee.
     employer_cnss = MoneyField()
-    # What the employee receives: gross − deductions.
+    # The employee's own contribution, withheld from the gross: gross × rate, rounded once (D-119). The rate is
+    # kept like the employer's, and can be changed on a draft. Records approved before D-119 have 0.
+    employee_cnss_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    employee_cnss = MoneyField(default=Decimal("0.000"))
+    # What the employee receives: gross − employee CNSS − deductions.
     net = MoneyField()
     status = models.CharField(max_length=20, choices=SalaryStatus.choices, default=SalaryStatus.DRAFT)
     notes = models.TextField(blank=True)

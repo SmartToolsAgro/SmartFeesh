@@ -16,6 +16,8 @@ export interface PatchedSalaryRecordUpdate {
   deductions?: string;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   cnss_rate?: string;
+  /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
+  employee_cnss_rate?: string;
   /** @maxLength 2000 */
   notes?: string;
 }
