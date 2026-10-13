@@ -1,17 +1,8 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
 {% block heading %}Avoir{% endblock %}
-{% block subtitle %}
-  <p class="muted num">Émis le {{ note.issued_on|day }}</p>
-  <p class="muted small num">Sur la facture {{ invoice.number }} du {{ invoice.issued_on|day }}</p>
-{% endblock %}
+{% block head_meta %}<p class="fa-meta num">Sur la facture {{ invoice.number }} du {{ invoice.issued_on|day }}</p>{% endblock %}
 {% block body %}
 <div class="parties">
-  <div>
-    <h2>Client</h2>
-    <p><b>{{ invoice.customer_name }}</b></p>
-    {% if invoice.customer_address or invoice.customer_city %}<p>{{ invoice.customer_address }}{% if invoice.customer_address and invoice.customer_city %}, {% endif %}{{ invoice.customer_city }}</p>{% endif %}
-    {% if invoice.customer_tax_id %}<p class="small muted">M.F. {{ invoice.customer_tax_id }}</p>{% endif %}
-  </div>
   <div>
     <h2>Motif</h2>
     <p>{{ note.reason }}</p>

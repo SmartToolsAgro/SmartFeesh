@@ -845,7 +845,8 @@ export const ListCustomerPaymentsResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "amount": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
@@ -906,7 +907,8 @@ export const CreateCustomerPaymentResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "amount": zod.stringFormat('decimal', createCustomerPaymentResponseAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
@@ -957,7 +959,8 @@ export const GetCustomerPaymentResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "amount": zod.stringFormat('decimal', getCustomerPaymentResponseAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
@@ -1019,7 +1022,8 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "amount": zod.stringFormat('decimal', allocateCustomerPaymentResponseAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
@@ -1079,7 +1083,8 @@ export const VoidCustomerPaymentResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "amount": zod.stringFormat('decimal', voidCustomerPaymentResponseAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),
@@ -1511,7 +1516,8 @@ export const GetCustomerBalanceResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "credit_limit": zod.stringFormat('decimal', getCustomerBalanceResponseCreditLimitRegExp),
   "balance": zod.stringFormat('decimal', getCustomerBalanceResponseBalanceRegExp),
@@ -3557,7 +3563,8 @@ export const ListInvoicesResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "issued_on": zod.iso.date().nullable(),
   "due_on": zod.iso.date().nullable(),
@@ -3688,7 +3695,8 @@ export const CreateInvoiceResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "issued_on": zod.iso.date().nullable(),
   "due_on": zod.iso.date().nullable(),
@@ -3900,7 +3908,8 @@ export const GetInvoiceResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "issued_on": zod.iso.date().nullable(),
   "due_on": zod.iso.date().nullable(),
@@ -4134,7 +4143,8 @@ export const UpdateInvoiceResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "issued_on": zod.iso.date().nullable(),
   "due_on": zod.iso.date().nullable(),
@@ -4436,7 +4446,8 @@ export const IssueInvoiceResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "issued_on": zod.iso.date().nullable(),
   "due_on": zod.iso.date().nullable(),
@@ -4610,7 +4621,8 @@ export const RecordWithholdingCertificateResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 })
 }),
   "number": zod.string(),
@@ -8862,7 +8874,8 @@ export const ListQuotesResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "location": zod.union([zod.object({
   "id": zod.int(),
@@ -8951,7 +8964,8 @@ export const CreateQuoteResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "location": zod.union([zod.object({
   "id": zod.int(),
@@ -9037,7 +9051,8 @@ export const GetQuoteResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "location": zod.union([zod.object({
   "id": zod.int(),
@@ -9144,7 +9159,8 @@ export const UpdateQuoteResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "location": zod.union([zod.object({
   "id": zod.int(),
@@ -9231,7 +9247,8 @@ export const AcceptQuoteResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "location": zod.union([zod.object({
   "id": zod.int(),
@@ -9353,6 +9370,7 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
   "location": zod.object({
@@ -9467,7 +9485,8 @@ export const RefuseQuoteResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "location": zod.union([zod.object({
   "id": zod.int(),
@@ -9554,7 +9573,8 @@ export const SendQuoteResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "location": zod.union([zod.object({
   "id": zod.int(),
@@ -9973,7 +9993,8 @@ export const GetReceivablesAgeingResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "credit_limit": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemCreditLimitRegExp),
   "balance": zod.stringFormat('decimal', getReceivablesAgeingResponseRowsItemBalanceRegExp),
@@ -11280,6 +11301,7 @@ export const ListSalesResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
   "location": zod.object({
@@ -11407,6 +11429,7 @@ export const CreateSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
   "location": zod.object({
@@ -11521,6 +11544,7 @@ export const GetSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
   "location": zod.object({
@@ -11672,6 +11696,7 @@ export const UpdateSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
   "location": zod.object({
@@ -11795,6 +11820,7 @@ export const CancelSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
   "location": zod.object({
@@ -11918,6 +11944,7 @@ export const ConfirmSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
   "location": zod.object({
@@ -13860,7 +13887,8 @@ export const AddWithholdingCertificateFileResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 })
 }),
   "number": zod.string(),
@@ -13911,7 +13939,8 @@ export const VoidWithholdingCertificateResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 })
 }),
   "number": zod.string(),
@@ -13966,7 +13995,8 @@ export const GetWithholdingSummaryResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 }),
   "count": zod.int(),
   "amount": zod.stringFormat('decimal', getWithholdingSummaryResponseByCustomerItemAmountRegExp)
@@ -13985,7 +14015,8 @@ export const GetWithholdingSummaryResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 })
 }),
   "number": zod.string(),
@@ -14010,7 +14041,8 @@ export const GetWithholdingSummaryResponse = zod.object({
   "name": zod.string(),
   "address": zod.string(),
   "city": zod.string(),
-  "tax_id": zod.string()
+  "tax_id": zod.string(),
+  "phone": zod.string()
 })
 }).describe('An issued invoice that planned a withholding and has no certificate yet.')),
   "awaiting_total": zod.stringFormat('decimal', getWithholdingSummaryResponseAwaitingTotalRegExp)
