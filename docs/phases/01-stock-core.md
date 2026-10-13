@@ -143,3 +143,17 @@ balance shows the invoice.
       order; received and remaining kg per line.
 - [x] Close an order whose rest will not come; cancel one nothing was received on.
 - [x] Screens: "Bons d'achat" tab (list, form, detail), "Recevoir" opens the BR form pre-filled with what remains.
+
+### P1-T14 · Returnable boxes (caisses) · M (added 2026-10-13, D-124, Q27)
+Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merged (#95, #97, #98, #100).
+- [x] `BoxType` (small, big) and an append-only `BoxMovement`, posted only through a service in a transaction (D-124). (#95)
+- [x] Holders: locations, clients and suppliers. Movements: receive, load, leave, collect, return, write off. (#95, #97)
+- [x] Balances derived from the ledger, never negative (D-006). (#95)
+- [x] Admin "Caisses" page (balances and history). (#98)
+- [ ] Box section on the client page: not confirmed, check before ticking.
+- [x] Goods receipt and transfers carry an optional box count, default 0. (#97)
+- [x] Driver: sale with boxes (online), pickup visit (online), day view with loaded, left and collected counts. (#100)
+- [ ] Open, owner decision 2: the truck's "expected boxes" is the real ledger balance, not today only.
+- [ ] Open, owner decision 3: box actions (sales with boxes, pickups) in the driver offline queue, idempotent retries.
+- [ ] Open, owner decision 4: truck-to-cold-room "return" movement, posted with the transfer.
+- [ ] Open: Arabic box texts; browser check of the driver screens.

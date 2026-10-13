@@ -1635,6 +1635,25 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   to people in the same organization.
 - Not yet: printing the logo on documents (planned with the PDF templates). Done in D-125.
 
+**D-124 · Returnable boxes (caisses): a count ledger, separate from kg stock (Q27)** · accepted · 2026-10-13
+- Two box types (small, big). Boxes are **counted in whole units** in their own append-only movement table
+  (`BoxMovement`: organization, box type, count, from and to, source document, posted through a service in a
+  transaction). They are never products and never touch `StockOnHand`, kg, FIFO or lots (no lot tracking).
+- Holders are **locations** (cold rooms, trucks), **clients** and **suppliers**. Balances are derived from the
+  ledger: boxes per location, boxes held by each client, boxes owed to each supplier. A box left at a client
+  stays out of the truck until collected.
+- Supplier boxes: boxes received from a supplier must go back to that supplier. Each supplier has a balance
+  "boxes owed", separate from money (supplier payables) and from partner capital (three-balances rule).
+- Sign convention (step 1, `apps/boxes`): locations and clients show arrivals minus departures; a **supplier shows
+  receipts minus returns**, i.e. what we owe it, which is never negative.
+- No deposit and no money in the box ledger (owner answer). No tare: box weight is not in kg figures.
+- Lost or broken boxes are a **company overhead** (write-off movement with a reason), not charged to clients or
+  drivers, and not part of a lot's costs (so they do not change partner profit, D-040 / D-041).
+- Driver app: count on loading, "boxes left" on a sale, "boxes collected" on a pickup visit, and a box
+  reconciliation at the evening closing (D-094), the same way as kg. Admin: a "Caisses" page under Stock and a
+  box section on the client page.
+- **Status after PR #100:** built: steps 1 to 4 of the ledger (#95 ledger, #97 receipt and transfer hooks, #98 admin "Caisses" page, #100 sale with boxes online, pickups online, day view with loaded, left and collected counts). **Open, owner decisions, not built:** (2) the truck's "expected boxes" is the real ledger balance, not today only; (3) box actions (sales with boxes, pickups) go into the driver offline queue with idempotent retries; (4) a truck-to-cold-room "return" movement, posted with the transfer. Also open: Arabic box texts, and a browser check of the driver screens.
+
 **D-125 · Invoice PDF follows the company's paper invoice; the uploaded logo everywhere (owner request)** · accepted · 2026-10-13
 - The owner sent their current paper invoice (facture 2026M30013) and asked for the same page "with a small
   enhancement". `sales/pdf/invoice.html` now draws that layout: logo and company block top left (address,
