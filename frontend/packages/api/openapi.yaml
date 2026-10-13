@@ -10234,6 +10234,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        employee_cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
         user:
           allOf:
           - $ref: '#/components/schemas/LoginRef'
@@ -10257,6 +10262,7 @@ components:
       required:
       - cnss_number
       - cnss_rate
+      - employee_cnss_rate
       - hire_date
       - id
       - is_active
@@ -10321,6 +10327,10 @@ components:
           default: ''
           maxLength: 30
         cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        employee_cnss_rate:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
@@ -14660,6 +14670,10 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        employee_cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         user:
           type: integer
           minimum: 1
@@ -14756,6 +14770,10 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
         cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        employee_cnss_rate:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
@@ -14935,6 +14953,10 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        employee_cnss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
         net:
           type: string
           format: decimal
@@ -14959,6 +14981,7 @@ components:
           type: integer
       required:
       - drafts
+      - employee_cnss
       - employer_cnss
       - expense
       - gross
@@ -17346,12 +17369,22 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        employee_cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
         gross:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         employer_cnss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        employee_cnss:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -17421,6 +17454,8 @@ components:
       - deductions
       - due_amount
       - employee
+      - employee_cnss
+      - employee_cnss_rate
       - employer_cnss
       - expense_amount
       - gross

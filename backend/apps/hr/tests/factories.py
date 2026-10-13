@@ -17,3 +17,5 @@ class EmployeeFactory(DjangoModelFactory[Employee]):
     position = "Manutentionnaire"
     monthly_salary = Decimal("1300.000")
     cnss_rate = Decimal("17.07")
+    # Most tests reason on the gross: the employee's own CNSS (default 9.18 %, D-119) is tested on its own.
+    employee_cnss_rate = Decimal("0.00")

@@ -36,6 +36,7 @@ test("the owner sees the demo employees, creates one and records a day on a lot 
   await createEmployee(page, name, "1 000");
   await expect(page.getByText(/^E-\d{3}$/)).toBeVisible();
   await expect(page.getByText("17,07 %")).toBeVisible();
+  await expect(page.getByText("9,18 %")).toBeVisible();
 
   await expect(page.getByRole("heading", { name: "Jours sur lot" })).toBeVisible();
   await page.getByLabel("Lot", { exact: true }).click();
@@ -67,11 +68,13 @@ test("the owner generates the month, edits a draft, approves it and pays it", as
   const edit = page.getByRole("dialog", { name: `Paie de ${name}` });
   await edit.getByLabel("Prime (DT)").fill("100");
   await edit.getByLabel("Retenues (DT)").fill("50");
-  // 1 400 gross, employer 17,07 % = 238,980, net 1 350.
+  // 1 400 gross, employer 17,07 % = 238,980; the employee's own CNSS 9,18 % = 128,520 is withheld on its own line,
+  // then the 50 of deductions: net 1 221,480.
   await expect(edit.getByText(/238,980\sDT/)).toBeVisible();
+  await expect(edit.getByText(/128,520\sDT/)).toBeVisible();
   await edit.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText("Paie enregistrée.")).toBeVisible();
-  await expect(row).toContainText(/1\s350,000\sDT/);
+  await expect(row).toContainText(/1\s221,480\sDT/);
 
   await row.getByRole("button", { name: "Approuver" }).click();
   await expect(row).toContainText("Approuvée");
@@ -81,7 +84,7 @@ test("the owner generates the month, edits a draft, approves it and pays it", as
 
   await row.getByRole("button", { name: "Payer" }).click();
   const pay = page.getByRole("dialog", { name: `Payer ${name}` });
-  await expect(pay.getByLabel("Montant (DT)")).toHaveValue("1350,000");
+  await expect(pay.getByLabel("Montant (DT)")).toHaveValue("1221,480");
   await pay.getByRole("button", { name: "Enregistrer le paiement" }).click();
   await expect(page.getByText(/Paiement PS-\d{4}-\d{4} enregistré\./)).toBeVisible();
   await expect(row).toContainText("Soldé");

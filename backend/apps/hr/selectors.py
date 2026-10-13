@@ -134,6 +134,7 @@ class PayrollSummary:
     drafts: int
     gross: Decimal
     employer_cnss: Decimal
+    employee_cnss: Decimal
     net: Decimal
     # The month's personnel expense: approved records only (gross + employer contribution + adjustments).
     expense: Decimal
@@ -156,6 +157,7 @@ def payroll_summary(organization: Organization, *, month: dt.date) -> PayrollSum
         drafts=len(records) - len(approved),
         gross=sum((record.gross for record in records), ZERO),
         employer_cnss=sum((record.employer_cnss for record in records), ZERO),
+        employee_cnss=sum((record.employee_cnss for record in records), ZERO),
         net=sum((due_amount(record) for record in records), ZERO),
         expense=sum((record.expense_amount + adjustments_total(record) for record in approved), ZERO),
         paid=sum((paid_amount(record) for record in approved), ZERO),

@@ -2331,6 +2331,9 @@ export const fr = {
         cnssNumber: "N° CNSS",
         cnssRate: "Taux CNSS employeur (%)",
         cnssRateHint: "Part de l'employeur sur le salaire brut. 17,07 % par défaut, à confirmer par le comptable.",
+        employeeCnssRate: "Taux CNSS salarié (%)",
+        employeeCnssRateHint:
+          "Retenu sur le salaire brut : il baisse ce que l'employé reçoit. 9,18 % par défaut (provisoire), à confirmer par le comptable.",
         user: "Compte de connexion",
         noUser: "Aucun compte",
         userHint:
@@ -2384,6 +2387,7 @@ export const fr = {
         totals: {
           gross: "Salaires bruts",
           employerCnss: "CNSS employeur",
+          employeeCnss: "CNSS salarié (retenue)",
           net: "Net dû aux employés",
           expense: "Charge du mois (approuvée)",
           paid: "Payé",
@@ -2400,6 +2404,7 @@ export const fr = {
           employee: "Employé",
           gross: "Brut",
           employerCnss: "CNSS employeur",
+          employeeCnss: "CNSS salarié",
           net: "Net dû",
           paid: "Payé",
           outstanding: "Reste",
@@ -2423,6 +2428,8 @@ export const fr = {
         notes: "Notes",
         gross: "Brut",
         employerCnss: "CNSS employeur ({{rate}} %)",
+        employeeCnssRate: "Taux CNSS salarié de ce mois (%)",
+        employeeCnss: "CNSS salarié retenue ({{rate}} %)",
         net: "Net dû à l'employé",
         deductionsTooHigh: "Les retenues dépassent le salaire brut.",
         saved: "Paie enregistrée.",

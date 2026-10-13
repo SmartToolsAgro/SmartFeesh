@@ -37,6 +37,8 @@ _Coarse plan: detail each task when the phase starts._
 - [x] Employee profile, position, fixed monthly salary (Q6). No fixed truck (D-042).
 - [x] Monthly salary record (base, bonus, overtime, deductions, employer CNSS contributions) = expense.
 - [x] Salary payments = cash out. Unpaid salaries visible. The expense and the payment are separate records.
+- [x] (D-119, provisional rate 9,18 %) The employee's own CNSS is computed and withheld: net = gross − employee CNSS −
+      deductions. Income tax and other legal withholdings are not computed (Q26).
 - [x] **Days on a lot:** record that an employee worked n days on a lot → lot cost = n × monthly
       salary / 26 (client). Optional per lot.
 
