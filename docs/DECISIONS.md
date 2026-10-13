@@ -1707,3 +1707,11 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   owner-approved follow-up, not in this change.
 - Load question (owner): keep the count as a field on the load transfer (one document, posted in the same transaction
   as the kg), not as a separate movement screen. A separate movement would need its own source document and could drift from the load.
+
+**D-128 · Editing a monthly cost template updates its months not yet approved (owner report)** · accepted · 2026-10-13
+- The owner changed a monthly cost (Frais généraux) and the month result did not move: the template change only
+  applied to months generated later. Now `update_recurring_cost` also rewrites the expense of every month already
+  generated whose expense is still a draft or waiting for approval (amount, category, name, payee, payment method),
+  through `update_expense` (audited). An approved month keeps its amount: a correction is a new expense.
+- The month result counts approved expenses only, so the change shows there once the expense is approved.
+- The admin refreshes the month screen and the dashboard after any expense change (`refreshExpenses`).
