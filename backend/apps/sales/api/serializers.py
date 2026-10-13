@@ -425,6 +425,9 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     approve_credit = serializers.BooleanField(required=False, default=False)
     # Sent by an app that may retry: the same value never makes two sales.
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+    # Returnable boxes left with the client, per box type ("small", "big"): a count, never kg. Zero or left out
+    # means none; they move when the sale is confirmed (D-122).
+    boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
 
 
 class QuoteDeliveryLineSerializer(serializers.Serializer[Any]):

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { SaleLineWrite } from './saleLineWrite';
+import type { SaleWriteBoxes } from './saleWriteBoxes';
 import type { SaleWritePaymentMethod } from './saleWritePaymentMethod';
 
 export interface SaleWrite {
@@ -29,4 +30,5 @@ export interface SaleWrite {
   approve_credit?: boolean;
   /** @nullable */
   client_uuid?: string | null;
+  boxes?: SaleWriteBoxes;
 }

@@ -150,7 +150,8 @@ def _check_enough(holder: BoxHolder, box_type: str, count: int, *, leaving: bool
     """Refuse a movement that would leave the holder below zero (same rule as kilos, D-006)."""
     after = selectors.signed_balance(holder, box_type) + _signed_change(holder, leaving=leaving, count=count)
     if after < 0:
-        raise ValidationError(_("Pas assez de caisses %(box)s chez ce détenteur.") % {"box": box_type})
+        label = str(BoxType(box_type).label).lower()
+        raise ValidationError(_("Pas assez de %(box)s chez ce détenteur.") % {"box": label})
 
 
 def checked_box_counts(counts: Mapping[str, object] | None, errors: dict[str, str], *, prefix: str) -> dict[str, int]:
@@ -170,6 +171,27 @@ def checked_box_counts(counts: Mapping[str, object] | None, errors: dict[str, st
         elif value > 0:
             checked[box_type] = value
     return checked
+
+
+@transaction.atomic
+def post_pickup(
+    *,
+    organization: Organization,
+    actor: User | None,
+    customer: "Customer",
+    location: "StockLocation",
+    counts: Mapping[str, int],
+) -> list[BoxMovement]:
+    """Boxes a driver collects back from a client into the truck (`collect`, D-122). All or nothing: refused
+    when the client holds fewer boxes of one type than asked (the ledger refuses a negative balance)."""
+    return post_box_counts(
+        organization=organization,
+        actor=actor,
+        kind=BoxMovementKind.COLLECT,
+        counts=counts,
+        from_holder=holder_for(organization=organization, customer=customer),
+        to_holder=holder_for(organization=organization, location=location),
+    )
 
 
 @transaction.atomic

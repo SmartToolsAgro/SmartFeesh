@@ -6937,6 +6937,50 @@ export const ReviewMonthResponse = zod.object({
 
 
 /**
+ * Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
+ * client holds fewer boxes of one type than asked, or when the driver's day is approved.
+ */
+
+export const collectMyBoxesBodyBoxesMinOne = 0;
+
+
+
+export const CollectMyBoxesBody = zod.object({
+  "customer": zod.int().min(1),
+  "boxes": zod.record(zod.string(), zod.int().min(collectMyBoxesBodyBoxesMinOne)).optional()
+})
+
+export const CollectMyBoxesResponse = zod.object({
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "lines": zod.array(zod.object({
+  "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
+  "loaded": zod.int(),
+  "left": zod.int(),
+  "collected": zod.int(),
+  "expected": zod.int()
+}).describe('One box type on the driver\'s truck today. Whole boxes only.'))
+}).describe('The driver\'s boxes today: what the truck loaded, left at clients and collected back, per box type.')
+
+
+/**
+ * Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
+ * the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+ */
+export const GetMyBoxDayResponse = zod.object({
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "lines": zod.array(zod.object({
+  "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
+  "loaded": zod.int(),
+  "left": zod.int(),
+  "collected": zod.int(),
+  "expected": zod.int()
+}).describe('One box type on the driver\'s truck today. Whole boxes only.'))
+}).describe('The driver\'s boxes today: what the truck loaded, left at clients and collected back, per box type.')
+
+
+/**
  * Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
  * the walk-in customer last. Filter with `search`. At most 30 rows.
  */
@@ -11251,6 +11295,9 @@ export const createSaleBodyNotesDefault = ``;
 
 export const createSaleBodyConfirmNowDefault = false;
 export const createSaleBodyApproveCreditDefault = false;
+export const createSaleBodyBoxesMinOne = 0;
+
+
 
 export const CreateSaleBody = zod.object({
   "amount_paid": zod.string().nullish(),
@@ -11270,7 +11317,8 @@ export const CreateSaleBody = zod.object({
 })),
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(createSaleBodyApproveCreditDefault),
-  "client_uuid": zod.uuid().nullish()
+  "client_uuid": zod.uuid().nullish(),
+  "boxes": zod.record(zod.string(), zod.int().min(createSaleBodyBoxesMinOne)).optional()
 })
 
 export const createSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -11512,6 +11560,9 @@ export const updateSaleBodyNotesDefault = ``;
 
 export const updateSaleBodyConfirmNowDefault = false;
 export const updateSaleBodyApproveCreditDefault = false;
+export const updateSaleBodyBoxesMinOne = 0;
+
+
 
 export const UpdateSaleBody = zod.object({
   "amount_paid": zod.string().nullish(),
@@ -11531,7 +11582,8 @@ export const UpdateSaleBody = zod.object({
 })),
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(updateSaleBodyApproveCreditDefault),
-  "client_uuid": zod.uuid().nullish()
+  "client_uuid": zod.uuid().nullish(),
+  "boxes": zod.record(zod.string(), zod.int().min(updateSaleBodyBoxesMinOne)).optional()
 })
 
 export const updateSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
