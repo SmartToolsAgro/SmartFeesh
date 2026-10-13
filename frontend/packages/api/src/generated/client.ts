@@ -32,6 +32,7 @@ import type {
   BoxBalance,
   CashFlow,
   Category,
+  ChangePassword,
   CloseLot,
   ColdRoomMonth,
   ColdRoomWeight,
@@ -160,6 +161,8 @@ import type {
   LotWorkDay,
   LotWorkDayWrite,
   Member,
+  MemberCreate,
+  MemberPasswordReset,
   Month,
   MonthResult,
   MonthRow,
@@ -168,6 +171,7 @@ import type {
   MyStockLine,
   Order,
   OrderWrite,
+  Organization,
   PaginatedBatchList,
   PaginatedBoxMovementList,
   PaginatedCountList,
@@ -194,11 +198,13 @@ import type {
   PatchedExpenseCategoryUpdate,
   PatchedLanguage,
   PatchedLotPartnershipUpdate,
+  PatchedMemberRole,
   PatchedProductUpdate,
   PatchedSalaryRecordUpdate,
   PatchedStockLocationUpdate,
   PatchedSupplierWrite,
   PatchedTruckWrite,
+  PatchedUpdateProfile,
   PaymentAllocate,
   PayrollSummary,
   PdfState,
@@ -210,6 +216,7 @@ import type {
   ProductCreate,
   ProductPrice,
   ProductStockDetail,
+  ProfilePhotoUpload,
   QuoteConvert,
   QuoteDetail,
   QuoteRefuse,
@@ -10482,6 +10489,320 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSetLanguageMutationOptions(options), queryClient);
     }
 
+export const getUploadMyAvatarUrl = () => {
+
+
+
+
+  return `/api/v1/me/avatar`
+}
+
+/**
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
+ */
+export const uploadMyAvatar = async (profilePhotoUpload: ProfilePhotoUpload, options?: Parameters<typeof apiFetch>[1]): Promise<Session> => {
+    const formData = new FormData();
+formData.append(`photo`, profilePhotoUpload.photo);
+
+  return apiFetch<Session>(getUploadMyAvatarUrl(),
+  {
+    ...options,
+    method: 'PUT'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadMyAvatarMutationKey = () => ['uploadMyAvatar'] as const;
+
+export const getUploadMyAvatarMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadMyAvatar>>, TError,UploadMyAvatarMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadMyAvatar>>, TError,UploadMyAvatarMutationVariables, TContext> => {
+
+const mutationKey = getUploadMyAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadMyAvatar>>, UploadMyAvatarMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadMyAvatar(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadMyAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof uploadMyAvatar>>>
+    export type UploadMyAvatarMutationBody = ProfilePhotoUpload
+    export type UploadMyAvatarMutationError = void
+    export type UploadMyAvatarMutationVariables = {data: ProfilePhotoUpload}
+
+    export const useUploadMyAvatar = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadMyAvatar>>, TError,UploadMyAvatarMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadMyAvatar>>,
+        TError,
+        UploadMyAvatarMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadMyAvatarMutationOptions(options), queryClient);
+    }
+
+export const getRemoveMyAvatarUrl = () => {
+
+
+
+
+  return `/api/v1/me/avatar`
+}
+
+/**
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
+ */
+export const removeMyAvatar = async ( options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getRemoveMyAvatarUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveMyAvatarMutationKey = () => ['removeMyAvatar'] as const;
+
+export const getRemoveMyAvatarMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMyAvatar>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeMyAvatar>>, TError,void, TContext> => {
+
+const mutationKey = getRemoveMyAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMyAvatar>>, void> = () => {
+
+
+          return  removeMyAvatar(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveMyAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof removeMyAvatar>>>
+
+    export type RemoveMyAvatarMutationError = unknown
+
+
+    export const useRemoveMyAvatar = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMyAvatar>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeMyAvatar>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRemoveMyAvatarMutationOptions(options), queryClient);
+    }
+
+export const getChangeMyPasswordUrl = () => {
+
+
+
+
+  return `/api/v1/me/password`
+}
+
+/**
+ * A user changes their own password; the old one proves it is really them (no email reset exists, D-123).
+ */
+export const changeMyPassword = async (changePassword: ChangePassword, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<void>(getChangeMyPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(changePassword)
+  }
+);}
+
+
+
+
+
+export const getChangeMyPasswordMutationKey = () => ['changeMyPassword'] as const;
+
+export const getChangeMyPasswordMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeMyPassword>>, TError,ChangeMyPasswordMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeMyPassword>>, TError,ChangeMyPasswordMutationVariables, TContext> => {
+
+const mutationKey = getChangeMyPasswordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeMyPassword>>, ChangeMyPasswordMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  changeMyPassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeMyPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof changeMyPassword>>>
+    export type ChangeMyPasswordMutationBody = ChangePassword
+    export type ChangeMyPasswordMutationError = unknown
+    export type ChangeMyPasswordMutationVariables = {data: ChangePassword}
+
+    export const useChangeMyPassword = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeMyPassword>>, TError,ChangeMyPasswordMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeMyPassword>>,
+        TError,
+        ChangeMyPasswordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeMyPasswordMutationOptions(options), queryClient);
+    }
+
+export const getUpdateMyProfileUrl = () => {
+
+
+
+
+  return `/api/v1/me/profile`
+}
+
+/**
+ * A user's own display name, changed from their profile menu (not their role: only the owner sets that).
+ */
+export const updateMyProfile = async (patchedUpdateProfile?: PatchedUpdateProfile, options?: Parameters<typeof apiFetch>[1]): Promise<Session> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Session>(getUpdateMyProfileUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedUpdateProfile)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyProfileMutationKey = () => ['updateMyProfile'] as const;
+
+export const getUpdateMyProfileMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyProfile>>, TError,UpdateMyProfileMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyProfile>>, TError,UpdateMyProfileMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMyProfileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyProfile>>, UpdateMyProfileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMyProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyProfile>>>
+    export type UpdateMyProfileMutationBody = PatchedUpdateProfile | undefined
+    export type UpdateMyProfileMutationError = unknown
+    export type UpdateMyProfileMutationVariables = {data?: PatchedUpdateProfile}
+
+    export const useUpdateMyProfile = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyProfile>>, TError,UpdateMyProfileMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyProfile>>,
+        TError,
+        UpdateMyProfileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMyProfileMutationOptions(options), queryClient);
+    }
+
 export const getListMembersUrl = () => {
 
 
@@ -10491,7 +10812,7 @@ export const getListMembersUrl = () => {
 }
 
 /**
- * Users of the organization and their roles. Owners and managers only.
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
  */
 export const listMembers = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Member[]> => {
 
@@ -10579,6 +10900,396 @@ export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, 
 
 
 
+
+export const getCreateMemberUrl = () => {
+
+
+
+
+  return `/api/v1/members`
+}
+
+/**
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
+ */
+export const createMember = async (memberCreate: MemberCreate, options?: Parameters<typeof apiFetch>[1]): Promise<Member> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Member>(getCreateMemberUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memberCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateMemberMutationKey = () => ['createMember'] as const;
+
+export const getCreateMemberMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMember>>, TError,CreateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMember>>, TError,CreateMemberMutationVariables, TContext> => {
+
+const mutationKey = getCreateMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMember>>, CreateMemberMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMember(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMemberMutationResult = NonNullable<Awaited<ReturnType<typeof createMember>>>
+    export type CreateMemberMutationBody = MemberCreate
+    export type CreateMemberMutationError = unknown
+    export type CreateMemberMutationVariables = {data: MemberCreate}
+
+    export const useCreateMember = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMember>>, TError,CreateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createMember>>,
+        TError,
+        CreateMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMemberMutationOptions(options), queryClient);
+    }
+
+export const getDeactivateMemberUrl = (memberId: number,) => {
+
+
+
+
+  return `/api/v1/members/${memberId}/deactivate`
+}
+
+export const deactivateMember = async (memberId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Member> => {
+
+  return apiFetch<Member>(getDeactivateMemberUrl(memberId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeactivateMemberMutationKey = () => ['deactivateMember'] as const;
+
+export const getDeactivateMemberMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateMember>>, TError,DeactivateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deactivateMember>>, TError,DeactivateMemberMutationVariables, TContext> => {
+
+const mutationKey = getDeactivateMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deactivateMember>>, DeactivateMemberMutationVariables> = (props) => {
+          const {memberId} = props ?? {};
+
+          return  deactivateMember(memberId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeactivateMemberMutationResult = NonNullable<Awaited<ReturnType<typeof deactivateMember>>>
+
+    export type DeactivateMemberMutationError = unknown
+    export type DeactivateMemberMutationVariables = {memberId: number}
+
+    export const useDeactivateMember = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateMember>>, TError,DeactivateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deactivateMember>>,
+        TError,
+        DeactivateMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeactivateMemberMutationOptions(options), queryClient);
+    }
+
+export const getReactivateMemberUrl = (memberId: number,) => {
+
+
+
+
+  return `/api/v1/members/${memberId}/reactivate`
+}
+
+export const reactivateMember = async (memberId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Member> => {
+
+  return apiFetch<Member>(getReactivateMemberUrl(memberId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReactivateMemberMutationKey = () => ['reactivateMember'] as const;
+
+export const getReactivateMemberMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactivateMember>>, TError,ReactivateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reactivateMember>>, TError,ReactivateMemberMutationVariables, TContext> => {
+
+const mutationKey = getReactivateMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reactivateMember>>, ReactivateMemberMutationVariables> = (props) => {
+          const {memberId} = props ?? {};
+
+          return  reactivateMember(memberId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReactivateMemberMutationResult = NonNullable<Awaited<ReturnType<typeof reactivateMember>>>
+
+    export type ReactivateMemberMutationError = unknown
+    export type ReactivateMemberMutationVariables = {memberId: number}
+
+    export const useReactivateMember = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactivateMember>>, TError,ReactivateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reactivateMember>>,
+        TError,
+        ReactivateMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReactivateMemberMutationOptions(options), queryClient);
+    }
+
+export const getResetMemberPasswordUrl = (memberId: number,) => {
+
+
+
+
+  return `/api/v1/members/${memberId}/reset-password`
+}
+
+/**
+ * The owner types a new password for someone else (shown once); no email or SMS reset exists (D-123).
+ */
+export const resetMemberPassword = async (memberId: number,
+    memberPasswordReset: MemberPasswordReset, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<void>(getResetMemberPasswordUrl(memberId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memberPasswordReset)
+  }
+);}
+
+
+
+
+
+export const getResetMemberPasswordMutationKey = () => ['resetMemberPassword'] as const;
+
+export const getResetMemberPasswordMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetMemberPassword>>, TError,ResetMemberPasswordMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetMemberPassword>>, TError,ResetMemberPasswordMutationVariables, TContext> => {
+
+const mutationKey = getResetMemberPasswordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetMemberPassword>>, ResetMemberPasswordMutationVariables> = (props) => {
+          const {memberId,data} = props ?? {};
+
+          return  resetMemberPassword(memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetMemberPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetMemberPassword>>>
+    export type ResetMemberPasswordMutationBody = MemberPasswordReset
+    export type ResetMemberPasswordMutationError = unknown
+    export type ResetMemberPasswordMutationVariables = {memberId: number;data: MemberPasswordReset}
+
+    export const useResetMemberPassword = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetMemberPassword>>, TError,ResetMemberPasswordMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resetMemberPassword>>,
+        TError,
+        ResetMemberPasswordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetMemberPasswordMutationOptions(options), queryClient);
+    }
+
+export const getSetMemberRoleUrl = (memberId: number,) => {
+
+
+
+
+  return `/api/v1/members/${memberId}/role`
+}
+
+export const setMemberRole = async (memberId: number,
+    patchedMemberRole?: PatchedMemberRole, options?: Parameters<typeof apiFetch>[1]): Promise<Member> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Member>(getSetMemberRoleUrl(memberId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedMemberRole)
+  }
+);}
+
+
+
+
+
+export const getSetMemberRoleMutationKey = () => ['setMemberRole'] as const;
+
+export const getSetMemberRoleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMemberRole>>, TError,SetMemberRoleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMemberRole>>, TError,SetMemberRoleMutationVariables, TContext> => {
+
+const mutationKey = getSetMemberRoleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMemberRole>>, SetMemberRoleMutationVariables> = (props) => {
+          const {memberId,data} = props ?? {};
+
+          return  setMemberRole(memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMemberRoleMutationResult = NonNullable<Awaited<ReturnType<typeof setMemberRole>>>
+    export type SetMemberRoleMutationBody = PatchedMemberRole | undefined
+    export type SetMemberRoleMutationError = unknown
+    export type SetMemberRoleMutationVariables = {memberId: number;data?: PatchedMemberRole}
+
+    export const useSetMemberRole = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMemberRole>>, TError,SetMemberRoleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setMemberRole>>,
+        TError,
+        SetMemberRoleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetMemberRoleMutationOptions(options), queryClient);
+    }
 
 export const getListMonthsUrl = () => {
 
@@ -12498,6 +13209,151 @@ export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay
 
 
 
+
+export const getUploadOrganizationLogoUrl = (organizationId: number,) => {
+
+
+
+
+  return `/api/v1/organizations/${organizationId}/logo`
+}
+
+/**
+ * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ */
+export const uploadOrganizationLogo = async (organizationId: number,
+    profilePhotoUpload: ProfilePhotoUpload, options?: Parameters<typeof apiFetch>[1]): Promise<Organization> => {
+    const formData = new FormData();
+formData.append(`photo`, profilePhotoUpload.photo);
+
+  return apiFetch<Organization>(getUploadOrganizationLogoUrl(organizationId),
+  {
+    ...options,
+    method: 'PUT'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadOrganizationLogoMutationKey = () => ['uploadOrganizationLogo'] as const;
+
+export const getUploadOrganizationLogoMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadOrganizationLogo>>, TError,UploadOrganizationLogoMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadOrganizationLogo>>, TError,UploadOrganizationLogoMutationVariables, TContext> => {
+
+const mutationKey = getUploadOrganizationLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadOrganizationLogo>>, UploadOrganizationLogoMutationVariables> = (props) => {
+          const {organizationId,data} = props ?? {};
+
+          return  uploadOrganizationLogo(organizationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadOrganizationLogoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadOrganizationLogo>>>
+    export type UploadOrganizationLogoMutationBody = ProfilePhotoUpload
+    export type UploadOrganizationLogoMutationError = void
+    export type UploadOrganizationLogoMutationVariables = {organizationId: number;data: ProfilePhotoUpload}
+
+    export const useUploadOrganizationLogo = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadOrganizationLogo>>, TError,UploadOrganizationLogoMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadOrganizationLogo>>,
+        TError,
+        UploadOrganizationLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadOrganizationLogoMutationOptions(options), queryClient);
+    }
+
+export const getRemoveOrganizationLogoUrl = (organizationId: number,) => {
+
+
+
+
+  return `/api/v1/organizations/${organizationId}/logo`
+}
+
+/**
+ * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ */
+export const removeOrganizationLogo = async (organizationId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getRemoveOrganizationLogoUrl(organizationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveOrganizationLogoMutationKey = () => ['removeOrganizationLogo'] as const;
+
+export const getRemoveOrganizationLogoMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeOrganizationLogo>>, TError,RemoveOrganizationLogoMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeOrganizationLogo>>, TError,RemoveOrganizationLogoMutationVariables, TContext> => {
+
+const mutationKey = getRemoveOrganizationLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeOrganizationLogo>>, RemoveOrganizationLogoMutationVariables> = (props) => {
+          const {organizationId} = props ?? {};
+
+          return  removeOrganizationLogo(organizationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveOrganizationLogoMutationResult = NonNullable<Awaited<ReturnType<typeof removeOrganizationLogo>>>
+
+    export type RemoveOrganizationLogoMutationError = unknown
+    export type RemoveOrganizationLogoMutationVariables = {organizationId: number}
+
+    export const useRemoveOrganizationLogo = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeOrganizationLogo>>, TError,RemoveOrganizationLogoMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeOrganizationLogo>>,
+        TError,
+        RemoveOrganizationLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveOrganizationLogoMutationOptions(options), queryClient);
+    }
 
 export const getGetPartnerBalancesUrl = (partnerId: number,) => {
 

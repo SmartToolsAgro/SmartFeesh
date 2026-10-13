@@ -47,6 +47,7 @@ class EmployeeSerializer(serializers.ModelSerializer[Employee]):
             "monthly_salary",
             "cnss_number",
             "cnss_rate",
+            "employee_cnss_rate",
             "user",
             "notes",
             "unpaid",
@@ -80,6 +81,10 @@ class EmployeeWriteSerializer(serializers.Serializer[Any]):
     cnss_number = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
     # Percent of the gross salary paid by the employer, two decimals.
     cnss_rate = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=0, max_value=100, required=False, coerce_to_string=True
+    )
+    # Percent of the gross salary withheld from the employee for their own CNSS (provisional 9.18, D-119).
+    employee_cnss_rate = serializers.DecimalField(
         max_digits=5, decimal_places=2, min_value=0, max_value=100, required=False, coerce_to_string=True
     )
     # The id of the login of the employee (a driver, for instance), or null.
@@ -155,8 +160,10 @@ class SalaryRecordSerializer(serializers.ModelSerializer[SalaryRecord]):
             "overtime",
             "deductions",
             "cnss_rate",
+            "employee_cnss_rate",
             "gross",
             "employer_cnss",
+            "employee_cnss",
             "net",
             "expense_amount",
             "due_amount",
@@ -211,6 +218,10 @@ class SalaryRecordUpdateSerializer(serializers.Serializer[Any]):
     cnss_rate = serializers.DecimalField(
         max_digits=5, decimal_places=2, min_value=0, max_value=100, required=False, coerce_to_string=True
     )
+    # The employee's own CNSS rate for this month (D-119); the amount is recomputed.
+    employee_cnss_rate = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=0, max_value=100, required=False, coerce_to_string=True
+    )
     notes = serializers.CharField(required=False, allow_blank=True, max_length=2000)
 
 
@@ -242,6 +253,7 @@ class PayrollSummarySerializer(serializers.Serializer[Any]):
     drafts = serializers.IntegerField()
     gross = serializers.DecimalField(max_digits=14, decimal_places=3)
     employer_cnss = serializers.DecimalField(max_digits=14, decimal_places=3)
+    employee_cnss = serializers.DecimalField(max_digits=14, decimal_places=3)
     net = serializers.DecimalField(max_digits=14, decimal_places=3)
     expense = serializers.DecimalField(max_digits=14, decimal_places=3)
     paid = serializers.DecimalField(max_digits=14, decimal_places=3)

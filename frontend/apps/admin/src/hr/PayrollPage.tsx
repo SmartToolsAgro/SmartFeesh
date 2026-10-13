@@ -140,6 +140,7 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
               [
                 ["gross", totals.gross],
                 ["employerCnss", totals.employer_cnss],
+                ["employeeCnss", totals.employee_cnss],
                 ["net", totals.net],
                 ["expense", totals.expense],
                 ["paid", totals.paid],
@@ -178,6 +179,7 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
                 <Th>{t("admin.hr.payroll.columns.employee")}</Th>
                 <Th className="text-end max-[900px]:hidden">{t("admin.hr.payroll.columns.gross")}</Th>
                 <Th className="text-end max-[900px]:hidden">{t("admin.hr.payroll.columns.employerCnss")}</Th>
+                <Th className="text-end max-[900px]:hidden">{t("admin.hr.payroll.columns.employeeCnss")}</Th>
                 <Th className="text-end">{t("admin.hr.payroll.columns.net")}</Th>
                 <Th className="text-end">{t("admin.hr.payroll.columns.paid")}</Th>
                 <Th className="text-end">{t("admin.hr.payroll.columns.outstanding")}</Th>
@@ -207,6 +209,9 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
                   <Td className="num whitespace-nowrap text-end max-[900px]:hidden">{formatMoney(record.gross)}</Td>
                   <Td className="num whitespace-nowrap text-end max-[900px]:hidden">
                     {formatMoney(record.employer_cnss)}
+                  </Td>
+                  <Td className="num whitespace-nowrap text-end max-[900px]:hidden">
+                    {formatMoney(record.employee_cnss)}
                   </Td>
                   <Td className="num whitespace-nowrap text-end font-semibold">{formatMoney(record.due_amount)}</Td>
                   <Td className="num whitespace-nowrap text-end">{formatMoney(record.paid_amount)}</Td>

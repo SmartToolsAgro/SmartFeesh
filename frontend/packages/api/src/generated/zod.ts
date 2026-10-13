@@ -29,11 +29,14 @@ export const LoginResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "organization": zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
@@ -2357,6 +2360,7 @@ export const ListEmployeesQueryParams = zod.object({
 
 export const listEmployeesResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listEmployeesResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listEmployeesResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const listEmployeesResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -2370,6 +2374,7 @@ export const ListEmployeesResponseItem = zod.object({
   "monthly_salary": zod.stringFormat('decimal', listEmployeesResponseMonthlySalaryRegExp),
   "cnss_number": zod.string(),
   "cnss_rate": zod.stringFormat('decimal', listEmployeesResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', listEmployeesResponseEmployeeCnssRateRegExp),
   "user": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string()
@@ -2402,6 +2407,7 @@ export const createEmployeeBodyCnssNumberDefault = ``;
 export const createEmployeeBodyCnssNumberMax = 30;
 
 export const createEmployeeBodyCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createEmployeeBodyEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 
 export const createEmployeeBodyNotesDefault = ``;
 export const createEmployeeBodyNotesMax = 2000;
@@ -2417,12 +2423,14 @@ export const CreateEmployeeBody = zod.object({
   "monthly_salary": zod.stringFormat('decimal', createEmployeeBodyMonthlySalaryRegExp).default(createEmployeeBodyMonthlySalaryDefault),
   "cnss_number": zod.string().max(createEmployeeBodyCnssNumberMax).default(createEmployeeBodyCnssNumberDefault),
   "cnss_rate": zod.stringFormat('decimal', createEmployeeBodyCnssRateRegExp).optional(),
+  "employee_cnss_rate": zod.stringFormat('decimal', createEmployeeBodyEmployeeCnssRateRegExp).optional(),
   "user": zod.int().min(1).nullish(),
   "notes": zod.string().max(createEmployeeBodyNotesMax).default(createEmployeeBodyNotesDefault)
 })
 
 export const createEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createEmployeeResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const createEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -2436,6 +2444,7 @@ export const CreateEmployeeResponse = zod.object({
   "monthly_salary": zod.stringFormat('decimal', createEmployeeResponseMonthlySalaryRegExp),
   "cnss_number": zod.string(),
   "cnss_rate": zod.stringFormat('decimal', createEmployeeResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', createEmployeeResponseEmployeeCnssRateRegExp),
   "user": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string()
@@ -2453,6 +2462,7 @@ export const GetEmployeeParams = zod.object({
 
 export const getEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getEmployeeResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -2466,6 +2476,7 @@ export const GetEmployeeResponse = zod.object({
   "monthly_salary": zod.stringFormat('decimal', getEmployeeResponseMonthlySalaryRegExp),
   "cnss_number": zod.string(),
   "cnss_rate": zod.stringFormat('decimal', getEmployeeResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', getEmployeeResponseEmployeeCnssRateRegExp),
   "user": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string()
@@ -2501,6 +2512,7 @@ export const updateEmployeeBodyCnssNumberDefault = ``;
 export const updateEmployeeBodyCnssNumberMax = 30;
 
 export const updateEmployeeBodyCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateEmployeeBodyEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 
 export const updateEmployeeBodyNotesDefault = ``;
 export const updateEmployeeBodyNotesMax = 2000;
@@ -2516,12 +2528,14 @@ export const UpdateEmployeeBody = zod.object({
   "monthly_salary": zod.stringFormat('decimal', updateEmployeeBodyMonthlySalaryRegExp).default(updateEmployeeBodyMonthlySalaryDefault),
   "cnss_number": zod.string().max(updateEmployeeBodyCnssNumberMax).default(updateEmployeeBodyCnssNumberDefault),
   "cnss_rate": zod.stringFormat('decimal', updateEmployeeBodyCnssRateRegExp).optional(),
+  "employee_cnss_rate": zod.stringFormat('decimal', updateEmployeeBodyEmployeeCnssRateRegExp).optional(),
   "user": zod.int().min(1).nullish(),
   "notes": zod.string().max(updateEmployeeBodyNotesMax).default(updateEmployeeBodyNotesDefault)
 })
 
 export const updateEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateEmployeeResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const updateEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -2535,6 +2549,7 @@ export const UpdateEmployeeResponse = zod.object({
   "monthly_salary": zod.stringFormat('decimal', updateEmployeeResponseMonthlySalaryRegExp),
   "cnss_number": zod.string(),
   "cnss_rate": zod.stringFormat('decimal', updateEmployeeResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', updateEmployeeResponseEmployeeCnssRateRegExp),
   "user": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string()
@@ -2555,6 +2570,7 @@ export const ArchiveEmployeeParams = zod.object({
 
 export const archiveEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const archiveEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const archiveEmployeeResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const archiveEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -2568,6 +2584,7 @@ export const ArchiveEmployeeResponse = zod.object({
   "monthly_salary": zod.stringFormat('decimal', archiveEmployeeResponseMonthlySalaryRegExp),
   "cnss_number": zod.string(),
   "cnss_rate": zod.stringFormat('decimal', archiveEmployeeResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', archiveEmployeeResponseEmployeeCnssRateRegExp),
   "user": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string()
@@ -2585,6 +2602,7 @@ export const RestoreEmployeeParams = zod.object({
 
 export const restoreEmployeeResponseMonthlySalaryRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const restoreEmployeeResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const restoreEmployeeResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const restoreEmployeeResponseUnpaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -2598,6 +2616,7 @@ export const RestoreEmployeeResponse = zod.object({
   "monthly_salary": zod.stringFormat('decimal', restoreEmployeeResponseMonthlySalaryRegExp),
   "cnss_number": zod.string(),
   "cnss_rate": zod.stringFormat('decimal', restoreEmployeeResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', restoreEmployeeResponseEmployeeCnssRateRegExp),
   "user": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string()
@@ -6025,11 +6044,14 @@ export const GetSessionResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "organization": zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
@@ -6054,11 +6076,14 @@ export const SetLanguageResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "organization": zod.object({
   "id": zod.int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "truck": zod.union([zod.object({
@@ -6071,7 +6096,101 @@ export const SetLanguageResponse = zod.object({
 
 
 /**
- * Users of the organization and their roles. Owners and managers only.
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
+ */
+export const UploadMyAvatarBody = zod.object({
+  "photo": zod.instanceof(Blob)
+})
+
+export const UploadMyAvatarResponse = zod.object({
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "organization": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
+}),zod.null()])
+}).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
+
+
+/**
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
+ */
+export const RemoveMyAvatarResponse = zod.void()
+
+
+/**
+ * A user changes their own password; the old one proves it is really them (no email reset exists, D-123).
+ */
+export const changeMyPasswordBodyOldPasswordMax = 128;
+
+export const changeMyPasswordBodyNewPasswordMax = 128;
+
+
+
+export const ChangeMyPasswordBody = zod.object({
+  "old_password": zod.string().max(changeMyPasswordBodyOldPasswordMax),
+  "new_password": zod.string().max(changeMyPasswordBodyNewPasswordMax)
+})
+
+export const ChangeMyPasswordResponse = zod.void()
+
+
+/**
+ * A user's own display name, changed from their profile menu (not their role: only the owner sets that).
+ */
+export const updateMyProfileBodyFirstNameMax = 150;
+
+export const updateMyProfileBodyLastNameMax = 150;
+
+
+
+export const UpdateMyProfileBody = zod.object({
+  "first_name": zod.string().max(updateMyProfileBodyFirstNameMax).optional(),
+  "last_name": zod.string().max(updateMyProfileBodyLastNameMax).optional()
+})
+
+export const UpdateMyProfileResponse = zod.object({
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "organization": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "location_id": zod.int()
+}),zod.null()])
+}).describe('Who is logged in and what they may do: the answer of `/me` and of a successful login.')
+
+
+/**
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
  */
 export const ListMembersResponseItem = zod.object({
   "id": zod.int(),
@@ -6080,12 +6199,139 @@ export const ListMembersResponseItem = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "first_name": zod.string(),
   "last_name": zod.string(),
-  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية')
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
 }),
   "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
   "is_active": zod.boolean()
 })
 export const ListMembersResponse = zod.array(ListMembersResponseItem)
+
+
+/**
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
+ */
+export const createMemberBodyUsernameMax = 150;
+
+export const createMemberBodyPasswordMax = 128;
+
+export const createMemberBodyFirstNameDefault = ``;
+export const createMemberBodyFirstNameMax = 150;
+
+export const createMemberBodyLastNameDefault = ``;
+export const createMemberBodyLastNameMax = 150;
+
+export const createMemberBodyEmailOneDefault = ``;
+export const createMemberBodyEmailTwoMax = 0;
+
+
+
+export const CreateMemberBody = zod.object({
+  "username": zod.string().max(createMemberBodyUsernameMax),
+  "password": zod.string().max(createMemberBodyPasswordMax),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "first_name": zod.string().max(createMemberBodyFirstNameMax).default(createMemberBodyFirstNameDefault),
+  "last_name": zod.string().max(createMemberBodyLastNameMax).default(createMemberBodyLastNameDefault),
+  "email": zod.union([zod.email().default(createMemberBodyEmailOneDefault),zod.string().max(createMemberBodyEmailTwoMax)]).optional()
+})
+
+export const CreateMemberResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
+
+
+export const DeactivateMemberParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const DeactivateMemberResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
+
+
+export const ReactivateMemberParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const ReactivateMemberResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * The owner types a new password for someone else (shown once); no email or SMS reset exists (D-123).
+ */
+export const ResetMemberPasswordParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const resetMemberPasswordBodyNewPasswordMax = 128;
+
+
+
+export const ResetMemberPasswordBody = zod.object({
+  "new_password": zod.string().max(resetMemberPasswordBodyNewPasswordMax)
+})
+
+export const ResetMemberPasswordResponse = zod.void()
+
+
+export const SetMemberRoleParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const SetMemberRoleBody = zod.object({
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).optional().describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable')
+})
+
+export const SetMemberRoleResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
 
 
 /**
@@ -7104,6 +7350,34 @@ export const GetMyTruckDayResponse = zod.object({
 
 
 /**
+ * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ */
+export const UploadOrganizationLogoParams = zod.object({
+  "organization_id": zod.int()
+})
+
+export const UploadOrganizationLogoBody = zod.object({
+  "photo": zod.instanceof(Blob)
+})
+
+export const UploadOrganizationLogoResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "logo_url": zod.string().nullable()
+})
+
+
+/**
+ * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ */
+export const RemoveOrganizationLogoParams = zod.object({
+  "organization_id": zod.int()
+})
+
+export const RemoveOrganizationLogoResponse = zod.void()
+
+
+/**
  * A partner's three balances, kept apart: what is owed for goods (trade payable), their capital
  * still in lots, and their profit share (owed to them, or by them).
  */
@@ -7452,6 +7726,7 @@ export const GetPayrollSummaryQueryParams = zod.object({
 
 export const getPayrollSummaryResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getPayrollSummaryResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getPayrollSummaryResponseEmployeeCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getPayrollSummaryResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getPayrollSummaryResponseExpenseRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getPayrollSummaryResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7465,6 +7740,7 @@ export const GetPayrollSummaryResponse = zod.object({
   "drafts": zod.int(),
   "gross": zod.stringFormat('decimal', getPayrollSummaryResponseGrossRegExp),
   "employer_cnss": zod.stringFormat('decimal', getPayrollSummaryResponseEmployerCnssRegExp),
+  "employee_cnss": zod.stringFormat('decimal', getPayrollSummaryResponseEmployeeCnssRegExp),
   "net": zod.stringFormat('decimal', getPayrollSummaryResponseNetRegExp),
   "expense": zod.stringFormat('decimal', getPayrollSummaryResponseExpenseRegExp),
   "paid": zod.stringFormat('decimal', getPayrollSummaryResponsePaidRegExp),
@@ -10434,8 +10710,10 @@ export const listSalaryRecordsResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?:\
 export const listSalaryRecordsResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalaryRecordsResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalaryRecordsResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listSalaryRecordsResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const listSalaryRecordsResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalaryRecordsResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalaryRecordsResponseEmployeeCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalaryRecordsResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalaryRecordsResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalaryRecordsResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10459,8 +10737,10 @@ export const ListSalaryRecordsResponseItem = zod.object({
   "overtime": zod.stringFormat('decimal', listSalaryRecordsResponseOvertimeRegExp),
   "deductions": zod.stringFormat('decimal', listSalaryRecordsResponseDeductionsRegExp),
   "cnss_rate": zod.stringFormat('decimal', listSalaryRecordsResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', listSalaryRecordsResponseEmployeeCnssRateRegExp),
   "gross": zod.stringFormat('decimal', listSalaryRecordsResponseGrossRegExp),
   "employer_cnss": zod.stringFormat('decimal', listSalaryRecordsResponseEmployerCnssRegExp),
+  "employee_cnss": zod.stringFormat('decimal', listSalaryRecordsResponseEmployeeCnssRegExp),
   "net": zod.stringFormat('decimal', listSalaryRecordsResponseNetRegExp),
   "expense_amount": zod.stringFormat('decimal', listSalaryRecordsResponseExpenseAmountRegExp),
   "due_amount": zod.stringFormat('decimal', listSalaryRecordsResponseDueAmountRegExp),
@@ -10501,8 +10781,10 @@ export const getSalaryRecordResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.
 export const getSalaryRecordResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSalaryRecordResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSalaryRecordResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getSalaryRecordResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getSalaryRecordResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSalaryRecordResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSalaryRecordResponseEmployeeCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSalaryRecordResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSalaryRecordResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSalaryRecordResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10526,8 +10808,10 @@ export const GetSalaryRecordResponse = zod.object({
   "overtime": zod.stringFormat('decimal', getSalaryRecordResponseOvertimeRegExp),
   "deductions": zod.stringFormat('decimal', getSalaryRecordResponseDeductionsRegExp),
   "cnss_rate": zod.stringFormat('decimal', getSalaryRecordResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', getSalaryRecordResponseEmployeeCnssRateRegExp),
   "gross": zod.stringFormat('decimal', getSalaryRecordResponseGrossRegExp),
   "employer_cnss": zod.stringFormat('decimal', getSalaryRecordResponseEmployerCnssRegExp),
+  "employee_cnss": zod.stringFormat('decimal', getSalaryRecordResponseEmployeeCnssRegExp),
   "net": zod.stringFormat('decimal', getSalaryRecordResponseNetRegExp),
   "expense_amount": zod.stringFormat('decimal', getSalaryRecordResponseExpenseAmountRegExp),
   "due_amount": zod.stringFormat('decimal', getSalaryRecordResponseDueAmountRegExp),
@@ -10571,6 +10855,7 @@ export const updateSalaryRecordBodyBonusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\
 export const updateSalaryRecordBodyOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordBodyDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordBodyCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateSalaryRecordBodyEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const updateSalaryRecordBodyNotesMax = 2000;
 
 
@@ -10581,6 +10866,7 @@ export const UpdateSalaryRecordBody = zod.object({
   "overtime": zod.stringFormat('decimal', updateSalaryRecordBodyOvertimeRegExp).optional(),
   "deductions": zod.stringFormat('decimal', updateSalaryRecordBodyDeductionsRegExp).optional(),
   "cnss_rate": zod.stringFormat('decimal', updateSalaryRecordBodyCnssRateRegExp).optional(),
+  "employee_cnss_rate": zod.stringFormat('decimal', updateSalaryRecordBodyEmployeeCnssRateRegExp).optional(),
   "notes": zod.string().max(updateSalaryRecordBodyNotesMax).optional()
 })
 
@@ -10589,8 +10875,10 @@ export const updateSalaryRecordResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?:
 export const updateSalaryRecordResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateSalaryRecordResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const updateSalaryRecordResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSalaryRecordResponseEmployeeCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSalaryRecordResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10614,8 +10902,10 @@ export const UpdateSalaryRecordResponse = zod.object({
   "overtime": zod.stringFormat('decimal', updateSalaryRecordResponseOvertimeRegExp),
   "deductions": zod.stringFormat('decimal', updateSalaryRecordResponseDeductionsRegExp),
   "cnss_rate": zod.stringFormat('decimal', updateSalaryRecordResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', updateSalaryRecordResponseEmployeeCnssRateRegExp),
   "gross": zod.stringFormat('decimal', updateSalaryRecordResponseGrossRegExp),
   "employer_cnss": zod.stringFormat('decimal', updateSalaryRecordResponseEmployerCnssRegExp),
+  "employee_cnss": zod.stringFormat('decimal', updateSalaryRecordResponseEmployeeCnssRegExp),
   "net": zod.stringFormat('decimal', updateSalaryRecordResponseNetRegExp),
   "expense_amount": zod.stringFormat('decimal', updateSalaryRecordResponseExpenseAmountRegExp),
   "due_amount": zod.stringFormat('decimal', updateSalaryRecordResponseDueAmountRegExp),
@@ -10696,8 +10986,10 @@ export const approveSalaryRecordResponseBonusRegExp = new RegExp('^-?\\d{0,11}(?
 export const approveSalaryRecordResponseOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveSalaryRecordResponseDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveSalaryRecordResponseCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const approveSalaryRecordResponseEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const approveSalaryRecordResponseGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveSalaryRecordResponseEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveSalaryRecordResponseEmployeeCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveSalaryRecordResponseNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveSalaryRecordResponseExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveSalaryRecordResponseDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10721,8 +11013,10 @@ export const ApproveSalaryRecordResponse = zod.object({
   "overtime": zod.stringFormat('decimal', approveSalaryRecordResponseOvertimeRegExp),
   "deductions": zod.stringFormat('decimal', approveSalaryRecordResponseDeductionsRegExp),
   "cnss_rate": zod.stringFormat('decimal', approveSalaryRecordResponseCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', approveSalaryRecordResponseEmployeeCnssRateRegExp),
   "gross": zod.stringFormat('decimal', approveSalaryRecordResponseGrossRegExp),
   "employer_cnss": zod.stringFormat('decimal', approveSalaryRecordResponseEmployerCnssRegExp),
+  "employee_cnss": zod.stringFormat('decimal', approveSalaryRecordResponseEmployeeCnssRegExp),
   "net": zod.stringFormat('decimal', approveSalaryRecordResponseNetRegExp),
   "expense_amount": zod.stringFormat('decimal', approveSalaryRecordResponseExpenseAmountRegExp),
   "due_amount": zod.stringFormat('decimal', approveSalaryRecordResponseDueAmountRegExp),
@@ -10779,8 +11073,10 @@ export const generateSalaryMonthResponseRecordsItemBonusRegExp = new RegExp('^-?
 export const generateSalaryMonthResponseRecordsItemOvertimeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const generateSalaryMonthResponseRecordsItemDeductionsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const generateSalaryMonthResponseRecordsItemCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const generateSalaryMonthResponseRecordsItemEmployeeCnssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const generateSalaryMonthResponseRecordsItemGrossRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const generateSalaryMonthResponseRecordsItemEmployerCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const generateSalaryMonthResponseRecordsItemEmployeeCnssRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const generateSalaryMonthResponseRecordsItemNetRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const generateSalaryMonthResponseRecordsItemExpenseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const generateSalaryMonthResponseRecordsItemDueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10807,8 +11103,10 @@ export const GenerateSalaryMonthResponse = zod.object({
   "overtime": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemOvertimeRegExp),
   "deductions": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemDeductionsRegExp),
   "cnss_rate": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemCnssRateRegExp),
+  "employee_cnss_rate": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemEmployeeCnssRateRegExp),
   "gross": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemGrossRegExp),
   "employer_cnss": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemEmployerCnssRegExp),
+  "employee_cnss": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemEmployeeCnssRegExp),
   "net": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemNetRegExp),
   "expense_amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemExpenseAmountRegExp),
   "due_amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemDueAmountRegExp),

@@ -3304,11 +3304,97 @@ paths:
               schema:
                 $ref: '#/components/schemas/Session'
           description: ''
+  /api/v1/me/avatar:
+    put:
+      operationId: uploadMyAvatar
+      description: A user's own photo, shown in the topbar. Nobody but the user themselves
+        may change it (D-123).
+      tags:
+      - me
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProfilePhotoUpload'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+        '400':
+          description: Not a readable JPEG, PNG or WebP
+    delete:
+      operationId: removeMyAvatar
+      description: A user's own photo, shown in the topbar. Nobody but the user themselves
+        may change it (D-123).
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/me/password:
+    post:
+      operationId: changeMyPassword
+      description: A user changes their own password; the old one proves it is really
+        them (no email reset exists, D-123).
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/me/profile:
+    patch:
+      operationId: updateMyProfile
+      description: 'A user''s own display name, changed from their profile menu (not
+        their role: only the owner sets that).'
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfile'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
   /api/v1/members:
     get:
       operationId: listMembers
-      description: Users of the organization and their roles. Owners and managers
-        only.
+      description: Users of the organization and their roles, and adding a new one.
+        Owner only (D-123).
       tags:
       - members
       security:
@@ -3321,6 +3407,134 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Member'
+          description: ''
+    post:
+      operationId: createMember
+      description: Users of the organization and their roles, and adding a new one.
+        Owner only (D-123).
+      tags:
+      - members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MemberCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MemberCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/members/{member_id}/deactivate:
+    post:
+      operationId: deactivateMember
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/members/{member_id}/reactivate:
+    post:
+      operationId: reactivateMember
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/members/{member_id}/reset-password:
+    post:
+      operationId: resetMemberPassword
+      description: The owner types a new password for someone else (shown once); no
+        email or SMS reset exists (D-123).
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberPasswordReset'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MemberPasswordReset'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MemberPasswordReset'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/members/{member_id}/role:
+    patch:
+      operationId: setMemberRole
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberRole'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberRole'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberRole'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
           description: ''
   /api/v1/months:
     get:
@@ -3829,6 +4043,53 @@ paths:
               schema:
                 $ref: '#/components/schemas/TruckDay'
           description: ''
+  /api/v1/organizations/{organization_id}/logo:
+    put:
+      operationId: uploadOrganizationLogo
+      description: The company logo on the Paramètres page. Owners and managers may
+        change it (same as the legal fields).
+      parameters:
+      - in: path
+        name: organization_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - organizations
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProfilePhotoUpload'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+        '400':
+          description: Not a readable JPEG, PNG or WebP
+    delete:
+      operationId: removeOrganizationLogo
+      description: The company logo on the Paramètres page. Owners and managers may
+        change it (same as the legal fields).
+      parameters:
+      - in: path
+        name: organization_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - organizations
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/partners/{partner_id}/balances:
     get:
       operationId: getPartnerBalances
@@ -8271,6 +8532,20 @@ components:
       - number
       - total_incl_tax
       - withholding_amount
+    ChangePassword:
+      type: object
+      properties:
+        old_password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+        new_password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+      required:
+      - new_password
+      - old_password
     CloseLot:
       type: object
       properties:
@@ -10402,6 +10677,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        employee_cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
         user:
           allOf:
           - $ref: '#/components/schemas/LoginRef'
@@ -10425,6 +10705,7 @@ components:
       required:
       - cnss_number
       - cnss_rate
+      - employee_cnss_rate
       - hire_date
       - id
       - is_active
@@ -10489,6 +10770,10 @@ components:
           default: ''
           maxLength: 30
         cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        employee_cnss_rate:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
@@ -13243,6 +13528,46 @@ components:
       - is_active
       - role
       - user
+    MemberCreate:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        first_name:
+          type: string
+          default: ''
+          maxLength: 150
+        last_name:
+          type: string
+          default: ''
+          maxLength: 150
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+      required:
+      - password
+      - role
+      - username
+    MemberPasswordReset:
+      type: object
+      properties:
+        new_password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+      required:
+      - new_password
     Month:
       type: object
       properties:
@@ -14044,8 +14369,13 @@ components:
         name:
           type: string
           readOnly: true
+        logo_url:
+          type: string
+          nullable: true
+          readOnly: true
       required:
       - id
+      - logo_url
       - name
     OverdueCustomer:
       type: object
@@ -14851,6 +15181,10 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        employee_cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         user:
           type: integer
           minimum: 1
@@ -14888,6 +15222,11 @@ components:
           type: string
         notes:
           type: string
+    PatchedMemberRole:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/RoleEnum'
     PatchedProductUpdate:
       type: object
       properties:
@@ -14947,6 +15286,10 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
         cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        employee_cnss_rate:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
@@ -15014,6 +15357,15 @@ components:
         driver:
           type: integer
           nullable: true
+    PatchedUpdateProfile:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
     PaymentAllocate:
       type: object
       properties:
@@ -15126,6 +15478,10 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        employee_cnss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
         net:
           type: string
           format: decimal
@@ -15150,6 +15506,7 @@ components:
           type: integer
       required:
       - drafts
+      - employee_cnss
       - employer_cnss
       - expense
       - gross
@@ -15770,6 +16127,14 @@ components:
       - photo_url
       - quantity
       - reference
+    ProfilePhotoUpload:
+      type: object
+      properties:
+        photo:
+          type: string
+          format: binary
+      required:
+      - photo
     ProfitShareEntry:
       type: object
       properties:
@@ -17542,12 +17907,22 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        employee_cnss_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
         gross:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         employer_cnss:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        employee_cnss:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -17617,6 +17992,8 @@ components:
       - deductions
       - due_amount
       - employee
+      - employee_cnss
+      - employee_cnss_rate
       - employer_cnss
       - expense_amount
       - gross
@@ -20118,11 +20495,22 @@ components:
           type: string
           readOnly: true
           title: Nom
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Adresse électronique
         language:
           allOf:
           - $ref: '#/components/schemas/LanguageEnum'
           readOnly: true
+        avatar_url:
+          type: string
+          nullable: true
+          readOnly: true
       required:
+      - avatar_url
+      - email
       - first_name
       - id
       - language

@@ -1545,6 +1545,21 @@ have it), and Arabic texts.
   posts a `receipt` movement through `inventory.services`, so the ledger and FIFO work as for any lot. Sending the
   file again skips a lot already imported (same product, supplier, date, cost); the same lot twice in one file is
   an error (group the kilos).
+- Customer and supplier opening debts: slice 3.
+
+**D-119 · The employee's own CNSS is computed and withheld (P5-T04, follows D-055)** · accepted, **provisional rate** · 2026-10-12
+Until now `SalaryRecord.net = gross − deductions` with `deductions` typed by hand, so an approved salary with nothing
+typed showed net = gross: the employee's own CNSS contribution was never taken off. Now `Employee.employee_cnss_rate`
+(default **9,18 %**, provisional: the accountant confirms it, like the employer's 17,07 %; Q26) and, on each record,
+`employee_cnss_rate` (copied from the employee when the month is generated, and changeable on a draft like the employer
+rate) and `employee_cnss = gross × rate`, rounded once. **net = gross − employee_cnss − deductions.** The contribution is
+its own line (payroll table, month totals, the salary dialog's preview, the employee's page, `payroll_summary`), not
+hidden in "deductions", which stay for what is typed by hand (advances, absences). **The company's cost is unchanged**
+(gross + employer CNSS): the employee's share is part of the gross, withheld and paid to the CNSS. **Existing data:**
+approved salaries keep their figures (rate 0): they are history and immutable; draft salaries get the employee's rate in
+the migration. The import template has a column for the rate. **Not done:** income tax (IRPP) and other legal
+withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); the CNSS declaration itself.
+
 - **Opening debts** (slice 3): kinds `customer_debts` and `supplier_debts`, one row per debt (party by reference,
   amount, date, notes). A customer debt is a confirmed `Sale` with `is_opening` (number `OUV-<year>-0001`, no
   lines, no stock, attached to the archived place "Solde d'ouverture"): it ages from its date, payments are
@@ -1582,7 +1597,6 @@ have it), and Arabic texts.
   `on_hand_never_negative` for every module sharing `StockOnHand` (losses, transfers, counts) and teaching
   `rebuild_on_hand` (D-038) to treat a negative ledger as a known state instead of corruption — too large a
   change for what the owner actually needed (sell now, reconcile the lot later).
-
 **D-122 · Clôture mensuelle: clickable figures and each partner's share of the shared costs (owner request)** · accepted · 2026-10-13
 - The owner pointed out that rent, electricity, fuel and the other costs the lot result engine already
   splits over the lots in stock (D-041) land on partnership lots too: a partner effectively carries part of
@@ -1604,3 +1618,19 @@ have it), and Arabic texts.
 - Not done here: a full itemized drill-down (the individual sales, expense lines, losses and payroll
   entries behind each month-level total) would need new list endpoints per line; this session reused what
   already exists (lot-level cost rows, stock valuation rows, expense categories) rather than add new ones.
+**D-123 · Paramètres: company logo, users, own profile (owner request, not a phase-file task)** · accepted · 2026-10-13
+- The owner asked for a place to manage the company and its accounts. Single organization only; the
+  multi-company onboarding stays in Phase 8. New fields: `Organization.logo` and `User.avatar` (ImageFields,
+  re-encoded to WebP by `core.images.reencoded_photo`, stored under a new random name on each upload so
+  caches never show an old picture). Legal identity (name, address, phone, MF, trade register) stays on the
+  versioned `FinanceSettings` (D-043) and is shown in Paramètres; it is edited on `/factures/parametres`.
+- Users are managed by the owner only (`IsOwner`, server-enforced). Deleting a user means **deactivating**
+  the membership and the login: other rows keep their history. The last active owner cannot be demoted or
+  deactivated (`services._guard_last_owner`).
+- No email or SMS exists, so a password reset is the owner typing a new password for someone (the old one
+  stops working and the sessions are closed). A person changes their own password from "Mon profil", which
+  asks for the current one; the session stays open (`update_session_auth_hash`).
+- Each person sets their own photo and display name from "Mon profil" (topbar avatar links there). Avatars
+  and logos are served by authenticated endpoints, not public media URLs; a member's photo is visible only
+  to people in the same organization.
+- Not yet: printing the logo on documents (planned with the PDF templates).

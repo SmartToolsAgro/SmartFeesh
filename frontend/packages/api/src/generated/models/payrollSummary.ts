@@ -14,6 +14,8 @@ export interface PayrollSummary {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   employer_cnss: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  employee_cnss: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   net: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   expense: string;

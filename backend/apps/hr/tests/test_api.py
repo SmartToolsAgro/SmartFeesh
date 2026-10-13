@@ -35,7 +35,12 @@ def api(owner):
 
 
 def create_employee(api, **fields):
-    payload = {"name": "Sami B.", "position": "Chauffeur-vendeur", "monthly_salary": "1250"}
+    payload = {
+        "name": "Sami B.",
+        "position": "Chauffeur-vendeur",
+        "monthly_salary": "1250",
+        "employee_cnss_rate": "0",
+    }
     payload.update(fields)
     return api.post(reverse("employee-list"), payload, format="json")
 
@@ -47,6 +52,7 @@ def test_the_owner_creates_an_employee_with_money_as_strings_and_the_default_rat
     body = response.json()
     assert body["reference"] == "E-001"
     assert (body["monthly_salary"], body["cnss_rate"], body["unpaid"]) == ("1250.000", "17.07", "0.000")
+    assert body["employee_cnss_rate"] == "0.00"
     assert body["user"] is None
 
 
