@@ -2,7 +2,7 @@
 
 import datetime as dt
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
@@ -217,21 +217,75 @@ def location_batches(organization: Organization, *, product_id: int, location_id
     )
 
 
-def fifo_split(holdings: Sequence[StockOnHand], quantity: Decimal) -> list[Allocation]:
+def takeable(row: StockOnHand, limits: Mapping[int, Decimal] | None = None) -> Decimal:
+    """What can be taken from one on-hand row: all of it, or at most its lot's limit when `limits` is given
+    (a lot without a limit gives nothing)."""
+    if limits is None:
+        return row.quantity
+    return max(min(row.quantity, limits.get(row.batch_id, Decimal("0.000"))), Decimal("0.000"))
+
+
+def fifo_split(
+    holdings: Sequence[StockOnHand], quantity: Decimal, limits: Mapping[int, Decimal] | None = None
+) -> list[Allocation]:
     """Take `quantity` from `holdings` (already oldest first), emptying each batch before the next.
 
-    Returns less than asked when the holdings are not enough; the caller decides what that means.
+    With `limits` (`{batch id: kg}`), a batch gives at most its limit (see `least_held_since`). Returns less
+    than asked when the holdings are not enough; the caller decides what that means.
     """
     allocations: list[Allocation] = []
     left = quantity
     for row in holdings:
         if left <= 0:
             break
-        taken = min(row.quantity, left)
+        taken = min(takeable(row, limits), left)
         if taken > 0:
             allocations.append((row.batch, taken))
             left -= taken
     return allocations
+
+
+def least_held_since(
+    organization: Organization, *, location_id: int, product_id: int, day: dt.date
+) -> dict[int, Decimal]:
+    """Per lot, the least one location held of a product at the **end of any day from `day` until now**,
+    replaying the ledger by the date each movement happened (`occurred_at`, local day): `{batch id: kg}`.
+
+    A movement posted today for that earlier day (a driver's sale that reached the server late, D-133) may
+    take at most this much of a lot. More, and the place would have held less than nothing at the start of a
+    day in between: the kilos were not there that day, or they have left since. Lots that never came to the
+    location are left out. Read-only.
+    """
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(product_id=product_id)
+        .filter(Q(from_location_id=location_id) | Q(to_location_id=location_id))
+        .order_by()
+        .values_list("batch_id", "from_location_id", "to_location_id", "quantity", "occurred_at")
+    )
+    zero = Decimal("0.000")
+    opening: dict[int, Decimal] = {}
+    changes: dict[int, dict[dt.date, Decimal]] = {}
+    for batch_id, _from_id, to_id, kg, occurred_at in rows:
+        change = kg if to_id == location_id else -kg
+        moved_on = _local_day(occurred_at)
+        opening.setdefault(batch_id, zero)
+        if moved_on < day:
+            opening[batch_id] += change
+        else:
+            by_day = changes.setdefault(batch_id, {})
+            by_day[moved_on] = by_day.get(moved_on, zero) + change
+    least: dict[int, Decimal] = {}
+    for batch_id, held in opening.items():
+        by_day = changes.get(batch_id, {})
+        # The end of `day` itself first (nothing moved that day: what it held before), then every later day.
+        held += by_day.pop(day, zero)
+        lowest = held
+        for moved_on in sorted(by_day):
+            held += by_day[moved_on]
+            lowest = min(lowest, held)
+        least[batch_id] = lowest
+    return least
 
 
 def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationError:
@@ -239,6 +293,19 @@ def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationE
         {
             "quantity": _("Stock insuffisant : %(available)s kg à « %(location)s ».")
             % {"available": available, "location": location.name}
+        }
+    )
+
+
+def not_enough_stock_since(available: Decimal, location: StockLocation, day: dt.date) -> ValidationError:
+    """The refusal of a movement dated on an earlier day that asks more than the place has held since."""
+    return ValidationError(
+        {
+            "quantity": _(
+                "Stock insuffisant à cette date : « %(location)s » n'a gardé que %(available)s kg de ce produit "
+                "depuis le %(day)s."
+            )
+            % {"available": available, "location": location.name, "day": day.strftime("%d/%m/%Y")}
         }
     )
 

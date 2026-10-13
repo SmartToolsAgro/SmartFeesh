@@ -3461,6 +3461,10 @@ export const fr = {
       refused: "« {{what}} » refusé par le serveur : {{reason}}. Le bureau est prévenu.",
       understood: "Compris",
     },
+    // A sale kept on the phone is dated when it was made (D-133).
+    lateSale: {
+      madeAt: "Vente faite le {{when}} : elle sera enregistrée à cette date, au prix de ce jour-là.",
+    },
     payment: {
       add: "Encaisser un règlement",
       who: "Qui vous donne de l'argent ?",

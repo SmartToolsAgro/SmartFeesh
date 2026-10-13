@@ -1732,4 +1732,54 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Historical ledger rows and closing snapshots are not changed; old snapshots simply lack the two new fields.
 - Driver screens other than Ma journée get a "Retour à Ma journée" button under their content (`BackToDay`).
 - Not changed (open): an offline sale is dated when it is sent (`sold_at` is the server's moment for a driver),
-  so a sale made yesterday and sent today counts as today's sale and its price is today's.
+  so a sale made yesterday and sent today counts as today's sale and its price is today's. (Changed by D-133.)
+
+**D-133 · A driver's sale is dated when it was made, as the phone says, within limits (owner decision; follow-up of D-091, D-094, D-129, D-130)** · accepted · 2026-10-13
+- Before: for a driver `sold_at` was the server's clock, so a sale made without connection yesterday and sent today
+  was today's sale, at today's price, in today's closing.
+- Now the phone sends the moment the driver validated the sale in `sold_at` (the field `POST /sales` already had),
+  sent at once or kept in the queue; `sync.ts` sends it with the queued sale. A sale queued by the earlier app has
+  none and takes the time it was queued (`madeAtOf`), the same moment. The phone is not trusted: the server checks
+  the time before using it (`sales.services.moment_from_phone`, then the sale view), in this order:
+  1. A sale already recorded under the same `client_uuid` is answered as recorded, before any check (D-129, kept).
+  2. **Clock tolerance: 5 minutes, both ways** (the existing `CLOCK_MARGIN`). Within it the server's own clock dates
+     the sale: an online sale is dated exactly as before, and a phone a little fast or slow never moves a sale to
+     another day around midnight. No time sent: the server's clock, as before.
+  3. More than 5 minutes in the future: refused, 400 on `sold_at`, naming the time and asking to check the phone.
+  4. The driver's truck **of that day** (D-042: the day's assignment, else the usual truck): another truck is 403.
+  5. The driver's day **of that date** must not be approved (D-094): 403 "Votre journée du JJ/MM/AAAA est approuvée
+     par le bureau : elle est fermée, plus rien ne s'y ajoute." A day sent but not approved still takes the sale.
+     Only the sale's own day counts: a later day already approved does not refuse it.
+  6. The stock (below): 400 on the line.
+- **No day started on that date: the sale is accepted.** Starting a day needs a connection and selling does not, and
+  an online sale never needed a started day; refusing would throw away every sale of a driver who had no signal all
+  day. Such a sale is dated on its day, from the truck the driver had that day, and belongs to no day closing.
+- **What follows the date.** Everything reads `sold_at`: the price in force at that moment, the sales lists, the day
+  summary and closing of that day (`dayclose.selectors.day_summary`), the customer's balance and ageing (the sale's
+  day until it is invoiced, then the invoice's), reports, month figures and lot results. `confirmed_at` and
+  `created_at` still say when the sale reached the server.
+- **Stock ledger.** A movement has `occurred_at` (when it happened) and `created_at` (when it was recorded); the day
+  figures replay the ledger by `occurred_at`. The late sale's movements are appended today and dated at the sale:
+  no row is rewritten or reordered. Recomputed, the opening stock (D-130) of every later day drops by its kilos,
+  which is right: they had left the truck. New check, for a driver's sale dated on an earlier day only
+  (`post_fifo_movements(held_since_then=True)`, `inventory.selectors.least_held_since`): a lot gives at most the
+  lowest end-of-day balance the truck has had of it from the sale's day until now. So no day in between starts
+  below zero, and the lot taken was on the truck that day (profit per lot). Otherwise 400 "Stock insuffisant à
+  cette date : « Camion » n'a gardé que X kg de ce produit depuis le JJ/MM/AAAA." Checked per day, not per hour:
+  a load typed afterwards is dated at noon (D-039), so hours inside a day prove nothing.
+- **Refusals reach the office.** Any refusal above is a 400 or 403: the queue marks the sale refused and reports it
+  as a sync problem (D-099, D-129); nothing changed there. Online, the driver reads the message on the sale screen.
+- **Not corrected by a late sale** (known, accepted):
+  - Closing figures kept "as sent" (`DayClosing.summary`): the snapshot of the sale's day when it was already sent,
+    and of the days in between, approved or not, keep the old cash and stock. Only live figures move.
+  - The BL number is the next of the year the sale is confirmed in, not of the year it was made in.
+  - Returnable boxes: a box movement only has its recording date, so the boxes count on the day they are recorded.
+  - Expenses, losses, customer payments and box pickups kept on the phone are still dated when they are sent.
+  - A month already closed changes in its live figures (shown as drift, D-074), like a sale typed late by the office.
+  - The price is the server's price in force at that moment, not the one the phone showed (P3-T02, D-051 open).
+  - Lots: among what the truck has held since, FIFO runs when the sale is recorded; sales recorded in between may
+    already have taken the older lot.
+  - A phone clock set wrong in the past cannot be seen, as long as the driver had the truck and the kilos that day.
+  - The check on stock held since is not applied to a sale typed late by the office, nor to a driver's draft that
+    waits for a credit approval and is confirmed later.
+  - A driver still cannot close a day that is over (the closing endpoints are today's only).

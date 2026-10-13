@@ -41,8 +41,9 @@ _Last updated: 2026-10-13_
 3. Phase 3 remaining, in this order: **P3-T07a to T07d** (offline), **P3-T09** Arabic, **P3-T10** printing.
 4. Phase 3 gaps (not yet tasks): an approved day should block more sales and expenses that day (D-094); a driver
    cannot collect a customer payment on the phone yet; recent customers first and creating a customer on the phone
-   (D-091); a truck sale should use the load's price (D-051); an offline sale is dated when it is sent, not when it
-   was made (D-130); the office's closing table does not show the opening stock or the gap yet (D-130).
+   (D-091); a truck sale should use the load's price (D-051); the office's closing table does not show the opening
+   stock or the gap yet (D-130); expenses, losses, payments and box pickups kept on the phone are still dated when
+   they are sent, and a driver cannot close a day that is over (D-133 dates sales only).
 5. Other waves: P2-T07/T08/T09, P6-T04 to T07 (check `gh pr list` and `docs/phases/` for what landed).
 
 ## Blockers / waiting on client
@@ -93,6 +94,8 @@ follow-up, decisions 2 to 4), #108 (closing after a sale, D-129). Open PRs: none
 
 ## Recently done
 
+- 2026-10-13 · D-133 a driver's sale is dated when it was made (the phone sends the time, the server checks it): that
+  day's price and closing; refused in the future, on an approved day, or for kilos the truck did not hold that day.
 - 2026-10-13 · Driver Clôture showed "vendu" above "chargé" (staging): the truck's opening stock was missing from the
   day; now shown per product with the gap, and a "Retour à Ma journée" button on every driver screen (D-130).
 - 2026-10-13 · D-129 driver closing after a sale: the closing says why sales wait (no connection, no answer, server

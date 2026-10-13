@@ -10,7 +10,7 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { listQueue, markRefused, markReported, type QueuedItem, removeQueued } from "./queue";
+import { listQueue, madeAtOf, markRefused, markReported, type QueuedItem, removeQueued } from "./queue";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -72,7 +72,8 @@ async function tellOffice(item: QueuedItem): Promise<void> {
 }
 
 function sendItem(item: QueuedItem, options: RequestInit): Promise<unknown> {
-  if (item.kind === "sale") return createSale(item.data, options);
+  // A sale goes with the time it was made, not the time it is sent (D-133): the server dates it from that.
+  if (item.kind === "sale") return createSale({ ...item.data, sold_at: madeAtOf(item) }, options);
   if (item.kind === "expense") return addMyExpense(item.data, options);
   if (item.kind === "payment") return collectMyPayment(item.data, options);
   if (item.kind === "pickup") return collectMyBoxes(item.data, options);

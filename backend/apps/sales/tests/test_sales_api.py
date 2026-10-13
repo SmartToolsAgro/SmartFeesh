@@ -260,21 +260,20 @@ def test_a_driver_sells_from_the_truck_of_the_day_only_and_never_sees_costs(
     api = client_for(driver)
     yesterday = (timezone.now() - dt.timedelta(days=1)).isoformat()
 
-    sold = create(
-        api,
-        truck,
-        [{"product": crevette.pk, "quantity": "2"}],
-        customer=customer.pk,
-        sold_at=yesterday,
-        confirm_now=True,
-    )
+    sale = {"customer": customer.pk, "confirm_now": True}
+    # The phone says when the sale was made and the server checks it (D-133, `dayclose/tests/test_late_sales.py`):
+    # these kilos came to the truck today, so they cannot have been sold yesterday.
+    dated_yesterday = create(api, truck, [{"product": crevette.pk, "quantity": "2"}], sold_at=yesterday, **sale)
+    sold = create(api, truck, [{"product": crevette.pk, "quantity": "2"}], **sale)
     from_room = create(api, counter, [{"product": crevette.pk, "quantity": "1"}], customer=customer.pk)
     from_other = create(api, other_truck, [{"product": crevette.pk, "quantity": "1"}], customer=customer.pk)
 
+    assert dated_yesterday.status_code == 400
+    assert "depuis le" in dated_yesterday.json()["lines.0.quantity"][0]
     assert sold.status_code == 201
     body = sold.json()
     assert body["status"] == "confirmed"
-    # A driver sells now, whatever the moment sent.
+    # Without a time, a driver sells now.
     assert dt.datetime.fromisoformat(body["sold_at"]).date() == timezone.localdate()
     assert (body["cost_total"], body["margin"]) == (None, None)
     assert (body["lines"][0]["cost_amount"], body["lines"][0]["batches"]) == (None, None)

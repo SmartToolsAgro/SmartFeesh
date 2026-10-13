@@ -19,6 +19,7 @@ interface Waiting {
 
 export interface QueuedSale extends Waiting {
   kind: "sale";
+  /** With `sold_at`, the moment the sale was made by the phone's clock (D-133). */
   data: SaleWrite;
   /** What the screen showed when the sale was made, for the receipt on the phone. */
   estimate: {
@@ -126,6 +127,14 @@ export function useQueue(): QueuedItem[] {
     };
   }, []);
   return queue;
+}
+
+/**
+ * When a waiting sale was made (D-133). One kept by an earlier version of the app has no `sold_at`: it was put
+ * in the queue the moment it was made, so that time is used.
+ */
+export function madeAtOf(sale: QueuedSale): string {
+  return sale.data.sold_at ?? sale.createdAt;
 }
 
 /** Kilos per product already promised by waiting sales and losses: they are no longer in the truck. */

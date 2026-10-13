@@ -67,15 +67,16 @@ def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truc
     )
 
 
-def may_use_location(membership: Membership, location_id: int) -> bool:
+def may_use_location(membership: Membership, location_id: int, on: date_type | None = None) -> bool:
     """Whether this member may see or change the stock of a location.
 
     Owners, managers and the accountant: any location of their organization. A driver: only the location
-    of their truck of the day. Any other role: none. Views must still scope rows by organization (D-022).
+    of their truck of the day (today, or `on` for something that happened on an earlier day, D-133). Any
+    other role: none. Views must still scope rows by organization (D-022).
     """
     if membership.role in OFFICE_ROLES:
         return True
-    truck = truck_of_driver(membership)
+    truck = truck_of_driver(membership, on)
     return truck is not None and truck.location_id == location_id
 
 
