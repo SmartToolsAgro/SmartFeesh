@@ -173,6 +173,34 @@ def test_an_approved_day_is_closed_to_sales_expenses_and_losses(day):
     assert day["api"].post(reverse("my-return")).status_code == 403
 
 
+def test_a_sale_sent_again_after_the_day_is_approved_is_answered_not_refused(day):
+    """The phone sent a sale, lost the answer, and the office approved the day meanwhile: the retry gets the
+    recorded sale back (201, once), it is not refused as a new sale on a closed day."""
+    from apps.sales.models import Sale
+
+    client_uuid = str(uuid4())
+    body = {
+        "customer": day["customer"].pk,
+        "location": day["truck"].location_id,
+        "confirm_now": True,
+        "client_uuid": client_uuid,
+        "amount_paid": "28.000",
+        "payment_method": "cash",
+        "lines": [{"product": day["product"].pk, "quantity": "1"}],
+    }
+    first = day["api"].post(reverse("sale-list"), body, format="json")
+    assert first.status_code == 201
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "78.000"}, format="json")
+    closing = day["office"].get(reverse("day-closing-list")).json()[0]
+    day["office"].post(reverse("day-closing-approve", args=[closing["id"]]))
+
+    retry = day["api"].post(reverse("sale-list"), body, format="json")
+
+    assert (retry.status_code, retry.json()["id"]) == (201, first.json()["id"])
+    assert Sale.objects.filter(client_uuid=client_uuid).count() == 1
+    assert sell(day, "1", "28.000").status_code == 403  # a new sale on the approved day is still refused
+
+
 def test_customers_sold_to_lately_come_first(day):
     other = partners.create_customer(organization=day["customer"].organization, actor=None, name="Aaa Hôtel")
 
