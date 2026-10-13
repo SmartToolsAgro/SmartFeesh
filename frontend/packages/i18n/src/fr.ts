@@ -1985,6 +1985,20 @@ export const fr = {
         title: "Caisses chez le client",
         ambiguous: "Plusieurs partenaires portent ce nom : les caisses affichées peuvent être incomplètes.",
       },
+      // The counts typed on a receipt (D-122) and on a load to a truck.
+      form: {
+        receiptTitle: "Caisses reçues avec la livraison",
+        receiptHint: "Caisses consignées livrées avec ces produits. Laissez vide ou 0 s'il n'y en a pas.",
+        loadTitle: "Caisses chargées dans le camion",
+        loadHint:
+          "Caisses qui partent avec ce chargement. Elles restent sur le camion jusqu'à leur remise à un client.",
+        invalid: "Indiquez un nombre entier de caisses, zéro ou plus.",
+      },
+      empty: {
+        text: "Aucune caisse enregistrée pour le moment. Les caisses entrent avec une réception fournisseur ou un chargement de camion.",
+        receipt: "Enregistrer une réception",
+        load: "Enregistrer un chargement",
+      },
     },
     stockTabs: {
       label: "Rubriques du stock",

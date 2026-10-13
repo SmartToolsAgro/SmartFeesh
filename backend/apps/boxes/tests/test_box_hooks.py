@@ -282,6 +282,28 @@ def test_a_transfer_api_call_carries_its_boxes(organization, actor, supplier, co
     assert _holder_balance(organization, _location_holder(organization, cold_room)) == 0
 
 
+def test_a_draft_load_shows_its_boxes_and_saving_it_back_keeps_them(organization, actor, cold_room, truck, dorade):
+    client, _ = client_for(Role.OWNER, organization)
+    draft = _draft(organization, actor, cold_room, truck, dorade, boxes={"small": 4})
+    url = reverse("transfer-detail", args=[draft.pk])
+
+    shown = client.get(url).json()
+    assert shown["boxes"] == {"small": 4}
+    no_boxes = _draft(organization, actor, cold_room, truck, dorade)
+    assert client.get(reverse("transfer-detail", args=[no_boxes.pk])).json()["boxes"] == {}
+
+    # The form reloads the boxes it shows and saves them back: a draft keeps them (saving replaces them).
+    body = {
+        "from_location": cold_room.pk,
+        "to_location": truck.pk,
+        "transferred_on": timezone.localdate().isoformat(),
+        "lines": [{"product": dorade.pk, "quantity": "12"}],
+        "boxes": shown["boxes"],
+    }
+    assert client.put(url, body, format="json").status_code == 200
+    assert client.get(url).json()["boxes"] == {"small": 4}
+
+
 @pytest.mark.parametrize(
     ("role", "status"),
     [(Role.OWNER, 200), (Role.MANAGER, 200), (Role.ACCOUNTANT, 200), (Role.DRIVER, 403)],

@@ -66,3 +66,36 @@ export function formatBoxCount(count: number, language: Language = currentLangua
   if (!Number.isSafeInteger(count)) throw new TypeError(`Not a box count: ${JSON.stringify(count)}`);
   return new Intl.NumberFormat(LOCALES[language], { maximumFractionDigits: 0 }).format(count);
 }
+
+/** The box counts as typed in a form: one text per box type, empty for none. */
+export type BoxCountInputs = Record<BoxTypeEnum, string>;
+
+export const NO_BOX_INPUTS: BoxCountInputs = { small: "", big: "" };
+
+/**
+ * The counts a form sends: the non-zero whole counts by box type. A blank or zero input means none.
+ * `invalid` names the box types typed as something other than a whole number of boxes.
+ */
+export function boxCountsFromInputs(inputs: BoxCountInputs): {
+  counts: Record<string, number>;
+  invalid: BoxTypeEnum[];
+} {
+  const counts: Record<string, number> = {};
+  const invalid: BoxTypeEnum[] = [];
+  for (const boxType of BOX_TYPES) {
+    const typed = inputs[boxType].trim();
+    if (typed === "") continue;
+    const count = /^\d+$/.test(typed) ? Number(typed) : Number.NaN;
+    if (!Number.isSafeInteger(count)) invalid.push(boxType);
+    else if (count > 0) counts[boxType] = count;
+  }
+  return { counts, invalid };
+}
+
+/** The inputs showing counts already saved (a draft reloaded). Zero shows as an empty input. */
+export function boxInputsFromCounts(counts: Partial<Record<string, number>> | undefined): BoxCountInputs {
+  return {
+    small: counts?.small ? String(counts.small) : "",
+    big: counts?.big ? String(counts.big) : "",
+  };
+}

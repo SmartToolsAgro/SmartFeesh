@@ -230,9 +230,17 @@ class TransferSerializer(serializers.ModelSerializer[Transfer]):
 
 class TransferDetailSerializer(TransferSerializer):
     lines = TransferLineDetailSerializer(many=True, read_only=True)
+    # The returnable boxes that go with the transfer, per box type (D-122): what a draft's form reloads,
+    # since saving a draft replaces them. Empty when none.
+    boxes = serializers.SerializerMethodField()
 
     class Meta(TransferSerializer.Meta):
-        pass
+        fields: tuple[str, ...] = (*TransferSerializer.Meta.fields, "boxes")
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
+    def get_boxes(self, transfer: Transfer) -> dict[str, int]:
+        return {line.box_type: line.count for line in transfer.box_lines.all()}
 
 
 class TransferLineWriteSerializer(serializers.Serializer[Any]):

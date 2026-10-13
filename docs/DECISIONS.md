@@ -1693,3 +1693,17 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   were both "Maklouba rosé congelé M0"). It must be run on the server.
 - Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
   stays unassigned.
+
+**D-127 · Admin can record returnable boxes on a receipt and on a load (bug, owner report)** · accepted · 2026-10-13
+- Found: the admin app had no way to post a box movement. The receipt and transfer APIs took `boxes` since P1-T14b,
+  but the admin forms never sent it, and the Caisses page was read only. The box types are a fixed choice
+  (`BoxType`, small and big), not a table, so "no box type exists" was not the cause. Nothing was seeded wrongly.
+- Fix: a "Caisses reçues avec la livraison" card on the receipt form and a "Caisses chargées dans le camion" card on
+  a load (shown only for a load), both sending the counts the server already takes. A draft load reloads its saved
+  counts: `TransferDetail` now returns `boxes`, because saving a draft replaces them. The empty Caisses page links to
+  both forms for whoever may record them.
+- Still open, not built: an opening balance (boxes already at clients, in cold rooms, or owed to suppliers). It needs
+  a movement kind with one side outside the ledger, and a decision on the sign for a supplier. Proposed as a small
+  owner-approved follow-up, not in this change.
+- Load question (owner): keep the count as a field on the load transfer (one document, posted in the same transaction
+  as the kg), not as a separate movement screen. A separate movement would need its own source document and could drift from the load.
