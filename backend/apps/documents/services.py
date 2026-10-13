@@ -69,7 +69,7 @@ def printable(organization: Organization, kind: str, object_id: int) -> Printabl
 def unique_identifier(tax_id: str) -> str:
     """The "Identifiant unique" of a Tunisian tax id: its number and key letter (1902781/R/N/M/000 → 1902781R).
 
-    Printed under the company's tax id in the header of every document (D-125, D-126)."""
+    Printed under the company's tax id in the header of every document (D-125, D-127)."""
     parts = [part.strip().upper() for part in (tax_id or "").replace(" ", "").split("/")]
     if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isalpha():
         return ""

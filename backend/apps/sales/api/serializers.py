@@ -55,7 +55,7 @@ class QuoteCustomerSerializer(serializers.Serializer[Any]):
     address = serializers.CharField(read_only=True)
     city = serializers.CharField(read_only=True)
     tax_id = serializers.CharField(read_only=True)
-    # Printed in the client block of every document's header (D-126).
+    # Printed in the client block of every document's header (D-127).
     phone = serializers.CharField(read_only=True)
 
 

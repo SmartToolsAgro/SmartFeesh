@@ -6,7 +6,7 @@
 <style>
   /* Colours follow the app's tokens: deep sea blue, ink, soft lines. */
   :root { --ink: #0c2633; --ink-2: #4a6270; --sea: #0f5e7a; --line: #d6e0e6; --soft: #eef5f8; --bad: #b3261e; }
-  /* The page frame of the company's paper invoice (D-125), shared by every document (D-126): the address and
+  /* The page frame of the company's paper invoice (D-125), shared by every document (D-127): the address and
      page number at the foot of each page. */
   @page {
     size: A4;
@@ -65,7 +65,7 @@
 </head>
 <body>
 {% comment %}
-  The header and footer of the paper invoice (D-125) on every document (D-126). A document sets `doc_date` and
+  The header and footer of the paper invoice (D-125) on every document (D-127). A document sets `doc_date` and
   `party` (label, name, address, phone, tax_id; `reference` and `type` print as rows when the key is present),
   names itself in `heading`, and may add `banner` (under the number) and `head_meta` (under the party).
 {% endcomment %}

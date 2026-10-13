@@ -1659,7 +1659,7 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - The product list the owner forwarded (ART0002 to ART0060) is not imported by this change; the codes print
   as soon as products carry them as `reference` (through the data import or the product page).
 
-**D-126 · Every document uses the invoice's header and footer, in the PDFs and on screen (owner request)** · accepted · 2026-10-13
+**D-127 · Every document uses the invoice's header and footer, in the PDFs and on screen (owner request)** · accepted · 2026-10-13
 - The owner asked that every printed PDF and every document view in the app carry the frame of the facture
   (D-125). The header and footer moved from `sales/pdf/invoice.html` into `documents/pdf_base.html`: logo or
   company name, address, Tél, MF, Identifiant Unique, RC top left; boxed "<Document> N° …", a Date | Client

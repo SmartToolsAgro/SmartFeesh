@@ -122,7 +122,7 @@ export const fr = {
       making: "Préparation…",
       failed: "Le PDF n'a pas pu être préparé. Réessayez dans un instant.",
       slow: "Le PDF tarde à venir. Réessayez dans un instant.",
-      // D-126 · the header and footer of the paper invoice, on every document shown in the app
+      // D-127 · the header and footer of the paper invoice, on every document shown in the app
       frame: {
         heading: "{{title}} N° {{number}}",
         date: "Date",

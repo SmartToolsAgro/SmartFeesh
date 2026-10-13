@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { type DocumentParty, type DocumentSeller, uniqueIdentifier } from "./documentSeller";
 
 /**
- * The header and footer of the company's paper invoice (D-125) on every document shown in the app (D-126), the
+ * The header and footer of the company's paper invoice (D-125) on every document shown in the app (D-127), the
  * same frame the PDFs print: logo and company top left; boxed number, Date | Client box and client block top
  * right; the address and phone at the foot.
  */
