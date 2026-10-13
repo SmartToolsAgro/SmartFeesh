@@ -687,6 +687,7 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
             "total_excl_tax",
             "vat_total",
             "fiscal_stamp",
+            "fees",
             "total_incl_tax",
             "withholding_amount",
             "net_amount",
@@ -735,6 +736,7 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
             "total_excl_tax",
             "vat_total",
             "fiscal_stamp",
+            "fees",
             "total_incl_tax",
             "withholding_applied",
             "withholding_rate",
@@ -926,6 +928,8 @@ class InvoiceChoicesSerializer(serializers.Serializer[Any]):
     # Typed VAT amounts per rate; errors come back on `vat_amounts.<rate>`.
     vat_amounts = InvoiceVatAmountSerializer(many=True, required=False, default=list)
     fiscal_stamp = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # "Frais" in DT, outside VAT; empty: none (D-126).
+    fees = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     withholding_applied = serializers.BooleanField(required=False, default=False)
     withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")

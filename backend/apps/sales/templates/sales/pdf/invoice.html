@@ -124,7 +124,7 @@
 <div class="fa-bottom">
   <div class="fa-fees">
     <table class="kv num">
-      <tr><th>Frais</th><td>{{ 0|money }} TND</td></tr>
+      <tr><th>Frais</th><td>{{ invoice.fees|money }} TND</td></tr>
       <tr><th>Timbre fiscal</th><td>{{ invoice.fiscal_stamp|money }} TND</td></tr>
     </table>
     {% if vat_lines|length > 1 %}

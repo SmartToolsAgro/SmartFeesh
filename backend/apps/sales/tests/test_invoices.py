@@ -268,6 +268,7 @@ def test_wrong_typed_values_come_back_on_their_field(sale, actor):
             actor=actor,
             vat_rates=["120", "x"],
             fiscal_stamp="-1",
+            fees="abc",
             withholding_rate="1.555",
         )
 
@@ -275,6 +276,7 @@ def test_wrong_typed_values_come_back_on_their_field(sale, actor):
         "lines.0.vat_rate",
         "lines.1.vat_rate",
         "fiscal_stamp",
+        "fees",
         "withholding_rate",
     }
 
@@ -480,6 +482,50 @@ def test_a_full_credit_note_cancels_the_invoice(sale, actor):
     assert again.number == f"FA-{YEAR}-0002"
     with pytest.raises(ValidationError, match="déjà annulée"):
         services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Encore")
+
+
+def test_fees_add_to_the_total_outside_vat_and_withholding(organization, sale, actor):
+    services.save_finance_settings(organization=organization, actor=actor, withholding_rate="1.5")
+    invoice = services.create_invoice(sale=sale, actor=actor, fees="12.500", withholding_applied=True)
+
+    assert invoice.fees == D("12.500")
+    assert invoice.vat_total == D("86.450")  # no VAT on the fees
+    assert invoice.total_incl_tax == D("554.950")  # 455 + 86.450 + 1 stamp + 12.500 fees
+    assert invoice.withholding_amount == D("8.122")  # 1.5 % of 541.450, fees left out
+    assert invoice.net_to_pay == D("546.828")
+    # Issuing keeps them; saving the draft again without them removes them.
+    issued = services.update_invoice(invoice=invoice, actor=actor, issue=True, fees="12.500", withholding_applied=True)
+    assert (issued.fees, issued.total_incl_tax) == (D("12.500"), D("554.950"))
+    entry = AuditLog.objects.filter(action="invoice.issued").latest("id")
+    assert entry.after is not None
+    assert entry.after["fees"] == "12.500"
+
+
+def test_saving_a_draft_without_fees_removes_them(sale, actor):
+    invoice = services.create_invoice(sale=sale, actor=actor, fees="5")
+
+    invoice = services.update_invoice(invoice=invoice, actor=actor)
+
+    assert invoice.fees == D("0.000")
+    assert invoice.total_incl_tax == D("542.450")
+
+
+def test_a_full_credit_note_gives_the_fees_back_a_partial_one_does_not(sale, actor):
+    invoice = services.create_invoice(sale=sale, actor=actor, fees="10", issue=True)
+    crevette_line = invoice.lines.order_by("id").first()
+
+    partial = services.create_credit_note(
+        invoice=invoice,
+        actor=actor,
+        kind=CreditNoteKind.PARTIAL,
+        reason="Casse",
+        lines=[{"invoice_line": crevette_line, "quantity": "1"}],
+    )
+    full = services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Erreur")
+
+    assert partial.fees == D("0.000")
+    assert full.fees == D("10.000")
+    assert partial.net_amount + full.net_amount == invoice.net_to_pay
 
 
 def test_a_partial_credit_note_by_kilos_and_by_amount(sale, actor):

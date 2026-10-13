@@ -1677,3 +1677,17 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   endpoint needs a session). The admin app got a default `favicon.svg`.
 - The product list the owner forwarded (ART0002 to ART0060) is not imported by this change; the codes print
   as soon as products carry them as `reference` (through the data import or the product page).
+
+**D-126 · "Frais" on invoices; the owner's article codes as product references (owner decision)** · accepted · 2026-10-13
+- `Invoice.fees` ("Frais", DT): an amount the office types on the draft (empty = none), printed in the Frais
+  box of the PDF (D-125) and on the invoice page. It adds to the total like the fiscal stamp: no VAT on it and
+  no withholding (`total_incl_tax = HT + TVA + timbre + frais`), so the customer owes it through `net_to_pay`.
+  It is not lot revenue: lot profit still comes from the sale lines only.
+- `CreditNote.fees`: a full credit note gives back all the fees still on the invoice, a partial one none (like
+  the stamp), so a cancelled invoice leaves nothing owed. Migration `sales.0015`.
+- The owner's product list: only the article codes are taken (`catalog/product_codes.py`, ART0002 to ART0060).
+  `manage.py set_product_codes --organization <id>` reports, `--apply` writes each code into the `reference`
+  of the product with the same name (case, accents and spaces ignored), through `update_product` (audited).
+  No product is created and nothing else changes. Left alone and reported: no product with that name, several
+  products with it, the code already on another product, and names the list gives twice (ART0047 and ART0055
+  are both "Maklouba rosé congelé M0": the owner must say which code is right). It must be run on the server.

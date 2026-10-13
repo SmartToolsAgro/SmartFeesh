@@ -25,6 +25,8 @@ export interface CreditNote {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly fiscal_stamp: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly fees: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly total_incl_tax: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly withholding_amount: string;

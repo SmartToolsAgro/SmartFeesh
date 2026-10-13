@@ -508,6 +508,7 @@ def _invoice_choices(data: dict[str, Any]) -> dict[str, Any]:
         "vat_rates": [line["vat_rate"] for line in data["lines"]] or None,
         "vat_amounts": {row["rate"]: row["amount"] for row in data["vat_amounts"]},
         "fiscal_stamp": data["fiscal_stamp"],
+        "fees": data["fees"],
         "withholding_applied": data["withholding_applied"],
         "withholding_rate": data["withholding_rate"],
         "notes": data["notes"],
@@ -557,7 +558,7 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
         """Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
         `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
-        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`."""
+        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`."""
         serializer = InvoiceCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

@@ -206,6 +206,14 @@ def test_the_invoice_follows_the_paper_form(organization, invoice):
     assert "Arrêtée la présente Facture à la somme de : Deux cent cinquante Dinars 900 Millimes" in html
 
 
+def test_the_frais_box_prints_the_invoice_fees(organization, sale, manager):
+    invoice = sales.create_invoice(sale=sale, actor=manager.user, issue=True, fees="7.250")
+
+    html = services.render_html(services.printable(organization, "invoice", invoice.pk))
+
+    assert "<tr><th>Frais</th><td>7,250 TND</td></tr>" in html
+
+
 def test_every_pdf_prints_the_logo_and_a_new_logo_makes_the_file_stale(organization, invoice, manager, fake_pdf):
     from django.core.files.uploadedfile import SimpleUploadedFile
     from PIL import Image
