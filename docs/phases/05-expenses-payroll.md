@@ -44,7 +44,8 @@ _Coarse plan: detail each task when the phase starts._
 - [x] Recurring monthly costs (rent, accountant, insurance); bills that cover several months spread
       over them.
 - [x] "Like a salary" (client): monthly amount / 26 per day; each day's amount split over the lots in
-      stock that day by kg held (D-041, Q21 to confirm), shown as one line on each lot.
+      stock that day by kg held, the same split as the cold room (D-041, Q21 confirmed), shown as one
+      line on each lot.
 
 ### P5-T06 · Assets and depreciation · S
 - [ ] Assets (trucks, cold room, equipment): value, residual value, useful life, method.

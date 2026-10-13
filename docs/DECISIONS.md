@@ -431,7 +431,8 @@ and the Phase 6 plan written from them.
   lots on that truck's load that day, **by kg loaded** (provisional: the client said "split over the
   lots", not how).
 - **Rent, accountant and other general costs:** "like a salary" (client): monthly amount / 26 per day;
-  each day's amount split over the lots in stock that day by kg held (provisional: our reading).
+  each day's amount split over the lots in stock that day by kg held, the same way as the cold room
+  (**confirmed 2026-10-13**, Q21).
 - **Day labour:** one record (date, worker, amount paid, optional lot). Typed from the lot or from the
   calendar, it is the same record; without a lot it is a general cost.
 
@@ -910,8 +911,9 @@ Builds D-042 before Phase 3's `DriverDay` exists.
   cost covering `months` months from `first_month` (bill over several months is spread equally, exact to
   the millime). Templates are owner-only; generated and multi-month costs follow the expense approval.
   Such an expense is changed/deleted only through its own endpoints.
-- Charge to lots (**Q21 provisional**): each month part / 26 per day, each day split over the lots in stock
-  anywhere that day by kg held (end-of-day ledger balance); days with nothing in stock charge nobody. Only
+- Charge to lots (**Q21 confirmed 2026-10-13**): each month part / 26 per day, each day split over the lots
+  in stock anywhere that day by kg held (end-of-day ledger balance, the same split as the cold room, D-041);
+  days with nothing in stock charge nobody. Only
   approved expenses count; days up to today. Screen "Frais généraux" (`/charges/frais-generaux`).
 
 **D-060 · Partnership lots and the partner's capital ledger (P6-T01)** · accepted, provisional points marked · 2026-10-11
@@ -1582,3 +1584,21 @@ have it), and Arabic texts.
   `on_hand_never_negative` for every module sharing `StockOnHand` (losses, transfers, counts) and teaching
   `rebuild_on_hand` (D-038) to treat a negative ledger as a known state instead of corruption — too large a
   change for what the owner actually needed (sell now, reconcile the lot later).
+
+**D-124 · Returnable boxes (caisses): a count ledger, separate from kg stock (Q26)** · accepted · 2026-10-13
+- Two box types (small, big). Boxes are **counted in whole units** in their own append-only movement table
+  (`BoxMovement`: organization, box type, count, from and to, source document, posted through a service in a
+  transaction). They are never products and never touch `StockOnHand`, kg, FIFO or lots (no lot tracking).
+- Holders are **locations** (cold rooms, trucks), **clients** and **suppliers**. Balances are derived from the
+  ledger: boxes per location, boxes held by each client, boxes owed to each supplier. A box left at a client
+  stays out of the truck until collected.
+- Supplier boxes: boxes received from a supplier must go back to that supplier. Each supplier has a balance
+  "boxes owed", separate from money (supplier payables) and from partner capital (three-balances rule).
+- Sign convention (step 1, `apps/boxes`): locations and clients show arrivals minus departures; a **supplier shows
+  receipts minus returns**, i.e. what we owe it, which is never negative.
+- No deposit and no money in the box ledger (owner answer). No tare: box weight is not in kg figures.
+- Lost or broken boxes are a **company overhead** (write-off movement with a reason), not charged to clients or
+  drivers, and not part of a lot's costs (so they do not change partner profit, D-040 / D-041).
+- Driver app: count on loading, "boxes left" on a sale, "boxes collected" on a pickup visit, and a box
+  reconciliation at the evening closing (D-094), the same way as kg. Admin: a "Caisses" page under Stock and a
+  box section on the client page.

@@ -18,8 +18,8 @@ _Last updated: 2026-10-12_
 - **The plan changed (2026-10-11, `docs/spec/client-meeting-2026-10-11.md`):** profit is computed and
   shared **per lot**, not per month (D-040); lot costs: day labour, employees at days × salary / 26,
   cold room per day, truck costs of the day split over the lots on board, rent and accountant "like a
-  salary" (D-041); a driver's truck is chosen per day (D-042). Q21 (rent split) and Q24 (truck-cost
-  split) are still provisional.
+  salary" (D-041); a driver's truck is chosen per day (D-042). Q21 (rent split over lots by kg, same as
+  the cold room) is confirmed 2026-10-13; Q24 (truck-cost split) is still provisional.
 - **How we work (2026-10-11):** Mahmoud lets agents open and merge PRs (green CI only) with `gh`;
   `.claude/settings.json` allows `gh pr merge`. Several agents work in parallel, each in its own
   worktree and branch; agents never edit this file, the orchestrator does. Decision numbers are handed
@@ -36,12 +36,14 @@ _Last updated: 2026-10-12_
    customers first and creating a customer on the phone (D-091); a truck sale should use the load's
    price (D-051); the running total on the sale screen uses the daily price, the receipt the server's.
 4. Other waves: P2-T07/T08/T09, P6-T04 to T07 (check `gh pr list` and `docs/phases/` for what landed).
+5. **P1-T14 returnable boxes** (D-124, Q26 answered 2026-10-13): count ledger, not kg. Design is in the phase
+   file; the build starts with the `BoxMovement` model and its service.
 
 ## Blockers / waiting on client
 
 - **P0-T02** (worked example) is not started; it is now **one real lot** worked out by hand with the
   owner (purchase, sales, each cost, partner share). Phase 6 has no target without it. D-031's
-  uncovered loss, Q21 and Q24 are provisional; P0-T02 should confirm them.
+  uncovered loss and Q24 are provisional; P0-T02 should confirm them. Q21 is confirmed.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
 - **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
   The CI deploy key logs in as `debian` (full sudo): a separate server or a server-side pull is advised.

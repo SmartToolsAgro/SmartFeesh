@@ -143,3 +143,16 @@ balance shows the invoice.
       order; received and remaining kg per line.
 - [x] Close an order whose rest will not come; cancel one nothing was received on.
 - [x] Screens: "Bons d'achat" tab (list, form, detail), "Recevoir" opens the BR form pre-filled with what remains.
+
+### P1-T14 · Returnable boxes (caisses) · M (added 2026-10-13, D-124, Q26)
+Boxes are a count ledger next to the kg stock, never products. Not started.
+- [ ] `BoxType` (small, big) and an append-only `BoxMovement` (organization, type, count, from, to, source document),
+      posted only through a service in a transaction (D-124).
+- [ ] Holders: locations (cold rooms, trucks), clients and suppliers. Movements: receive from a supplier, load to a
+      truck, leave at a client, collect from a client, return to a supplier, write off (lost or broken, with a reason).
+- [ ] Balances derived from the ledger: boxes per location, boxes held per client, boxes owed per supplier. Never
+      negative, the same rule as kg (D-006).
+- [ ] Admin "Caisses" page under Stock (balances and history) and a box section on the client page.
+- [ ] Goods receipt (BR) and transfers can carry a box count (optional, default 0).
+- [ ] Driver-app steps (count on loading, boxes left on a sale, boxes collected, closing reconciliation) are a
+      follow-up in Phase 3 once the ledger exists.

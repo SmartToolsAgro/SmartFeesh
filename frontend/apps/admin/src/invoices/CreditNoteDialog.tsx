@@ -14,6 +14,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
+import { lineTotal, subtract, toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { refreshAfterInvoice } from "./shared";
 
@@ -41,9 +42,12 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
         invoice.lines.forEach((line, index) => {
           const entry = entries[line.id];
           if (isEmpty(entry) || !entry) return;
-          const quantity = entry.quantity.trim() === "" ? null : parseDecimalInput(entry.quantity, 3);
-          const amount = entry.amount.trim() === "" ? null : parseDecimalInput(entry.amount, 3);
-          if ((entry.quantity.trim() !== "" && quantity === null) || (entry.amount.trim() !== "" && amount === null)) {
+          const hasQuantity = entry.quantity.trim() !== "";
+          const quantity = hasQuantity ? parseDecimalInput(entry.quantity, 3) : null;
+          // With kilos given, the server works out the amount itself (same proportion, exact rounding);
+          // the field only previews it. Without kilos, the typed amount is the correction itself.
+          const amount = hasQuantity ? null : entry.amount.trim() === "" ? null : parseDecimalInput(entry.amount, 3);
+          if ((hasQuantity && quantity === null) || (!hasQuantity && entry.amount.trim() !== "" && amount === null)) {
             found[`lines.${index}`] = t("admin.invoices.creditDialog.numberError");
             return;
           }
@@ -74,6 +78,15 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
   const setEntry = (id: number, patch: Partial<Entry>) =>
     setEntries((current) => ({ ...current, [id]: { quantity: "", amount: "", ...current[id], ...patch } }));
   const lineErrors = Object.entries(errors).filter(([key]) => key.startsWith("lines"));
+
+  /** What giving back `quantityText` kg of `line` is worth, at the price it was sold to this customer. */
+  const previewAmount = (line: InvoiceDetail["lines"][number], quantityText: string): string => {
+    const quantity = parseDecimalInput(quantityText, 3);
+    if (quantity === null) return "";
+    const exclLeft = subtract(line.amount_excl_tax, line.credited_amount_excl_tax);
+    const amount = lineTotal(quantity, line.unit_price_excl_tax);
+    return toThousandths(amount) > toThousandths(exclLeft) ? exclLeft : amount;
+  };
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -123,7 +136,10 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
                       id={`${formId}-q-${line.id}`}
                       inputMode="decimal"
                       value={entries[line.id]?.quantity ?? ""}
-                      onChange={(event) => setEntry(line.id, { quantity: event.target.value, amount: "" })}
+                      onChange={(event) => {
+                        const quantity = event.target.value;
+                        setEntry(line.id, { quantity, amount: previewAmount(line, quantity) });
+                      }}
                     />
                   </Field>
                   <Field
@@ -133,6 +149,7 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
                     <Input
                       id={`${formId}-a-${line.id}`}
                       inputMode="decimal"
+                      disabled={(entries[line.id]?.quantity ?? "").trim() !== ""}
                       value={entries[line.id]?.amount ?? ""}
                       onChange={(event) => setEntry(line.id, { amount: event.target.value, quantity: "" })}
                     />
