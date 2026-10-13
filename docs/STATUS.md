@@ -28,10 +28,15 @@ _Last updated: 2026-10-13_
 1. **Owner decisions still open:**
    - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
      (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
-   - Product codes on staging (D-126): the owner answered (ART0047 for "Maklouba rosé congelé M0", ART0055 unassigned).
-     The dry run and the apply are **not run yet**: the server access needed for them was not granted.
-     Dry run first, then apply after the owner approves the list.
-   - Staging check: no owner check yet of the closing fix (D-129) on a real phone.
+   - Product codes on staging (D-126): **done 2026-10-13.** 2 codes written (crevette royale, Calamar) and 36
+     products created from the owner's list, with no price, in the category "À classer". The owner sets their
+     prices on the price board and sorts them into categories.
+   - Driver day after the closing: the owner chose "sending the closing ends the day; a later sale needs a new day"
+     (branch `driver-day-history`, PR #114, being brought onto main: it must carry D-129, D-130 and D-133). The
+     other answer, "resend the same day" (`claude/bold-gates-b8j6yz`), is dropped: do not merge it.
+   - Staging check: no owner check yet of the closing fixes (D-129, D-130, D-133) on a real phone.
+   - Uncommitted work in the shared checkout: resolved 2026-10-13. Its code was already on main, its one
+     unfinished piece (Q21 confirmed) is merged (#111), and the checkout is back on `main`.
    - Done since the last update (answers recorded): truck expected boxes = real ledger balance (D-124 decision 2,
      built in #107); box actions offline (decision 3, #107); truck-to-cold-room return (decision 4, #107); supplier
      boxes must be returned, no schedule; boxes on a load stay a field on the load transfer (#106); "Frais" is a real
@@ -41,14 +46,15 @@ _Last updated: 2026-10-13_
 3. Phase 3 remaining, in this order: **P3-T07a to T07d** (offline), **P3-T09** Arabic, **P3-T10** printing.
 4. Phase 3 gaps (not yet tasks): an approved day should block more sales and expenses that day (D-094); a driver
    cannot collect a customer payment on the phone yet; recent customers first and creating a customer on the phone
-   (D-091); a truck sale should use the load's price (D-051); an offline sale is dated when it is sent, not when it
-   was made (D-130); the office's closing table does not show the opening stock or the gap yet (D-130).
+   (D-091); a truck sale should use the load's price (D-051); the office's closing table does not show the opening
+   stock or the gap yet (D-130); expenses, losses, payments and box pickups kept on the phone are still dated when
+   they are sent, and a driver cannot close a day that is over (D-133 dates sales only).
 5. Other waves: P2-T07/T08/T09, P6-T04 to T07 (check `gh pr list` and `docs/phases/` for what landed).
 
 ## Blockers / waiting on client
 
 - **P0-T02** (worked example) is not started; it is now **one real lot** worked out by hand with the owner.
-  Phase 6 has no target without it. D-031's uncovered loss, Q21 and Q24 are provisional.
+  Phase 6 has no target without it. D-031's uncovered loss and Q24 are provisional; Q21 is confirmed.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
 - **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
 - **TTN / El Fatoora is on hold** (D-016) although Q5 says it is required now.
@@ -81,23 +87,32 @@ _Last updated: 2026-10-13_
   logical CSS classes (D-025); token colours only (D-024); API calls through `@frutti/api`.
 - Stock changes only through `inventory.services.post_movement` or `post_fifo_movements` (D-035, D-037); never write
   `StockOnHand`. Nobody picks batches by hand except on the counter sale (D-121); take stock with `post_fifo_movements`.
-- Uncommitted work once sat in the shared checkout with no owner. It is saved on `origin/wip-snapshot-2026-10-13`,
-  not for merge: it no longer applies to `main`. Its owner should decide whether to rework or drop it.
+- `origin/wip-snapshot-2026-10-13` is a snapshot of old uncommitted work, kept for the record. Nothing in it is
+  missing from `main`: do not merge it.
+- CI runs on `ubuntu-24.04`, pinned (#115): `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19. Move on purpose.
 
 ## Last session (2026-10-13)
 
 Team-lead session. Merged to `main`: #92 (lot picker), #96 (sidebar), #97 and #98 (box steps 2 and 3), #99 (invoice
 PDF, D-125), #100 (box step 4), #101 (box docs, D-124), #102 (Arabic box texts, provisional), #103 (Frais and product
 codes, D-126), #105 (month-cost changes, D-128), #106 (boxes entered on a receipt and a load, D-127), #107 (box
-follow-up, decisions 2 to 4), #108 (closing after a sale, D-129). Open PRs: none. Staging runs of #100 passed.
-
-On branch `claude/bold-gates-b8j6yz` (not merged): bug fix from a staging report: a driver who sent the day, then was
-loaded again and kept selling, could not send the day again and the office saw stale figures. Now the day can be
-sent again when it changed after sending, and the office cannot approve it until then (D-132).
+follow-up, decisions 2 to 4), #108 (closing after a sale, D-129), #110 (opening stock and gap, D-130), #111 (Q21),
+#112 (document header and footer, D-131), #113 (sale dated when made, D-133), #115 (CI image pinned), #116 (create
+the missing articles). Open: #114 (driver day history, not ready). Every merge deployed to staging.
 
 ## Recently done
 
-- 2026-10-13 · D-132 a driver day worked on after sending is sent again; the office cannot approve stale figures.
+- 2026-10-13 · D-132 a driver day worked on after it was sent (a new load, more sales) can be sent again; the office
+  cannot approve it until then (staging report).
+- 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that
+  match no product (code, name, kg, category "À classer", no price). Applied on staging: 2 codes written, 36 created.
+- 2026-10-13 · D-131 every document (quote, delivery note, credit note, receipt, partner statement) uses the
+  invoice's header and footer, in PDFs and on screen (#112). A PDF already generated keeps its old layout until
+  its document or the logo changes.
+- 2026-10-13 · D-133 a driver's sale is dated when it was made (the phone sends the time, the server checks it): that
+  day's price and closing; refused in the future, on an approved day, or for kilos the truck did not hold that day.
+- 2026-10-13 · Q21 confirmed by the owner: general costs (rent, accountant) are split each day over the lots in
+  stock by kg held, the same way as the cold room. Docs only: the code already did this (P5-T05).
 - 2026-10-13 · Driver Clôture showed "vendu" above "chargé" (staging): the truck's opening stock was missing from the
   day; now shown per product with the gap, and a "Retour à Ma journée" button on every driver screen (D-130).
 - 2026-10-13 · D-129 driver closing after a sale: the closing says why sales wait (no connection, no answer, server

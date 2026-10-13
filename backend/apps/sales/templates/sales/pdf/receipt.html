@@ -1,17 +1,8 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
 {% block heading %}Reçu{% endblock %}
-{% block subtitle %}
-  <p class="muted num">Règlement du {{ payment.received_on|day }}</p>
-  {% if payment.voided_at %}<p class="banner">ANNULÉ</p>{% endif %}
-{% endblock %}
+{% block banner %}{% if payment.voided_at %}<p class="fa-cancelled"><span class="banner">ANNULÉ</span></p>{% endif %}{% endblock %}
 {% block body %}
 <div class="parties">
-  <div>
-    <h2>Reçu de</h2>
-    <p><b>{{ customer.name }}</b></p>
-    {% if customer.address or customer.city %}<p>{{ customer.address }}{% if customer.address and customer.city %}, {% endif %}{{ customer.city }}</p>{% endif %}
-    {% if customer.tax_id %}<p class="small muted">M.F. {{ customer.tax_id }}</p>{% endif %}
-  </div>
   <div>
     <h2>Paiement</h2>
     <p>{{ method_label }}{% if payment.reference %} · {{ payment.reference }}{% endif %}</p>

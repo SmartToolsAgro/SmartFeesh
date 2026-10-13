@@ -12,4 +12,5 @@ export interface QuoteCustomer {
   readonly address: string;
   readonly city: string;
   readonly tax_id: string;
+  readonly phone: string;
 }

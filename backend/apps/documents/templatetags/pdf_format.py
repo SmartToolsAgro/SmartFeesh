@@ -6,6 +6,7 @@ from typing import Any
 
 from django import template
 
+from ..services import unique_identifier
 from ..words import dinars_in_words
 
 register = template.Library()
@@ -91,3 +92,9 @@ def in_words(value: Any) -> str:
 def one_line(value: Any) -> str:
     """Text typed on several lines (an address) on one line: "Route Mahdia KM4 - 3011 Sfax"."""
     return " - ".join(part.strip() for part in str(value or "").splitlines() if part.strip())
+
+
+@register.filter
+def unique_id(value: Any) -> str:
+    """The "Identifiant unique" of a tax id (number and key letter), blank when it cannot be read."""
+    return unique_identifier(str(value or ""))

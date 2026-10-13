@@ -122,6 +122,25 @@ export const fr = {
       making: "Préparation…",
       failed: "Le PDF n'a pas pu être préparé. Réessayez dans un instant.",
       slow: "Le PDF tarde à venir. Réessayez dans un instant.",
+      // D-131 · the header and footer of the paper invoice, on every document shown in the app
+      frame: {
+        heading: "{{title}} N° {{number}}",
+        date: "Date",
+        client: "Client",
+        code: "Code {{label}}",
+        type: "Type",
+        address: "Adresse",
+        phone: "Téléphone",
+        tel: "Tél",
+        taxId: "MF",
+        uniqueId: "Identifiant Unique",
+        tradeRegister: "RC",
+        invoice: "Facture",
+        quote: "Devis",
+        deliveryNote: "Bon de livraison",
+        validUntil: "Valable jusqu'au {{date}}",
+        departure: "Au départ de {{location}}",
+      },
     },
     // P2-T11 · the "Documents" page (D-102)
     docHub: {
@@ -837,11 +856,8 @@ export const fr = {
         total: "Total HT",
       },
       detail: {
-        tagline: "Fruits de mer ultra-frais · Sakiet Ezzit, Sfax",
         title: "Devis {{number}}",
-        dated: "{{date}} · valable jusqu'au {{until}}",
         customer: "Client",
-        taxId: "MF {{taxId}}",
         product: "Désignation",
         quantity: "Qté",
         price: "P.U.",
@@ -3462,6 +3478,10 @@ export const fr = {
       waiting_other: "{{count}} envois attendent le réseau.",
       refused: "« {{what}} » refusé par le serveur : {{reason}}. Le bureau est prévenu.",
       understood: "Compris",
+    },
+    // A sale kept on the phone is dated when it was made (D-133).
+    lateSale: {
+      madeAt: "Vente faite le {{when}} : elle sera enregistrée à cette date, au prix de ce jour-là.",
     },
     payment: {
       add: "Encaisser un règlement",

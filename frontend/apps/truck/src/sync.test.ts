@@ -17,7 +17,9 @@ vi.mock("@frutti/api", async (importOriginal) => {
   };
 });
 
-vi.mock("./queue", () => ({
+vi.mock("./queue", async (importOriginal) => ({
+  // `madeAtOf` is a plain function: the real one is used.
+  ...(await importOriginal<typeof import("./queue")>()),
   listQueue: vi.fn(),
   markRefused: vi.fn(),
   markReported: vi.fn(),
@@ -106,6 +108,64 @@ test("a refusal by the server (day approved, 403) makes the sale refused, not pe
   );
   expect(removeQueued).not.toHaveBeenCalled();
   expect(reportSyncProblem).toHaveBeenCalledTimes(1);
+});
+
+test("a waiting sale is sent with the time it was made, not the time it is sent (D-133)", async () => {
+  const made = { ...sale("1"), createdAt: "2026-10-12T14:00:00.000Z" };
+  made.data = { ...made.data, sold_at: "2026-10-12T14:00:00.000Z" };
+  vi.mocked(listQueue).mockResolvedValue([made]);
+  vi.mocked(createSale).mockResolvedValue({} as never);
+  vi.useFakeTimers({ now: new Date("2026-10-13T07:30:00.000Z") });
+
+  await sendWaiting(queryClient);
+
+  expect(createSale).toHaveBeenCalledWith(
+    expect.objectContaining({ client_uuid: "1", sold_at: "2026-10-12T14:00:00.000Z" }),
+    expect.anything(),
+  );
+  expect(removeQueued).toHaveBeenCalledWith("1");
+});
+
+test("a sale kept by an earlier version of the app, without a time, takes the time it was put in the queue", async () => {
+  const old = { ...sale("1"), createdAt: "2026-10-12T16:45:00.000Z" };
+  expect(old.data.sold_at).toBeUndefined();
+  vi.mocked(listQueue).mockResolvedValue([old]);
+  vi.mocked(createSale).mockResolvedValue({} as never);
+
+  await sendWaiting(queryClient);
+
+  expect(createSale).toHaveBeenCalledWith(
+    expect.objectContaining({ client_uuid: "1", sold_at: "2026-10-12T16:45:00.000Z" }),
+    expect.anything(),
+  );
+});
+
+test("a sale of an earlier day the office approved (403) is refused and reported, it does not wait for ever", async () => {
+  const reason = "Votre journée du 12/10/2026 est approuvée par le bureau : elle est fermée, plus rien ne s'y ajoute.";
+  vi.mocked(listQueue).mockResolvedValue([sale("1"), sale("2")]);
+  vi.mocked(createSale)
+    .mockRejectedValueOnce(new ApiError(403, reason, { detail: reason }))
+    .mockResolvedValue({} as never);
+
+  await sendWaiting(queryClient);
+
+  expect(markRefused).toHaveBeenCalledWith(expect.objectContaining({ uuid: "1" }), reason);
+  expect(reportSyncProblem).toHaveBeenCalledWith({ kind: "sale", what: "Client test", reason, client_uuid: "1" });
+  // The next sale is still sent: one refusal does not block the queue.
+  expect(removeQueued).toHaveBeenCalledWith("2");
+  expect(getSyncProblem()).toBeNull();
+});
+
+test("a sale dated in the future by a wrong phone clock (400) is refused and reported with the server's words", async () => {
+  const reason = "Cette vente est datée dans le futur (14/10/2026 09:00) : vérifiez la date et l'heure du téléphone.";
+  vi.mocked(listQueue).mockResolvedValue([sale("1")]);
+  vi.mocked(createSale).mockRejectedValue(new ApiError(400, "Erreur 400", { sold_at: [reason] }));
+
+  await sendWaiting(queryClient);
+
+  expect(markRefused).toHaveBeenCalledWith(expect.objectContaining({ uuid: "1" }), reason);
+  expect(reportSyncProblem).toHaveBeenCalledTimes(1);
+  expect(removeQueued).not.toHaveBeenCalled();
 });
 
 test("a session that ended (401) keeps the sale pending, stops, and says the session ended", async () => {

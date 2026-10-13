@@ -246,3 +246,53 @@ def test_the_fifo_preview_with_a_day_ignores_later_batches(organization, product
     with pytest.raises(ValidationError):
         selectors.allocate_fifo(organization, quantity="11", day=day, **kwargs)
     assert len(selectors.allocate_fifo(organization, quantity="11", **kwargs)) == 2
+
+
+def test_what_a_place_has_held_since_a_day_is_the_least_of_its_day_ends(organization, actor, product, cold_room, truck):
+    """D-133: per lot, the lowest end-of-day balance from that day until now, by the date movements happened."""
+    today = timezone.localdate()
+
+    def moment(days_ago):
+        return timezone.make_aware(dt.datetime.combine(today - dt.timedelta(days=days_ago), dt.time(12, 0)))
+
+    kept = receive(organization, product, cold_room, "30", days_ago=5)
+    late = receive(organization, product, cold_room, "30", days_ago=5)
+    for batch, kg, days_ago, out in ((kept, "10", 3, False), (kept, "6", 2, True), (kept, "9", 0, False)):
+        services.post_movement(
+            organization=organization,
+            actor=actor,
+            kind=MovementKind.TRANSFER,
+            batch=batch,
+            quantity=kg,
+            from_location=truck if out else cold_room,
+            to_location=cold_room if out else truck,
+            occurred_at=moment(days_ago),
+        )
+    services.post_movement(
+        organization=organization,
+        actor=actor,
+        kind=MovementKind.TRANSFER,
+        batch=late,
+        quantity="5",
+        from_location=cold_room,
+        to_location=truck,
+    )
+
+    def held(days_ago):
+        day = today - dt.timedelta(days=days_ago)
+        return selectors.least_held_since(organization, location_id=truck.pk, product_id=product.pk, day=day)
+
+    # `kept`: 10 kg three days ago, 4 kg from two days ago, 13 kg today. `late` only came today.
+    assert held(4) == {kept.pk: Decimal("0.000"), late.pk: Decimal("0.000")}
+    assert held(3) == {kept.pk: Decimal("4.000"), late.pk: Decimal("0.000")}
+    assert held(1) == {kept.pk: Decimal("4.000"), late.pk: Decimal("0.000")}
+    assert held(0) == {kept.pk: Decimal("13.000"), late.pk: Decimal("5.000")}
+
+    # A movement dated three days ago may take those 4 kg and no more, and only with the check asked for.
+    asked = {"kind": MovementKind.SALE, "occurred_at": moment(3), "held_since_then": True}
+    with pytest.raises(ValidationError, match=r"n.a gardé que 4.000 kg de ce produit depuis le"):
+        take(organization, actor, product, "5", truck, **asked)
+    assert split(take(organization, actor, product, "4", truck, **asked)) == [(kept, Decimal("4.000"))]
+    assert held(3) == {kept.pk: Decimal("0.000"), late.pk: Decimal("0.000")}
+    # Today's kilos are still there for a movement of today.
+    assert sum(m.quantity for m in take(organization, actor, product, "14", truck, kind=MovementKind.SALE)) == 14

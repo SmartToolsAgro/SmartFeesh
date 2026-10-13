@@ -173,15 +173,25 @@ def closing_by_id(organization: Organization, closing_id: int) -> DayClosing:
     return closings_of(organization).get(pk=closing_id)
 
 
-def refuse_if_day_approved(membership: Membership) -> None:
-    """An approved day is locked (D-094): the driver can no longer sell, spend or report losses today."""
+def refuse_if_day_approved(membership: Membership, on: dt.date | None = None) -> None:
+    """An approved day is locked (D-094): the driver can no longer sell, spend or report losses today. With
+    `on`, the day asked about is that one: a sale made on an earlier day and sent later (D-133) is refused
+    when the office has already approved that day."""
+    today = timezone.localdate()
+    day = on or today
     approved = DayClosing.objects.for_organization(membership.organization).filter(
         driver_day__driver_id=membership.user_id,
-        driver_day__date=timezone.localdate(),
+        driver_day__date=day,
         status=DayClosingStatus.APPROVED,
     )
-    if approved.exists():
+    if not approved.exists():
+        return
+    if day == today:
         raise PermissionDenied(_("Votre journée est approuvée par le bureau : elle est fermée."))
+    raise PermissionDenied(
+        _("Votre journée du %(day)s est approuvée par le bureau : elle est fermée, plus rien ne s'y ajoute.")
+        % {"day": day.strftime("%d/%m/%Y")}
+    )
 
 
 def sync_problems_of(organization: Organization, *, open_only: bool = True) -> QuerySet[SyncProblem]:

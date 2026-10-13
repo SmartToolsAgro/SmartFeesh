@@ -26,6 +26,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
+import { useSeller } from "../lib/documentSeller";
 import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
 import { PdfButton } from "../lib/PdfButton";
@@ -68,6 +70,7 @@ export function SaleDetailPage() {
   const id = Number(saleId);
   const validId = Number.isInteger(id) && id > 0;
   const sale = useGetSale(id, { query: { enabled: validId, retry: false } });
+  const seller = useSeller(session);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState("");
@@ -208,6 +211,15 @@ export function SaleDetailPage() {
 
       <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start gap-4 max-[1000px]:grid-cols-1">
         <Card aria-label={t("admin.sales.detail.title", { number: data.number })} role="region">
+          <DocumentHeader
+            seller={seller}
+            logoUrl={session.organization.logo_url}
+            title={t("admin.documents.frame.deliveryNote")}
+            number={data.number}
+            date={data.sold_at}
+            party={data.customer}
+            meta={<p>{t("admin.documents.frame.departure", { location: data.location.name })}</p>}
+          />
           <CardTitle>{t("admin.sales.detail.lines")}</CardTitle>
           <Table>
             <thead>
@@ -302,6 +314,7 @@ export function SaleDetailPage() {
           {data.notes && (
             <p className="mt-4 border-t border-line pt-3 text-[0.9rem] whitespace-pre-line">{data.notes}</p>
           )}
+          <DocumentFooter seller={seller} />
         </Card>
 
         <Card>

@@ -1,5 +1,6 @@
 # Runs on every push and pull request. Locally: `make lint` and `make test` run the same checks.
 # Actions are pinned to a commit (D-012); the comment gives the release it belongs to.
+# The runner image is pinned as well: `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19. Change it on purpose, on a branch.
 name: CI
 
 on:
@@ -16,7 +17,7 @@ concurrency:
 jobs:
   backend:
     name: Backend (lint, types, tests)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -61,7 +62,7 @@ jobs:
 
   frontend:
     name: Frontend (lint, types, tests, build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -90,7 +91,7 @@ jobs:
 
   api-contract:
     name: Generated API client is up to date
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DJANGO_SETTINGS_MODULE: config.settings.test
     steps:
@@ -123,7 +124,7 @@ jobs:
 
   e2e:
     name: End-to-end (login in both apps)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine
@@ -171,7 +172,7 @@ jobs:
     # Only after every check passed, only for main. Stays skipped until the secrets below exist.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [backend, frontend, api-contract, e2e]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: deploy-staging
       cancel-in-progress: false

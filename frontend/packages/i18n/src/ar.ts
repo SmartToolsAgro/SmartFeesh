@@ -134,6 +134,9 @@ export const ar: PartialTranslation = {
       refused: "رفض الخادم « {{what}} »: {{reason}}. تم إعلام المكتب.",
       understood: "فهمت",
     },
+    lateSale: {
+      madeAt: "تم البيع يوم {{when}}: سيُسجَّل بهذا التاريخ وبسعر ذلك اليوم.",
+    },
     boxes: {
       small: "الصناديق الصغيرة",
       big: "الصناديق الكبيرة",
