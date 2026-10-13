@@ -3243,7 +3243,7 @@ paths:
     put:
       operationId: uploadMyAvatar
       description: A user's own photo, shown in the topbar. Nobody but the user themselves
-        may change it (D-122).
+        may change it (D-123).
       tags:
       - me
       requestBody:
@@ -3266,7 +3266,7 @@ paths:
     delete:
       operationId: removeMyAvatar
       description: A user's own photo, shown in the topbar. Nobody but the user themselves
-        may change it (D-122).
+        may change it (D-123).
       tags:
       - me
       security:
@@ -3278,7 +3278,7 @@ paths:
     post:
       operationId: changeMyPassword
       description: A user changes their own password; the old one proves it is really
-        them (no email reset exists, D-122).
+        them (no email reset exists, D-123).
       tags:
       - me
       requestBody:
@@ -3329,7 +3329,7 @@ paths:
     get:
       operationId: listMembers
       description: Users of the organization and their roles, and adding a new one.
-        Owner only (D-122).
+        Owner only (D-123).
       tags:
       - members
       security:
@@ -3346,7 +3346,7 @@ paths:
     post:
       operationId: createMember
       description: Users of the organization and their roles, and adding a new one.
-        Owner only (D-122).
+        Owner only (D-123).
       tags:
       - members
       requestBody:
@@ -3414,7 +3414,7 @@ paths:
     post:
       operationId: resetMemberPassword
       description: The owner types a new password for someone else (shown once); no
-        email or SMS reset exists (D-122).
+        email or SMS reset exists (D-123).
       parameters:
       - in: path
         name: member_id

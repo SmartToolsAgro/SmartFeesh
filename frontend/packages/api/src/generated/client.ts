@@ -10290,7 +10290,7 @@ export const getUploadMyAvatarUrl = () => {
 }
 
 /**
- * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-122).
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
  */
 export const uploadMyAvatar = async (profilePhotoUpload: ProfilePhotoUpload, options?: Parameters<typeof apiFetch>[1]): Promise<Session> => {
     const formData = new FormData();
@@ -10363,7 +10363,7 @@ export const getRemoveMyAvatarUrl = () => {
 }
 
 /**
- * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-122).
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
  */
 export const removeMyAvatar = async ( options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
 
@@ -10434,7 +10434,7 @@ export const getChangeMyPasswordUrl = () => {
 }
 
 /**
- * A user changes their own password; the old one proves it is really them (no email reset exists, D-122).
+ * A user changes their own password; the old one proves it is really them (no email reset exists, D-123).
  */
 export const changeMyPassword = async (changePassword: ChangePassword, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
 
@@ -10604,7 +10604,7 @@ export const getListMembersUrl = () => {
 }
 
 /**
- * Users of the organization and their roles, and adding a new one. Owner only (D-122).
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
  */
 export const listMembers = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Member[]> => {
 
@@ -10702,7 +10702,7 @@ export const getCreateMemberUrl = () => {
 }
 
 /**
- * Users of the organization and their roles, and adding a new one. Owner only (D-122).
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
  */
 export const createMember = async (memberCreate: MemberCreate, options?: Parameters<typeof apiFetch>[1]): Promise<Member> => {
 
@@ -10923,7 +10923,7 @@ export const getResetMemberPasswordUrl = (memberId: number,) => {
 }
 
 /**
- * The owner types a new password for someone else (shown once); no email or SMS reset exists (D-122).
+ * The owner types a new password for someone else (shown once); no email or SMS reset exists (D-123).
  */
 export const resetMemberPassword = async (memberId: number,
     memberPasswordReset: MemberPasswordReset, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {

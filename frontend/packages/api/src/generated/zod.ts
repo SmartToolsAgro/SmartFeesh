@@ -6033,7 +6033,7 @@ export const SetLanguageResponse = zod.object({
 
 
 /**
- * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-122).
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
  */
 export const UploadMyAvatarBody = zod.object({
   "photo": zod.instanceof(Blob)
@@ -6065,13 +6065,13 @@ export const UploadMyAvatarResponse = zod.object({
 
 
 /**
- * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-122).
+ * A user's own photo, shown in the topbar. Nobody but the user themselves may change it (D-123).
  */
 export const RemoveMyAvatarResponse = zod.void()
 
 
 /**
- * A user changes their own password; the old one proves it is really them (no email reset exists, D-122).
+ * A user changes their own password; the old one proves it is really them (no email reset exists, D-123).
  */
 export const changeMyPasswordBodyOldPasswordMax = 128;
 
@@ -6127,7 +6127,7 @@ export const UpdateMyProfileResponse = zod.object({
 
 
 /**
- * Users of the organization and their roles, and adding a new one. Owner only (D-122).
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
  */
 export const ListMembersResponseItem = zod.object({
   "id": zod.int(),
@@ -6147,7 +6147,7 @@ export const ListMembersResponse = zod.array(ListMembersResponseItem)
 
 
 /**
- * Users of the organization and their roles, and adding a new one. Owner only (D-122).
+ * Users of the organization and their roles, and adding a new one. Owner only (D-123).
  */
 export const createMemberBodyUsernameMax = 150;
 
@@ -6230,7 +6230,7 @@ export const ReactivateMemberResponse = zod.object({
 
 
 /**
- * The owner types a new password for someone else (shown once); no email or SMS reset exists (D-122).
+ * The owner types a new password for someone else (shown once); no email or SMS reset exists (D-123).
  */
 export const ResetMemberPasswordParams = zod.object({
   "member_id": zod.int()
