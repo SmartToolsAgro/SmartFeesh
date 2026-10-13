@@ -1720,3 +1720,16 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - A send gives up after 25 s (`SEND_TIMEOUT_MS`, `sync.ts`), so one hung request no longer blocks every later sync until the page is reloaded.
 - 408, 429, 502, 503 and 504 keep the item pending (the server is busy, it did not refuse the item). Other 4xx and 500 still make it refused and reported to the office. 401 keeps it pending and reports the ended session.
 - Backend: a sale the server already has under the same `client_uuid` is answered 201 with that sale, checked before the day-approved check, so a retry after approval is not refused as a new sale. A new sale on an approved day is still 403 (D-094).
+
+**D-130 · A truck's day starts from what it held, not from today's loads (bug on staging, 2026-10-13)** · accepted · 2026-10-13
+- Cause: the driver's Clôture showed "vendu" above "chargé" (Crevette 109 sold, 100 loaded). Nothing was oversold:
+  the ledger never goes below zero (`post_fifo_movements` refuses, DB check `on_hand_never_negative`). The kilos
+  sold had stayed on the truck from an earlier day, and `truck_day` only counts today's validated transfers.
+- `inventory.selectors.location_stock_before`: what a location held at the start of the day, from the ledger
+  (movements dated before it). `day_summary` shows it per product as `opening`.
+- `unexplained` = left (ledger) - (opening + loaded - returned - sold - lost). It is never clamped: a gap is shown in
+  red with "prévenez le bureau" (stock out or in without a sale, loss or transfer of this driver).
+- Historical ledger rows and closing snapshots are not changed; old snapshots simply lack the two new fields.
+- Driver screens other than Ma journée get a "Retour à Ma journée" button under their content (`BackToDay`).
+- Not changed (open): an offline sale is dated when it is sent (`sold_at` is the server's moment for a driver),
+  so a sale made yesterday and sent today counts as today's sale and its price is today's.

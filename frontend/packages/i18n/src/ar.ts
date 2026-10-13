@@ -153,8 +153,8 @@ export const ar: PartialTranslation = {
       pickupAnother: "استرجاع آخر",
       pickupNone: "أدخل صندوقًا واحدًا على الأقل.",
       pickupFailed: "تعذّر تسجيل الاسترجاع. أعد المحاولة.",
-      back: "الرجوع إلى يومي",
     },
+    backToDay: "الرجوع إلى يومي",
     payment: {
       add: "استلام أموال من حريف",
       who: "من يعطيك المال؟",
@@ -188,6 +188,8 @@ export const ar: PartialTranslation = {
       lost: "الضائع",
       returned: "المُرجَع",
       left: "المتبقي",
+      stockOpening: "عند الانطلاق",
+      unexplained: "فرق {{kg}}: مخزون الشاحنة لا يطابق مبيعات اليوم وخسائره وتحميلاته. أخبر المكتب.",
       counted: "المبلغ الذي عددته في الصندوق (د.ت)",
       gap: "الفرق مع المبلغ المنتظر: {{amount}}",
       note: "كلمة للمكتب (اختياري)",

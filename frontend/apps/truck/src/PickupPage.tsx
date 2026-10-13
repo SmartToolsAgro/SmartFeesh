@@ -4,7 +4,6 @@ import { useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router";
 
 import { BoxCountInputs } from "./BoxCountInputs";
 import { boxCountsOf, hasBoxes, type BoxInputs, NO_BOXES } from "./boxes";
@@ -46,9 +45,6 @@ export function PickupPage() {
         </Card>
         <Button size="lg" variant="primary" className="py-4 text-lg" onClick={() => setOutcome(null)}>
           {t("truck.boxes.pickupAnother")}
-        </Button>
-        <Button asChild size="lg" className="py-4 text-lg">
-          <Link to="/">{t("truck.boxes.back")}</Link>
         </Button>
       </div>
     );

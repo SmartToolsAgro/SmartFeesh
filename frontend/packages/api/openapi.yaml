@@ -10283,6 +10283,11 @@ components:
         product_name:
           type: string
           readOnly: true
+        opening:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
         loaded:
           type: string
           format: decimal
@@ -10308,14 +10313,21 @@ components:
           format: decimal
           pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
           readOnly: true
+        unexplained:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - loaded
       - lost
+      - opening
       - product_id
       - product_name
       - remaining
       - returned
       - sold
+      - unexplained
     DaySummary:
       type: object
       properties:

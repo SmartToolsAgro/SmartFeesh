@@ -67,22 +67,30 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         if loss.lost_on == day:
             names[loss.product_id] = loss.product.name
             lost[loss.product_id] = lost.get(loss.product_id, ZERO) + loss.quantity
+    opening: dict[int, Decimal] = {}
+    for stock in inventory.location_stock_before(organization, location_id=location_id, day=day):
+        names[stock["product_id"]] = stock["product__name"]
+        opening[stock["product_id"]] = stock["quantity"]
     remaining: dict[int, Decimal] = {}
     for stock in inventory.location_stock(organization, location_id=location_id):
         names[stock["product_id"]] = stock["product__name"]
         remaining[stock["product_id"]] = stock["quantity"]
-    products = [
-        {
+    products: list[dict[str, Any]] = []
+    for product_id, name in sorted(names.items(), key=lambda item: item[1]):
+        figures: dict[str, Any] = {
             "product_id": product_id,
             "product_name": name,
+            "opening": opening.get(product_id, ZERO),
             "loaded": loaded.get(product_id, ZERO),
             "sold": sold.get(product_id, ZERO),
             "lost": lost.get(product_id, ZERO),
             "returned": returned.get(product_id, ZERO),
             "remaining": remaining.get(product_id, ZERO),
         }
-        for product_id, name in sorted(names.items(), key=lambda item: item[1])
-    ]
+        # What the day's records say should be left, against the ledger: a gap is stock that moved without a
+        # sale, loss or transfer of this driver (another seller, a hand adjustment, a cancelled sale...).
+        left = figures["opening"] + figures["loaded"] - figures["returned"] - figures["sold"] - figures["lost"]
+        products.append({**figures, "unexplained": figures["remaining"] - left})
     driver = driver_day.driver
     return {
         "date": day,
