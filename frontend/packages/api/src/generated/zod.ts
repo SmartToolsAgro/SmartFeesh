@@ -11352,7 +11352,11 @@ export const ListSalesResponse = zod.object({
  * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
  * who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
  * Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
- * day, at the present moment.
+ * day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
+ * day's price, also when it was kept without connection and sent later. Within 5 minutes of the
+ * server's clock the server's own time is used; further in the future is refused (400), as is a day the
+ * office has approved or a truck the driver did not have that day (403), and stock the truck has not
+ * held since that day (400).
  */
 export const createSaleBodyPaidInFullDefault = false;
 export const createSaleBodyPaymentMethodDefault = ``;

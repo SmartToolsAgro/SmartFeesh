@@ -493,6 +493,33 @@ DELIVERY_NOTE_PREFIX = "BL"
 CLOCK_MARGIN = dt.timedelta(minutes=5)
 
 
+def moment_from_phone(made_at: dt.datetime | None) -> dt.datetime | None:
+    """When a driver's sale is dated, from the time their phone says it was made (D-133). The phone is not
+    trusted: the time is checked here, and the day it falls on is checked by the caller (the driver's truck
+    that day, a day the office has not approved).
+
+    Nothing sent, or a time within `CLOCK_MARGIN` of the server's clock, before or after: None, the sale is
+    made now and the server's own clock dates it, so a phone a little fast or slow changes nothing. Further
+    in the future: refused (`sold_at`). Earlier: that time, for a sale kept on the phone without connection
+    and sent later.
+    """
+    if made_at is None:
+        return None
+    now = timezone.now()
+    if made_at > now + CLOCK_MARGIN:
+        raise ValidationError(
+            {
+                "sold_at": _(
+                    "Cette vente est datée dans le futur (%(when)s) : vérifiez la date et l'heure du téléphone."
+                )
+                % {"when": date_format(timezone.localtime(made_at), "d/m/Y H:i")}
+            }
+        )
+    if made_at >= now - CLOCK_MARGIN:
+        return None
+    return made_at
+
+
 class SaleLineFields(TypedDict, total=False):
     product: "Product"
     quantity: Number
@@ -733,12 +760,14 @@ def create_sale(
     quote: Quote | None = None,
     typed_source: str = PriceSource.TYPED,
     boxes: Mapping[str, object] | None = None,
+    stock_held_since: bool = False,
 ) -> Sale:
     """Type a sale as a draft; with `confirm`, also confirm it (one transaction: a refusal leaves nothing).
 
     No customer means the walk-in customer (a counter sale, D-047). A line without a price takes what the
     customer is charged at `sold_at` (now by default), kept on the line. A `client_uuid` already used
-    returns that sale.
+    returns that sale. `stock_held_since` is for a sale whose `sold_at` comes from a driver's phone (D-133):
+    see `confirm_sale`.
     """
     if client_uuid is not None:
         existing = Sale.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
@@ -764,7 +793,7 @@ def create_sale(
     _write_sale_boxes(sale, box_counts)
     audit.record(organization=organization, actor=actor, action="sale.created", target=sale, after=_sale_snapshot(sale))
     if confirm:
-        return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
+        return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit, stock_held_since=stock_held_since)
     return sale
 
 
@@ -987,12 +1016,14 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
     return [*parts, amount - sum(parts, Decimal("0.000"))]
 
 
-def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
+def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_since: bool = False) -> None:
     """Take the line's kilos out of the sale's place and keep which batches went.
 
     Oldest batch first (FIFO, the default) unless a lot was picked by hand (D-121): that lot is then taken
     from first and, if it is not enough, the rest still comes from the other lots, oldest first — stock
-    never goes negative. The till warns beforehand when the picked lot looks short.
+    never goes negative. The till warns beforehand when the picked lot looks short. The movements are dated
+    at the sale's moment; with `stock_held_since`, a sale of an earlier day takes only kilos the place has
+    held since that day (D-133).
     """
     movements = inventory.post_fifo_movements(
         organization=sale.organization,
@@ -1005,6 +1036,7 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
         source=line,
         occurred_at=sale.sold_at,
         prefer_batch_id=line.requested_batch_id,
+        held_since_then=stock_held_since,
     )
     revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
     rows = [
@@ -1025,14 +1057,21 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None) -> None:
 
 
 @transaction.atomic
-def confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool = False) -> Sale:
+def confirm_sale(
+    *, sale: Sale, actor: User | None, approve_credit: bool = False, stock_held_since: bool = False
+) -> Sale:
     """Confirm a draft, or leave it pending when the customer's credit limit asks for approval (D-062).
 
     Above the limit under the "approval" policy the sale stays a draft marked `pending`, and the owner or a
-    manager confirms it with `approve_credit`. Everything else is `_confirm_sale`."""
+    manager confirms it with `approve_credit`. Everything else is `_confirm_sale`.
+
+    `stock_held_since` (a driver's sale dated by their phone, D-133): when the sale is dated on an earlier
+    day, each line takes only kilos its place has held since that day, and is refused otherwise."""
     try:
         with transaction.atomic():
-            return _confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
+            return _confirm_sale(
+                sale=sale, actor=actor, approve_credit=approve_credit, stock_held_since=stock_held_since
+            )
     except CreditApprovalRequired as required:
         pending = _locked_draft_sale(sale)
         pending.credit_status = CreditStatus.PENDING
@@ -1048,7 +1087,7 @@ def confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool = False
         return pending
 
 
-def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool) -> Sale:
+def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock_held_since: bool = False) -> Sale:
     """The goods leave the stock and the customer owes what was not paid, all in one transaction.
 
     Each line's kilos leave the sale's place oldest batch first (D-037); the line keeps which batches went,
@@ -1071,7 +1110,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool) -> Sa
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
-            _post_line(sale, line, actor)
+            _post_line(sale, line, actor, stock_held_since=stock_held_since)
         except ValidationError as error:
             # The line's own savepoint is rolled back; the other lines are still checked, then all is refused.
             for field, messages in getattr(error, "message_dict", {"lines": error.messages}).items():

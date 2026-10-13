@@ -61,6 +61,8 @@ small line says how many things are waiting to be sent.
       receipt until sent.
 - [x] Offline, the sale screen uses the last downloaded stock and customers; stock of the truck is
       reduced locally per queued sale so the driver cannot sell more than the truck holds.
+- [x] (D-133) A sale is dated when it was made, not when it is sent: the phone sends the time, the server checks
+      it (not in the future, a day not approved, the driver's truck and its stock of that day).
 
 #### P3-T07c · Queue for expenses, losses and closing · S
 - [x] (returning the unsold stock still needs signal) Same queue for expenses (with the photo kept locally), losses and the day closing.

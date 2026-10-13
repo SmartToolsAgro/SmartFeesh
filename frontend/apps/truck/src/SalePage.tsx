@@ -8,7 +8,7 @@ import {
   useListMyStock,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatDateTime, formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -16,7 +16,7 @@ import { useState } from "react";
 import { BoxCountInputs } from "./BoxCountInputs";
 import { boxCountsOf, type BoxInputs, NO_BOXES } from "./boxes";
 import { messagesOf } from "./messages";
-import { enqueue, pendingKilos, type QueuedSale, useQueue } from "./queue";
+import { enqueue, madeAtOf, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
 
@@ -83,9 +83,13 @@ export function SalePage() {
   const confirm = async () => {
     if (paidValue === null || tooMuch || overstock || boxCounts === null) return;
     setError("");
+    // The moment of the sale by the phone's clock (D-133). It goes with the sale, sent now or kept for later, so a
+    // sale made without connection keeps its own date and price; the server checks it.
+    const madeAt = new Date().toISOString();
     const data = {
       customer: customer.is_walk_in ? null : customer.id,
       location: truck.location_id,
+      sold_at: madeAt,
       confirm_now: true,
       client_uuid: uuid,
       amount_paid: paidValue,
@@ -96,7 +100,7 @@ export function SalePage() {
     const waiting = (): QueuedSale => ({
       kind: "sale",
       uuid,
-      createdAt: new Date().toISOString(),
+      createdAt: madeAt,
       label: customer.name,
       data,
       estimate: {
@@ -341,6 +345,7 @@ function QueuedReceipt({ sale, onNew }: { sale: QueuedSale; onNew: () => void })
       <Card className="space-y-3">
         <p className="text-xl font-bold">{t("truck.sale.keptOnPhone")}</p>
         <p className="text-ink-2">{t("truck.sale.keptOnPhoneBody")}</p>
+        <p className="text-ink-2">{t("truck.lateSale.madeAt", { when: formatDateTime(madeAtOf(sale)) })}</p>
         <p className="text-ink-2">{sale.label}</p>
         <ul className="divide-y divide-line">
           {sale.estimate.lines.map((line) => (
