@@ -278,6 +278,7 @@ export const fr = {
       sales: "Commercial",
       goods: "Marchandise",
       finance: "Finances",
+      admin: "Administration",
     },
     nav: {
       dashboard: "Tableau de bord",
