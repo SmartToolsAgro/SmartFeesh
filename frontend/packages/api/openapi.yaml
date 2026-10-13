@@ -20177,7 +20177,13 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
       required:
+      - boxes
       - confirmed_at
       - confirmed_by
       - created_at

@@ -13289,7 +13289,8 @@ export const CreateTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13348,7 +13349,8 @@ export const GetTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13429,7 +13431,8 @@ export const UpdateTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13488,7 +13491,8 @@ export const CancelTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13548,7 +13552,8 @@ export const ValidateTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 

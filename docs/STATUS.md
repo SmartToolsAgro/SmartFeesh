@@ -25,6 +25,9 @@ _Last updated: 2026-10-13_
 
 ## Next step (do this first)
 
+0. **Box entry in admin (D-127, branch `fix-admin-box-entry`):** the receipt and load forms now take box counts, and
+   the empty Caisses page links to them. Still open: an opening balance for boxes already out (decide the design first).
+
 1. **Owner decisions needed** (none of these is built; the box session is on hold until they are answered):
    - Returnable boxes, D-124 decisions 2 to 4: truck "expected boxes" as the real ledger balance; box actions in the
      driver offline queue; a truck-to-cold-room "return" movement.
