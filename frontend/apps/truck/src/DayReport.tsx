@@ -27,8 +27,16 @@ function stockOf(product: DayProduct): { opening?: string; unexplained?: string 
   return { opening: kept.opening, unexplained: kept.unexplained };
 }
 
+/** The cash counted at the sends a new load undid: it is with the office (D-134). A day sent before the figure
+ * existed has none in its kept figures. */
+function handedOverOf(summary: DaySummary): string | null {
+  const kept: Partial<Pick<DaySummary, "handed_over">> = summary;
+  return kept.handed_over !== undefined && Number(kept.handed_over) !== 0 ? kept.handed_over : null;
+}
+
 function Figures({ summary }: { summary: DaySummary }) {
   const { t } = useTranslation();
+  const handedOver = handedOverOf(summary);
   return (
     <>
       <Card className="space-y-2">
@@ -44,6 +52,7 @@ function Figures({ summary }: { summary: DaySummary }) {
         <Row label={t("truck.closing.credit")} value={formatMoney(summary.on_credit)} />
         <Row label={t("truck.closing.expenses")} value={formatMoney(summary.expenses_total)} />
         <Row label={t("truck.closing.opening")} value={formatMoney(summary.opening_cash)} />
+        {handedOver === null ? null : <Row label={t("truck.closing.handedOver")} value={formatMoney(handedOver)} />}
         <Row label={t("truck.closing.expected")} value={formatMoney(summary.expected_cash)} strong />
       </Card>
       {summary.products.length === 0 ? null : (
@@ -81,7 +90,8 @@ function Figures({ summary }: { summary: DaySummary }) {
 
 /** A driver's day in a few lines, its closing state, and the form to send it while it can be sent: the "Clôture"
  * screen for the day of now, the history for an earlier one (D-134). Both wait for what the phone still has to
- * send, say why it waits and let the driver retry (D-129). */
+ * send, say why it waits and let the driver retry (D-129). A sent day is sent again when the office asked, when
+ * a new load reopened it, or when its records changed since the send (D-132). */
 export function DayReport({
   data,
   sending,
@@ -114,7 +124,9 @@ export function DayReport({
     }
   };
   const { summary, closing } = data;
-  const locked = closing?.status === "submitted" || closing?.status === "approved";
+  const changed = closing?.status === "submitted" && closing.changed_since_sent;
+  const locked = closing?.status === "approved" || (closing?.status === "submitted" && !changed);
+  const handedOver = handedOverOf(summary);
   const countedValue = parseDecimalInput(counted.trim(), 3);
   const gap = countedValue === null ? null : (millimes(countedValue) - millimes(summary.expected_cash)) / 1000;
   const gate = closingGate({ queue, online, countedReady: countedValue !== null, busy: sending });
@@ -138,7 +150,7 @@ export function DayReport({
           <p className="text-xl font-bold">{t("truck.closing.approved")}</p>
           <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
         </Card>
-      ) : closing?.status === "submitted" ? (
+      ) : closing?.status === "submitted" && !changed ? (
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.sent")}</p>
           <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
@@ -146,9 +158,16 @@ export function DayReport({
       ) : null}
       {locked ? null : (
         <Card className="space-y-4">
-          {closing?.status === "justification" ? (
+          {closing?.status === "reopened" ? (
+            <p className="font-semibold text-warn">{t("truck.closing.reopened")}</p>
+          ) : null}
+          {changed ? <p className="font-semibold text-warn">{t("truck.closing.changed")}</p> : null}
+          {closing !== null && closing.status !== "submitted" && closing.review_note !== "" ? (
             <p className="font-semibold text-bad">{t("truck.closing.asked", { reason: closing.review_note })}</p>
           ) : null}
+          {handedOver === null ? null : (
+            <p className="text-ink-2">{t("truck.closing.handedOverHint", { amount: formatMoney(handedOver) })}</p>
+          )}
           <div className="space-y-1">
             <label htmlFor="counted-cash" className="font-semibold">
               {t("truck.closing.counted")}

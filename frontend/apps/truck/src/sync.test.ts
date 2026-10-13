@@ -157,7 +157,7 @@ test("a sale of an earlier day the office approved (403) is refused and reported
 });
 
 test("a sale made after the day was sent (403, D-134) ends refused and reported, never pending", async () => {
-  const reason = "Votre journée est clôturée : commencez une nouvelle journée.";
+  const reason = "Votre journée est clôturée : elle rouvre quand le bureau recharge votre camion.";
   vi.mocked(listQueue).mockResolvedValue([sale("1"), sale("2")]);
   vi.mocked(createSale)
     .mockRejectedValueOnce(new ApiError(403, reason, { detail: reason }))

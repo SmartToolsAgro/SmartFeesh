@@ -84,6 +84,7 @@ export * from './dayLabourerWrite';
 export * from './dayLabourLabourer';
 export * from './dayLabourWrite';
 export * from './dayProduct';
+export * from './dayReopening';
 export * from './daySummary';
 export * from './differenceLine';
 export * from './documentList';

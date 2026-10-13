@@ -13,7 +13,7 @@ def end_closed_days(apps, schema_editor):  # type: ignore[no-untyped-def]
 class Migration(migrations.Migration):
     dependencies = [
         ("dayclose", "0002_sync_problems"),
-        ("fleet", "0004_driver_day_number"),
+        ("fleet", "0004_driver_day_ended_at"),
     ]
 
     operations = [migrations.RunPython(end_closed_days, migrations.RunPython.noop)]

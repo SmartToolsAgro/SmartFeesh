@@ -12,7 +12,6 @@ import type { DayClosingState } from './dayClosingState';
 export interface MyDayRow {
   readonly id: number;
   readonly date: string;
-  readonly number: number;
   readonly truck_name: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly opening_cash: string;

@@ -115,12 +115,13 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
       ? loadedToday.map((line) => ({ ...line, quantity: line.loaded }))
       : (stock.data ?? []).filter((line) => Number(line.quantity) > 0);
   const running = day.data !== undefined && day.data.ended_at === null;
-  // The day's closing was sent: the driver may start another one the same date (D-134).
+  // The day's closing was sent: it is closed until the office loads the truck again (D-134).
   const ended = day.data !== undefined && day.data.ended_at !== null;
   const cashValue = parseDecimalInput(cash.trim(), 3);
   // A day the office asked about waits in the history for the driver's answer.
   const days = useListMyDays({ query: { retry: false } });
   const asked = days.data?.find((row) => row.closing?.status === "justification");
+  const reopened = days.data?.find((row) => row.id === day.data?.id)?.closing?.status === "reopened";
 
   return (
     <div className="space-y-4">
@@ -174,21 +175,21 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
       </Button>
       {day.isLoading ? null : running ? (
         <Card>
-          <p className="text-lg font-semibold">
-            {day.data.number > 1
-              ? t("truck.history.startedNumber", { number: day.data.number })
-              : t("truck.day.started")}
-          </p>
+          <p className="text-lg font-semibold">{t(reopened ? "truck.history.reopened" : "truck.day.started")}</p>
           <p className="text-ink-2">{t("truck.day.cashAtStart", { amount: formatMoney(day.data.opening_cash) })}</p>
+        </Card>
+      ) : ended ? (
+        <Card className="space-y-3">
+          <div>
+            <p className="text-lg font-semibold">{t("truck.history.ended")}</p>
+            <p className="text-ink-2">{t("truck.history.endedBody")}</p>
+          </div>
+          <Button size="lg" className="py-4 text-lg" onClick={() => void queryClient.invalidateQueries()}>
+            {t("truck.history.refresh")}
+          </Button>
         </Card>
       ) : (
         <Card className="space-y-3">
-          {ended ? (
-            <div>
-              <p className="text-lg font-semibold">{t("truck.history.ended")}</p>
-              <p className="text-ink-2">{t("truck.history.endedBody")}</p>
-            </div>
-          ) : null}
           <Field label={t("truck.day.cashLabel")} htmlFor="opening-cash">
             <Input
               id="opening-cash"
@@ -205,7 +206,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
             disabled={cashValue === null || open.isPending}
             onClick={() => cashValue !== null && open.mutate({ data: { opening_cash: cashValue } })}
           >
-            {t(ended ? "truck.history.startAnother" : "truck.day.start")}
+            {t("truck.day.start")}
           </Button>
         </Card>
       )}

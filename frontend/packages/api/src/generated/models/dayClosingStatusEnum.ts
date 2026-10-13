@@ -9,6 +9,7 @@
  * * `submitted` - À vérifier
  * * `justification` - Justification demandée
  * * `approved` - Approuvée
+ * * `reopened` - Rouverte
  */
 export type DayClosingStatusEnum = typeof DayClosingStatusEnum[keyof typeof DayClosingStatusEnum];
 
@@ -17,4 +18,5 @@ export const DayClosingStatusEnum = {
   submitted: 'submitted',
   justification: 'justification',
   approved: 'approved',
+  reopened: 'reopened',
 } as const;

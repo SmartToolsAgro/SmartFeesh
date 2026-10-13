@@ -102,13 +102,12 @@ def truck_ref_of_driver(membership: Membership) -> TruckRef | None:
 
 
 def driver_day_of(membership: Membership, on: date_type | None = None) -> DriverDay | None:
-    """The last day this driver opened on that date (today by default), if any: the running one, or the last
-    one closed when they have not started another (D-134)."""
+    """The day this driver opened on that date (today by default), if any: running, or closed once its
+    closing is sent (D-134)."""
     return (
         DriverDay.objects.for_organization(membership.organization)
         .select_related("truck__location")
         .filter(driver_id=membership.user_id, date=on or timezone.localdate())
-        .order_by("-number")
         .first()
     )
 
@@ -119,47 +118,43 @@ def driver_days_of(organization: Organization, *, driver_id: int) -> QuerySet[Dr
         DriverDay.objects.for_organization(organization)
         .filter(driver_id=driver_id)
         .select_related("truck__location", "driver")
-        .order_by("-date", "-number")
+        .order_by("-date", "-id")
     )
-
-
-def driver_days_on(membership: Membership, on: date_type) -> list[DriverDay]:
-    """The days this driver opened on one date, in the order they were opened (1, 2...)."""
-    return list(
-        DriverDay.objects.for_organization(membership.organization)
-        .filter(driver_id=membership.user_id, date=on)
-        .order_by("number")
-    )
-
-
-def day_covering(days: list[DriverDay], moment: datetime) -> DriverDay | None:
-    """Among a driver's days of one date (in order), the one a moment of that date falls in (D-134): the first
-    that had not ended yet at that moment. None when every day had already ended: the closing was sent and no
-    other day was started."""
-    return next((day for day in days if day.ended_at is None or moment < day.ended_at), None)
 
 
 def day_window(driver_day: DriverDay) -> tuple[datetime, datetime]:
-    """The moments a driver's day covers, `start` included and `end` excluded (D-134). It starts when the
-    driver's day before it on the same date ended, or with the date (local midnight) for the first one. It ends
-    when its closing was first sent, and at the latest with the date: a day left running, or closed on a later
-    date from the history, still covers its own date only."""
+    """The moments a driver's day covers, `start` included and `end` excluded (D-134): its date, up to the
+    moment its closing was sent. A day that runs (not sent yet, or opened again by a new load), or one closed
+    on a later date from the history, covers its whole date and no more."""
     midnight = timezone.make_aware(datetime.combine(driver_day.date, time.min))
     next_midnight = timezone.make_aware(datetime.combine(driver_day.date + timedelta(days=1), time.min))
-    previous = (
-        DriverDay.objects.filter(
-            organization_id=driver_day.organization_id,
-            driver_id=driver_day.driver_id,
-            date=driver_day.date,
-            number__lt=driver_day.number,
-        )
-        .order_by("-number")
-        .values_list("ended_at", flat=True)
-        .first()
-    )
-    start = midnight if previous is None else min(max(previous, midnight), next_midnight)
     end = next_midnight if driver_day.ended_at is None else min(driver_day.ended_at, next_midnight)
-    return start, max(start, end)
+    return midnight, max(midnight, end)
+
+
+def closed_days_on_truck(organization: Organization, *, location_id: int, on: date_type) -> list[DriverDay]:
+    """The days of one date whose closing was sent, on the truck of this location, by a driver who still has
+    that truck that date: the days a new load opens again (D-134). A driver moved to another truck since, or
+    who is no longer a driver, keeps their day closed."""
+    days = list(
+        DriverDay.objects.for_organization(organization)
+        .filter(truck__location_id=location_id, date=on, ended_at__isnull=False)
+        .select_related("truck__location", "driver")
+        .order_by("id")
+    )
+    drivers = {
+        membership.user_id: membership
+        for membership in Membership.objects.filter(
+            organization=organization, user_id__in=[day.driver_id for day in days], role=Role.DRIVER, is_active=True
+        )
+    }
+    still_theirs = []
+    for day in days:
+        membership = drivers.get(day.driver_id)
+        truck = truck_of_driver(membership, on) if membership is not None else None
+        if truck is not None and truck.pk == day.truck_id:
+            still_theirs.append(day)
+    return still_theirs
 
 
 def locked_driver_day(driver_day: DriverDay) -> DriverDay:

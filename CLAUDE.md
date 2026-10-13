@@ -37,6 +37,7 @@ dinars (DT) with 3 decimals.
 - Every business table has an `organization` foreign key (multi-company ready).
 - Permissions are enforced **on the server**. Hiding a button is not security.
 - Issued invoices, approved closings and posted movements are immutable; corrections are new records.
+  One exception: a new load reopens a driver's day closing, also an approved one; the undone send is kept (D-134).
 - Supplier payables, invested capital, and profit shares are **three separate balances**.
 
 ## Commands

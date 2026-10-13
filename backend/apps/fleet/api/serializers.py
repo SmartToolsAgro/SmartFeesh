@@ -91,7 +91,7 @@ class DriverDaySerializer(serializers.ModelSerializer[DriverDay]):
 
     class Meta:
         model = DriverDay
-        fields = ("id", "date", "number", "truck_name", "opening_cash", "ended_at")
+        fields = ("id", "date", "truck_name", "opening_cash", "ended_at")
         read_only_fields = fields
 
 

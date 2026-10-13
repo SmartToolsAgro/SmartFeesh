@@ -1027,12 +1027,14 @@ paths:
           - submitted
           - justification
           - approved
+          - reopened
           type: string
           minLength: 1
         description: |-
           * `submitted` - À vérifier
           * `justification` - Justification demandée
           * `approved` - Approuvée
+          * `reopened` - Rouverte
       tags:
       - day-closings
       security:
@@ -1070,7 +1072,9 @@ paths:
   /api/v1/day-closings/{closing_id}/approve:
     post:
       operationId: approveDayClosing
-      description: 'Approve the day (owner or manager): it is locked.'
+      description: |-
+        Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
+        records changed since the send: the driver sends it again first.
       parameters:
       - in: path
         name: closing_id
@@ -3814,8 +3818,9 @@ paths:
           description: ''
     post:
       operationId: openMyDay
-      description: Start the day on the driver's truck of the day, with the cash they
-        start with.
+      description: |-
+        Start the day on the driver's truck of the day, with the cash they start with. One day per date:
+        asking again returns it unchanged, also once its closing is sent.
       tags:
       - my-day
       requestBody:
@@ -3843,8 +3848,9 @@ paths:
     post:
       operationId: closeMyDay
       description: |-
-        Send the end of the day with the cash counted and an optional note. Sent again only after the office
-        asked for a justification.
+        Send the end of the day with the cash counted and an optional note: the day is closed until a load
+        validated that date opens it again. Sent again after the office asked for a justification, after such
+        a load, or when the day's records changed since the send.
       tags:
       - my-day-closing
       requestBody:
@@ -7563,7 +7569,8 @@ paths:
       operationId: validateTransfer
       description: |-
         Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
-        too little (on `lines.<index>.quantity`) or for a day still to come.
+        too little (on `lines.<index>.quantity`) or for a day still to come. A load of today into a truck
+        whose driver already sent the day opens that day again.
       parameters:
       - in: path
         name: transfer_id
@@ -10075,9 +10082,6 @@ components:
           type: string
           format: date
           readOnly: true
-        number:
-          type: integer
-          readOnly: true
         truck_name:
           type: string
           readOnly: true
@@ -10125,12 +10129,21 @@ components:
           allOf:
           - $ref: '#/components/schemas/DaySummary'
           readOnly: true
+        reopenings:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayReopening'
+          readOnly: true
         changes_since_sent:
           type: array
           items:
             $ref: '#/components/schemas/ChangedFigure'
           readOnly: true
+        changed_since_sent:
+          type: boolean
+          readOnly: true
       required:
+      - changed_since_sent
       - changes_since_sent
       - counted_cash
       - date
@@ -10139,7 +10152,7 @@ components:
       - driver_note
       - expected_cash
       - id
-      - number
+      - reopenings
       - review_note
       - reviewed_at
       - reviewed_by_name
@@ -10156,9 +10169,6 @@ components:
         date:
           type: string
           format: date
-          readOnly: true
-        number:
-          type: integer
           readOnly: true
         truck_name:
           type: string
@@ -10192,7 +10202,6 @@ components:
       - driver_name
       - expected_cash
       - id
-      - number
       - status
       - truck_name
     DayClosingState:
@@ -10231,7 +10240,11 @@ components:
           type: string
           format: date-time
           readOnly: true
+        changed_since_sent:
+          type: boolean
+          readOnly: true
       required:
+      - changed_since_sent
       - counted_cash
       - difference
       - driver_note
@@ -10245,11 +10258,13 @@ components:
       - submitted
       - justification
       - approved
+      - reopened
       type: string
       description: |-
         * `submitted` - À vérifier
         * `justification` - Justification demandée
         * `approved` - Approuvée
+        * `reopened` - Rouverte
     DayClosingWrite:
       type: object
       properties:
@@ -10477,6 +10492,63 @@ components:
       - returned
       - sold
       - unexplained
+    DayReopening:
+      type: object
+      description: 'A send that a new load undid (D-134), as it was: its cash was
+        handed to the office.'
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_by_name:
+          type: string
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reopened_at:
+          type: string
+          format: date-time
+          readOnly: true
+        load_number:
+          type: string
+          readOnly: true
+      required:
+      - counted_cash
+      - difference
+      - driver_note
+      - expected_cash
+      - load_number
+      - reopened_at
+      - reviewed_at
+      - reviewed_by_name
+      - status
+      - submitted_at
     DaySummary:
       type: object
       properties:
@@ -10528,6 +10600,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        handed_over:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         expected_cash:
           type: string
           format: decimal
@@ -10544,6 +10621,7 @@ components:
       - driver_name
       - expected_cash
       - expenses_total
+      - handed_over
       - on_credit
       - opening_cash
       - other_payments
@@ -10727,9 +10805,6 @@ components:
           type: string
           format: date
           readOnly: true
-        number:
-          type: integer
-          readOnly: true
         truck_name:
           type: string
           readOnly: true
@@ -10747,7 +10822,6 @@ components:
       - date
       - ended_at
       - id
-      - number
       - opening_cash
       - truck_name
     DriverDayOpen:
@@ -14388,9 +14462,6 @@ components:
           type: string
           format: date
           readOnly: true
-        number:
-          type: integer
-          readOnly: true
         truck_name:
           type: string
           readOnly: true
@@ -14414,7 +14485,6 @@ components:
       - date
       - ended_at
       - id
-      - number
       - opening_cash
       - truck_name
     MyDaySummary:

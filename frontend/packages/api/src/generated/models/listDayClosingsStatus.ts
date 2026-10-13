@@ -12,4 +12,5 @@ export const ListDayClosingsStatus = {
   submitted: 'submitted',
   justification: 'justification',
   approved: 'approved',
+  reopened: 'reopened',
 } as const;

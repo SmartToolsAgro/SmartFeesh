@@ -63,8 +63,9 @@ class MyDayClosingView(APIView):
         operation_id="closeMyDay", request=DayClosingWriteSerializer, responses={201: MyDaySummarySerializer}
     )
     def post(self, request: Request) -> Response:
-        """Send the end of the day with the cash counted and an optional note. Sent again only after the office
-        asked for a justification."""
+        """Send the end of the day with the cash counted and an optional note: the day is closed until a load
+        validated that date opens it again. Sent again after the office asked for a justification, after such
+        a load, or when the day's records changed since the send."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         serializer = DayClosingWriteSerializer(data=request.data)
@@ -184,7 +185,8 @@ class DayClosingDetailView(DayClosingView):
 class DayClosingApproveView(DayClosingView):
     @extend_schema(operation_id="approveDayClosing", request=None, responses=DayClosingDetailSerializer)
     def post(self, request: Request, closing_id: int) -> Response:
-        """Approve the day (owner or manager): it is locked."""
+        """Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
+        records changed since the send: the driver sends it again first."""
         services.approve_day_closing(closing=self.closing(closing_id), actor=self.membership.user)
         return self.answer(closing_id)
 

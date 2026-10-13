@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import PermissionDenied
@@ -16,7 +16,7 @@ from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
 
-from .models import DayClosing, DayClosingStatus, SyncProblem
+from .models import DayClosing, DayClosingStatus, DayReopening, SyncProblem
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
@@ -26,15 +26,17 @@ ZERO = Decimal("0.000")
 
 def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """The figures of one driver's day on its truck, computed from the records, over the day's own window
-    (`fleet.day_window`, D-134): a driver who starts a second day on the same date splits the date.
+    (`fleet.day_window`, D-134): its date, up to the moment the closing was sent.
 
-    A sale counts on the day that covers the moment it was made (`sold_at`, D-133), also when it reached the
-    server later. Customer payments and road expenses count when they were recorded (they are dated when they
-    are sent). The stock is read from the ledger on one clock (`occurred_at`): what the truck held when the day
+    A sale counts when it was made inside the window (`sold_at`, D-133), also when it reached the server
+    later. Customer payments and road expenses count when they were recorded (they are dated when they are
+    sent). The stock is read from the ledger on one clock (`occurred_at`): what the truck held when the day
     started (`opening`), what was loaded, returned and lost during it, and what it held when it ended
     (`remaining`; while the day runs, what it holds now). So opening + loaded - returned - sold - lost is what
-    is left, for a first day and for a second day of the same date, and `unexplained` is only stock that moved
-    without a sale of this driver, a loss or a transfer."""
+    is left, and `unexplained` is only stock that moved without a sale of this driver, a loss or a transfer.
+
+    `handed_over` is the cash counted at the sends a new load undid (`DayReopening`): it went to the office, so
+    `expected_cash` is what the driver should hold now, not the day's whole cash."""
     day = driver_day.date
     location_id = driver_day.truck.location_id
     start, end = fleet.day_window(driver_day)
@@ -118,6 +120,7 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         left = figures["opening"] + figures["loaded"] - figures["returned"] - figures["sold"] - figures["lost"]
         products.append({**figures, "unexplained": figures["remaining"] - left})
     driver = driver_day.driver
+    handed_over = handed_over_of(driver_day)
     return {
         "date": day,
         "truck_name": driver_day.truck.location.name,
@@ -130,9 +133,19 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         "other_payments": paid - cash + payments_other,
         "on_credit": sum((s.amount_due for s in day_sales), ZERO),
         "expenses_total": spent,
-        "expected_cash": driver_day.opening_cash + cash + payments_cash - spent,
+        "handed_over": handed_over,
+        "expected_cash": driver_day.opening_cash + cash + payments_cash - spent - handed_over,
         "products": products,
     }
+
+
+def handed_over_of(driver_day: "DriverDay") -> Decimal:
+    """The cash the driver already gave the office that day: what was counted at each send that a new load
+    undid (D-134)."""
+    total: Decimal | None = DayReopening.objects.filter(closing__driver_day=driver_day).aggregate(
+        total=Sum("counted_cash")
+    )["total"]
+    return total if total is not None else ZERO
 
 
 def closing_of(driver_day: "DriverDay") -> DayClosing | None:
@@ -141,10 +154,14 @@ def closing_of(driver_day: "DriverDay") -> DayClosing | None:
 
 def day_answer(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """A driver's day as the phone shows it: the figures as sent once the closing is sent (they do not move,
-    D-134), the day's records before. When the office asked for a justification the driver is about to send
-    again, so the records are shown: they are what the new send will keep."""
+    D-134), the day's records before. The records are shown again whenever the driver is about to send again,
+    since they are what the new send will keep: the office asked for a justification, a new load reopened the
+    day, or the records no longer say what was sent (D-132)."""
     closing = closing_of(driver_day)
-    as_sent = closing is not None and closing.status != DayClosingStatus.JUSTIFICATION
+    as_sent = closing is not None and (
+        closing.status == DayClosingStatus.APPROVED
+        or (closing.status == DayClosingStatus.SUBMITTED and not changed_since_sent(closing))
+    )
     summary = closing.summary if closing is not None and as_sent else day_summary(organization, driver_day)
     return {"summary": summary, "closing": closing}
 
@@ -171,9 +188,10 @@ def changes_since_sent(closing: DayClosing) -> list[dict[str, Any]]:
     A sent closing never changes by itself. A sale made before it was sent and received after it (D-133) is
     still recorded on that day while the office has not approved it, as is anything the office corrects
     afterwards (an expense rejected, a sale cancelled): the snapshot keeps what was sent and this list shows
-    the office the difference before it approves. Empty when nothing moved, and for an approved closing, which
-    is locked. A figure the snapshot does not have (an older closing) is not compared."""
-    if closing.status == DayClosingStatus.APPROVED:
+    the office the difference. Empty when nothing moved, for an approved closing, which is locked, and for a
+    reopened day, whose send is undone. A figure the snapshot does not have (an older closing) is not
+    compared."""
+    if closing.status in (DayClosingStatus.APPROVED, DayClosingStatus.REOPENED):
         return []
     sent: dict[str, Any] = closing.summary
     live = day_summary(closing.organization, closing.driver_day)
@@ -217,6 +235,7 @@ def closings_of(
     rows = (
         DayClosing.objects.for_organization(organization)
         .select_related("driver_day__truck__location", "driver_day__driver", "reviewed_by")
+        .prefetch_related("reopenings__reviewed_by", "reopenings__load")
         .order_by("-submitted_at", "-id")
     )
     if status:
@@ -239,36 +258,39 @@ def closing_by_id(organization: Organization, closing_id: int) -> DayClosing:
     return closings_of(organization).get(pk=closing_id)
 
 
+def _closed_day() -> PermissionDenied:
+    return PermissionDenied(_("Votre journée est clôturée : elle rouvre quand le bureau recharge votre camion."))
+
+
 def refuse_if_day_closed(membership: Membership) -> None:
     """Once the driver sent the closing, the day is over (D-134, replaces D-109): nothing more is spent, lost,
-    returned or collected on it. The driver starts another day first. (A sale has its own check, on the moment
-    it was made: `refuse_sale_outside_day`.)"""
+    returned or collected on it, until a load validated that date opens it again. (A sale has its own check,
+    on the moment it was made: `refuse_sale_outside_day`.)"""
     driver_day = fleet.driver_day_of(membership)
     if driver_day is not None and driver_day.ended_at is not None:
-        raise PermissionDenied(_("Votre journée est clôturée : commencez une nouvelle journée."))
+        raise _closed_day()
 
 
 def refuse_sale_outside_day(membership: Membership, made_at: dt.datetime | None = None) -> None:
     """Whether a driver's sale may still be recorded, from the moment it was made (now by default; `made_at`
-    is the phone's time once checked, D-133) and the driver's days of that date (D-134).
+    is the phone's time once checked, D-133) and the driver's day of that date (D-134).
 
-    The sale belongs to the day that covers that moment. Refused with 403 when:
-    - every day of that date had already ended at that moment: the sale was made after the closing was sent,
-      and the driver must start a new day first;
-    - the day it belongs to is approved by the office (D-094): nothing is added to it.
+    Refused with 403 when:
+    - the day had already ended at that moment: the sale was made after the closing was sent, and only a load
+      validated that date opens the day again;
+    - the day is approved by the office (D-094): nothing is added to it.
     A day sent but not approved still takes a sale made before it was sent: the figures the driver sent stay
-    as sent, and the office sees that the day's records have changed since (`changes_since_sent`).
+    as sent, and the office waits for the day sent again (`changes_since_sent`, D-132).
     No day started on that date: accepted, the sale belongs to no closing (D-133)."""
     moment = made_at or timezone.now()
     today = timezone.localdate()
     day = timezone.localtime(moment).date()
-    days = fleet.driver_days_on(membership, day)
-    if not days:
-        return
-    driver_day = fleet.day_covering(days, moment)
+    driver_day = fleet.driver_day_of(membership, day)
     if driver_day is None:
+        return
+    if driver_day.ended_at is not None and moment >= driver_day.ended_at:
         if day == today:
-            raise PermissionDenied(_("Votre journée est clôturée : commencez une nouvelle journée."))
+            raise _closed_day()
         raise PermissionDenied(
             _(
                 "Votre journée du %(day)s était déjà clôturée quand cette vente a été faite : "
@@ -299,9 +321,14 @@ def sync_problem_by_id(organization: Organization, problem_id: int) -> SyncProbl
     return sync_problems_of(organization, open_only=False).get(pk=problem_id)
 
 
+# A closing the office has nothing to do on: checked already, or running again until its driver sends it.
+_NOT_WITH_THE_OFFICE = (DayClosingStatus.APPROVED, DayClosingStatus.REOPENED)
+
+
 def waiting_for_office(organization: Organization) -> int:
-    """Driver days sent by the driver (or sent again with a note) and not approved yet."""
-    return closings_of(organization).exclude(status=DayClosingStatus.APPROVED).count()
+    """Driver days sent by the driver (or sent again with a note) and not approved yet. A day a new load
+    reopened waits for its driver, not for the office."""
+    return closings_of(organization).exclude(status__in=_NOT_WITH_THE_OFFICE).count()
 
 
 # ---- Alert for the owner's dashboard (P7-T07, D-114) ----
@@ -318,10 +345,11 @@ class CashDifference:
 
 def unexplained_cash_differences(organization: Organization) -> list[CashDifference]:
     """Driver days not approved yet whose counted cash is not what the records say and that nobody explained:
-    the driver left no note, or the office asked for a justification and has not got it. Newest first."""
+    the driver left no note, or the office asked for a justification and has not got it. Newest first. Not a
+    reopened day: its difference is that of the send a new load undid, and its next count is still to come."""
     rows = (
         closings_of(organization)
-        .exclude(status=DayClosingStatus.APPROVED)
+        .exclude(status__in=_NOT_WITH_THE_OFFICE)
         .exclude(difference=0)
         .filter(Q(driver_note="") | Q(status=DayClosingStatus.JUSTIFICATION))
         .order_by("-driver_day__date", "-id")

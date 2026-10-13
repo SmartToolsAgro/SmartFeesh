@@ -44,7 +44,8 @@ const product = {
   unexplained: "0.000",
 };
 
-function day(products: object[], closing: MyDaySummary["closing"] = null): MyDaySummary {
+/** A day's answer; `figures` overrides or adds figures (a day kept before a figure existed has none of it). */
+function day(products: object[], closing: MyDaySummary["closing"] = null, figures: object = {}): MyDaySummary {
   return {
     summary: {
       date: "2026-10-13",
@@ -60,9 +61,10 @@ function day(products: object[], closing: MyDaySummary["closing"] = null): MyDay
       expenses_total: "0.000",
       expected_cash: "76.000",
       products,
+      ...figures,
     },
     closing,
-  } as MyDaySummary;
+  } as unknown as MyDaySummary;
 }
 
 function markup(data: MyDaySummary): string {
@@ -81,7 +83,7 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-test("a second day of the same date shows what the truck held when it started, and no gap (D-130)", () => {
+test("a day shows what the truck held when it started, and no gap when the records explain it (D-130)", () => {
   const html = markup(day([product]));
 
   expect(html).toMatch(/Au départ 7,000\skg/);
@@ -158,4 +160,41 @@ test("a day already sent shows no form and no waiting notice", () => {
   expect(html).toContain("Journée envoyée au bureau");
   expect(html).not.toContain("Envoyer ma journée au bureau");
   expect(html).not.toContain("pas encore parti");
+});
+
+const sentClosing = {
+  id: 1,
+  status: "submitted",
+  expected_cash: "76.000",
+  counted_cash: "76.000",
+  difference: "0.000",
+  driver_note: "",
+  review_note: "",
+  submitted_at: "2026-10-13T12:00:00Z",
+  changed_since_sent: false,
+} as NonNullable<MyDaySummary["closing"]>;
+
+test("a day a new load reopened is counted and sent again, less the cash already handed over (D-134)", () => {
+  const reopened = { ...sentClosing, status: "reopened" as const };
+
+  const html = markup(day([product], reopened, { handed_over: "76.000", expected_cash: "28.000" }));
+
+  expect(html).toContain("Journée rouverte : le camion a été rechargé");
+  expect(html).toMatch(/Déjà remis au bureau<\/span><span>76,000\sDT/);
+  expect(html).toContain("comptez seulement l&#x27;argent que vous avez maintenant");
+  expect(html).toContain("Envoyer ma journée au bureau");
+  expect(html).not.toContain("Journée envoyée au bureau");
+});
+
+test("a day never reopened shows no cash handed over", () => {
+  expect(markup(day([product], null, { handed_over: "0.000" }))).not.toContain("Déjà remis au bureau");
+  // A day sent before the figure existed has none in its kept figures.
+  expect(markup(day([product], sentClosing))).not.toContain("Déjà remis au bureau");
+});
+
+test("a sent day whose records changed since is counted and sent again (D-132)", () => {
+  const html = markup(day([product], { ...sentClosing, changed_since_sent: true }));
+
+  expect(html).toContain("Les chiffres de la journée ont changé depuis l&#x27;envoi");
+  expect(html).toContain("Envoyer ma journée au bureau");
 });

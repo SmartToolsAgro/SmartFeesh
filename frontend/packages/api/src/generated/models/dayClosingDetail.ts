@@ -6,12 +6,12 @@
  */
 import type { ChangedFigure } from './changedFigure';
 import type { DayClosingStatusEnum } from './dayClosingStatusEnum';
+import type { DayReopening } from './dayReopening';
 import type { DaySummary } from './daySummary';
 
 export interface DayClosingDetail {
   readonly id: number;
   readonly date: string;
-  readonly number: number;
   readonly truck_name: string;
   readonly driver_name: string;
   readonly status: DayClosingStatusEnum;
@@ -28,5 +28,7 @@ export interface DayClosingDetail {
   readonly reviewed_at: string | null;
   readonly reviewed_by_name: string;
   readonly summary: DaySummary;
+  readonly reopenings: readonly DayReopening[];
   readonly changes_since_sent: readonly ChangedFigure[];
+  readonly changed_since_sent: boolean;
 }

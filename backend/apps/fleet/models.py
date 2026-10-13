@@ -55,31 +55,23 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
 class DriverDay(OrganizationScopedModel, TimeStampedModel):
     """A driver's working day on a truck, opened from the phone with the cash float in hand (P3-T01).
 
-    Sending the closing ends it; the driver may then start another one the same date (D-134), numbered 1, 2...
-    Each one covers the date from the end of the one before (or the start of the date) to its own end
-    (`selectors.day_window`); a sale counts on the day that covers the moment it was made.
+    One per driver and date. Sending the closing ends it (D-134): it covers its date up to that moment
+    (`selectors.day_window`) and takes nothing made after it, until a load validated that date opens it again.
     """
 
     truck = models.ForeignKey(Truck, on_delete=models.PROTECT, related_name="driver_days")
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="driver_days")
     date = models.DateField()
-    # 1 for the first day the driver opened on that date, 2 for the one after its closing...
-    number = models.PositiveSmallIntegerField(default=1)
     # Cash the driver starts the day with (millimes).
     opening_cash = models.DecimalField(max_digits=14, decimal_places=3, default=0)
-    # When the driver first sent the closing; null while the day is running.
+    # When the driver sent the closing; null while the day is running, and again once a new load reopened it.
     ended_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["-date", "-number", "id"]
+        ordering = ["-date", "id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["organization", "driver", "date", "number"], name="driver_day_number_unique"
-            ),
-            models.UniqueConstraint(
-                fields=["organization", "driver", "date"],
-                condition=models.Q(ended_at__isnull=True),
-                name="one_running_driver_day_per_driver",
+                fields=["organization", "driver", "date"], name="one_driver_day_per_driver_per_day"
             ),
             models.CheckConstraint(condition=models.Q(opening_cash__gte=0), name="driver_day_cash_not_negative"),
         ]

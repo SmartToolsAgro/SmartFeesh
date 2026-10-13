@@ -14,6 +14,7 @@ search?: string;
  * * `submitted` - À vérifier
  * * `justification` - Justification demandée
  * * `approved` - Approuvée
+ * * `reopened` - Rouverte
  * @minLength 1
  */
 status?: ListDayClosingsStatus;

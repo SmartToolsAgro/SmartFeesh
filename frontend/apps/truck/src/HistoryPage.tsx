@@ -8,19 +8,15 @@ import { Link, useParams } from "react-router";
 import { DayReport } from "./DayReport";
 import { sendError } from "./sendError";
 
-const TONES = { submitted: "text-warn", justification: "text-bad", approved: "text-good" } as const;
+const TONES = {
+  submitted: "text-warn",
+  justification: "text-bad",
+  reopened: "text-warn",
+  approved: "text-good",
+} as const;
 
 function signed(value: string): string {
   return `${Number(value) > 0 ? "+" : ""}${formatMoney(value)}`;
-}
-
-/** "Journée 2 · 13/10/2026", or just the date when it was the only day of that date. */
-function useDayTitle() {
-  const { t } = useTranslation();
-  return (row: { date: string; number: number }) =>
-    row.number > 1
-      ? t("truck.history.dayNumber", { number: row.number, date: formatDate(row.date) })
-      : formatDate(row.date);
 }
 
 function DayStatus({ row }: { row: MyDayRow }) {
@@ -41,7 +37,6 @@ function DayStatus({ row }: { row: MyDayRow }) {
 export function HistoryPage() {
   const { t } = useTranslation();
   const days = useListMyDays({ query: { retry: false } });
-  const title = useDayTitle();
   if (days.isLoading) return null;
   const rows = days.data ?? [];
   if (rows.length === 0) {
@@ -58,7 +53,7 @@ export function HistoryPage() {
         <Link key={row.id} to={`/historique/${row.id}`} className="block">
           <Card className="space-y-1">
             <p className="flex items-baseline justify-between gap-3">
-              <span className="text-lg font-bold">{title(row)}</span>
+              <span className="text-lg font-bold">{formatDate(row.date)}</span>
               <DayStatus row={row} />
             </p>
             <p className="text-sm text-ink-2">{row.truck_name}</p>
@@ -77,8 +72,8 @@ export function HistoryPage() {
   );
 }
 
-// One day of the history: its figures as sent, and the form when the office asked for a justification or the day
-// was never sent.
+// One day of the history: its figures as sent, and the form when the day is to send: never sent, asked about by
+// the office, reopened by a new load, or changed since the send.
 export function HistoryDayPage() {
   const { t } = useTranslation();
   const { dayId } = useParams();
@@ -86,7 +81,6 @@ export function HistoryDayPage() {
   const queryClient = useQueryClient();
   const day = useGetMyPastDay(id, { query: { retry: false, enabled: Number.isInteger(id) } });
   const days = useListMyDays({ query: { retry: false } });
-  const title = useDayTitle();
   const [error, setError] = useState("");
   const send = useCloseMyPastDay({
     mutation: {
@@ -105,7 +99,7 @@ export function HistoryDayPage() {
       </Button>
       {row === undefined ? null : (
         <div>
-          <h2>{title(row)}</h2>
+          <h2>{formatDate(row.date)}</h2>
           <p className="text-ink-2">{row.truck_name}</p>
         </div>
       )}

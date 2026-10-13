@@ -3747,7 +3747,8 @@ export const getApproveDayClosingUrl = (closingId: number,) => {
 }
 
 /**
- * Approve the day (owner or manager): it is locked.
+ * Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
+ * records changed since the send: the driver sends it again first.
  */
 export const approveDayClosing = async (closingId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
 
@@ -12139,7 +12140,8 @@ export const getOpenMyDayUrl = () => {
 }
 
 /**
- * Start the day on the driver's truck of the day, with the cash they start with.
+ * Start the day on the driver's truck of the day, with the cash they start with. One day per date:
+ * asking again returns it unchanged, also once its closing is sent.
  */
 export const openMyDay = async (driverDayOpen: DriverDayOpen, options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
 
@@ -12224,8 +12226,9 @@ export const getCloseMyDayUrl = () => {
 }
 
 /**
- * Send the end of the day with the cash counted and an optional note. Sent again only after the office
- * asked for a justification.
+ * Send the end of the day with the cash counted and an optional note: the day is closed until a load
+ * validated that date opens it again. Sent again after the office asked for a justification, after such
+ * a load, or when the day's records changed since the send.
  */
 export const closeMyDay = async (dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
 
@@ -24262,7 +24265,8 @@ export const getValidateTransferUrl = (transferId: number,) => {
 
 /**
  * Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
- * too little (on `lines.<index>.quantity`) or for a day still to come.
+ * too little (on `lines.<index>.quantity`) or for a day still to come. A load of today into a truck
+ * whose driver already sent the day opens that day again.
  */
 export const validateTransfer = async (transferId: number, options?: Parameters<typeof apiFetch>[1]): Promise<TransferDetail> => {
 
