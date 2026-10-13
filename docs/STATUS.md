@@ -87,6 +87,8 @@ because Q26 is the CNSS question. Staging deploy of #100 passed.
 
 ## Recently done
 
+- 2026-10-13 · D-127 editing a monthly cost template updates its generated months not yet approved; the
+  month screen refreshes after expense changes.
 - 2026-10-13 · P1-T14 returnable boxes, steps 1 to 4 (D-124): ledger and service (#95), receipt and transfer
   hooks (#97), admin "Caisses" page (#98), driver sale with boxes, pickups and day view (#100).
 - 2026-10-13 · D-125 invoice PDF in the client's paper layout; uploaded logo on PDFs, admin and driver headers and

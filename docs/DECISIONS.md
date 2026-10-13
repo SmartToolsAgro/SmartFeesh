@@ -1693,3 +1693,11 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   were both "Maklouba rosé congelé M0"). It must be run on the server.
 - Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
   stays unassigned.
+
+**D-127 · Editing a monthly cost template updates its months not yet approved (owner report)** · accepted · 2026-10-13
+- The owner changed a monthly cost (Frais généraux) and the month result did not move: the template change only
+  applied to months generated later. Now `update_recurring_cost` also rewrites the expense of every month already
+  generated whose expense is still a draft or waiting for approval (amount, category, name, payee, payment method),
+  through `update_expense` (audited). An approved month keeps its amount: a correction is a new expense.
+- The month result counts approved expenses only, so the change shows there once the expense is approved.
+- The admin refreshes the month screen and the dashboard after any expense change (`refreshExpenses`).

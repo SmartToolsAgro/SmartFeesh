@@ -2978,7 +2978,7 @@ export const fr = {
       dialog: {
         addTitle: "Nouveau frais mensuel",
         editTitle: "Modifier le frais mensuel",
-        body: "Ce modèle génère la dépense du mois. Les mois déjà générés gardent leur montant.",
+        body: "Ce modèle génère la dépense du mois. Un mois déjà généré prend la modification tant que sa dépense n'est pas approuvée ; un mois approuvé garde son montant.",
         name: "Nom (Loyer, Comptable…)",
         category: "Catégorie",
         amount: "Montant mensuel (DT)",
