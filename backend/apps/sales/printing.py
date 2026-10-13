@@ -50,12 +50,8 @@ def _tax_id_parts(tax_id: str) -> list[str]:
     return [part.strip().upper() for part in tax_id.replace(" ", "").split("/")]
 
 
-def unique_identifier(tax_id: str) -> str:
-    """The "Identifiant unique" of a Tunisian tax id: its number and key letter (1902781/R/N/M/000 → 1902781R)."""
-    parts = _tax_id_parts(tax_id)
-    if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isalpha():
-        return ""
-    return parts[0] + parts[1]
+# The "Identifiant unique" is read from a tax id by the documents app (the header of every document prints it).
+unique_identifier = documents.unique_identifier
 
 
 def customer_type(tax_id: str, kind: str) -> str:
@@ -68,13 +64,45 @@ def customer_type(tax_id: str, kind: str) -> str:
     return ""
 
 
+def _address(address: str, city: str) -> str:
+    return f"{address}, {city}" if address and city else address or city
+
+
+def _customer_party(customer: Any) -> dict[str, str]:
+    """The client block of the shared document header (D-126), read live from the customer."""
+    return {
+        "label": "Client",
+        "name": customer.name,
+        "reference": customer.reference,
+        "type": customer_type(customer.tax_id, customer.kind),
+        "address": _address(customer.address, customer.city),
+        "phone": customer.phone,
+        "tax_id": customer.tax_id,
+    }
+
+
+def _invoiced_party(invoice: Any) -> dict[str, str]:
+    """The client as frozen on an invoice; its code and phone are not frozen, they are read from the customer."""
+    customer = invoice.customer
+    return {
+        "label": "Client",
+        "name": invoice.customer_name,
+        "reference": customer.reference,
+        "type": customer_type(invoice.customer_tax_id, customer.kind),
+        "address": _address(invoice.customer_address, invoice.customer_city),
+        "phone": customer.phone,
+        "tax_id": invoice.customer_tax_id,
+    }
+
+
 def quote_printable(organization: Organization, quote_id: int) -> documents.Printable:
     quote = selectors.quote_of(organization, quote_id)
     context: dict[str, Any] = {
         "number": quote.number,
         "seller": _seller_of(organization),
         "quote": quote,
-        "customer": quote.customer,
+        "doc_date": quote.quoted_on,
+        "party": _customer_party(quote.customer),
         "lines": [
             {
                 "product_name": line.product.name,
@@ -116,7 +144,6 @@ def invoice_printable(organization: Organization, invoice_id: int) -> documents.
         ),
         Decimal("0.000"),
     )
-    customer = invoice.customer
     context: dict[str, Any] = {
         "several_sales": several,
         "number": invoice.number,
@@ -126,13 +153,10 @@ def invoice_printable(organization: Organization, invoice_id: int) -> documents.
             "phone": invoice.seller_phone,
             "tax_id": invoice.seller_tax_id,
             "trade_register": invoice.seller_trade_register,
-            "unique_identifier": unique_identifier(invoice.seller_tax_id),
         },
         "invoice": invoice,
-        # The customer's code and phone are not frozen on the invoice: they are read from the customer.
-        "customer_reference": customer.reference,
-        "customer_phone": customer.phone,
-        "customer_type": customer_type(invoice.customer_tax_id, customer.kind),
+        "doc_date": invoice.issued_on,
+        "party": _invoiced_party(invoice),
         "sale_numbers": ", ".join(sale.number for sale in invoice.sales.all()),
         "lines": lines,
         "total_before_discount": invoice.total_excl_tax + discount_excl_tax,
@@ -163,6 +187,8 @@ def credit_note_printable(organization: Organization, credit_note_id: int) -> do
         },
         "note": note,
         "invoice": invoice,
+        "doc_date": note.issued_on,
+        "party": _invoiced_party(invoice),
         "lines": list(note.lines.all()),
         "kind_label": str(CreditNoteKind(note.kind).label),
         "stock_label": "" if note.stock == CreditNoteStock.NONE else str(CreditNoteStock(note.stock).label),
@@ -189,7 +215,8 @@ def receipt_printable(organization: Organization, payment_id: int) -> documents.
         "number": payment.number,
         "seller": _seller_of(organization),
         "payment": payment,
-        "customer": payment.customer,
+        "doc_date": payment.received_on,
+        "party": _customer_party(payment.customer),
         "method_label": str(SalePaymentMethod(payment.method).label),
         "allocations": rows,
         "unallocated": Decimal("0.000") if payment.voided_at else payment.amount - allocated,
@@ -210,12 +237,14 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
         # A draft (or a draft given up) has no BL number and moves nothing: validating the sale is what makes the BL.
         raise ValidationError(_("Une vente en brouillon n'a pas de bon de livraison : validez-la d'abord."))
     lines = list(sale.lines.all())
+    sold_on = timezone.localtime(sale.sold_at).date()
     context: dict[str, Any] = {
         "number": sale.number,
         "seller": _seller_of(organization),
         "sale": sale,
-        "sold_on": timezone.localtime(sale.sold_at).date(),
-        "customer": sale.customer,
+        "sold_on": sold_on,
+        "doc_date": sold_on,
+        "party": _customer_party(sale.customer),
         "location": sale.location,
         "lines": lines,
         "has_discount": any(line.discount_rate for line in lines),

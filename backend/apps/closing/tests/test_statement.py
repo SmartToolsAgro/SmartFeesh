@@ -57,6 +57,10 @@ def test_a_closed_profit_lot_is_explained_line_by_line(organization, actor, fini
 
     assert "Pêcherie Kerkennah" in html
     assert "Lot clôturé le" in html
+    # The invoice's header and footer (D-126), with the partner where the invoice has the client.
+    assert "Relevé du lot N° " in html
+    assert "<th>Date</th><th>Partenaire</th>" in html
+    assert 'class="page-footer"' in html
     assert "40 %" in html  # their profit rate
     assert "2 000,000" in html  # purchase cost of 100 kg at 20.000
     assert "32,500" in html  # a sale price

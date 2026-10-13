@@ -8,6 +8,7 @@ import hashlib
 import json
 from typing import Any
 
+from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.core.models import Organization
@@ -54,12 +55,27 @@ def partner_statement_printable(organization: Organization, partnership_id: int)
     share_entries = list(partnerships.profit_share_entries_of(partnership))
 
     partner = data["partner"]
+    supplier = partnership.partner
+    # A closed lot's statement is dated the day it closed; an open one the day it is printed ("à ce jour").
+    statement_on = timezone.localdate()
+    if closed and result is not None:
+        statement_on = timezone.localtime(result.closed_at).date()
     groups = [{**group, "label": COST_KIND_LABELS.get(group["kind"], group["kind"])} for group in data["cost_groups"]]
     context: dict[str, Any] = {
         "number": data["batch"]["batch_number"],
         "seller": _seller_of(organization),
         "partnership": partnership,
-        "partner_name": partnership.partner.name,
+        "partner_name": supplier.name,
+        "doc_date": statement_on,
+        # The partner block of the shared document header (D-126).
+        "party": {
+            "label": "Partenaire",
+            "name": supplier.name,
+            "reference": supplier.reference,
+            "address": ", ".join(part for part in (supplier.address, supplier.city) if part),
+            "phone": supplier.phone,
+            "tax_id": supplier.tax_id,
+        },
         "closed": closed,
         "closed_at": result.closed_at if closed and result is not None else None,
         "data": data,
@@ -81,6 +97,7 @@ def partner_statement_printable(organization: Organization, partnership_id: int)
             "share": [(e.pk, str(e.amount)) for e in share_entries],
             "settlement": settlement.updated_at.isoformat() if settlement is not None else "",
             "status": partnership.status,
+            "on": statement_on.isoformat(),
         },
         sort_keys=True,
         default=str,

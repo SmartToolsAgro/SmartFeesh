@@ -235,7 +235,57 @@ def test_every_pdf_prints_the_logo_and_a_new_logo_makes_the_file_stale(organizat
         method=SalePaymentMethod.CASH,
     )
     receipt_html = services.render_html(services.printable(organization, "receipt", payment.pk), organization)
-    assert 'class="brand-logo" src="data:image/webp;base64,' in receipt_html
+    assert '<img src="data:image/webp;base64,' in receipt_html
+
+
+def test_every_document_has_the_invoice_header_and_footer(organization, invoice, sale, setup, manager):
+    """D-126: the logo/company block, boxed number, Date | Client box, client block and address footer of the
+    paper invoice are on every document, not only on the invoice."""
+    FinanceSettings.objects.filter(organization=organization).update(
+        address="Route Mahdia KM4\n3011 Sakiet Ezzit", phone="74 000 000", tax_id="1902781/R/N/M/000"
+    )
+    customer = setup[0]
+    customer.reference = "0047"
+    customer.phone = "98 111 222"
+    customer.save()
+    quote = sales.create_quote(
+        organization=organization,
+        actor=manager.user,
+        customer=customer,
+        quoted_on=timezone.localdate(),
+        lines=[{"product": setup[2], "quantity": "5"}],
+        send=True,
+    )
+    payment = sales.record_customer_payment(
+        organization=organization, actor=manager.user, customer=customer, amount="10.000", method=SalePaymentMethod.CASH
+    )
+    note = sales.create_credit_note(
+        invoice=invoice,
+        actor=manager.user,
+        kind=CreditNoteKind.PARTIAL,
+        reason="Produit avarié",
+        lines=[{"invoice_line": invoice.lines.get(), "quantity": "1"}],
+        stock=CreditNoteStock.LOSS,
+    )
+    documents = [
+        ("invoice", invoice.pk, f"Facture N° {invoice.number}"),
+        ("quote", quote.pk, f"Devis N° {quote.number}"),
+        ("delivery_note", sale.pk, f"Bon de livraison N° {sale.number}"),
+        ("credit_note", note.pk, f"Avoir N° {note.number}"),
+        ("receipt", payment.pk, f"Reçu N° {payment.number}"),
+    ]
+    for kind, object_id, heading in documents:
+        html = services.render_html(services.printable(organization, kind, object_id))
+        assert heading in html, kind
+        assert "<th>Date</th><th>Client</th>" in html, kind
+        assert "Code Client:" in html, kind
+        assert "0047" in html, kind
+        assert "98 111 222" in html, kind
+        assert 'class="page-footer"' in html, kind
+        if kind in {"invoice", "credit_note"}:
+            continue  # they print the seller frozen when the invoice was issued, before the change above
+        assert "Identifiant Unique : 1902781R" in html, kind
+        assert "Adresse : Route Mahdia KM4 - 3011 Sakiet Ezzit · Téléphone : 74 000 000" in html, kind
 
 
 def test_a_draft_invoice_has_no_pdf(organization, sale, manager):

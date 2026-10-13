@@ -66,6 +66,16 @@ def printable(organization: Organization, kind: str, object_id: int) -> Printabl
     return _providers[kind](organization, object_id)
 
 
+def unique_identifier(tax_id: str) -> str:
+    """The "Identifiant unique" of a Tunisian tax id: its number and key letter (1902781/R/N/M/000 → 1902781R).
+
+    Printed under the company's tax id in the header of every document (D-125, D-126)."""
+    parts = [part.strip().upper() for part in (tax_id or "").replace(" ", "").split("/")]
+    if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isalpha():
+        return ""
+    return parts[0] + parts[1]
+
+
 def logo_data_uri(organization: Organization | None) -> str:
     """The company logo from Paramètres (D-123) as a `data:` address the PDF embeds; empty without a logo."""
     if organization is None or not organization.logo:

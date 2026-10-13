@@ -1,17 +1,9 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
 {% block heading %}Devis{% endblock %}
-{% block subtitle %}
-  <p class="muted num">{{ quote.quoted_on|day }} · valable jusqu'au {{ quote.valid_until|day }}</p>
-  {% if status_label %}<p class="banner">{{ status_label|upper }}</p>{% endif %}
-{% endblock %}
+{% block banner %}{% if status_label %}<p class="fa-cancelled"><span class="banner">{{ status_label|upper }}</span></p>{% endif %}{% endblock %}
+{% block head_meta %}<p class="fa-meta num">Valable jusqu'au {{ quote.valid_until|day }}</p>{% endblock %}
 {% block body %}
 <div class="parties">
-  <div>
-    <h2>Client</h2>
-    <p><b>{{ customer.name }}</b></p>
-    {% if customer.address or customer.city %}<p>{{ customer.address }}{% if customer.address and customer.city %}, {% endif %}{{ customer.city }}</p>{% endif %}
-    {% if customer.tax_id %}<p class="small muted">M.F. {{ customer.tax_id }}</p>{% endif %}
-  </div>
   <div>
     <h2>Conditions</h2>
     <p>Prix en dinars tunisiens (DT), par kilo.</p>

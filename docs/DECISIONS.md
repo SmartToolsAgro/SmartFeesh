@@ -1658,3 +1658,21 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   endpoint needs a session). The admin app got a default `favicon.svg`.
 - The product list the owner forwarded (ART0002 to ART0060) is not imported by this change; the codes print
   as soon as products carry them as `reference` (through the data import or the product page).
+
+**D-126 · Every document uses the invoice's header and footer, in the PDFs and on screen (owner request)** · accepted · 2026-10-13
+- The owner asked that every printed PDF and every document view in the app carry the frame of the facture
+  (D-125). The header and footer moved from `sales/pdf/invoice.html` into `documents/pdf_base.html`: logo or
+  company name, address, Tél, MF, Identifiant Unique, RC top left; boxed "<Document> N° …", a Date | Client
+  box and the client block (Client, Code Client, Type, Adresse, Téléphone, MF) top right; "Adresse : … ·
+  Téléphone : …" and "Page x / y" at the foot of every page. Devis, bon de livraison, avoir, reçu and the
+  partner statement now print it; each keeps its own body (lines, totals, signatures).
+- A provider gives the header `doc_date` and `party` (a dict: label, name, address, phone, tax_id, plus
+  `reference` / `type` when that row should print); `banner` (status stamp) and `head_meta` (BL numbers,
+  due date, validity…) are template blocks. The partner statement shows "Partenaire" where the others show
+  "Client", dated the closing day (closed lot) or the printing day (open lot, which re-renders daily).
+- The Identifiant Unique is read from the tax id by `documents.services.unique_identifier` (template filter
+  `unique_id`), so every document prints it, not only the invoice.
+- In the admin app, `lib/DocumentFrame.tsx` (`DocumentHeader`, `DocumentFooter`) draws the same frame on the
+  invoice, quote and sale (BL) pages, with the logo from Paramètres. The invoice shows its frozen seller; a
+  quote or BL shows the finance settings in force (`useSeller`). The quote's customer link moved to "Suivi".
+  The quote/sale customer payload gained `phone` for the client block.
