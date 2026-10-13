@@ -1,7 +1,15 @@
 import type { BoxBalance } from "@frutti/api";
 import { describe, expect, test } from "vitest";
 
-import { customerBoxCounts, formatBoxCount, holdersFromBalances, holdersOfKind } from "./shared";
+import {
+  boxCountsFromInputs,
+  boxInputsFromCounts,
+  customerBoxCounts,
+  formatBoxCount,
+  holdersFromBalances,
+  holdersOfKind,
+  NO_BOX_INPUTS,
+} from "./shared";
 
 function row(holder_id: number, holder_kind: string, holder_name: string, box_type: "small" | "big", count: number) {
   return { holder_id, holder_kind, holder_name, box_type, count } as BoxBalance;
@@ -81,5 +89,30 @@ describe("formatBoxCount", () => {
 
   test("rejects a value that is not an integer", () => {
     expect(() => formatBoxCount(1.5, "fr")).toThrow(TypeError);
+  });
+});
+
+describe("boxCountsFromInputs", () => {
+  test("blank and zero inputs send nothing: an empty form posts no boxes", () => {
+    expect(boxCountsFromInputs(NO_BOX_INPUTS)).toEqual({ counts: {}, invalid: [] });
+    expect(boxCountsFromInputs({ small: " 0 ", big: "00" })).toEqual({ counts: {}, invalid: [] });
+  });
+
+  test("sends the whole counts of the types typed", () => {
+    expect(boxCountsFromInputs({ small: "12", big: "" })).toEqual({ counts: { small: 12 }, invalid: [] });
+    expect(boxCountsFromInputs({ small: "3", big: " 40 " })).toEqual({ counts: { small: 3, big: 40 }, invalid: [] });
+  });
+
+  test("names the types typed as a decimal, a minus sign or a word, and sends none of them", () => {
+    expect(boxCountsFromInputs({ small: "1,5", big: "-2" })).toEqual({ counts: {}, invalid: ["small", "big"] });
+    expect(boxCountsFromInputs({ small: "dix", big: "4" })).toEqual({ counts: { big: 4 }, invalid: ["small"] });
+  });
+});
+
+describe("boxInputsFromCounts", () => {
+  test("shows the saved counts, and an empty input for a type with none", () => {
+    expect(boxInputsFromCounts({ small: 6 })).toEqual({ small: "6", big: "" });
+    expect(boxInputsFromCounts({ small: 0, big: 2 })).toEqual({ small: "", big: "2" });
+    expect(boxInputsFromCounts(undefined)).toEqual(NO_BOX_INPUTS);
   });
 });

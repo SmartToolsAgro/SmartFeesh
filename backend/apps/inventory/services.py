@@ -687,8 +687,9 @@ def _prepared_transfer(
     kind = transfer_kind(from_location, to_location)
     checked_lines = _checked_transfer_lines(organization, kind, lines, moment_of(transferred_on), errors)
     box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
-    # Boxes follow a load only: the one box movement that fits a transfer is "load" (D-122).
-    if box_counts and kind != TransferKind.LOAD:
+    # Boxes follow a load (D-122), or a return from a truck to a cold room (P1-T14e, D-124); no other transfer.
+    returns_to_cold_room = kind == TransferKind.RETURN and to_location.kind == LocationKind.COLD_ROOM
+    if box_counts and kind != TransferKind.LOAD and not returns_to_cold_room:
         errors["boxes"] = _("Les caisses ne se transfèrent que vers un camion, au chargement.")
     if errors:
         raise ValidationError(errors)
@@ -854,11 +855,16 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
     # the source, say) refuses the whole validation and leaves the stock where it was.
     box_lines = list(transfer.box_lines.all())
     if box_lines:
+        box_kind = (
+            box_services.BoxMovementKind.TRUCK_RETURN
+            if transfer.kind == TransferKind.RETURN
+            else box_services.BoxMovementKind.LOAD
+        )
         try:
             box_services.post_box_counts(
                 organization=organization,
                 actor=actor,
-                kind=box_services.BoxMovementKind.LOAD,
+                kind=box_kind,
                 counts={line.box_type: line.count for line in box_lines},
                 from_holder=box_services.holder_for(organization=organization, location=transfer.from_location),
                 to_holder=box_services.holder_for(organization=organization, location=transfer.to_location),

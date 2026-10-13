@@ -25,6 +25,9 @@ _Last updated: 2026-10-13_
 
 ## Next step (do this first)
 
+0. **Box entry in admin (D-127, branch `fix-admin-box-entry`):** the receipt and load forms now take box counts, and
+   the empty Caisses page links to them. Still open: an opening balance for boxes already out (decide the design first).
+
 1. **Owner decisions needed** (none of these is built; the box session is on hold until they are answered):
    - Returnable boxes, D-124 decisions 2 to 4: truck "expected boxes" as the real ledger balance; box actions in the
      driver offline queue; a truck-to-cold-room "return" movement.
@@ -87,7 +90,7 @@ because Q26 is the CNSS question. Staging deploy of #100 passed.
 
 ## Recently done
 
-- 2026-10-13 · D-127 editing a monthly cost template updates its generated months not yet approved; the
+- 2026-10-13 · D-128 editing a monthly cost template updates its generated months not yet approved; the
   month screen refreshes after expense changes.
 - 2026-10-13 · P1-T14 returnable boxes, steps 1 to 4 (D-124): ledger and service (#95), receipt and transfer
   hooks (#97), admin "Caisses" page (#98), driver sale with boxes, pickups and day view (#100).

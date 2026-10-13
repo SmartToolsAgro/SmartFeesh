@@ -1092,7 +1092,7 @@ def update_recurring_cost(
     is_active: bool = True,
 ) -> RecurringCost:
     """Change a template, or stop it (`is_active` false). A month already generated takes the change while its
-    expense is still a draft or waiting for approval; an approved month keeps its amount (D-127)."""
+    expense is still a draft or waiting for approval; an approved month keeps its amount (D-128)."""
     cost = RecurringCost.objects.select_for_update().select_related("category", "organization").get(pk=cost.pk)
     organization = cost.organization
     before = _recurring_snapshot(cost)

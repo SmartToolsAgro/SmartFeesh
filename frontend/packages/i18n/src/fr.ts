@@ -1945,6 +1945,7 @@ export const fr = {
         leave: "Départ chez le client",
         collect: "Reprise chez le client",
         return: "Retour au fournisseur",
+        truck_return: "Retour du camion en chambre froide",
         write_off: "Casse ou perte",
       },
       types: {
@@ -1984,6 +1985,20 @@ export const fr = {
       customer: {
         title: "Caisses chez le client",
         ambiguous: "Plusieurs partenaires portent ce nom : les caisses affichées peuvent être incomplètes.",
+      },
+      // The counts typed on a receipt (D-122) and on a load to a truck.
+      form: {
+        receiptTitle: "Caisses reçues avec la livraison",
+        receiptHint: "Caisses consignées livrées avec ces produits. Laissez vide ou 0 s'il n'y en a pas.",
+        loadTitle: "Caisses chargées dans le camion",
+        loadHint:
+          "Caisses qui partent avec ce chargement. Elles restent sur le camion jusqu'à leur remise à un client.",
+        invalid: "Indiquez un nombre entier de caisses, zéro ou plus.",
+      },
+      empty: {
+        text: "Aucune caisse enregistrée pour le moment. Les caisses entrent avec une réception fournisseur ou un chargement de camion.",
+        receipt: "Enregistrer une réception",
+        load: "Enregistrer un chargement",
       },
     },
     stockTabs: {
@@ -3539,6 +3554,7 @@ export const fr = {
       pickupWho: "Quel client rend des caisses ?",
       pickupSave: "Enregistrer la reprise",
       pickupSaved: "Reprise enregistrée.",
+      pickupKept: "Pas de réseau : la reprise est gardée sur le téléphone et envoyée dès le retour du réseau.",
       pickupAnother: "Autre reprise",
       pickupNone: "Indiquez au moins une caisse.",
       pickupFailed: "La reprise n'a pas pu être enregistrée. Réessayez.",
