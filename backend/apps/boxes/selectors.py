@@ -23,17 +23,14 @@ class BoxBalance:
 
 @dataclass(frozen=True)
 class TruckBoxDay:
-    """One box type on one truck over one day: what came, what went to clients, what came back."""
+    """One box type on one truck: what came, what went to clients, what came back on `day`, and what the truck
+    holds now (`expected`, the real ledger balance over all days, P1-T14e decision 2)."""
 
     box_type: str
     loaded: int
     left: int
     collected: int
-
-    @property
-    def expected(self) -> int:
-        """What the driver should have on the truck: loaded, less left with clients, plus collected back."""
-        return self.loaded - self.left + self.collected
+    expected: int
 
 
 def _holder_totals(organization: Organization) -> dict[tuple[int, str], tuple[int, int]]:
@@ -103,8 +100,8 @@ def balance_of(organization: Organization, holder: BoxHolder, box_type: str) -> 
 
 
 def truck_day(organization: Organization, location: "StockLocation", day: dt.date) -> list[TruckBoxDay]:
-    """Per box type, what one truck (a stock location) loaded, left with clients and collected on `day`.
-    Only movements of that day count; the balance on the truck is not this day's expected count."""
+    """Per box type, what one truck (a stock location) loaded, left with clients and collected on `day`, and the
+    boxes it holds now. Only movements of that day count for the three figures; `expected` is the ledger balance."""
 
     def totals(movements: QuerySet[BoxMovement]) -> dict[str, int]:
         rows = movements.order_by().values("box_type").annotate(total=Sum("count"))
@@ -114,12 +111,14 @@ def truck_day(organization: Organization, location: "StockLocation", day: dt.dat
     loaded = totals(today.filter(kind=BoxMovementKind.LOAD, to_holder__location=location))
     left = totals(today.filter(kind=BoxMovementKind.LEAVE, from_holder__location=location))
     collected = totals(today.filter(kind=BoxMovementKind.COLLECT, to_holder__location=location))
+    holder = BoxHolder.objects.for_organization(organization).filter(location=location).first()
     return [
         TruckBoxDay(
             box_type=box_type,
             loaded=loaded.get(box_type, 0),
             left=left.get(box_type, 0),
             collected=collected.get(box_type, 0),
+            expected=signed_balance(holder, box_type) if holder is not None else 0,
         )
         for box_type in BoxType.values
     ]

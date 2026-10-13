@@ -11748,7 +11748,8 @@ export const getCollectMyBoxesUrl = () => {
 
 /**
  * Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
- * client holds fewer boxes of one type than asked, or when the driver's day is approved.
+ * client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+ * already used returns the day as it is after that pickup (the driver app retries).
  */
 export const collectMyBoxes = async (myBoxPickupWrite: MyBoxPickupWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyBoxDay> => {
 
@@ -11833,8 +11834,8 @@ export const getGetMyBoxDayUrl = () => {
 }
 
 /**
- * Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
- * the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+ * Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+ * and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day.
  */
 export const getMyBoxDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyBoxDay> => {
 

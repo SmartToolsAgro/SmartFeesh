@@ -24,6 +24,7 @@ const KIND_TONES = {
   leave: "coral",
   collect: "neutral",
   return: "neutral",
+  truck_return: "sea",
   write_off: "bad",
 } as const;
 

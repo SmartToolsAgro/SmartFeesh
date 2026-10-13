@@ -1945,6 +1945,7 @@ export const fr = {
         leave: "Départ chez le client",
         collect: "Reprise chez le client",
         return: "Retour au fournisseur",
+        truck_return: "Retour du camion en chambre froide",
         write_off: "Casse ou perte",
       },
       types: {
@@ -3539,6 +3540,7 @@ export const fr = {
       pickupWho: "Quel client rend des caisses ?",
       pickupSave: "Enregistrer la reprise",
       pickupSaved: "Reprise enregistrée.",
+      pickupKept: "Pas de réseau : la reprise est gardée sur le téléphone et envoyée dès le retour du réseau.",
       pickupAnother: "Autre reprise",
       pickupNone: "Indiquez au moins une caisse.",
       pickupFailed: "La reprise n'a pas pu être enregistrée. Réessayez.",
