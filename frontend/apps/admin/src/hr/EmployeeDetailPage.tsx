@@ -343,6 +343,9 @@ function EmployeeDetail({ canEdit }: { canEdit: boolean }) {
             <Detail label={t("admin.hr.form.cnssRate")} numeric>
               {`${data.cnss_rate.replace(".", ",")} %`}
             </Detail>
+            <Detail label={t("admin.hr.form.employeeCnssRate")} numeric>
+              {`${data.employee_cnss_rate.replace(".", ",")} %`}
+            </Detail>
             <Detail label={t("admin.hr.form.cnssNumber")} numeric>
               {data.cnss_number || empty}
             </Detail>

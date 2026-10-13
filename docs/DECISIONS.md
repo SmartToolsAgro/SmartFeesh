@@ -1476,3 +1476,16 @@ have it), and Arabic texts.
   file again skips a lot already imported (same product, supplier, date, cost); the same lot twice in one file is
   an error (group the kilos).
 - Customer and supplier opening debts: slice 3.
+
+**D-119 · The employee's own CNSS is computed and withheld (P5-T04, follows D-055)** · accepted, **provisional rate** · 2026-10-12
+Until now `SalaryRecord.net = gross − deductions` with `deductions` typed by hand, so an approved salary with nothing
+typed showed net = gross: the employee's own CNSS contribution was never taken off. Now `Employee.employee_cnss_rate`
+(default **9,18 %**, provisional: the accountant confirms it, like the employer's 17,07 %; Q26) and, on each record,
+`employee_cnss_rate` (copied from the employee when the month is generated, and changeable on a draft like the employer
+rate) and `employee_cnss = gross × rate`, rounded once. **net = gross − employee_cnss − deductions.** The contribution is
+its own line (payroll table, month totals, the salary dialog's preview, the employee's page, `payroll_summary`), not
+hidden in "deductions", which stay for what is typed by hand (advances, absences). **The company's cost is unchanged**
+(gross + employer CNSS): the employee's share is part of the gross, withheld and paid to the CNSS. **Existing data:**
+approved salaries keep their figures (rate 0): they are history and immutable; draft salaries get the employee's rate in
+the migration. The import template has a column for the rate. **Not done:** income tax (IRPP) and other legal
+withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); the CNSS declaration itself.

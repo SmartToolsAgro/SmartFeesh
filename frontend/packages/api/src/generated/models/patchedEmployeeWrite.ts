@@ -22,6 +22,8 @@ export interface PatchedEmployeeWrite {
   cnss_number?: string;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   cnss_rate?: string;
+  /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
+  employee_cnss_rate?: string;
   /**
      * @minimum 1
      * @nullable

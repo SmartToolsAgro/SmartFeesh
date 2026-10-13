@@ -109,6 +109,12 @@ EMPLOYEES = ImportKind(
         Column("monthly_salary", "Salaire mensuel (DT)", "decimal", example="1200,000"),
         Column("cnss_number", "Numéro CNSS"),
         Column("cnss_rate", "Taux CNSS patronal (%)", "decimal", help="Vide : 17,07 %."),
+        Column(
+            "employee_cnss_rate",
+            "Taux CNSS salarié (%)",
+            "decimal",
+            help="Retenu sur le salaire brut. Vide : 9,18 % (provisoire).",
+        ),
         Column("notes", "Remarques"),
     ),
 )

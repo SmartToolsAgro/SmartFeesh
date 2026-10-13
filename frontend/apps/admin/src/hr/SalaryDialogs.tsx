@@ -57,6 +57,7 @@ export function SalaryRecordDialog({ record, onDone }: { record: SalaryRecord; o
     overtime: typed(record.overtime),
     deductions: typed(record.deductions),
   });
+  const [ownRate, setOwnRate] = useState(typed(record.employee_cnss_rate));
   const [notes, setNotes] = useState(record.notes);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -65,8 +66,11 @@ export function SalaryRecordDialog({ record, onDone }: { record: SalaryRecord; o
   ) as Record<RecordField, string | null>;
   const readable = RECORD_FIELDS.every((field) => parsed[field] !== null && !parsed[field]?.startsWith("-"));
   const gross = readable ? sum([parsed.base_salary ?? "0", parsed.bonus ?? "0", parsed.overtime ?? "0"]) : null;
+  const parsedOwnRate = parseDecimalInput(ownRate.trim() || "0", 2);
+  const ownRateOk = parsedOwnRate !== null && !parsedOwnRate.startsWith("-") && Number(parsedOwnRate) <= 100;
   const employer = gross === null ? null : percentOf(gross, record.cnss_rate);
-  const net = gross === null ? null : subtract(gross, parsed.deductions ?? "0");
+  const own = gross === null || !ownRateOk ? null : percentOf(gross, parsedOwnRate ?? "0");
+  const net = gross === null || own === null ? null : subtract(subtract(gross, own), parsed.deductions ?? "0");
 
   const save = useMutation({
     mutationFn: (payload: PatchedSalaryRecordUpdate) => updateSalaryRecord(record.id, payload),
@@ -87,6 +91,7 @@ export function SalaryRecordDialog({ record, onDone }: { record: SalaryRecord; o
     for (const field of RECORD_FIELDS) {
       if (parsed[field] === null || parsed[field]?.startsWith("-")) found[field] = t("admin.hr.form.invalidAmount");
     }
+    if (!ownRateOk) found.employee_cnss_rate = t("admin.hr.form.invalidRate");
     if (net !== null && net.startsWith("-")) found.deductions = t("admin.hr.record.deductionsTooHigh");
     setErrors(found);
     if (Object.keys(found).length > 0) return;
@@ -95,6 +100,7 @@ export function SalaryRecordDialog({ record, onDone }: { record: SalaryRecord; o
       bonus: parsed.bonus ?? "0",
       overtime: parsed.overtime ?? "0",
       deductions: parsed.deductions ?? "0",
+      employee_cnss_rate: parsedOwnRate ?? "0",
       notes: notes.trim(),
     });
   }
@@ -119,6 +125,22 @@ export function SalaryRecordDialog({ record, onDone }: { record: SalaryRecord; o
             />
           </Field>
         ))}
+        <Field
+          label={t("admin.hr.record.employeeCnssRate")}
+          htmlFor={`${formId}-own-rate`}
+          error={errors.employee_cnss_rate}
+          className="col-span-full"
+        >
+          <Input
+            id={`${formId}-own-rate`}
+            inputMode="decimal"
+            value={ownRate}
+            onChange={(event) => setOwnRate(event.target.value)}
+            aria-invalid={errors.employee_cnss_rate ? true : undefined}
+            autoComplete="off"
+            className="num"
+          />
+        </Field>
         <Field label={t("admin.hr.record.notes")} htmlFor={`${formId}-notes`} className="col-span-full">
           <Input id={`${formId}-notes`} value={notes} onChange={(event) => setNotes(event.target.value)} />
         </Field>
@@ -132,6 +154,12 @@ export function SalaryRecordDialog({ record, onDone }: { record: SalaryRecord; o
               {t("admin.hr.record.employerCnss", { rate: typed(record.cnss_rate) })}
             </dt>
             <dd className="num">{employer === null ? "—" : formatMoney(employer)}</dd>
+          </div>
+          <div>
+            <dt className="text-[0.78rem] font-semibold text-ink-2">
+              {t("admin.hr.record.employeeCnss", { rate: ownRate })}
+            </dt>
+            <dd className="num">{own === null ? "—" : `− ${formatMoney(own)}`}</dd>
           </div>
           <div>
             <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.hr.record.net")}</dt>

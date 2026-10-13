@@ -369,3 +369,55 @@ def test_days_on_a_lot_keep_their_cost_and_cap_a_day_at_one():
 
     services.delete_lot_work_day(work_day=morning, actor=None)
     assert selectors.lot_work_days_of(employee.organization).count() == 1
+
+
+# ---- The employee's own CNSS (D-119) ----
+
+
+def test_the_employee_cnss_is_withheld_from_the_gross_and_shown_on_its_own_line():
+    employee = EmployeeFactory.create(monthly_salary=Decimal("1000.000"), employee_cnss_rate=Decimal("9.18"))
+
+    services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
+    record = selectors.salary_records_of(employee.organization).get()
+
+    # 1000.000 x 9.18 % = 91.800 withheld; the employer's 17.07 % is on top and not in the net.
+    assert (record.gross, record.employee_cnss_rate, record.employee_cnss) == (
+        Decimal("1000.000"),
+        Decimal("9.18"),
+        Decimal("91.800"),
+    )
+    assert (record.deductions, record.net) == (Decimal("0.000"), Decimal("908.200"))
+    assert record.expense_amount == Decimal("1170.700")  # gross + employer 170.700: unchanged by D-119
+
+
+def test_other_deductions_come_off_after_the_cnss_and_the_rate_can_be_changed_on_a_draft():
+    employee = EmployeeFactory.create(monthly_salary=Decimal("1000.000"), employee_cnss_rate=Decimal("9.18"))
+    services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
+    record = selectors.salary_records_of(employee.organization).get()
+
+    changed = services.update_salary_record(
+        record=record, actor=None, bonus="100.000", deductions="50.000", employee_cnss_rate="10"
+    )
+
+    # Gross 1100.000, own CNSS 10 % = 110.000, advance 50.000: the employee receives 940.000.
+    assert (changed.gross, changed.employee_cnss, changed.deductions, changed.net) == (
+        Decimal("1100.000"),
+        Decimal("110.000"),
+        Decimal("50.000"),
+        Decimal("940.000"),
+    )
+    with pytest.raises(ValidationError) as error:
+        services.update_salary_record(record=changed, actor=None, employee_cnss_rate="100.5")
+    assert "employee_cnss_rate" in error.value.message_dict
+
+
+def test_a_new_employee_gets_the_provisional_default_rate_and_the_payroll_summary_adds_it_up():
+    employee = services.create_employee(
+        organization=EmployeeFactory.create().organization, actor=None, name="Nouvelle", monthly_salary="2000.000"
+    )
+    assert employee.employee_cnss_rate == Decimal("9.18")
+
+    services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
+    summary = selectors.payroll_summary(employee.organization, month=THIS_MONTH)
+
+    assert (summary.employee_cnss, summary.net) == (Decimal("183.600"), Decimal("1816.400"))

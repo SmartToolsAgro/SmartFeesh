@@ -18,6 +18,7 @@ from apps.core.money import MAX_AMOUNT, Number, checked_amount, money
 
 from . import selectors
 from .models import (
+    DEFAULT_EMPLOYEE_CNSS_RATE,
     DEFAULT_EMPLOYER_CNSS_RATE,
     Employee,
     LotWorkDay,
@@ -54,6 +55,11 @@ def employer_contribution(gross: Number, rate: Number) -> Decimal:
     return money(Decimal(gross) * Decimal(rate) / 100)
 
 
+def employee_contribution(gross: Number, rate: Number) -> Decimal:
+    """The employee's own CNSS contribution, withheld from the gross: gross × rate % rounded once (D-119)."""
+    return money(Decimal(gross) * Decimal(rate) / 100)
+
+
 # ---- Employees ----
 
 
@@ -66,6 +72,7 @@ class EmployeeFields(TypedDict, total=False):
     monthly_salary: Number
     cnss_number: str
     cnss_rate: Number
+    employee_cnss_rate: Number
     user: User | None
     notes: str
 
@@ -89,6 +96,7 @@ def _employee_snapshot(employee: Employee) -> dict[str, Any]:
         "monthly_salary": str(employee.monthly_salary),
         "cnss_number": employee.cnss_number,
         "cnss_rate": str(employee.cnss_rate),
+        "employee_cnss_rate": str(employee.employee_cnss_rate),
         "user": employee.user.username if employee.user else None,
         "is_active": employee.is_active,
     }
@@ -116,6 +124,13 @@ def _clean_employee(employee: Employee) -> None:
         employee.cnss_rate = rate.quantize(HUNDREDTH)
     except (ValueError, TypeError, InvalidOperation):
         errors["cnss_rate"] = _("Le taux doit être entre 0 et 100 %, avec au plus 2 décimales.")
+    try:
+        own = Decimal(employee.employee_cnss_rate)
+        if own != own.quantize(HUNDREDTH) or not Decimal(0) <= own <= Decimal(100):
+            raise ValueError
+        employee.employee_cnss_rate = own.quantize(HUNDREDTH)
+    except (ValueError, TypeError, InvalidOperation):
+        errors["employee_cnss_rate"] = _("Le taux doit être entre 0 et 100 %, avec au plus 2 décimales.")
     if employee.user is not None:
         user = employee.user
         if not Membership.objects.filter(user=user, organization=employee.organization, is_active=True).exists():
@@ -130,7 +145,12 @@ def _clean_employee(employee: Employee) -> None:
 def create_employee(*, organization: Organization, actor: User | None, **fields: Unpack[EmployeeFields]) -> Employee:
     """A new employee. Without a reference it gets the next free `E-NNN`; the CNSS rate defaults to 17.07 %."""
     Organization.objects.select_for_update().filter(pk=organization.pk).first()  # one reference at a time
-    values: dict[str, Any] = {"cnss_rate": DEFAULT_EMPLOYER_CNSS_RATE, "monthly_salary": ZERO, **fields}
+    values: dict[str, Any] = {
+        "cnss_rate": DEFAULT_EMPLOYER_CNSS_RATE,
+        "employee_cnss_rate": DEFAULT_EMPLOYEE_CNSS_RATE,
+        "monthly_salary": ZERO,
+        **fields,
+    }
     employee = Employee(organization=organization, **values)
     if not employee.reference.strip():
         employee.reference = _next_employee_reference(organization)
@@ -199,11 +219,13 @@ def _amount(value: Any, errors: dict[str, str], field: str) -> Decimal:
 
 
 def _figures(
-    *, base: Decimal, bonus: Decimal, overtime: Decimal, deductions: Decimal, rate: Decimal
-) -> tuple[Decimal, Decimal, Decimal]:
-    """(gross, employer contribution, net) of a month."""
+    *, base: Decimal, bonus: Decimal, overtime: Decimal, deductions: Decimal, rate: Decimal, employee_rate: Decimal
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """(gross, employer contribution, employee contribution, net) of a month. The net is what the employee
+    receives: gross − their own CNSS − the other deductions (D-119)."""
     gross = base + bonus + overtime
-    return gross, employer_contribution(gross, rate), gross - deductions
+    own = employee_contribution(gross, employee_rate)
+    return gross, employer_contribution(gross, rate), own, gross - own - deductions
 
 
 def _record_snapshot(record: SalaryRecord) -> dict[str, Any]:
@@ -215,8 +237,10 @@ def _record_snapshot(record: SalaryRecord) -> dict[str, Any]:
         "overtime": str(record.overtime),
         "deductions": str(record.deductions),
         "cnss_rate": str(record.cnss_rate),
+        "employee_cnss_rate": str(record.employee_cnss_rate),
         "gross": str(record.gross),
         "employer_cnss": str(record.employer_cnss),
+        "employee_cnss": str(record.employee_cnss),
         "net": str(record.net),
         "status": record.status,
         "notes": record.notes,
@@ -244,8 +268,13 @@ def generate_month(*, organization: Organization, actor: User | None, month: dt.
             continue
         if employee.hire_date is not None and employee.hire_date > last_day:
             continue
-        gross, cnss, net = _figures(
-            base=employee.monthly_salary, bonus=ZERO, overtime=ZERO, deductions=ZERO, rate=employee.cnss_rate
+        gross, cnss, own, net = _figures(
+            base=employee.monthly_salary,
+            bonus=ZERO,
+            overtime=ZERO,
+            deductions=ZERO,
+            rate=employee.cnss_rate,
+            employee_rate=employee.employee_cnss_rate,
         )
         record = SalaryRecord.objects.create(
             organization=organization,
@@ -253,8 +282,10 @@ def generate_month(*, organization: Organization, actor: User | None, month: dt.
             month=month,
             base_salary=employee.monthly_salary,
             cnss_rate=employee.cnss_rate,
+            employee_cnss_rate=employee.employee_cnss_rate,
             gross=gross,
             employer_cnss=cnss,
+            employee_cnss=own,
             net=net,
             created_by=actor,
         )
@@ -274,6 +305,7 @@ class SalaryFields(TypedDict, total=False):
     overtime: Number
     deductions: Number
     cnss_rate: Number
+    employee_cnss_rate: Number
     notes: str
 
 
@@ -306,12 +338,21 @@ def update_salary_record(*, record: SalaryRecord, actor: User | None, **fields: 
                 raise ValueError
         except (ValueError, TypeError, InvalidOperation):
             errors["cnss_rate"] = _("Le taux doit être entre 0 et 100 %, avec au plus 2 décimales.")
-    gross, cnss, net = _figures(
+    own_rate = record.employee_cnss_rate
+    if "employee_cnss_rate" in fields:
+        try:
+            own_rate = Decimal(fields["employee_cnss_rate"])
+            if own_rate != own_rate.quantize(HUNDREDTH) or not Decimal(0) <= own_rate <= Decimal(100):
+                raise ValueError
+        except (ValueError, TypeError, InvalidOperation):
+            errors["employee_cnss_rate"] = _("Le taux doit être entre 0 et 100 %, avec au plus 2 décimales.")
+    gross, cnss, own, net = _figures(
         base=values["base_salary"],
         bonus=values["bonus"],
         overtime=values["overtime"],
         deductions=values["deductions"],
         rate=rate,
+        employee_rate=own_rate,
     )
     if net < 0 and not errors:
         errors["deductions"] = _("Les retenues dépassent le salaire brut.")
@@ -320,7 +361,9 @@ def update_salary_record(*, record: SalaryRecord, actor: User | None, **fields: 
     record.base_salary, record.bonus = values["base_salary"], values["bonus"]
     record.overtime, record.deductions = values["overtime"], values["deductions"]
     record.cnss_rate = rate.quantize(HUNDREDTH, rounding=ROUND_HALF_UP)
+    record.employee_cnss_rate = own_rate.quantize(HUNDREDTH, rounding=ROUND_HALF_UP)
     record.gross, record.employer_cnss, record.net = gross, cnss, net
+    record.employee_cnss = own
     if "notes" in fields:
         record.notes = fields["notes"].strip()
     record.save()
