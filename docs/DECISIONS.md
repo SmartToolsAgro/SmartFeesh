@@ -1604,3 +1604,19 @@ have it), and Arabic texts.
 - Not done here: a full itemized drill-down (the individual sales, expense lines, losses and payroll
   entries behind each month-level total) would need new list endpoints per line; this session reused what
   already exists (lot-level cost rows, stock valuation rows, expense categories) rather than add new ones.
+**D-123 · Paramètres: company logo, users, own profile (owner request, not a phase-file task)** · accepted · 2026-10-13
+- The owner asked for a place to manage the company and its accounts. Single organization only; the
+  multi-company onboarding stays in Phase 8. New fields: `Organization.logo` and `User.avatar` (ImageFields,
+  re-encoded to WebP by `core.images.reencoded_photo`, stored under a new random name on each upload so
+  caches never show an old picture). Legal identity (name, address, phone, MF, trade register) stays on the
+  versioned `FinanceSettings` (D-043) and is shown in Paramètres; it is edited on `/factures/parametres`.
+- Users are managed by the owner only (`IsOwner`, server-enforced). Deleting a user means **deactivating**
+  the membership and the login: other rows keep their history. The last active owner cannot be demoted or
+  deactivated (`services._guard_last_owner`).
+- No email or SMS exists, so a password reset is the owner typing a new password for someone (the old one
+  stops working and the sessions are closed). A person changes their own password from "Mon profil", which
+  asks for the current one; the session stays open (`update_session_auth_hash`).
+- Each person sets their own photo and display name from "Mon profil" (topbar avatar links there). Avatars
+  and logos are served by authenticated endpoints, not public media URLs; a member's photo is visible only
+  to people in the same organization.
+- Not yet: printing the logo on documents (planned with the PDF templates).

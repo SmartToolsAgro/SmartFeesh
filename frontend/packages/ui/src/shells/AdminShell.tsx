@@ -16,7 +16,7 @@ export interface AdminNavGroup {
 
 interface Props {
   nav: AdminNavGroup[];
-  user: { name: string; role: string };
+  user: { name: string; role: string; avatarUrl?: string | null };
   onLogout: () => void;
   children: ReactNode;
 }
@@ -65,15 +65,27 @@ export function AdminShell({ nav, user, onLogout, children }: Props) {
         <div className="flex-1" />
         <ThemeToggle />
         <div className="flex items-center gap-2.5">
-          <div className="grid size-[30px] flex-none place-items-center rounded-full bg-sea-soft text-[0.75rem] font-bold text-sea">
-            {initials(user.name)}
-          </div>
-          <div className="leading-tight max-sm:hidden">
-            <div className="font-semibold">{user.name}</div>
-            <Pill tone="sea" className="px-[7px] py-px text-[0.68rem]">
-              {user.role}
-            </Pill>
-          </div>
+          <NavLink
+            to="/profil"
+            aria-label={t("admin.profile.open")}
+            title={t("admin.profile.open")}
+            className="flex items-center gap-2.5 rounded-[10px] hover:opacity-80"
+          >
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt="" className="size-[30px] flex-none rounded-full object-cover" />
+            ) : (
+              <div className="grid size-[30px] flex-none place-items-center rounded-full bg-sea-soft text-[0.75rem] font-bold text-sea">
+                {initials(user.name)}
+              </div>
+            )}
+            <div className="leading-tight max-sm:hidden">
+              <div className="font-semibold">{user.name}</div>
+              <Pill tone="sea" className="px-[7px] py-px text-[0.68rem]">
+                {user.role}
+              </Pill>
+            </div>
+          </NavLink>
+
           <Button
             variant="ghost"
             size="icon"

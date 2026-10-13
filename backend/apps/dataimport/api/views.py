@@ -6,8 +6,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.models import Membership, Organization, Role
-from apps.core.permissions import HasRole, membership_of
+from apps.core.models import Membership, Organization
+from apps.core.permissions import IsOwner, membership_of
 from apps.dataimport import services
 from apps.dataimport.columns import KINDS
 
@@ -17,10 +17,6 @@ from .serializers import ImportReportSerializer, ImportUploadSerializer
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 # The biggest file accepted: 5 000 rows of text are well under it.
 MAX_FILE_BYTES = 5 * 1024 * 1024
-
-
-class IsOwner(HasRole):
-    roles = frozenset({Role.OWNER})
 
 
 # A comment, not a docstring: a docstring would describe every endpoint in the schema.

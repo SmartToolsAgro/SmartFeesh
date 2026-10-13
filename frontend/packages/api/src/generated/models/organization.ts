@@ -8,4 +8,6 @@
 export interface Organization {
   readonly id: number;
   readonly name: string;
+  /** @nullable */
+  readonly logo_url: string | null;
 }

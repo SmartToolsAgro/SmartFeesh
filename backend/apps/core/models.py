@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, Self
 
 from django.conf import settings
@@ -17,11 +18,18 @@ class TimeStampedModel(models.Model):
         abstract = True
 
 
+def organization_logo_path(organization: "Organization", filename: str) -> str:
+    # A new random name on every upload: the old URL never shows the new logo from a cache.
+    return f"organizations/{organization.pk}/{uuid.uuid4().hex}.webp"
+
+
 class Organization(TimeStampedModel):
     """A company using the software. One exists today; every business table points to it (D-004)."""
 
     name = models.CharField(max_length=200)
     is_active = models.BooleanField(default=True)
+    # Shown on the company-profile page and (later) on invoices; printing it is not built yet (D-123).
+    logo = models.ImageField(upload_to=organization_logo_path, blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -30,10 +38,17 @@ class Organization(TimeStampedModel):
         return self.name
 
 
+def user_avatar_path(user: "User", filename: str) -> str:
+    # A new random name on every upload: the old URL never shows the new photo from a cache.
+    return f"users/{user.pk}/{uuid.uuid4().hex}.webp"
+
+
 class User(AbstractUser):
     """Custom from the first migration, because swapping the user model later is costly."""
 
     language = models.CharField(max_length=5, choices=settings.LANGUAGES, default=settings.LANGUAGE_CODE)
+    # Set by the user themselves from their own profile menu (D-123); nobody else may change it.
+    avatar = models.ImageField(upload_to=user_avatar_path, blank=True)
 
     def __str__(self) -> str:
         return self.get_full_name() or self.username

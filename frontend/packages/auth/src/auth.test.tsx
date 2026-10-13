@@ -13,8 +13,8 @@ import { createQueryClient, type Role, type Session, useLogout } from "./session
 
 function sessionFor(role: Role): Session {
   return {
-    user: { id: 1, username: "sami", first_name: "Sami", last_name: "B.", language: "fr" },
-    organization: { id: 1, name: "Frutti Del Mare" },
+    user: { id: 1, username: "sami", first_name: "Sami", last_name: "B.", email: "", language: "fr", avatar_url: null },
+    organization: { id: 1, name: "Frutti Del Mare", logo_url: null },
     role,
     truck: null,
   };

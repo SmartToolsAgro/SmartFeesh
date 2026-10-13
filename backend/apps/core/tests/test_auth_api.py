@@ -44,9 +44,11 @@ def test_login_opens_a_session_and_returns_who_is_logged_in(api):
             "username": "owner",
             "first_name": "Le",
             "last_name": "Gérant",
+            "email": membership.user.email,
             "language": "fr",
+            "avatar_url": None,
         },
-        "organization": {"id": membership.organization.id, "name": membership.organization.name},
+        "organization": {"id": membership.organization.id, "name": membership.organization.name, "logo_url": None},
         "role": "owner",
         "truck": None,
     }

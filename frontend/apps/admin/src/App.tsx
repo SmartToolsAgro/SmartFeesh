@@ -11,7 +11,7 @@ import {
 } from "@frutti/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
 
 import { DashboardPage } from "./dashboard/DashboardPage";
 import { EmployeeDetailPage } from "./hr/EmployeeDetailPage";
@@ -34,6 +34,9 @@ import { TruckDayPage } from "./locations/TruckDayPage";
 import { MonthClosingPage } from "./closing/MonthClosingPage";
 import { ReportsPage } from "./reports/ReportsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
+import { ProfilePage } from "./settings/ProfilePage";
+import { SettingsPage } from "./settings/SettingsPage";
+import { UsersPage } from "./settings/UsersPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
 import { MovementsPage } from "./stock/MovementsPage";
 import { ProductStockPage } from "./stock/ProductStockPage";
@@ -117,6 +120,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
         { to: "/import", label: t("admin.nav.imports"), icon: "box" },
+        { to: "/parametres", label: t("admin.nav.settings"), icon: "badge" },
       ],
     },
   ];
@@ -141,6 +145,11 @@ const SCREENS: Record<string, ReactNode> = {
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,
   "/import": <ImportPage />,
+  "/parametres": (
+    <OwnerOnly>
+      <SettingsPage />
+    </OwnerOnly>
+  ),
   "/cloture": <MonthClosingPage />,
   "/rapports": <ReportsPage />,
 };
@@ -151,14 +160,22 @@ function displayName(session: Session): string {
   return `${session.user.first_name} ${session.user.last_name}`.trim() || session.user.username;
 }
 
+function OwnerOnly({ children }: { children: ReactNode }) {
+  const session = useOutletContext<Session>();
+  return session.role === "owner" ? children : <Navigate to="/" replace />;
+}
+
 function Shell({ session }: { session: Session }) {
   const { t } = useTranslation();
-  const nav = useNav();
   const logout = useLogout();
+  const nav = useNav().map((group) => ({
+    ...group,
+    items: group.items.filter((item) => session.role === "owner" || item.to !== "/parametres"),
+  }));
   return (
     <AdminShell
       nav={nav}
-      user={{ name: displayName(session), role: t(`roles.${session.role}`) }}
+      user={{ name: displayName(session), role: t(`roles.${session.role}`), avatarUrl: session.user.avatar_url }}
       onLogout={() => logout.mutate()}
     >
       <Outlet context={session} />
@@ -192,6 +209,15 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/profil" element={<ProfilePage />} />
+        <Route
+          path="/parametres/utilisateurs"
+          element={
+            <OwnerOnly>
+              <UsersPage />
+            </OwnerOnly>
+          }
+        />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}

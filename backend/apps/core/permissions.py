@@ -36,6 +36,12 @@ class IsMember(HasRole):
     """Any role, as long as the user belongs to an active organization."""
 
 
+class IsOwner(HasRole):
+    """The owner only: used for the data import (D-112) and for managing other users (D-123)."""
+
+    roles = frozenset({Role.OWNER})
+
+
 class IsOwnerOrManager(HasRole):
     roles = frozenset({Role.OWNER, Role.MANAGER})
 
