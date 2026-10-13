@@ -27,3 +27,6 @@ class MyBoxPickupWriteSerializer(serializers.Serializer[Any]):
     customer = serializers.IntegerField(min_value=1)
     # Boxes collected per box type ("small", "big"): a count, never kg. Zero means none.
     boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), default=dict)
+    # Sent by the driver app, which keeps a pickup it could not send and retries it: the same value never
+    # makes two pickups.
+    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)

@@ -25,18 +25,24 @@ _Last updated: 2026-10-13_
 
 ## Next step (do this first)
 
-1. **Owner decisions needed** (none of these is built; the box session is on hold until they are answered):
-   - Returnable boxes, D-124 decisions 2 to 4: truck "expected boxes" as the real ledger balance; box actions in the
-     driver offline queue; a truck-to-cold-room "return" movement.
-   - Supplier boxes: returned on a schedule or not (provisional: must be returned, no schedule).
-   - Invoice PDF (D-125): import the product list (codes ART0002 to ART0060, to the product `reference` field)?
-     Does "Frais" need a real field (prints 0,000 for now)?
+1. **Owner decisions still open:**
+   - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
+     (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
+   - Product codes on staging (D-126): the owner answered (ART0047 for "Maklouba rosé congelé M0", ART0055 unassigned).
+     The dry run and the apply are **not run yet**: the server access needed for them was not granted.
+     Dry run first, then apply after the owner approves the list.
+   - Staging check: no owner check yet of the closing fix (D-129) on a real phone.
+   - Done since the last update (answers recorded): truck expected boxes = real ledger balance (D-124 decision 2,
+     built in #107); box actions offline (decision 3, #107); truck-to-cold-room return (decision 4, #107); supplier
+     boxes must be returned, no schedule; boxes on a load stay a field on the load transfer (#106); "Frais" is a real
+     field (D-126, #103).
 2. **Browser check on staging** of the new screens: Paramètres, Utilisateurs, Mon profil (D-123); the driver box
    screens (D-124, #100); the invoice PDF (D-125).
 3. Phase 3 remaining, in this order: **P3-T07a to T07d** (offline), **P3-T09** Arabic, **P3-T10** printing.
 4. Phase 3 gaps (not yet tasks): an approved day should block more sales and expenses that day (D-094); a driver
    cannot collect a customer payment on the phone yet; recent customers first and creating a customer on the phone
-   (D-091); a truck sale should use the load's price (D-051).
+   (D-091); a truck sale should use the load's price (D-051); an offline sale is dated when it is sent, not when it
+   was made (D-130); the office's closing table does not show the opening stock or the gap yet (D-130).
 5. Other waves: P2-T07/T08/T09, P6-T04 to T07 (check `gh pr list` and `docs/phases/` for what landed).
 
 ## Blockers / waiting on client
@@ -78,15 +84,29 @@ _Last updated: 2026-10-13_
 - Uncommitted work once sat in the shared checkout with no owner. It is saved on `origin/wip-snapshot-2026-10-13`,
   not for merge: it no longer applies to `main`. Its owner should decide whether to rework or drop it.
 
-## Last session (2026-10-13, D-127)
+## Last session (2026-10-13)
 
-Bug fix from a staging report: a driver who sent the day, then was loaded again and kept selling, could not send the
-day again and the office saw stale figures. Now the day can be sent again when it changed after sending, and the
-office cannot approve it until then (D-127). Branch `claude/bold-gates-b8j6yz`.
+Team-lead session. Merged to `main`: #92 (lot picker), #96 (sidebar), #97 and #98 (box steps 2 and 3), #99 (invoice
+PDF, D-125), #100 (box step 4), #101 (box docs, D-124), #102 (Arabic box texts, provisional), #103 (Frais and product
+codes, D-126), #105 (month-cost changes, D-128), #106 (boxes entered on a receipt and a load, D-127), #107 (box
+follow-up, decisions 2 to 4), #108 (closing after a sale, D-129). Open PRs: none. Staging runs of #100 passed.
+
+On branch `claude/bold-gates-b8j6yz` (not merged): bug fix from a staging report: a driver who sent the day, then was
+loaded again and kept selling, could not send the day again and the office saw stale figures. Now the day can be
+sent again when it changed after sending, and the office cannot approve it until then (D-132).
 
 ## Recently done
 
-- 2026-10-13 · D-127 a driver day worked on after sending is sent again; the office cannot approve stale figures.
+- 2026-10-13 · D-132 a driver day worked on after sending is sent again; the office cannot approve stale figures.
+- 2026-10-13 · Driver Clôture showed "vendu" above "chargé" (staging): the truck's opening stock was missing from the
+  day; now shown per product with the gap, and a "Retour à Ma journée" button on every driver screen (D-130).
+- 2026-10-13 · D-129 driver closing after a sale: the closing says why sales wait (no connection, no answer, server
+  busy, session ended), sends them on open and has a retry; a send gives up after 25 s; busy-server errors keep the
+  sale pending; a sale already recorded is answered, not refused (#108). The Arabic texts are provisional.
+- 2026-10-13 · D-128 editing a monthly cost template updates its generated months not yet approved; the
+  month screen refreshes after expense changes (#105).
+- 2026-10-13 · D-127 boxes entered on a receipt and on a load in the admin, and the empty Caisses page links to them (#106).
+- 2026-10-13 · D-124 box follow-up: truck balance, offline box actions, truck-to-cold-room return (#107).
 - 2026-10-13 · P1-T14 returnable boxes, steps 1 to 4 (D-124): ledger and service (#95), receipt and transfer
   hooks (#97), admin "Caisses" page (#98), driver sale with boxes, pickups and day view (#100).
 - 2026-10-13 · D-125 invoice PDF in the client's paper layout; uploaded logo on PDFs, admin and driver headers and

@@ -214,7 +214,7 @@ export const ListBoxMovementsResponse = zod.object({
   "previous": zod.url().nullish(),
   "results": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['receive', 'load', 'leave', 'collect', 'return', 'write_off']).describe('* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `write_off` - Casse ou perte'),
+  "kind": zod.enum(['receive', 'load', 'leave', 'collect', 'return', 'truck_return', 'write_off']).describe('* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `truck_return` - Retour du camion en chambre froide\n* `write_off` - Casse ou perte'),
   "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
   "count": zod.int(),
   "from_holder": zod.int().nullable(),
@@ -1710,11 +1710,13 @@ export const getDayClosingResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-
 export const getDayClosingResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayClosingResponseSummaryOneProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getDayClosingResponseSummaryOneProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const GetDayClosingResponse = zod.object({
@@ -1747,11 +1749,13 @@ export const GetDayClosingResponse = zod.object({
   "products": zod.array(zod.object({
   "product_id": zod.int(),
   "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemOpeningRegExp),
   "loaded": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemLoadedRegExp),
   "sold": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemSoldRegExp),
   "lost": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemLostRegExp),
   "returned": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemReturnedRegExp),
-  "remaining": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemRemainingRegExp)
+  "remaining": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', getDayClosingResponseSummaryOneProductsItemUnexplainedRegExp)
 }))
 }),
   "changed_since_sent": zod.boolean()
@@ -1776,11 +1780,13 @@ export const approveDayClosingResponseSummaryOneOtherPaymentsRegExp = new RegExp
 export const approveDayClosingResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveDayClosingResponseSummaryOneProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const approveDayClosingResponseSummaryOneProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const ApproveDayClosingResponse = zod.object({
@@ -1813,11 +1819,13 @@ export const ApproveDayClosingResponse = zod.object({
   "products": zod.array(zod.object({
   "product_id": zod.int(),
   "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemOpeningRegExp),
   "loaded": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemLoadedRegExp),
   "sold": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemSoldRegExp),
   "lost": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemLostRegExp),
   "returned": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemReturnedRegExp),
-  "remaining": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemRemainingRegExp)
+  "remaining": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneProductsItemUnexplainedRegExp)
 }))
 }),
   "changed_since_sent": zod.boolean()
@@ -1850,11 +1858,13 @@ export const requestDayJustificationResponseSummaryOneOtherPaymentsRegExp = new 
 export const requestDayJustificationResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const requestDayJustificationResponseSummaryOneProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const requestDayJustificationResponseSummaryOneProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const RequestDayJustificationResponse = zod.object({
@@ -1887,11 +1897,13 @@ export const RequestDayJustificationResponse = zod.object({
   "products": zod.array(zod.object({
   "product_id": zod.int(),
   "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemOpeningRegExp),
   "loaded": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemLoadedRegExp),
   "sold": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemSoldRegExp),
   "lost": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemLostRegExp),
   "returned": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemReturnedRegExp),
-  "remaining": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemRemainingRegExp)
+  "remaining": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneProductsItemUnexplainedRegExp)
 }))
 }),
   "changed_since_sent": zod.boolean()
@@ -6967,7 +6979,8 @@ export const ReviewMonthResponse = zod.object({
 
 /**
  * Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
- * client holds fewer boxes of one type than asked, or when the driver's day is approved.
+ * client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+ * already used returns the day as it is after that pickup (the driver app retries).
  */
 
 export const collectMyBoxesBodyBoxesMinOne = 0;
@@ -6976,7 +6989,8 @@ export const collectMyBoxesBodyBoxesMinOne = 0;
 
 export const CollectMyBoxesBody = zod.object({
   "customer": zod.int().min(1),
-  "boxes": zod.record(zod.string(), zod.int().min(collectMyBoxesBodyBoxesMinOne)).optional()
+  "boxes": zod.record(zod.string(), zod.int().min(collectMyBoxesBodyBoxesMinOne)).optional(),
+  "client_uuid": zod.uuid().nullish()
 })
 
 export const CollectMyBoxesResponse = zod.object({
@@ -6993,8 +7007,8 @@ export const CollectMyBoxesResponse = zod.object({
 
 
 /**
- * Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
- * the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+ * Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+ * and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day.
  */
 export const GetMyBoxDayResponse = zod.object({
   "date": zod.iso.date(),
@@ -7091,11 +7105,13 @@ export const closeMyDayResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\
 export const closeMyDayResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeMyDayResponseSummaryOneProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const closeMyDayResponseSummaryOneProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseClosingOneCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -7116,11 +7132,13 @@ export const CloseMyDayResponse = zod.object({
   "products": zod.array(zod.object({
   "product_id": zod.int(),
   "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemOpeningRegExp),
   "loaded": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemLoadedRegExp),
   "sold": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemSoldRegExp),
   "lost": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemLostRegExp),
   "returned": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemReturnedRegExp),
-  "remaining": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemRemainingRegExp)
+  "remaining": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', closeMyDayResponseSummaryOneProductsItemUnexplainedRegExp)
 }))
 }),
   "closing": zod.union([zod.object({
@@ -7147,11 +7165,13 @@ export const getMyDaySummaryResponseSummaryOneOtherPaymentsRegExp = new RegExp('
 export const getMyDaySummaryResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyDaySummaryResponseSummaryOneProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getMyDaySummaryResponseSummaryOneProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseClosingOneCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -7172,11 +7192,13 @@ export const GetMyDaySummaryResponse = zod.object({
   "products": zod.array(zod.object({
   "product_id": zod.int(),
   "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemOpeningRegExp),
   "loaded": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemLoadedRegExp),
   "sold": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemSoldRegExp),
   "lost": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemLostRegExp),
   "returned": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemReturnedRegExp),
-  "remaining": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemRemainingRegExp)
+  "remaining": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneProductsItemUnexplainedRegExp)
 }))
 }),
   "closing": zod.union([zod.object({
@@ -7363,7 +7385,7 @@ export const reportSyncProblemBodyReasonMax = 500;
 
 
 export const ReportSyncProblemBody = zod.object({
-  "kind": zod.enum(['sale', 'expense', 'loss', 'payment']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment'),
+  "kind": zod.enum(['sale', 'expense', 'loss', 'payment', 'pickup']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment\n* `pickup` - pickup'),
   "what": zod.string().max(reportSyncProblemBodyWhatMax),
   "reason": zod.string().max(reportSyncProblemBodyReasonMax),
   "client_uuid": zod.uuid()
@@ -13294,7 +13316,8 @@ export const CreateTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13353,7 +13376,8 @@ export const GetTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13434,7 +13458,8 @@ export const UpdateTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13493,7 +13518,8 @@ export const CancelTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13553,7 +13579,8 @@ export const ValidateTransferResponse = zod.object({
   "validated_by": zod.string(),
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
-  "confirmed_at": zod.iso.datetime({"offset":true}).nullable()
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 

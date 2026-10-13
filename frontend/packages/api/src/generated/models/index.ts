@@ -494,6 +494,7 @@ export * from './syncProblemWrite';
 export * from './syncProblemWriteKindEnum';
 export * from './transfer';
 export * from './transferDetail';
+export * from './transferDetailBoxes';
 export * from './transferKindEnum';
 export * from './transferLine';
 export * from './transferLineDetail';

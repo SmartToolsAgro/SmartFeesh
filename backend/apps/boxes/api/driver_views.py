@@ -41,8 +41,8 @@ class MyBoxDayView(APIView):
 
     @extend_schema(operation_id="getMyBoxDay", responses=MyBoxDaySerializer)
     def get(self, request: Request) -> Response:
-        """Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
-        the expected count on the truck (loaded - left + collected). 404 without a truck of the day."""
+        """Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+        and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         truck = fleet.truck_of_driver(membership)
@@ -61,7 +61,8 @@ class MyBoxPickupView(APIView):
     )
     def post(self, request: Request) -> Response:
         """Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
-        client holds fewer boxes of one type than asked, or when the driver's day is approved."""
+        client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+        already used returns the day as it is after that pickup (the driver app retries)."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         truck = fleet.truck_of_driver(membership)
@@ -86,5 +87,6 @@ class MyBoxPickupView(APIView):
             customer=customer,
             location=truck.location,
             counts=counts,
+            client_uuid=serializer.validated_data["client_uuid"],
         )
         return Response(MyBoxDaySerializer(_day_answer(membership, truck)).data, status=status.HTTP_201_CREATED)

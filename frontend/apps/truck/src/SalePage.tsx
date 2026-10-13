@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { BoxCountInputs } from "./BoxCountInputs";
-import { boxCountsOf, hasBoxes, type BoxInputs, NO_BOXES } from "./boxes";
+import { boxCountsOf, type BoxInputs, NO_BOXES } from "./boxes";
 import { messagesOf } from "./messages";
 import { enqueue, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { sendWaiting } from "./sync";
@@ -39,7 +39,7 @@ export function SalePage() {
   const [sending, setSending] = useState(false);
   const [uuid, setUuid] = useState(newUuid);
   const [error, setError] = useState("");
-  // Returnable boxes the client keeps after this sale (P1-T14d). They are sent with the sale, never queued.
+  // Returnable boxes the client keeps after this sale (P1-T14d). They go with the sale, queued with it when offline.
   const [boxInputs, setBoxInputs] = useState<BoxInputs>(NO_BOXES);
   const startNew = () => {
     setReceipt(null);
@@ -121,11 +121,8 @@ export function SalePage() {
     } catch (failure) {
       if (failure instanceof ApiError) {
         setError(messagesOf(failure.body).join(" ") || t("truck.sale.failed"));
-      } else if (hasBoxes(boxCounts)) {
-        // Boxes are not queued yet (P1-T14d): the sale stays on this screen, with its number, until the network is back.
-        setError(t("truck.boxes.needConnection"));
       } else {
-        // No connection: keep the sale on the phone, it is sent as soon as the network is back.
+        // No connection: keep the sale on the phone, boxes included, and send it as soon as the network is back.
         const kept = waiting();
         try {
           await enqueue(kept);

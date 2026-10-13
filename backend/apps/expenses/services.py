@@ -1091,7 +1091,8 @@ def update_recurring_cost(
     payee: str = "",
     is_active: bool = True,
 ) -> RecurringCost:
-    """Change a template, or stop it (`is_active` false). Months already generated keep their amount."""
+    """Change a template, or stop it (`is_active` false). A month already generated takes the change while its
+    expense is still a draft or waiting for approval; an approved month keeps its amount (D-128)."""
     cost = RecurringCost.objects.select_for_update().select_related("category", "organization").get(pk=cost.pk)
     organization = cost.organization
     before = _recurring_snapshot(cost)
@@ -1117,6 +1118,23 @@ def update_recurring_cost(
         before=before,
         after=_recurring_snapshot(cost),
     )
+    open_periods = GeneralCostPeriod.objects.filter(recurring=cost, expense__status__in=OPEN_STATUSES).select_related(
+        "expense"
+    )
+    for period in open_periods:
+        expense = period.expense
+        update_expense(
+            expense=expense,
+            actor=actor,
+            spent_on=expense.spent_on,
+            category=cost.category,
+            amount=cost.monthly_amount,
+            payment_method=cost.payment_method,
+            description=cost.name,
+            payee=cost.payee,
+            notes=expense.notes,
+            linked=True,
+        )
     return cost
 
 

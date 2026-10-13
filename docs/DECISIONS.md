@@ -1694,7 +1694,47 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
   stays unassigned.
 
-**D-127 · A driver day worked on after it was sent is sent again (follow-up of D-094)** · accepted · 2026-10-13
+**D-127 · Admin can record returnable boxes on a receipt and on a load (bug, owner report)** · accepted · 2026-10-13
+- Found: the admin app had no way to post a box movement. The receipt and transfer APIs took `boxes` since P1-T14b,
+  but the admin forms never sent it, and the Caisses page was read only. The box types are a fixed choice
+  (`BoxType`, small and big), not a table, so "no box type exists" was not the cause. Nothing was seeded wrongly.
+- Fix: a "Caisses reçues avec la livraison" card on the receipt form and a "Caisses chargées dans le camion" card on
+  a load (shown only for a load), both sending the counts the server already takes. A draft load reloads its saved
+  counts: `TransferDetail` now returns `boxes`, because saving a draft replaces them. The empty Caisses page links to
+  both forms for whoever may record them.
+- Still open, not built: an opening balance (boxes already at clients, in cold rooms, or owed to suppliers). It needs
+  a movement kind with one side outside the ledger, and a decision on the sign for a supplier. Proposed as a small
+  owner-approved follow-up, not in this change.
+- Load question (owner): keep the count as a field on the load transfer (one document, posted in the same transaction
+  as the kg), not as a separate movement screen. A separate movement would need its own source document and could drift from the load.
+
+**D-128 · Editing a monthly cost template updates its months not yet approved (owner report)** · accepted · 2026-10-13
+- The owner changed a monthly cost (Frais généraux) and the month result did not move: the template change only
+  applied to months generated later. Now `update_recurring_cost` also rewrites the expense of every month already
+  generated whose expense is still a draft or waiting for approval (amount, category, name, payee, payment method),
+  through `update_expense` (audited). An approved month keeps its amount: a correction is a new expense.
+- The month result counts approved expenses only, so the change shows there once the expense is approved.
+- The admin refreshes the month screen and the dashboard after any expense change (`refreshExpenses`).
+**D-129 · Closing waits for the phone's waiting sales and says why; a sale sent again is not refused (follow-up of D-090, D-091, D-094)** · accepted · 2026-10-13
+- The closing stays blocked while any item of the phone queue is pending (D-090). The page now says how many wait and why (no connection, no answer, server busy, session ended), has a retry button, and sends them as it opens. Pure gate in `closingGate.ts`.
+- A send gives up after 25 s (`SEND_TIMEOUT_MS`, `sync.ts`), so one hung request no longer blocks every later sync until the page is reloaded.
+- 408, 429, 502, 503 and 504 keep the item pending (the server is busy, it did not refuse the item). Other 4xx and 500 still make it refused and reported to the office. 401 keeps it pending and reports the ended session.
+- Backend: a sale the server already has under the same `client_uuid` is answered 201 with that sale, checked before the day-approved check, so a retry after approval is not refused as a new sale. A new sale on an approved day is still 403 (D-094).
+
+**D-130 · A truck's day starts from what it held, not from today's loads (bug on staging, 2026-10-13)** · accepted · 2026-10-13
+- Cause: the driver's Clôture showed "vendu" above "chargé" (Crevette 109 sold, 100 loaded). Nothing was oversold:
+  the ledger never goes below zero (`post_fifo_movements` refuses, DB check `on_hand_never_negative`). The kilos
+  sold had stayed on the truck from an earlier day, and `truck_day` only counts today's validated transfers.
+- `inventory.selectors.location_stock_before`: what a location held at the start of the day, from the ledger
+  (movements dated before it). `day_summary` shows it per product as `opening`.
+- `unexplained` = left (ledger) - (opening + loaded - returned - sold - lost). It is never clamped: a gap is shown in
+  red with "prévenez le bureau" (stock out or in without a sale, loss or transfer of this driver).
+- Historical ledger rows and closing snapshots are not changed; old snapshots simply lack the two new fields.
+- Driver screens other than Ma journée get a "Retour à Ma journée" button under their content (`BackToDay`).
+- Not changed (open): an offline sale is dated when it is sent (`sold_at` is the server's moment for a driver),
+  so a sale made yesterday and sent today counts as today's sale and its price is today's.
+
+**D-132 · A driver day worked on after it was sent is sent again (follow-up of D-094)** · accepted · 2026-10-13
 - Seen on staging: a driver sent the day, was loaded again and kept selling. The phone showed the new figures but the
   closing kept the old count, could not be sent again ("déjà envoyée"), and the office would have approved figures
   that were no longer the day's.

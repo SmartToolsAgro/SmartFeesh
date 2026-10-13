@@ -1,5 +1,6 @@
 """Every write on returnable boxes goes through these functions, inside `transaction.atomic` (ARCHITECTURE §3)."""
 
+import uuid
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
@@ -12,7 +13,7 @@ from apps.core import audit
 from apps.core.models import Organization, User
 
 from . import selectors
-from .models import BoxHolder, BoxMovement, BoxType
+from .models import BoxHolder, BoxMovement, BoxPickup, BoxType
 from .models import BoxMovementKind as BoxMovementKind  # re-exported for apps that post box movements
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ _HOLDER_KINDS: dict[str, tuple[str | None, str | None]] = {
     BoxMovementKind.LEAVE: ("location", "customer"),
     BoxMovementKind.COLLECT: ("customer", "location"),
     BoxMovementKind.RETURN: ("location", "supplier"),
+    BoxMovementKind.TRUCK_RETURN: ("location", "location"),
     BoxMovementKind.WRITE_OFF: ("location", None),
 }
 
@@ -94,6 +96,14 @@ def post_box_movement(
         raise ValidationError(_("Un chargement va d'un emplacement vers un autre."))
     if kind == BoxMovementKind.LOAD and to_holder is not None and to_holder.location.kind != "truck":  # type: ignore[union-attr]
         raise ValidationError(_("Les caisses se chargent dans un camion."))
+    # Only a truck gives its boxes back, and only to a cold room (P1-T14e, D-124).
+    if (
+        kind == BoxMovementKind.TRUCK_RETURN
+        and from_holder is not None
+        and to_holder is not None
+        and (from_holder.location.kind != "truck" or to_holder.location.kind != "cold_room")  # type: ignore[union-attr]
+    ):
+        raise ValidationError(_("Les caisses reviennent d'un camion vers une chambre froide."))
 
     reason = reason.strip()
     if kind == BoxMovementKind.WRITE_OFF and not reason:
@@ -181,9 +191,26 @@ def post_pickup(
     customer: "Customer",
     location: "StockLocation",
     counts: Mapping[str, int],
+    client_uuid: uuid.UUID | None = None,
 ) -> list[BoxMovement]:
     """Boxes a driver collects back from a client into the truck (`collect`, D-122). All or nothing: refused
-    when the client holds fewer boxes of one type than asked (the ledger refuses a negative balance)."""
+    when the client holds fewer boxes of one type than asked (the ledger refuses a negative balance).
+    A `client_uuid` already used returns the movements of that pickup instead (the driver app retries)."""
+    if client_uuid is not None:
+        existing = BoxPickup.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            return list(
+                BoxMovement.objects.for_organization(organization).filter(
+                    source_type=ContentType.objects.get_for_model(BoxPickup), source_id=existing.pk
+                )
+            )
+    pickup = BoxPickup.objects.create(
+        organization=organization,
+        customer=customer,
+        location=location,
+        client_uuid=client_uuid,
+        created_by=actor,
+    )
     return post_box_counts(
         organization=organization,
         actor=actor,
@@ -191,6 +218,7 @@ def post_pickup(
         counts=counts,
         from_holder=holder_for(organization=organization, customer=customer),
         to_holder=holder_for(organization=organization, location=location),
+        source=pickup,
     )
 
 

@@ -9,6 +9,8 @@ export interface DayProduct {
   readonly product_id: number;
   readonly product_name: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
+  readonly opening: string;
+  /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly loaded: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly sold: string;
@@ -18,4 +20,6 @@ export interface DayProduct {
   readonly returned: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly remaining: string;
+  /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
+  readonly unexplained: string;
 }
