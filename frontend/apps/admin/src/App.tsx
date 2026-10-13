@@ -116,8 +116,11 @@ function useNav(): AdminNavGroup[] {
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
-        { to: "/import", label: t("admin.nav.imports"), icon: "box" },
       ],
+    },
+    {
+      label: t("admin.groups.admin"),
+      items: [{ to: "/import", label: t("admin.nav.imports"), icon: "box" }],
     },
   ];
 }
