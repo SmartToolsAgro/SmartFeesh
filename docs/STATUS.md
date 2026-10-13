@@ -102,6 +102,8 @@ the missing articles). Open: #114 (driver day history, not ready). Every merge d
 
 ## Recently done
 
+- 2026-10-13 · D-132 a driver day worked on after it was sent (a new load, more sales) can be sent again; the office
+  cannot approve it until then (staging report).
 - 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that
   match no product (code, name, kg, category "À classer", no price). Applied on staging: 2 codes written, 36 created.
 - 2026-10-13 · D-131 every document (quote, delivery note, credit note, receipt, partner statement) uses the

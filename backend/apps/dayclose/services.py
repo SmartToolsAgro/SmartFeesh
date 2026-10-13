@@ -30,15 +30,20 @@ def _plain(value: Any) -> Any:
 
 @transaction.atomic
 def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Number, note: str = "") -> DayClosing:
-    """The driver sends the end of their day with the cash they counted. Allowed once, and again only after the
-    office asked for a justification. An approved day never changes."""
+    """The driver sends the end of their day with the cash they counted. Allowed once, and again after the office
+    asked for a justification, or when the driver worked after sending (a new load, more sales: the sent figures
+    are out of date). An approved day never changes."""
     try:
         counted = checked_amount(counted_cash)
     except (ValueError, TypeError):
         raise ValidationError({"counted_cash": _("Indiquez l'argent compté, en DT, au millime près.")}) from None
     driver_day = fleet.locked_driver_day(driver_day)
     existing = selectors.closing_of(driver_day)
-    if existing is not None and existing.status == DayClosingStatus.SUBMITTED:
+    if (
+        existing is not None
+        and existing.status == DayClosingStatus.SUBMITTED
+        and not selectors.changed_since_sent(existing)
+    ):
         raise ValidationError({"counted_cash": _("Cette journée est déjà envoyée.")})
     if existing is not None and existing.status == DayClosingStatus.APPROVED:
         raise ValidationError({"counted_cash": _("Cette journée est approuvée : elle ne change plus.")})
@@ -82,6 +87,10 @@ def _reviewable(closing: DayClosing) -> DayClosing:
 def approve_day_closing(*, closing: DayClosing, actor: User) -> DayClosing:
     """The office checked the day: it is locked."""
     closing = _reviewable(closing)
+    if selectors.changed_since_sent(closing):
+        raise ValidationError(
+            _("Le chauffeur a travaillé après l'envoi : il doit renvoyer sa journée avant qu'elle soit approuvée.")
+        )
     closing.status = DayClosingStatus.APPROVED
     closing.reviewed_by = actor
     closing.reviewed_at = timezone.now()

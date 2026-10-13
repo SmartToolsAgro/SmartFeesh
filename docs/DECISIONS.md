@@ -1760,6 +1760,19 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   quote or BL shows the finance settings in force (`useSeller`). The quote's customer link moved to "Suivi".
   The quote/sale customer payload gained `phone` for the client block.
 
+**D-132 · A driver day worked on after it was sent is sent again (follow-up of D-094)** · accepted · 2026-10-13
+- Seen on staging: a driver sent the day, was loaded again and kept selling. The phone showed the new figures but the
+  closing kept the old count, could not be sent again ("déjà envoyée"), and the office would have approved figures
+  that were no longer the day's.
+- `dayclose.selectors.changed_since_sent(closing)` compares the sent summary with the day as it is now (opening cash,
+  sales, payments, credit, expenses, expected cash, and per product loaded / sold / lost / returned; not the stock
+  left in the truck, which moves on later days). Exposed as `changed_since_sent` on the driver's closing and the
+  office detail. An approved day never counts as changed.
+- While it is true, the driver can send the day again (new count, the summary saved again; audit
+  `day_closing.resubmitted`), and the office **cannot approve** (400) until the day is sent again; it can still ask
+  for a justification. The phone shows the count form again with a warning; the office dialog shows a warning and
+  the approve button is disabled. Selling after sending stays allowed (only an approved day is closed, D-109).
+
 **D-133 · A driver's sale is dated when it was made, as the phone says, within limits (owner decision; follow-up of D-091, D-094, D-129, D-130)** · accepted · 2026-10-13
 - Before: for a driver `sold_at` was the server's clock, so a sale made without connection yesterday and sent today
   was today's sale, at today's price, in today's closing.
