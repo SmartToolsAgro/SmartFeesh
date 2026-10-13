@@ -325,6 +325,27 @@ def on_hand_differences(organization: Organization) -> list[OnHandDifference]:
         return [OnHandDifference(*row) for row in cursor.fetchall()]
 
 
+def location_stock_before(organization: Organization, *, location_id: int, day: dt.date) -> list[dict[str, Any]]:
+    """What one location held at the start of `day` (local time) per product, from the ledger: every movement
+    dated before that day. Same keys as `location_stock`. A truck keeps what it did not sell or return, so
+    this is its opening stock, which loaded-today figures leave out (dayclose.day_summary)."""
+    before = StockMovement.objects.for_organization(organization).filter(occurred_at__date__lt=day).order_by()
+    incoming = before.filter(to_location_id=location_id).values("product_id", "product__name")
+    outgoing = before.filter(from_location_id=location_id).values("product_id", "product__name")
+    balance: dict[int, dict[str, Any]] = {}
+    for sign, rows in ((1, incoming.annotate(total=Sum("quantity"))), (-1, outgoing.annotate(total=Sum("quantity")))):
+        for row in rows:
+            entry = balance.setdefault(
+                row["product_id"],
+                {"product_id": row["product_id"], "product__name": row["product__name"], "quantity": Decimal("0.000")},
+            )
+            entry["quantity"] += sign * row["total"]
+    return sorted(
+        (entry for entry in balance.values() if entry["quantity"] != 0),
+        key=lambda entry: (entry["product__name"], entry["product_id"]),
+    )
+
+
 def location_stock(organization: Organization, *, location_id: int) -> list[dict[str, Any]]:
     """What one location holds per product (all batches together), by product name: `product_id`,
     `product__reference`, `product__name`, `quantity`. Products it does not hold are left out."""

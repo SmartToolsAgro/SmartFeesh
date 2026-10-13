@@ -70,7 +70,10 @@ def day():
         "api": api,
         "office": client_for(office),
         "owner": client_for(owner),
+        "organization": organization,
         "product": product,
+        "room": room,
+        "batch": batch,
         "truck": truck,
         "customer": customer,
     }
@@ -106,12 +109,70 @@ def test_the_summary_adds_up_the_day(day):
     assert summary["products"][0] | {"product_id": 0} == {
         "product_id": 0,
         "product_name": "Dorade royale",
+        "opening": "0.000",
         "loaded": "12.000",
         "sold": "5.000",
         "lost": "0.000",
         "returned": "0.000",
         "remaining": "7.000",
+        "unexplained": "0.000",
     }
+
+
+def test_kilos_left_on_the_truck_from_an_earlier_day_are_its_opening_stock(day):
+    """Bug of 2026-10-13: a truck sold more than it was loaded that day (Crevette 109 sold, 100 loaded).
+    The 2 kg of dorade sold today were on the truck since yesterday: they are the opening stock, so the
+    day adds up: opening + loaded - returned - sold - lost = left."""
+    yesterday = timezone.localdate() - dt.timedelta(days=1)
+    left_over = BatchFactory.create(organization=day["organization"], product=day["product"], received_on=yesterday)
+    inventory.post_movement(
+        organization=day["organization"],
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=left_over,
+        quantity="2",
+        to_location=day["room"],
+        occurred_at=timezone.make_aware(dt.datetime.combine(yesterday, dt.time(9, 0))),
+    )
+    inventory.create_transfer(
+        organization=day["organization"],
+        actor=None,
+        from_location=day["room"],
+        to_location=day["truck"].location,
+        transferred_on=yesterday,
+        lines=[{"product": day["product"], "quantity": Decimal("2")}],
+        validate=True,
+    )
+    assert sell(day, "13", "100.000").status_code == 201
+
+    product = day["api"].get(reverse("my-day-summary")).json()["summary"]["products"][0]
+
+    assert (product["opening"], product["loaded"], product["sold"], product["remaining"]) == (
+        "2.000",
+        "12.000",
+        "13.000",
+        "1.000",
+    )
+    assert product["unexplained"] == "0.000"
+
+
+def test_stock_that_left_the_truck_without_a_record_is_unexplained(day):
+    """Kilos that leave the truck by a hand adjustment, with no sale, loss or transfer behind them, show as a gap."""
+    sell(day, "3", "84.000")
+    inventory.post_movement(
+        organization=day["organization"],
+        actor=None,
+        kind=MovementKind.ADJUSTMENT,
+        batch=day["batch"],
+        quantity="2",
+        from_location=day["truck"].location,
+        reason="Test",
+    )
+
+    product = day["api"].get(reverse("my-day-summary")).json()["summary"]["products"][0]
+
+    assert (product["loaded"], product["sold"], product["remaining"]) == ("12.000", "3.000", "7.000")
+    assert product["unexplained"] == "-2.000"
 
 
 def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justification(day):

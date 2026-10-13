@@ -107,13 +107,19 @@ export function ClosingPage() {
               <li key={product.product_id} className="space-y-1 py-3">
                 <p className="text-lg font-semibold">{product.product_name}</p>
                 <p className="text-sm text-ink-2">
-                  {t("truck.closing.loaded")} {formatQuantity(product.loaded)} · {t("truck.closing.sold")}{" "}
-                  {formatQuantity(product.sold)} · {t("truck.closing.lost")} {formatQuantity(product.lost)} ·{" "}
-                  {t("truck.closing.returned")} {formatQuantity(product.returned)}
+                  {t("truck.closing.stockOpening")} {formatQuantity(product.opening)} · {t("truck.closing.loaded")}{" "}
+                  {formatQuantity(product.loaded)} · {t("truck.closing.sold")} {formatQuantity(product.sold)} ·{" "}
+                  {t("truck.closing.lost")} {formatQuantity(product.lost)} · {t("truck.closing.returned")}{" "}
+                  {formatQuantity(product.returned)}
                 </p>
                 <p className="font-semibold">
                   {t("truck.closing.left")} {formatQuantity(product.remaining)}
                 </p>
+                {Number(product.unexplained) === 0 ? null : (
+                  <p className="font-semibold text-bad">
+                    {t("truck.closing.unexplained", { kg: formatQuantity(product.unexplained) })}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
