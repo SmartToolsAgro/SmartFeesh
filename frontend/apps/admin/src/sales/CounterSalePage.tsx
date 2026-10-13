@@ -35,7 +35,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useOutletContext } from "react-router";
 
-import { lineTotal, sum } from "../lib/decimal";
+import { isBelowMinimum, lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
@@ -314,6 +314,14 @@ export function CounterSalePage() {
                     className={BIG_INPUT}
                   />
                 </Field>
+                {productRow && isBelowMinimum(parseDecimalInput(shownPrice.trim(), 3), productRow.min_price) && (
+                  <p
+                    role="alert"
+                    className="col-span-3 rounded-chip bg-bad-soft px-3 py-2 text-[0.85rem] font-semibold text-bad max-[700px]:col-span-2"
+                  >
+                    {t("admin.sales.form.belowMinimum", { minimum: formatMoney(productRow.min_price ?? "0") })}
+                  </p>
+                )}
                 <p className="col-span-2 text-[0.85rem] text-ink-2 max-[700px]:col-span-2" aria-live="polite">
                   {product && stock.data
                     ? available.get(product)

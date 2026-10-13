@@ -34,7 +34,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from "react-router";
 
-import { lineTotal, percentOf, subtract, sum } from "../lib/decimal";
+import { isBelowMinimum, lineTotal, percentOf, subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { canSell, localInputOf, momentOf, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
@@ -135,6 +135,11 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
+    return byProduct;
+  }, [products.data]);
+  const minimumOf = useMemo(() => {
+    const byProduct = new Map<string, string | null>();
+    for (const product of products.data ?? []) byProduct.set(String(product.id), product.min_price);
     return byProduct;
   }, [products.data]);
   // The customer's own price list wins over the daily price, as on the server (D-049).
@@ -402,6 +407,20 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
                 <p className="col-span-4 text-[0.85rem] text-ink-2 max-[900px]:col-span-2" aria-live="polite">
                   {hints.join(" · ")}
                 </p>
+                {line.product &&
+                  isBelowMinimum(
+                    parseDecimalInput(priceOf(line).trim(), 3),
+                    minimumOf.get(line.product) ?? null,
+                  ) && (
+                    <p
+                      role="alert"
+                      className="col-span-5 rounded-chip bg-bad-soft px-3 py-2 text-[0.85rem] font-semibold text-bad max-[900px]:col-span-3"
+                    >
+                      {t("admin.sales.form.belowMinimum", {
+                        minimum: formatMoney(minimumOf.get(line.product) ?? "0"),
+                      })}
+                    </p>
+                  )}
                 <p className="num text-end font-semibold">{preview ? formatMoney(preview.amount) : ""}</p>
               </div>
             );

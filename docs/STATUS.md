@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-13_
+_Last updated: 2026-10-14_
 
 ## Where we are
 
@@ -102,6 +102,8 @@ the missing articles). Open: #114 (driver day history, not ready). Every merge d
 
 ## Recently done
 
+- 2026-10-14 · Admin sale form and counter sale warn at once when the typed price is under the product's minimum
+  (D-049 follow-up; warning only).
 - 2026-10-13 · D-132 a driver day worked on after it was sent (a new load, more sales) can be sent again; the office
   cannot approve it until then (staging report).
 - 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that

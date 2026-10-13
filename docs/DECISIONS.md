@@ -612,6 +612,8 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - **Minimum price** per product (`Product.min_price`, optional, set from the board). A price below it is
   accepted and returned in `below_minimum` (screen warning); the audit logs `product.price_below_minimum`.
   Changing the minimum is audited too (`product.min_price_set`).
+  The admin sale form and the counter sale also show a red alert as the price is typed (2026-10-14): still
+  a warning, never a block.
 - **Price lists** (`PriceList` + `PriceListItem`): a name, optionally one customer (one list per customer,
   customer checked through `partners.selectors`), an active flag and items (product, price) replaced as a
   whole on update; audited. API `price-lists` (members read, owner/manager write). No admin screen yet.
