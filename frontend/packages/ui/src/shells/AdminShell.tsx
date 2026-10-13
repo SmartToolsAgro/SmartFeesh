@@ -17,6 +17,8 @@ export interface AdminNavGroup {
 interface Props {
   nav: AdminNavGroup[];
   user: { name: string; role: string; avatarUrl?: string | null };
+  /** The company logo from Paramètres; the default mark without one. */
+  logoUrl?: string | null;
   onLogout: () => void;
   children: ReactNode;
 }
@@ -56,12 +58,12 @@ function BackLink({ nav }: { nav: AdminNavGroup[] }) {
 }
 
 /** Back-office frame: sticky top bar, module sidebar (a scrolling strip on small screens), page area. */
-export function AdminShell({ nav, user, onLogout, children }: Props) {
+export function AdminShell({ nav, user, logoUrl, onLogout, children }: Props) {
   const { t } = useTranslation();
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-20 print:hidden flex flex-wrap items-center gap-4 border-b border-line bg-surface/90 px-5 py-3 backdrop-blur-md max-sm:gap-2.5 max-sm:px-4 max-sm:py-2.5">
-        <Brand />
+        <Brand logoUrl={logoUrl} />
         <div className="flex-1" />
         <ThemeToggle />
         <div className="flex items-center gap-2.5">

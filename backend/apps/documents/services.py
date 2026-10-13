@@ -5,6 +5,7 @@ An app that owns printable documents calls `register(kind, provider)` when it st
 `ObjectDoesNotExist`. This app never reads another app's tables.
 """
 
+import base64
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -65,8 +66,31 @@ def printable(organization: Organization, kind: str, object_id: int) -> Printabl
     return _providers[kind](organization, object_id)
 
 
-def render_html(document: Printable) -> str:
-    return render_to_string(document.template, document.context)
+def logo_data_uri(organization: Organization | None) -> str:
+    """The company logo from Paramètres (D-123) as a `data:` address the PDF embeds; empty without a logo."""
+    if organization is None or not organization.logo:
+        return ""
+    try:
+        with organization.logo.open("rb") as file:
+            data = file.read()
+    except OSError:
+        # A missing file must not stop the document: it prints with the name instead of the logo.
+        logger.warning("Logo file of organization %s is missing", organization.pk)
+        return ""
+    return "data:image/webp;base64," + base64.b64encode(data).decode("ascii")
+
+
+def render_html(document: Printable, organization: Organization | None = None) -> str:
+    """Every PDF gets the company logo as `logo` (the shared header of `documents/pdf_base.html` prints it)."""
+    return render_to_string(document.template, {"logo": logo_data_uri(organization), **document.context})
+
+
+def file_version(organization: Organization, document: Printable) -> str:
+    """The document's version plus the logo's: a new logo makes the stored files stale (D-125)."""
+    if not organization.logo:
+        return document.version
+    # The logo's file name is a fresh random hex on every upload; a few characters tell versions apart.
+    return f"{document.version}|{(organization.logo.name or '').rsplit('/', 1)[-1][:8]}"
 
 
 def _row(organization: Organization, kind: str, object_id: int) -> GeneratedDocument | None:
@@ -88,7 +112,7 @@ def request_pdf(
         .select_for_update()
         .get_or_create(kind=kind, object_id=object_id, defaults={"organization": organization})
     )
-    if row.file and row.version == current.version:
+    if row.file and row.version == file_version(organization, current):
         return row
     now = timezone.now()
     # Running: queued less than a moment ago and not finished since (a finished job is stale, not running).
@@ -113,7 +137,7 @@ def request_pdf(
 def generate_pdf_now(*, organization: Organization, kind: str, object_id: int) -> GeneratedDocument:
     """Render the document and store the file, replacing an older one. Called by the job."""
     current = printable(organization, kind, object_id)
-    pdf = rendering.html_to_pdf(render_html(current))
+    pdf = rendering.html_to_pdf(render_html(current, organization))
     with transaction.atomic():
         row, _created = (
             GeneratedDocument.objects.for_organization(organization)
@@ -122,7 +146,7 @@ def generate_pdf_now(*, organization: Organization, kind: str, object_id: int) -
         )
         old = row.file.name if row.file else ""
         row.file.save(current.filename, ContentFile(pdf), save=False)
-        row.version = current.version
+        row.version = file_version(organization, current)
         row.generated_at = timezone.now()
         row.error = ""
         row.save()
@@ -134,7 +158,11 @@ def generate_pdf_now(*, organization: Organization, kind: str, object_id: int) -
 def current_file(*, organization: Organization, kind: str, object_id: int) -> GeneratedDocument | None:
     """The stored file when it shows the document's present state (a job that just ran inline made it)."""
     row = _row(organization, kind, object_id)
-    if row is not None and row.file and row.version == printable(organization, kind, object_id).version:
+    if (
+        row is not None
+        and row.file
+        and row.version == file_version(organization, printable(organization, kind, object_id))
+    ):
         return row
     return None
 

@@ -1,4 +1,5 @@
 import datetime as dt
+import io
 from decimal import Decimal
 
 import pytest
@@ -13,13 +14,15 @@ from apps.core.models import Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory
 from apps.documents import rendering, services
 from apps.documents.models import GeneratedDocument
-from apps.documents.templatetags.pdf_format import kilos, money, percent
+from apps.documents.templatetags.pdf_format import kilos, money, one_line, percent, quantity, rate
+from apps.documents.words import dinars_in_words, number_in_words
 from apps.inventory import services as stock
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import services as sales
-from apps.sales.models import CreditNoteKind, CreditNoteStock, SalePaymentMethod
+from apps.sales.models import CreditNoteKind, CreditNoteStock, FinanceSettings, SalePaymentMethod
+from apps.sales.printing import customer_type, unique_identifier
 
 pytestmark = pytest.mark.django_db
 
@@ -122,6 +125,57 @@ def test_amounts_use_a_comma_and_thin_spaces():
     assert percent(D("1.50")) == "1,50 %"
 
 
+def test_quantities_and_rates_as_in_the_invoice_columns():
+    assert quantity(D("90.000")) == "90"
+    assert quantity(D("1097.900")) == "1\u202f097,9"
+    assert rate(D("0")) == "0,00"
+    assert rate(D("19")) == "19,00"
+    assert one_line("Route Mahdia KM4\n3011 Sfax\n") == "Route Mahdia KM4 - 3011 Sfax"
+
+
+@pytest.mark.parametrize(
+    ("number", "words"),
+    [
+        (0, "zéro"),
+        (1, "un"),
+        (16, "seize"),
+        (17, "dix-sept"),
+        (21, "vingt et un"),
+        (71, "soixante et onze"),
+        (77, "soixante-dix-sept"),
+        (80, "quatre-vingts"),
+        (81, "quatre-vingt-un"),
+        (91, "quatre-vingt-onze"),
+        (100, "cent"),
+        (200, "deux cents"),
+        (201, "deux cent un"),
+        (1000, "mille"),
+        (3515, "trois mille cinq cent quinze"),
+        (80000, "quatre-vingt mille"),
+        (200000, "deux cent mille"),
+        (1_000_000, "un million"),
+        (2_380_000, "deux millions trois cent quatre-vingt mille"),
+    ],
+)
+def test_numbers_in_french_words(number, words):
+    assert number_in_words(number) == words
+
+
+def test_amounts_in_words_as_on_the_paper_invoice():
+    assert dinars_in_words(D("3515.500")) == "Trois mille cinq cent quinze Dinars 500 Millimes"
+    assert dinars_in_words(D("1.000")) == "Un Dinar"
+    assert dinars_in_words(D("12.050")) == "Douze Dinars 050 Millimes"
+
+
+def test_tax_id_gives_the_unique_identifier_and_the_customer_type():
+    assert unique_identifier("1902781/R/N/M/000") == "1902781R"
+    assert unique_identifier("") == ""
+    assert customer_type("1796419/D/N/M/000", "restaurant") == "Personne morale"
+    assert customer_type("1234567/A/P/P/000", "restaurant") == "Personne physique"
+    assert customer_type("", "individual") == "Personne physique"
+    assert customer_type("", "restaurant") == ""
+
+
 # ---- what each document shows ----
 
 
@@ -134,7 +188,54 @@ def test_the_invoice_page_shows_the_frozen_figures(organization, invoice):
     assert "39,900" in html  # VAT 19 %
     assert "1,000" in html  # fiscal stamp
     assert "250,900 DT" not in html  # separators are thin spaces, never a plain one in numbers
-    assert "250,900 DT" in html
+    assert "250,900 TND" in html
+
+
+def test_the_invoice_follows_the_paper_form(organization, invoice):
+    FinanceSettings.objects.filter(organization=organization).update(tax_id="1902781/R/N/M/000")
+    invoice.customer.reference = "0047"
+    invoice.customer.save()
+
+    html = services.render_html(services.printable(organization, "invoice", invoice.pk))
+
+    assert f"Facture N° {invoice.number}" in html
+    assert "Code Client:" in html
+    assert "0047" in html
+    assert "CR-001" in html  # the product code in the Code Art column
+    assert "Total H.T Avant Remise" in html
+    assert "Arrêtée la présente Facture à la somme de : Deux cent cinquante Dinars 900 Millimes" in html
+
+
+def test_every_pdf_prints_the_logo_and_a_new_logo_makes_the_file_stale(organization, invoice, manager, fake_pdf):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    from apps.core import services as core
+
+    first = services.request_pdf(organization=organization, kind="invoice", object_id=invoice.pk)
+    assert first is None
+    assert "data:image/webp;base64," not in fake_pdf[-1]
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 20), "navy").save(buffer, format="PNG")
+    organization = core.set_organization_logo(
+        organization=organization,
+        actor=manager.user,
+        upload=SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"),
+    )
+
+    # The stored file shows the old logo: asking again makes a new one, with the logo in it.
+    assert services.request_pdf(organization=organization, kind="invoice", object_id=invoice.pk) is None
+    assert "data:image/webp;base64," in fake_pdf[-1]
+    # The other documents print it in the shared header.
+    payment = sales.record_customer_payment(
+        organization=organization,
+        actor=manager.user,
+        customer=invoice.customer,
+        amount=D("10.000"),
+        method=SalePaymentMethod.CASH,
+    )
+    receipt_html = services.render_html(services.printable(organization, "receipt", payment.pk), organization)
+    assert 'class="brand-logo" src="data:image/webp;base64,' in receipt_html
 
 
 def test_a_draft_invoice_has_no_pdf(organization, sale, manager):

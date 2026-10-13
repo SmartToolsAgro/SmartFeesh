@@ -1,69 +1,160 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
-{% block heading %}Facture{% endblock %}
-{% block subtitle %}
-  <p class="muted num">Émise le {{ invoice.issued_on|day }}{% if invoice.due_on %} · échéance {{ invoice.due_on|day }}{% endif %}</p>
-  <p class="muted small num">{% if several_sales %}Bons de livraison{% else %}Bon de livraison{% endif %} {{ sale_numbers }}</p>
-  {% if cancelled %}<p class="banner">ANNULÉE PAR AVOIR</p>{% endif %}
+{% comment %}
+  The layout of the paper invoice the company already uses (D-125): logo and company top left, boxed number,
+  date and client top right, a ruled lines table, fees and totals boxes, the amount in words, the signature.
+  Additions over the paper form: units, lots, delivery notes, due date, VAT per rate, withholding and notes.
+{% endcomment %}
+{% block style %}
+  @page {
+    margin: 12mm 12mm 22mm;
+    @bottom-left { content: element(footer); vertical-align: top; width: 100%; }
+    @bottom-right { content: none; }
+  }
+  body { font-family: "Liberation Sans", Arial, "DejaVu Sans", sans-serif; font-size: 9.5pt; color: #111; }
+  .page-footer { position: running(footer); width: 100%; border-top: 0.3mm solid #333; padding-top: 1.5mm; font-size: 8.5pt; display: flex; justify-content: space-between; }
+  .page-footer .pages::after { content: "Page " counter(page) " / " counter(pages); }
+  .box { border: 0.3mm solid #333; }
+  .shade { background: #e6e6e6; }
+  .fa-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; }
+  .fa-brand { width: 85mm; padding-top: 4mm; }
+  .fa-brand img { display: block; max-width: 60mm; max-height: 30mm; margin: 0 0 6mm 8mm; }
+  .fa-brand .name { font-size: 15pt; font-weight: 700; color: #0f5e7a; margin: 0 0 6mm 8mm; }
+  .fa-brand p { font-size: 10pt; line-height: 1.3; }
+  .fa-head { width: 84mm; }
+  .fa-number { text-align: center; font-size: 11pt; padding: 2mm; margin-bottom: 5mm; border-width: 0.4mm; }
+  table.grid { width: 100%; border-collapse: collapse; }
+  table.grid th, table.grid td { border: 0.3mm solid #333; padding: 0.8mm 1.5mm; text-align: center; font-weight: 400; }
+  table.grid th { background: #e6e6e6; font-weight: 700; font-size: 10pt; }
+  .fa-client { margin-top: 7mm; font-size: 10pt; }
+  .fa-client table { border-collapse: collapse; }
+  .fa-client th { text-align: left; font-weight: 700; padding: 0.3mm 4mm 0.3mm 0; vertical-align: top; white-space: nowrap; }
+  .fa-client td { padding: 0.3mm 0; }
+  .fa-meta { margin-top: 4mm; font-size: 8.5pt; color: #333; }
+  table.fa-lines { width: 100%; border-collapse: collapse; margin-top: 6mm; border: 0.3mm solid #333; }
+  table.fa-lines thead { display: table-header-group; }
+  table.fa-lines th { border: 0.3mm solid #333; padding: 1.5mm 1mm; font-size: 10pt; text-align: center; white-space: nowrap; }
+  table.fa-lines td { border-left: 0.3mm solid #333; border-right: 0.3mm solid #333; padding: 1.2mm 1.2mm; font-size: 8.5pt; vertical-align: top; }
+  table.fa-lines tr { page-break-inside: avoid; }
+  table.fa-lines tr.filler td { padding: 0; }
+  table.fa-lines tbody tr:last-child td { border-bottom: 0.3mm solid #333; }
+  table.fa-lines .lot { color: #555; font-size: 7.5pt; }
+  .fa-bottom { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 3mm; page-break-inside: avoid; }
+  .fa-fees { width: 81mm; }
+  .fa-totals { width: 86mm; }
+  table.kv { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  table.kv th, table.kv td { border: 0.3mm solid #333; padding: 0.7mm 1mm; }
+  table.kv th { background: #e6e6e6; font-weight: 400; text-align: left; width: 50%; }
+  table.kv td { text-align: right; white-space: nowrap; }
+  table.kv tr.net th, table.kv tr.net td { font-weight: 700; }
+  .fa-vat { margin-top: 3mm; }
+  .fa-words { margin-top: 5mm; font-size: 10pt; page-break-inside: avoid; }
+  .fa-sign { display: flex; justify-content: flex-end; align-items: center; gap: 6mm; margin-top: 3mm; page-break-inside: avoid; }
+  .fa-sign .stamp { width: 70mm; height: 22mm; }
+  .fa-cancelled { margin-top: 2mm; text-align: center; }
 {% endblock %}
-{% block body %}
-<div class="parties">
-  <div>
-    <h2>Client</h2>
-    <p><b>{{ invoice.customer_name }}</b></p>
-    {% if invoice.customer_address or invoice.customer_city %}<p>{{ invoice.customer_address }}{% if invoice.customer_address and invoice.customer_city %}, {% endif %}{{ invoice.customer_city }}</p>{% endif %}
-    {% if invoice.customer_tax_id %}<p class="small muted">M.F. {{ invoice.customer_tax_id }}</p>{% endif %}
+{% block header %}
+<div class="page-footer">
+  <span>{% if seller.address %}Adresse : {{ seller.address|one_line }}{% endif %}{% if seller.phone %}{% if seller.address %} · {% endif %}Téléphone : {{ seller.phone }}{% endif %}</span>
+  <span class="pages"></span>
+</div>
+<div class="fa-top">
+  <div class="fa-brand">
+    {% if logo %}<img src="{{ logo }}" alt="{{ seller.name }}">{% else %}<p class="name">{{ seller.name }}</p>{% endif %}
+    {% if seller.address %}<p>{{ seller.address|linebreaksbr }}</p>{% endif %}
+    {% if seller.phone %}<p>Tél : {{ seller.phone }}</p>{% endif %}
+    {% if seller.tax_id %}<p>MF : {{ seller.tax_id }}</p>{% endif %}
+    {% if seller.unique_identifier %}<p>Identifiant Unique : {{ seller.unique_identifier }}</p>{% endif %}
+    {% if seller.trade_register %}<p>RC : {{ seller.trade_register }}</p>{% endif %}
   </div>
-  <div>
-    <h2>Règlement</h2>
-    <p>{% if invoice.due_on %}À payer avant le {{ invoice.due_on|day }}.{% else %}Payable à réception.{% endif %}</p>
-    <p class="muted small">Montants en dinars tunisiens (DT).{% if not invoice.apply_vat %} Facture sans TVA.{% endif %}</p>
+  <div class="fa-head">
+    <div class="box shade fa-number">Facture N° {{ number }}</div>
+    {% if cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉE PAR AVOIR</span></p>{% endif %}
+    <table class="grid">
+      <thead><tr><th>Date</th><th>Client</th></tr></thead>
+      <tbody><tr><td class="num">{{ invoice.issued_on|day }}</td><td>{{ invoice.customer_name }}</td></tr></tbody>
+    </table>
+    <div class="fa-client">
+      <table>
+        <tr><th>Client:</th><td><b>{{ invoice.customer_name }}</b></td></tr>
+        <tr><th>Code Client:</th><td>{{ customer_reference }}</td></tr>
+        <tr><th>Type:</th><td>{{ customer_type }}</td></tr>
+        <tr><th>Adresse:</th><td>{{ invoice.customer_address }}{% if invoice.customer_address and invoice.customer_city %}, {% endif %}{{ invoice.customer_city }}</td></tr>
+        <tr><th>Téléphone:</th><td>{{ customer_phone }}</td></tr>
+        <tr><th>MF:</th><td>{{ invoice.customer_tax_id }}</td></tr>
+      </table>
+    </div>
+    <p class="fa-meta">
+      {% if several_sales %}Bons de livraison{% else %}Bon de livraison{% endif %} : {{ sale_numbers }}<br>
+      {% if invoice.due_on %}Échéance : {{ invoice.due_on|day }}{% else %}Payable à réception{% endif %}
+    </p>
   </div>
 </div>
-
-<table class="lines">
+{% endblock %}
+{% block body %}
+<table class="fa-lines">
   <thead>
     <tr>
-      <th>Désignation</th><th class="r">Qté</th><th class="r">P.U. HT</th>
-      {% if has_discount %}<th class="r">Remise</th>{% endif %}
-      <th class="r">TVA</th><th class="r">Total HT</th>
+      <th style="width: 19mm">Code Art</th>
+      <th>Désignation</th>
+      <th style="width: 15mm">Qté</th>
+      <th style="width: 13mm">Unité</th>
+      <th style="width: 19mm">P.U.H.T</th>
+      <th style="width: 19mm">Remise %</th>
+      <th style="width: 20mm">Prix HT</th>
+      <th style="width: 15mm">Tva %</th>
     </tr>
   </thead>
   <tbody>
     {% for line in lines %}
     <tr>
-      <td>{{ line.product_name }}{% if line.lots %}<br><span class="muted small">Lot {{ line.lots }}</span>{% endif %}{% if several_sales %}<br><span class="muted small">{{ line.sale_line.sale.number }}</span>{% endif %}</td>
-      <td class="r num">{{ line.quantity|kilos }}</td>
+      <td>{{ line.product_reference }}</td>
+      <td>{{ line.product_name }}{% if line.lots %}<br><span class="lot">Lot {{ line.lots }}</span>{% endif %}{% if several_sales %}<br><span class="lot">{{ line.sale_line.sale.number }}</span>{% endif %}</td>
+      <td class="r num">{{ line.quantity|quantity }}</td>
+      <td>{{ line.product.base_unit.symbol }}</td>
       <td class="r num">{{ line.unit_price_excl_tax|money }}</td>
-      {% if has_discount %}<td class="r num">{% if line.discount_rate %}{{ line.discount_rate|percent }}{% endif %}</td>{% endif %}
-      <td class="r num">{{ line.vat_rate|percent }}</td>
+      <td class="r num">{{ line.discount_rate|rate }}</td>
       <td class="r num">{{ line.amount_excl_tax|money }}</td>
+      <td class="r num">{{ line.vat_rate|rate }}</td>
     </tr>
     {% endfor %}
+    {% if filler_mm %}<tr class="filler">{% for column in "12345678" %}<td style="height: {{ filler_mm }}mm"></td>{% endfor %}</tr>{% endif %}
   </tbody>
 </table>
 
-<div class="totals num">
-  <div><span>Total HT</span><span>{{ invoice.total_excl_tax|money }}</span></div>
-  <div><span>TVA</span><span>{{ invoice.vat_total|money }}</span></div>
-  {% if invoice.fiscal_stamp %}<div><span>Timbre fiscal</span><span>{{ invoice.fiscal_stamp|money }}</span></div>{% endif %}
-  <div class="grand"><span>Total TTC</span><span>{{ invoice.total_incl_tax|money }} DT</span></div>
-  {% if invoice.withholding_amount %}
-  <div class="muted"><span>Retenue à la source ({{ invoice.withholding_rate|percent }})</span><span>− {{ invoice.withholding_amount|money }}</span></div>
-  <div><b>Net à payer</b><b>{{ invoice.net_to_pay|money }} DT</b></div>
-  {% endif %}
+<div class="fa-bottom">
+  <div class="fa-fees">
+    <table class="kv num">
+      <tr><th>Frais</th><td>{{ 0|money }} TND</td></tr>
+      <tr><th>Timbre fiscal</th><td>{{ invoice.fiscal_stamp|money }} TND</td></tr>
+    </table>
+    {% if vat_lines|length > 1 %}
+    <table class="kv num fa-vat">
+      <tr><th>Taux TVA</th><td>Base HT</td><td>TVA</td></tr>
+      {% for vat in vat_lines %}<tr><th>{{ vat.rate|percent }}</th><td>{{ vat.base|money }}</td><td>{{ vat.amount|money }}</td></tr>{% endfor %}
+    </table>
+    {% endif %}
+  </div>
+  <div class="fa-totals">
+    <table class="kv num">
+      <tr><th>Total H.T Avant Remise</th><td>{{ total_before_discount|money }} TND</td></tr>
+      <tr><th>Total Remise</th><td>{{ discount_excl_tax|money }} TND</td></tr>
+      <tr><th>Total H.T</th><td>{{ invoice.total_excl_tax|money }} TND</td></tr>
+      <tr><th>Total TVA</th><td>{{ invoice.vat_total|money }} TND</td></tr>
+      <tr class="net"><th>Total TTC</th><td>{{ invoice.total_incl_tax|money }} TND</td></tr>
+      {% if invoice.withholding_amount %}
+      <tr><th>Retenue à la source ({{ invoice.withholding_rate|percent }})</th><td>− {{ invoice.withholding_amount|money }} TND</td></tr>
+      <tr class="net"><th>Net à payer</th><td>{{ invoice.net_to_pay|money }} TND</td></tr>
+      {% endif %}
+    </table>
+  </div>
 </div>
 
-{% if vat_lines %}
-<div class="vat">
-  <h2>TVA par taux</h2>
-  <table>
-    <thead><tr><th>Taux</th><th>Base HT</th><th>TVA</th></tr></thead>
-    <tbody>
-      {% for vat in vat_lines %}<tr class="num"><td>{{ vat.rate|percent }}</td><td>{{ vat.base|money }}</td><td>{{ vat.amount|money }}</td></tr>{% endfor %}
-    </tbody>
-  </table>
+<p class="fa-words">Arrêtée la présente Facture à la somme de : {{ invoice.total_incl_tax|in_words }}</p>
+
+<div class="fa-sign">
+  <span>Signature:</span>
+  <div class="stamp"></div>
 </div>
-{% endif %}
 
 {% if invoice.notes %}<div class="note"><h2>Remarques</h2><p>{{ invoice.notes|linebreaksbr }}</p></div>{% endif %}
 {% endblock %}

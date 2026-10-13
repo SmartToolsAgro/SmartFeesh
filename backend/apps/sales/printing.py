@@ -4,7 +4,7 @@ Registered with the documents app when sales starts (`SalesConfig.ready`). Each 
 selectors and raises `ObjectDoesNotExist` outside the organization.
 """
 
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from django.core.exceptions import ValidationError
@@ -36,6 +36,36 @@ def _seller_of(organization: Organization) -> dict[str, str]:
         "tax_id": version.tax_id,
         "trade_register": version.trade_register,
     }
+
+
+# The lines area of the invoice is drawn down to this height (mm) like the paper form; more lines just flow on.
+INVOICE_LINES_HEIGHT_MM = 72
+INVOICE_LINE_HEIGHT_MM = 7
+
+# The category letter of a Tunisian tax id ("1796419/D/N/M/000"): M for companies, P for individuals.
+_TAX_ID_CATEGORIES = {"M": "Personne morale", "P": "Personne physique"}
+
+
+def _tax_id_parts(tax_id: str) -> list[str]:
+    return [part.strip().upper() for part in tax_id.replace(" ", "").split("/")]
+
+
+def unique_identifier(tax_id: str) -> str:
+    """The "Identifiant unique" of a Tunisian tax id: its number and key letter (1902781/R/N/M/000 → 1902781R)."""
+    parts = _tax_id_parts(tax_id)
+    if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isalpha():
+        return ""
+    return parts[0] + parts[1]
+
+
+def customer_type(tax_id: str, kind: str) -> str:
+    """Personne morale / physique, read from the tax id's category letter, else from the customer kind."""
+    parts = _tax_id_parts(tax_id)
+    if len(parts) >= 4 and parts[3] in _TAX_ID_CATEGORIES:
+        return _TAX_ID_CATEGORIES[parts[3]]
+    if kind == "individual":  # partners.CustomerKind.INDIVIDUAL
+        return _TAX_ID_CATEGORIES["P"]
+    return ""
 
 
 def quote_printable(organization: Organization, quote_id: int) -> documents.Printable:
@@ -73,8 +103,20 @@ def invoice_printable(organization: Organization, invoice_id: int) -> documents.
     if invoice.status == InvoiceStatus.DRAFT:
         # A draft has no number and may still change: only an issued invoice is a document.
         raise ValidationError(_("Une facture brouillon n'a pas de PDF : émettez-la d'abord."))
-    lines = list(invoice.lines.all())
+    lines = list(invoice.lines.select_related("product__base_unit", "sale_line__sale"))
     several = invoice.sales.count() > 1
+    # "Total H.T avant remise" and "Total remise" without VAT, like the line amounts. With prices including
+    # VAT, each line's discount is brought down to its share without VAT.
+    discount_excl_tax = sum(
+        (
+            (line.discount_amount * line.amount_excl_tax / line.amount).quantize(Decimal("0.001"), ROUND_HALF_UP)
+            if line.amount
+            else Decimal("0.000")
+            for line in lines
+        ),
+        Decimal("0.000"),
+    )
+    customer = invoice.customer
     context: dict[str, Any] = {
         "several_sales": several,
         "number": invoice.number,
@@ -84,11 +126,18 @@ def invoice_printable(organization: Organization, invoice_id: int) -> documents.
             "phone": invoice.seller_phone,
             "tax_id": invoice.seller_tax_id,
             "trade_register": invoice.seller_trade_register,
+            "unique_identifier": unique_identifier(invoice.seller_tax_id),
         },
         "invoice": invoice,
+        # The customer's code and phone are not frozen on the invoice: they are read from the customer.
+        "customer_reference": customer.reference,
+        "customer_phone": customer.phone,
+        "customer_type": customer_type(invoice.customer_tax_id, customer.kind),
         "sale_numbers": ", ".join(sale.number for sale in invoice.sales.all()),
         "lines": lines,
-        "has_discount": any(line.discount_rate for line in lines),
+        "total_before_discount": invoice.total_excl_tax + discount_excl_tax,
+        "discount_excl_tax": discount_excl_tax,
+        "filler_mm": max(0, INVOICE_LINES_HEIGHT_MM - INVOICE_LINE_HEIGHT_MM * len(lines)),
         "vat_lines": list(invoice.vat_lines.all()) if invoice.apply_vat else [],
         "cancelled": invoice.status == InvoiceStatus.CANCELLED,
     }

@@ -18,17 +18,26 @@ interface Props {
   title: string;
   /** Short facts under the title (route, temperature...). */
   chips?: { icon: IconName; label: string }[];
+  /** The company logo from Paramètres, shown on a white tile at the start of the header. */
+  logoUrl?: string | null;
   onLogout: () => void;
   children: ReactNode;
 }
 
 /** Driver frame: one phone-width column with a blue header, a scrolling body and a bottom tab bar. */
-export function TruckShell({ tabs, eyebrow, title, chips = [], onLogout, children }: Props) {
+export function TruckShell({ tabs, eyebrow, title, chips = [], logoUrl, onLogout, children }: Props) {
   const { t } = useTranslation();
   return (
     <div className="mx-auto flex h-dvh w-full max-w-[480px] flex-col bg-bg min-[481px]:border-x min-[481px]:border-line">
       <header className="bg-linear-150 from-[#0c3b4e] to-[#0f5e7a] px-[18px] pt-[max(22px,env(safe-area-inset-top))] pb-[18px] text-white">
         <div className="flex items-start gap-3">
+          {logoUrl && (
+            <img
+              src={logoUrl}
+              alt=""
+              className="h-11 w-auto max-w-[96px] flex-none rounded-[10px] bg-white object-contain p-1"
+            />
+          )}
           <div className="min-w-0 flex-1">
             <span className="eyebrow text-[#9fd0e0]">{eyebrow}</span>
             <h2 className="text-[1.25rem] text-white">{title}</h2>

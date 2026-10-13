@@ -23,6 +23,7 @@
   .r { text-align: right; }
   header.doc-head { display: flex; justify-content: space-between; gap: 10mm; padding-bottom: 5mm; border-bottom: 0.6mm solid var(--ink); margin-bottom: 6mm; }
   .brand { font-size: 13pt; font-weight: 700; color: var(--sea); margin-bottom: 1.5mm; }
+  .brand-logo { display: block; max-width: 52mm; max-height: 22mm; margin-bottom: 2mm; }
   .doc-title { text-align: right; }
   .parties { display: flex; gap: 8mm; margin-bottom: 6mm; }
   .parties > div { flex: 1; background: var(--soft); border-radius: 2mm; padding: 3mm 4mm; }
@@ -46,8 +47,10 @@
 </style>
 </head>
 <body>
+{% block header %}
 <header class="doc-head">
   <div>
+    {% if logo %}<img class="brand-logo" src="{{ logo }}" alt="{{ seller.name }}">{% endif %}
     <div class="brand">{{ seller.name }}</div>
     {% if seller.address %}<p class="small">{{ seller.address }}</p>{% endif %}
     {% if seller.phone %}<p class="small">Tél. {{ seller.phone }}</p>{% endif %}
@@ -58,6 +61,7 @@
     {% block subtitle %}{% endblock %}
   </div>
 </header>
+{% endblock %}
 
 {% block body %}{% endblock %}
 </body>

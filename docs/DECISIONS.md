@@ -1633,4 +1633,28 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Each person sets their own photo and display name from "Mon profil" (topbar avatar links there). Avatars
   and logos are served by authenticated endpoints, not public media URLs; a member's photo is visible only
   to people in the same organization.
-- Not yet: printing the logo on documents (planned with the PDF templates).
+- Not yet: printing the logo on documents (planned with the PDF templates). Done in D-125.
+
+**D-125 · Invoice PDF follows the company's paper invoice; the uploaded logo everywhere (owner request)** · accepted · 2026-10-13
+- The owner sent their current paper invoice (facture 2026M30013) and asked for the same page "with a small
+  enhancement". `sales/pdf/invoice.html` now draws that layout: logo and company block top left (address,
+  Tél, MF, "Identifiant unique" = tax-id number + key letter), boxed "Facture N°", a Date | Client box, the
+  client block (Client, Code client = `Customer.reference`, Type, Adresse, Téléphone, MF), a ruled lines table
+  (Code Art = product reference, Désignation, Qté, Unité, P.U.H.T, Remise %, Prix HT, Tva %) drawn down to a
+  fixed height like the form, the Frais / Timbre fiscal box, the totals box (HT avant remise, remise, HT, TVA,
+  TTC, in TND), "Arrêtée la présente Facture à la somme de : … Dinars … Millimes" (`documents/words.py`,
+  traditional French spelling), the signature area and a footer with the address and "Page x / y".
+- The enhancements over the paper form: the unit, the lots under each line, the delivery note numbers, the
+  due date ("Payable à réception" without one), VAT per rate when there are several, withholding and net to
+  pay when applied, the "ANNULÉE PAR AVOIR" banner and the notes.
+- "Type" (personne morale / physique) is read from the category letter of the customer's tax id (M / P),
+  else "Personne physique" for a "Particulier"; blank otherwise. Code client and phone are read live from the
+  customer (not frozen on the invoice). "Frais" has no field yet and prints 0,000 like the paper form.
+- Every PDF gets the logo uploaded in Paramètres (`documents.services.render_html` adds it as a `data:` URI;
+  the shared header of `pdf_base.html` prints it, the invoice its own header). A stored PDF's version carries
+  the logo's file name, so a new logo makes old files stale and they are made again on the next request.
+- The admin top bar and the driver app header show the logo instead of the default mark, and it becomes the
+  browser-tab icon once logged in (`useFavicon`); the default icon stays for the login page (the logo
+  endpoint needs a session). The admin app got a default `favicon.svg`.
+- The product list the owner forwarded (ART0002 to ART0060) is not imported by this change; the codes print
+  as soon as products carry them as `reference` (through the data import or the product page).
