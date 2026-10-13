@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { ReceiptLineWrite } from './receiptLineWrite';
+import type { ReceiptWriteBoxes } from './receiptWriteBoxes';
 
 export interface ReceiptWrite {
   /** @minimum 1 */
@@ -21,4 +22,5 @@ export interface ReceiptWrite {
   supplier_reference?: string;
   notes?: string;
   lines: ReceiptLineWrite[];
+  boxes?: ReceiptWriteBoxes;
 }

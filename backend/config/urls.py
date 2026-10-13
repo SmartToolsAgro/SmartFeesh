@@ -9,6 +9,7 @@ api_v1: list[URLPattern | URLResolver] = [
     path("", include("apps.catalog.api.urls")),
     path("", include("apps.partners.api.urls")),
     path("", include("apps.inventory.api.urls")),
+    path("", include("apps.boxes.api.urls")),
     path("", include("apps.fleet.api.urls")),
     path("", include("apps.purchasing.api.urls")),
     path("", include("apps.sales.api.urls")),

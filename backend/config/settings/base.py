@@ -179,6 +179,9 @@ SPECTACULAR_SETTINGS = {
         "LossStatusEnum": "apps.inventory.models.LossStatus",
         "LossReasonEnum": "apps.inventory.models.LossReason",
         "CountStatusEnum": "apps.inventory.models.CountStatus",
+        # P1-T14 · returnable boxes
+        "BoxTypeEnum": "apps.boxes.models.BoxType",
+        "BoxMovementKindEnum": "apps.boxes.models.BoxMovementKind",
         "QuoteStatusEnum": "apps.sales.models.QuoteStatus",
         # P2-T04 · sales
         "SaleStatusEnum": "apps.sales.models.SaleStatus",

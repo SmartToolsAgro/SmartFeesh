@@ -252,6 +252,8 @@ class TransferWriteSerializer(serializers.Serializer[Any]):
     lines = TransferLineWriteSerializer(many=True, allow_empty=True)
     # Validate at once (moves the stock); otherwise the transfer stays a draft.
     validate_now = serializers.BooleanField(required=False, default=False)
+    # Returnable boxes that go with a load, per box type ("small", "big"): a count, never kg (D-122).
+    boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
 
 
 class TransferFilterSerializer(serializers.Serializer[Any]):

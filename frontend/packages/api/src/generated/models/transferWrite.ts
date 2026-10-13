@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { TransferLineWrite } from './transferLineWrite';
+import type { TransferWriteBoxes } from './transferWriteBoxes';
 
 export interface TransferWrite {
   /** @minimum 1 */
@@ -15,4 +16,5 @@ export interface TransferWrite {
   notes?: string;
   lines: TransferLineWrite[];
   validate_now?: boolean;
+  boxes?: TransferWriteBoxes;
 }

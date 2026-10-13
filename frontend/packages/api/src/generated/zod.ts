@@ -177,6 +177,53 @@ export const GetBatchSalesResponse = zod.object({
 }).describe('What one lot sold over its confirmed sales, net of credit notes: the sales side of its result (D-040).')
 
 
+/**
+ * How many boxes each holder has, per box type: locations, clients and suppliers that have moved
+ * boxes. A supplier's count is what we owe it (boxes it lent us).
+ */
+export const ListBoxBalancesResponseItem = zod.object({
+  "holder_id": zod.int(),
+  "holder_kind": zod.string(),
+  "holder_name": zod.string().nullable(),
+  "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
+  "count": zod.int()
+}).describe('Boxes of one type one holder has now. A supplier\'s count is what we owe it.')
+export const ListBoxBalancesResponse = zod.array(ListBoxBalancesResponseItem)
+
+
+/**
+ * The box history, newest first, paginated (`limit`, `offset`). Filter by one holder (either side
+ * of the movement) and by box type.
+ */
+
+
+
+export const ListBoxMovementsQueryParams = zod.object({
+  "box_type": zod.enum(['small', 'big']).optional().describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
+  "holder": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+})
+
+export const ListBoxMovementsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['receive', 'load', 'leave', 'collect', 'return', 'write_off']).describe('* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `write_off` - Casse ou perte'),
+  "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
+  "count": zod.int(),
+  "from_holder": zod.int().nullable(),
+  "from_holder_name": zod.string().nullable(),
+  "to_holder": zod.int().nullable(),
+  "to_holder_name": zod.string().nullable(),
+  "reason": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
 export const listCategoriesResponseNameMax = 100;
 
 
@@ -9295,6 +9342,8 @@ export const createReceiptBodySupplierReferenceMax = 50;
 
 export const createReceiptBodyNotesDefault = ``;
 
+export const createReceiptBodyBoxesMinOne = 0;
+
 
 
 export const CreateReceiptBody = zod.object({
@@ -9312,7 +9361,8 @@ export const CreateReceiptBody = zod.object({
   "unit_cost": zod.string(),
   "use_by": zod.iso.date().nullish(),
   "partner": zod.int().min(1).nullish()
-}))
+})),
+  "boxes": zod.record(zod.string(), zod.int().min(createReceiptBodyBoxesMinOne)).optional()
 })
 
 export const createReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -12797,6 +12847,9 @@ export const ListTransfersResponse = zod.object({
 
 export const createTransferBodyNotesDefault = ``;
 export const createTransferBodyValidateNowDefault = false;
+export const createTransferBodyBoxesMinOne = 0;
+
+
 
 export const CreateTransferBody = zod.object({
   "from_location": zod.int().min(1),
@@ -12808,7 +12861,8 @@ export const CreateTransferBody = zod.object({
   "quantity": zod.string(),
   "unit_price": zod.string().nullish()
 })),
-  "validate_now": zod.boolean().default(createTransferBodyValidateNowDefault)
+  "validate_now": zod.boolean().default(createTransferBodyValidateNowDefault),
+  "boxes": zod.record(zod.string(), zod.int().min(createTransferBodyBoxesMinOne)).optional()
 })
 
 export const createTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -12933,6 +12987,9 @@ export const UpdateTransferParams = zod.object({
 
 export const updateTransferBodyNotesDefault = ``;
 export const updateTransferBodyValidateNowDefault = false;
+export const updateTransferBodyBoxesMinOne = 0;
+
+
 
 export const UpdateTransferBody = zod.object({
   "from_location": zod.int().min(1),
@@ -12944,7 +13001,8 @@ export const UpdateTransferBody = zod.object({
   "quantity": zod.string(),
   "unit_price": zod.string().nullish()
 })),
-  "validate_now": zod.boolean().default(updateTransferBodyValidateNowDefault)
+  "validate_now": zod.boolean().default(updateTransferBodyValidateNowDefault),
+  "boxes": zod.record(zod.string(), zod.int().min(updateTransferBodyBoxesMinOne)).optional()
 })
 
 export const updateTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
