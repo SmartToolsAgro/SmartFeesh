@@ -12,12 +12,19 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-/** The mark with the company name and tagline, as in the top bar of the prototype. */
-export function Brand({ compact = false }: { compact?: boolean }) {
+/**
+ * The mark with the company name and tagline, as in the top bar of the prototype. With the logo uploaded in
+ * Paramètres (`logoUrl`), the logo takes the place of the mark (D-125).
+ */
+export function Brand({ compact = false, logoUrl }: { compact?: boolean; logoUrl?: string | null }) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2.5 font-display text-[1.15rem] font-extrabold whitespace-nowrap">
-      <BrandMark />
+      {logoUrl ? (
+        <img src={logoUrl} alt="" className="h-9 w-auto max-w-[120px] flex-none object-contain" />
+      ) : (
+        <BrandMark />
+      )}
       <div>
         {BRAND.name}
         {!compact && (

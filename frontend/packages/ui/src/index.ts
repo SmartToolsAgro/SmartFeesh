@@ -18,6 +18,7 @@ export { Table, Td, Th } from "./components/table";
 export { Toaster } from "./components/toast";
 export { ICON_NAMES, type IconName, ILLUSTRATION_NAMES, type IllustrationName } from "./icon-names";
 export { Icon, Illustration, Sprite } from "./icons";
+export { useFavicon } from "./favicon";
 export { cn } from "./lib/cn";
 export { type AdminNavGroup, AdminShell, PageHeader } from "./shells/AdminShell";
 export { Brand, BrandMark } from "./shells/Brand";

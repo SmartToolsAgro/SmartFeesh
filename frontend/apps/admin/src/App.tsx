@@ -8,6 +8,7 @@ import {
   PageHeader,
   Sprite,
   Toaster,
+  useFavicon,
 } from "@frutti/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -178,10 +179,12 @@ function Shell({ session }: { session: Session }) {
     ...group,
     items: group.items.filter((item) => session.role === "owner" || item.to !== "/parametres"),
   }));
+  useFavicon(session.organization.logo_url);
   return (
     <AdminShell
       nav={nav}
       user={{ name: displayName(session), role: t(`roles.${session.role}`), avatarUrl: session.user.avatar_url }}
+      logoUrl={session.organization.logo_url}
       onLogout={() => logout.mutate()}
     >
       <Outlet context={session} />

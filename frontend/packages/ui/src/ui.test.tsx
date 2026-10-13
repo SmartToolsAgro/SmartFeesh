@@ -3,10 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test } from "vitest";
 
 import { Button } from "./components/button";
+import { useFavicon } from "./favicon";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "./components/dialog";
 import { Pill } from "./components/pill";
 import { ICON_NAMES, ILLUSTRATION_NAMES } from "./icon-names";
 import { Icon, Sprite } from "./icons";
+import { Brand } from "./shells/Brand";
 import { ThemeToggle } from "./shells/ThemeToggle";
 import { initTheme } from "./theme";
 
@@ -94,4 +96,24 @@ test("the theme choice is applied to the page, remembered, and can go back to th
   await user.click(screen.getByRole("button", { name: "Thème de l'appareil" }));
   expect(document.documentElement.dataset.theme).toBeUndefined();
   expect(localStorage.getItem("frutti-theme")).toBeNull();
+});
+
+test("the uploaded logo replaces the default mark and the tab icon, and the default icon comes back", () => {
+  document.head.innerHTML = '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />';
+  function Branded({ logoUrl }: { logoUrl: string | null }) {
+    useFavicon(logoUrl);
+    return <Brand logoUrl={logoUrl} />;
+  }
+
+  const { container, rerender } = render(<Branded logoUrl="/api/organizations/1/logo?v=ab12" />);
+
+  expect(container.querySelector("img")?.getAttribute("src")).toBe("/api/organizations/1/logo?v=ab12");
+  const icon = document.head.querySelector('link[rel="icon"]');
+  expect(icon?.getAttribute("href")).toBe("/api/organizations/1/logo?v=ab12");
+
+  rerender(<Branded logoUrl={null} />);
+
+  expect(container.querySelector("img")).toBeNull();
+  expect(icon?.getAttribute("href")).toBe("/favicon.svg");
+  expect(icon?.getAttribute("type")).toBe("image/svg+xml");
 });

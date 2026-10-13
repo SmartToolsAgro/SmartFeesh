@@ -6,6 +6,8 @@ from typing import Any
 
 from django import template
 
+from ..words import dinars_in_words
+
 register = template.Library()
 
 THIN_SPACE = " "
@@ -61,3 +63,31 @@ def isodate(value: Any) -> str:
         return dt.date.fromisoformat(str(value)).strftime("%d/%m/%Y")
     except ValueError:
         return str(value)
+
+
+@register.filter
+def quantity(value: Any) -> str:
+    """A quantity without its unit and without trailing zeros, as in the Qté column: 90, 12,5, 1 097,9."""
+    if value in (None, ""):
+        return ""
+    number = Decimal(str(value)).quantize(Decimal("0.001"))
+    places = len(f"{number:f}".partition(".")[2].rstrip("0"))
+    return _grouped(number, places)
+
+
+@register.filter
+def rate(value: Any) -> str:
+    """A rate in a column with two decimals and no sign: 0,00, 19,00."""
+    return "" if value in (None, "") else _grouped(value, 2)
+
+
+@register.filter
+def in_words(value: Any) -> str:
+    """An amount in dinars in French words: Trois mille cinq cent quinze Dinars 500 Millimes."""
+    return "" if value in (None, "") else dinars_in_words(Decimal(str(value)))
+
+
+@register.filter
+def one_line(value: Any) -> str:
+    """Text typed on several lines (an address) on one line: "Route Mahdia KM4 - 3011 Sfax"."""
+    return " - ".join(part.strip() for part in str(value or "").splitlines() if part.strip())

@@ -28,7 +28,7 @@ class Organization(TimeStampedModel):
 
     name = models.CharField(max_length=200)
     is_active = models.BooleanField(default=True)
-    # Shown on the company-profile page and (later) on invoices; printing it is not built yet (D-123).
+    # Shown in the app header, as the browser-tab icon and on every PDF (D-123, D-125).
     logo = models.ImageField(upload_to=organization_logo_path, blank=True)
 
     class Meta:
