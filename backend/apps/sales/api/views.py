@@ -340,6 +340,11 @@ class SaleListView(SaleView, ListAPIView[Sale]):
         day, at the present moment."""
         serializer = SaleWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        # A phone that lost the answer sends the same sale again: it gets the sale back, even if the day has been
+        # approved since (D-094). Checked before the day, or the retry would be refused as a new sale.
+        recorded = selectors.sale_by_client_uuid(self.organization, serializer.validated_data["client_uuid"])
+        if recorded is not None:
+            return self.answer(recorded.pk, status_code=status.HTTP_201_CREATED)
         data = self.sale_fields(serializer.validated_data)
         sale = services.create_sale(
             organization=self.organization,

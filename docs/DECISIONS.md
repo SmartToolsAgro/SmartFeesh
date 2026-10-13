@@ -1715,3 +1715,8 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   through `update_expense` (audited). An approved month keeps its amount: a correction is a new expense.
 - The month result counts approved expenses only, so the change shows there once the expense is approved.
 - The admin refreshes the month screen and the dashboard after any expense change (`refreshExpenses`).
+**D-129 · Closing waits for the phone's waiting sales and says why; a sale sent again is not refused (follow-up of D-090, D-091, D-094)** · accepted · 2026-10-13
+- The closing stays blocked while any item of the phone queue is pending (D-090). The page now says how many wait and why (no connection, no answer, server busy, session ended), has a retry button, and sends them as it opens. Pure gate in `closingGate.ts`.
+- A send gives up after 25 s (`SEND_TIMEOUT_MS`, `sync.ts`), so one hung request no longer blocks every later sync until the page is reloaded.
+- 408, 429, 502, 503 and 504 keep the item pending (the server is busy, it did not refuse the item). Other 4xx and 500 still make it refused and reported to the office. 401 keeps it pending and reports the ended session.
+- Backend: a sale the server already has under the same `client_uuid` is answered 201 with that sale, checked before the day-approved check, so a retry after approval is not refused as a new sale. A new sale on an approved day is still 403 (D-094).
