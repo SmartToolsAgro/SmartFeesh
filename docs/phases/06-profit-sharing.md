@@ -17,7 +17,8 @@ _Coarse plan: detail each task when the phase starts._
   profit % of the net profit; in a loss they carry their loss % of it, **deducted from their capital**
   (Q3, D-031). At closing they get their capital back ± their share (Q22). A supplier can be a partner
   in several lots at once.
-- Still provisional: D-031's carried-forward loss beyond the capital; Q21 and Q24 cost splits (D-041).
+- Still provisional: D-031's carried-forward loss beyond the capital; Q24's cost split (D-041). Q21 (rent
+  split like the cold room) is confirmed.
 - Q1 (own products only) fits: a partner shares only in the lots they are in.
 
 ---

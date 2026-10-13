@@ -49,7 +49,7 @@ _Last updated: 2026-10-13_
 ## Blockers / waiting on client
 
 - **P0-T02** (worked example) is not started; it is now **one real lot** worked out by hand with the owner.
-  Phase 6 has no target without it. D-031's uncovered loss, Q21 and Q24 are provisional.
+  Phase 6 has no target without it. D-031's uncovered loss and Q24 are provisional; Q21 is confirmed.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
 - **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
 - **TTN / El Fatoora is on hold** (D-016) although Q5 says it is required now.
@@ -96,6 +96,8 @@ follow-up, decisions 2 to 4), #108 (closing after a sale, D-129). Open PRs: none
 
 - 2026-10-13 · D-133 a driver's sale is dated when it was made (the phone sends the time, the server checks it): that
   day's price and closing; refused in the future, on an approved day, or for kilos the truck did not hold that day.
+- 2026-10-13 · Q21 confirmed by the owner: general costs (rent, accountant) are split each day over the lots in
+  stock by kg held, the same way as the cold room. Docs only: the code already did this (P5-T05).
 - 2026-10-13 · Driver Clôture showed "vendu" above "chargé" (staging): the truck's opening stock was missing from the
   day; now shown per product with the gap, and a "Retour à Ma journée" button on every driver screen (D-130).
 - 2026-10-13 · D-129 driver closing after a sale: the closing says why sales wait (no connection, no answer, server

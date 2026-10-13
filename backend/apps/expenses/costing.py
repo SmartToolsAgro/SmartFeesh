@@ -109,5 +109,6 @@ def allocate_general_days(
     monthly_amount: Decimal, days: list[dt.date], kg_by_day: Mapping[dt.date, Mapping[int, Decimal]]
 ) -> dict[int, RoomCharge]:
     """A month's general cost: each of `days` costs monthly / 26, shared over the lots in stock that day by
-    kg held (provisional, Q21). Days with nothing in stock are not charged to anyone."""
+    kg held, the same split as the cold room (Q21, confirmed 2026-10-13). Days with nothing in stock are not
+    charged to anyone."""
     return allocate_room_days({day: general_day_amount(monthly_amount) for day in days}, kg_by_day)
