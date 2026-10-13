@@ -214,7 +214,7 @@ export const ListBoxMovementsResponse = zod.object({
   "previous": zod.url().nullish(),
   "results": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['receive', 'load', 'leave', 'collect', 'return', 'write_off']).describe('* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `write_off` - Casse ou perte'),
+  "kind": zod.enum(['receive', 'load', 'leave', 'collect', 'return', 'truck_return', 'write_off']).describe('* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `truck_return` - Retour du camion en chambre froide\n* `write_off` - Casse ou perte'),
   "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
   "count": zod.int(),
   "from_holder": zod.int().nullable(),
@@ -6964,7 +6964,8 @@ export const ReviewMonthResponse = zod.object({
 
 /**
  * Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
- * client holds fewer boxes of one type than asked, or when the driver's day is approved.
+ * client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+ * already used returns the day as it is after that pickup (the driver app retries).
  */
 
 export const collectMyBoxesBodyBoxesMinOne = 0;
@@ -6973,7 +6974,8 @@ export const collectMyBoxesBodyBoxesMinOne = 0;
 
 export const CollectMyBoxesBody = zod.object({
   "customer": zod.int().min(1),
-  "boxes": zod.record(zod.string(), zod.int().min(collectMyBoxesBodyBoxesMinOne)).optional()
+  "boxes": zod.record(zod.string(), zod.int().min(collectMyBoxesBodyBoxesMinOne)).optional(),
+  "client_uuid": zod.uuid().nullish()
 })
 
 export const CollectMyBoxesResponse = zod.object({
@@ -6990,8 +6992,8 @@ export const CollectMyBoxesResponse = zod.object({
 
 
 /**
- * Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
- * the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+ * Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+ * and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day.
  */
 export const GetMyBoxDayResponse = zod.object({
   "date": zod.iso.date(),
@@ -7358,7 +7360,7 @@ export const reportSyncProblemBodyReasonMax = 500;
 
 
 export const ReportSyncProblemBody = zod.object({
-  "kind": zod.enum(['sale', 'expense', 'loss', 'payment']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment'),
+  "kind": zod.enum(['sale', 'expense', 'loss', 'payment', 'pickup']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment\n* `pickup` - pickup'),
   "what": zod.string().max(reportSyncProblemBodyWhatMax),
   "reason": zod.string().max(reportSyncProblemBodyReasonMax),
   "client_uuid": zod.uuid()

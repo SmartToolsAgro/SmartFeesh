@@ -110,7 +110,13 @@ class JustificationSerializer(serializers.Serializer[Any]):
 
 class SyncProblemWriteSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(
-        choices=[("sale", "sale"), ("expense", "expense"), ("loss", "loss"), ("payment", "payment")]
+        choices=[
+            ("sale", "sale"),
+            ("expense", "expense"),
+            ("loss", "loss"),
+            ("payment", "payment"),
+            ("pickup", "pickup"),
+        ]
     )
     # What the driver would call it: the customer, the category, the product.
     what = serializers.CharField(allow_blank=True, max_length=150)

@@ -28,6 +28,8 @@ class BoxMovementKind(models.TextChoices):
     LEAVE = "leave", _("Départ chez client")
     COLLECT = "collect", _("Reprise chez client")
     RETURN = "return", _("Retour fournisseur")
+    # A truck gives its boxes back to a cold room, with a stock transfer (P1-T14e, D-124).
+    TRUCK_RETURN = "truck_return", _("Retour du camion en chambre froide")
     WRITE_OFF = "write_off", _("Casse ou perte")
 
 
@@ -79,6 +81,34 @@ class BoxHolder(OrganizationScopedModel, TimeStampedModel):
         return f"{self.organization} · {self.target_kind} {self.location_id or self.customer_id or self.supplier_id}"
 
 
+class BoxPickup(OrganizationScopedModel):
+    """One pickup visit: the boxes a client hands back to a truck (D-122). Its movements name it as their source.
+
+    `client_uuid` is sent by the driver app: a retry of the same visit returns the pickup already posted.
+    """
+
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="+")
+    location = models.ForeignKey("inventory.StockLocation", on_delete=models.PROTECT, related_name="+")
+    client_uuid = models.UUIDField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"],
+                condition=models.Q(client_uuid__isnull=False),
+                name="box_pickup_client_uuid_unique_per_organization",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Reprise · {self.customer_id} · {self.location_id}"
+
+
 class BoxMovementQuerySet(OrganizationScopedQuerySet["BoxMovement"]):
     def update(self, **kwargs: Any) -> int:
         raise TypeError("Box movements are append-only: post a correcting movement instead")
@@ -95,7 +125,7 @@ class BoxMovement(OrganizationScopedModel):
     """
 
     box_type = models.CharField(max_length=10, choices=BoxType.choices)
-    kind = models.CharField(max_length=10, choices=BoxMovementKind.choices)
+    kind = models.CharField(max_length=12, choices=BoxMovementKind.choices)
     count = models.PositiveIntegerField()
     from_holder = models.ForeignKey(BoxHolder, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     to_holder = models.ForeignKey(BoxHolder, null=True, blank=True, on_delete=models.PROTECT, related_name="+")

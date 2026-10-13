@@ -1,4 +1,12 @@
-import { addMyExpense, ApiError, collectMyPayment, createSale, reportMyLoss, reportSyncProblem } from "@frutti/api";
+import {
+  addMyExpense,
+  ApiError,
+  collectMyBoxes,
+  collectMyPayment,
+  createSale,
+  reportMyLoss,
+  reportSyncProblem,
+} from "@frutti/api";
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
@@ -28,6 +36,7 @@ function sendItem(item: QueuedItem): Promise<unknown> {
   if (item.kind === "sale") return createSale(item.data);
   if (item.kind === "expense") return addMyExpense(item.data);
   if (item.kind === "payment") return collectMyPayment(item.data);
+  if (item.kind === "pickup") return collectMyBoxes(item.data);
   return reportMyLoss(item.data);
 }
 

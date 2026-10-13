@@ -2,16 +2,18 @@
 pickup visit, and the driver's day view. Boxes move through the ledger; kilos through the stock, in one transaction."""
 
 import datetime as dt
+import uuid
 from decimal import Decimal
 
 import pytest
+from django.db import connection
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.boxes import selectors
 from apps.boxes import services as box_services
-from apps.boxes.models import BoxMovement, BoxMovementKind
+from apps.boxes.models import BoxMovement, BoxMovementKind, BoxPickup
 from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
 from apps.core.models import Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory
@@ -113,6 +115,15 @@ def boxes_held(organization, *, location=None, customer=None, box_type="small") 
     else:
         holder = box_services.holder_for(organization=organization, customer=customer)
     return selectors.signed_balance(holder, box_type)
+
+
+def backdate(movement: BoxMovement, days: int) -> None:
+    """Move a posted movement into the past: the ledger is append-only, so a test writes the column itself."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE boxes_boxmovement SET created_at = %s WHERE id = %s",
+            [timezone.now() - dt.timedelta(days=days), movement.pk],
+        )
 
 
 def sell(api, truck_location, customer, product, *, kg="2", paid="84.000", boxes=None, confirm=True):
@@ -325,3 +336,77 @@ def test_only_drivers_see_the_day_view_and_collect(organization, manager, custom
 def test_anonymous_callers_get_401():
     assert APIClient().get(reverse("my-boxes")).status_code == 401
     assert APIClient().post(reverse("my-box-pickups"), {}, format="json").status_code == 401
+
+
+def test_the_day_view_expects_the_boxes_the_truck_still_holds_from_earlier_days(
+    stocked_truck, customer, dorade, driver
+):
+    for movement in BoxMovement.objects.filter(kind=BoxMovementKind.LOAD):
+        backdate(movement, days=1)  # loaded yesterday
+    api = client_for(driver)
+    sell(api, stocked_truck.location, customer, dorade, boxes={"small": 3})
+
+    lines = {line["box_type"]: line for line in api.get(reverse("my-boxes")).json()["lines"]}
+
+    assert (lines["small"]["loaded"], lines["small"]["left"], lines["small"]["collected"]) == (0, 3, 0)
+    assert lines["small"]["expected"] == 2  # 5 loaded yesterday, 3 left with the client today
+    assert lines["big"]["expected"] == 2  # nothing moved today, 2 still on the truck
+
+
+# ---- Offline retries (P1-T14e, D-124): the same client_uuid never makes two records ----
+
+
+def test_a_pickup_sent_twice_with_the_same_client_uuid_is_posted_once(
+    organization, stocked_truck, customer, dorade, driver
+):
+    api = client_for(driver)
+    sell(api, stocked_truck.location, customer, dorade, boxes={"small": 3})
+    payload = {"customer": customer.pk, "boxes": {"small": 2}, "client_uuid": str(uuid.uuid4())}
+
+    first = api.post(reverse("my-box-pickups"), payload, format="json")
+    second = api.post(reverse("my-box-pickups"), payload, format="json")
+
+    assert (first.status_code, second.status_code) == (201, 201)
+    assert BoxPickup.objects.for_organization(organization).count() == 1
+    assert BoxMovement.objects.filter(kind=BoxMovementKind.COLLECT).count() == 1
+    assert boxes_held(organization, customer=customer) == 1
+    assert boxes_held(organization, location=stocked_truck.location) == 4
+
+
+def test_a_refused_pickup_is_not_remembered_so_a_corrected_retry_posts(
+    organization, stocked_truck, customer, dorade, driver
+):
+    api = client_for(driver)
+    sell(api, stocked_truck.location, customer, dorade, boxes={"small": 1})
+    payload = {"customer": customer.pk, "boxes": {"small": 2}, "client_uuid": str(uuid.uuid4())}
+
+    refused = api.post(reverse("my-box-pickups"), payload, format="json")
+    assert refused.status_code == 400
+    assert not BoxPickup.objects.for_organization(organization).exists()
+
+    payload["boxes"] = {"small": 1}
+    assert api.post(reverse("my-box-pickups"), payload, format="json").status_code == 201
+    assert boxes_held(organization, customer=customer) == 0
+
+
+def test_a_sale_with_boxes_sent_twice_posts_its_boxes_once(organization, stocked_truck, customer, dorade, driver):
+    api = client_for(driver)
+    body = {
+        "location": stocked_truck.location.pk,
+        "customer": customer.pk,
+        "lines": [{"product": dorade.pk, "quantity": "2"}],
+        "amount_paid": "84.000",
+        "payment_method": "cash",
+        "confirm_now": True,
+        "client_uuid": str(uuid.uuid4()),
+        "boxes": {"small": 3},
+    }
+
+    first = api.post(reverse("sale-list"), body, format="json")
+    second = api.post(reverse("sale-list"), body, format="json")
+
+    assert (first.status_code, second.status_code) == (201, 201)
+    assert first.json()["id"] == second.json()["id"]
+    assert BoxMovement.objects.filter(kind=BoxMovementKind.LEAVE).count() == 1
+    assert boxes_held(organization, customer=customer) == 3
+    assert boxes_held(organization, location=stocked_truck.location) == 2

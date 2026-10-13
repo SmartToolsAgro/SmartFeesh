@@ -335,8 +335,8 @@ class TransferLine(OrganizationScopedModel):
 
 class TransferBoxLine(OrganizationScopedModel):
     """Boxes of one type that go with a transfer: a count, not kg (D-122). Posted with the transfer when it
-    is validated; only a load carries boxes. The box type is checked by `boxes.services`, not here, so this
-    app never imports the boxes models."""
+    is validated; only a load, or a return from a truck to a cold room, carries boxes (P1-T14e, D-124).
+    The box type is checked by `boxes.services`, not here, so this app never imports the boxes models."""
 
     transfer = models.ForeignKey(Transfer, on_delete=models.CASCADE, related_name="box_lines")
     box_type = models.CharField(max_length=10)

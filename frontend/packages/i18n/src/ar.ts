@@ -149,6 +149,7 @@ export const ar: PartialTranslation = {
       pickupWho: "أي حريف يرجع صناديق؟",
       pickupSave: "تسجيل الاسترجاع",
       pickupSaved: "تم تسجيل الاسترجاع.",
+      pickupKept: "لا توجد شبكة: الاسترجاع محفوظ في الهاتف وسيُرسل عند عودة الشبكة.",
       pickupAnother: "استرجاع آخر",
       pickupNone: "أدخل صندوقًا واحدًا على الأقل.",
       pickupFailed: "تعذّر تسجيل الاسترجاع. أعد المحاولة.",

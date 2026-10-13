@@ -10,6 +10,7 @@
  * * `expense` - expense
  * * `loss` - loss
  * * `payment` - payment
+ * * `pickup` - pickup
  */
 export type SyncProblemWriteKindEnum = typeof SyncProblemWriteKindEnum[keyof typeof SyncProblemWriteKindEnum];
 
@@ -19,4 +20,5 @@ export const SyncProblemWriteKindEnum = {
   expense: 'expense',
   loss: 'loss',
   payment: 'payment',
+  pickup: 'pickup',
 } as const;

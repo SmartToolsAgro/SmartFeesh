@@ -1,4 +1,4 @@
-import type { RoadExpenseWrite, RoadLossWrite, RoadPaymentWrite, SaleWrite } from "@frutti/api";
+import type { MyBoxPickupWrite, RoadExpenseWrite, RoadLossWrite, RoadPaymentWrite, SaleWrite } from "@frutti/api";
 import { useEffect, useState } from "react";
 
 // What the phone could not send yet (P3-T07b and T07c, D-097). They live in IndexedDB, so they survive closing the
@@ -44,7 +44,13 @@ export interface QueuedPayment extends Waiting {
   data: RoadPaymentWrite;
 }
 
-export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss | QueuedPayment;
+/** Boxes a client hands back to the truck (P1-T14e): the `client_uuid` in the data makes a retry post once. */
+export interface QueuedPickup extends Waiting {
+  kind: "pickup";
+  data: MyBoxPickupWrite;
+}
+
+export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss | QueuedPayment | QueuedPickup;
 
 const DATABASE = "frutti-truck";
 const STORE = "sales";

@@ -3676,7 +3676,8 @@ paths:
       operationId: collectMyBoxes
       description: |-
         Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
-        client holds fewer boxes of one type than asked, or when the driver's day is approved.
+        client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+        already used returns the day as it is after that pickup (the driver app retries).
       tags:
       - my-box-pickups
       requestBody:
@@ -3704,8 +3705,8 @@ paths:
     get:
       operationId: getMyBoxDay
       description: |-
-        Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
-        the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+        Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+        and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day.
       tags:
       - my-boxes
       security:
@@ -8335,6 +8336,7 @@ components:
       - leave
       - collect
       - return
+      - truck_return
       - write_off
       type: string
       description: |-
@@ -8343,6 +8345,7 @@ components:
         * `leave` - Départ chez client
         * `collect` - Reprise chez client
         * `return` - Retour fournisseur
+        * `truck_return` - Retour du camion en chambre froide
         * `write_off` - Casse ou perte
     BoxTypeEnum:
       enum:
@@ -14164,6 +14167,10 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
       required:
       - customer
     MyDaySummary:
@@ -20011,12 +20018,14 @@ components:
       - expense
       - loss
       - payment
+      - pickup
       type: string
       description: |-
         * `sale` - sale
         * `expense` - expense
         * `loss` - loss
         * `payment` - payment
+        * `pickup` - pickup
     Transfer:
       type: object
       properties:
