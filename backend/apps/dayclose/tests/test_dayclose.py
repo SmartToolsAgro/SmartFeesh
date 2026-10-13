@@ -70,7 +70,10 @@ def day():
         "api": api,
         "office": client_for(office),
         "owner": client_for(owner),
+        "organization": organization,
         "product": product,
+        "room": room,
+        "batch": batch,
         "truck": truck,
         "customer": customer,
     }
@@ -106,12 +109,70 @@ def test_the_summary_adds_up_the_day(day):
     assert summary["products"][0] | {"product_id": 0} == {
         "product_id": 0,
         "product_name": "Dorade royale",
+        "opening": "0.000",
         "loaded": "12.000",
         "sold": "5.000",
         "lost": "0.000",
         "returned": "0.000",
         "remaining": "7.000",
+        "unexplained": "0.000",
     }
+
+
+def test_kilos_left_on_the_truck_from_an_earlier_day_are_its_opening_stock(day):
+    """Bug of 2026-10-13: a truck sold more than it was loaded that day (Crevette 109 sold, 100 loaded).
+    The 2 kg of dorade sold today were on the truck since yesterday: they are the opening stock, so the
+    day adds up: opening + loaded - returned - sold - lost = left."""
+    yesterday = timezone.localdate() - dt.timedelta(days=1)
+    left_over = BatchFactory.create(organization=day["organization"], product=day["product"], received_on=yesterday)
+    inventory.post_movement(
+        organization=day["organization"],
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=left_over,
+        quantity="2",
+        to_location=day["room"],
+        occurred_at=timezone.make_aware(dt.datetime.combine(yesterday, dt.time(9, 0))),
+    )
+    inventory.create_transfer(
+        organization=day["organization"],
+        actor=None,
+        from_location=day["room"],
+        to_location=day["truck"].location,
+        transferred_on=yesterday,
+        lines=[{"product": day["product"], "quantity": Decimal("2")}],
+        validate=True,
+    )
+    assert sell(day, "13", "100.000").status_code == 201
+
+    product = day["api"].get(reverse("my-day-summary")).json()["summary"]["products"][0]
+
+    assert (product["opening"], product["loaded"], product["sold"], product["remaining"]) == (
+        "2.000",
+        "12.000",
+        "13.000",
+        "1.000",
+    )
+    assert product["unexplained"] == "0.000"
+
+
+def test_stock_that_left_the_truck_without_a_record_is_unexplained(day):
+    """Kilos that leave the truck by a hand adjustment, with no sale, loss or transfer behind them, show as a gap."""
+    sell(day, "3", "84.000")
+    inventory.post_movement(
+        organization=day["organization"],
+        actor=None,
+        kind=MovementKind.ADJUSTMENT,
+        batch=day["batch"],
+        quantity="2",
+        from_location=day["truck"].location,
+        reason="Test",
+    )
+
+    product = day["api"].get(reverse("my-day-summary")).json()["summary"]["products"][0]
+
+    assert (product["loaded"], product["sold"], product["remaining"]) == ("12.000", "3.000", "7.000")
+    assert product["unexplained"] == "-2.000"
 
 
 def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justification(day):
@@ -171,6 +232,34 @@ def test_an_approved_day_is_closed_to_sales_expenses_and_losses(day):
     )
     assert (expense.status_code, loss.status_code) == (403, 403)
     assert day["api"].post(reverse("my-return")).status_code == 403
+
+
+def test_a_sale_sent_again_after_the_day_is_approved_is_answered_not_refused(day):
+    """The phone sent a sale, lost the answer, and the office approved the day meanwhile: the retry gets the
+    recorded sale back (201, once), it is not refused as a new sale on a closed day."""
+    from apps.sales.models import Sale
+
+    client_uuid = str(uuid4())
+    body = {
+        "customer": day["customer"].pk,
+        "location": day["truck"].location_id,
+        "confirm_now": True,
+        "client_uuid": client_uuid,
+        "amount_paid": "28.000",
+        "payment_method": "cash",
+        "lines": [{"product": day["product"].pk, "quantity": "1"}],
+    }
+    first = day["api"].post(reverse("sale-list"), body, format="json")
+    assert first.status_code == 201
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "78.000"}, format="json")
+    closing = day["office"].get(reverse("day-closing-list")).json()[0]
+    day["office"].post(reverse("day-closing-approve", args=[closing["id"]]))
+
+    retry = day["api"].post(reverse("sale-list"), body, format="json")
+
+    assert (retry.status_code, retry.json()["id"]) == (201, first.json()["id"])
+    assert Sale.objects.filter(client_uuid=client_uuid).count() == 1
+    assert sell(day, "1", "28.000").status_code == 403  # a new sale on the approved day is still refused
 
 
 def test_customers_sold_to_lately_come_first(day):

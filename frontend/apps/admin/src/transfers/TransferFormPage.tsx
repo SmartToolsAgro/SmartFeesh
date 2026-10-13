@@ -33,6 +33,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { BoxCountsFields } from "../boxes/BoxCountsFields";
+import { type BoxCountInputs, NO_BOX_INPUTS, boxCountsFromInputs, boxInputsFromCounts } from "../boxes/shared";
 import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { todayInTunis } from "../receipts/shared";
@@ -122,6 +124,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
         )
       : [newLine()],
   );
+  // The boxes of a load (D-122). A draft's saved boxes come back here, since saving replaces them.
+  const [boxes, setBoxes] = useState<BoxCountInputs>(() => (draft ? boxInputsFromCounts(draft.boxes) : NO_BOX_INPUTS));
   const [errors, setErrors] = useState<Errors>({});
 
   const places = locations.data ?? [];
@@ -195,6 +199,11 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       }
       payloadLines.push({ product: Number(line.product), quantity: quantity ?? "", unit_price: price });
     });
+    // Boxes travel with a load only: the server refuses any other kind that carries them.
+    const boxCounts = boxCountsFromInputs(boxes);
+    if (kind === "load") {
+      for (const boxType of boxCounts.invalid) found[`boxes.${boxType}`] = t("admin.boxes.form.invalid");
+    }
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     save.mutate({
@@ -204,6 +213,7 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       notes: notes.trim(),
       lines: payloadLines,
       validate_now: validateNow,
+      boxes: kind === "load" ? boxCounts.counts : {},
     });
   }
 
@@ -389,6 +399,16 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
             )}
           </div>
         </Card>
+
+        {kind === "load" && (
+          <BoxCountsFields
+            title={t("admin.boxes.form.loadTitle")}
+            hint={t("admin.boxes.form.loadHint")}
+            value={boxes}
+            onChange={setBoxes}
+            errors={errors}
+          />
+        )}
 
         <Card>
           <Field label={t("admin.transfers.form.notes")} htmlFor={id("notes")} error={errors.notes}>

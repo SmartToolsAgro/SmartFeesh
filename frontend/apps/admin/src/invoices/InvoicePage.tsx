@@ -91,6 +91,7 @@ type DraftValues = {
   rates: string[];
   amounts: Record<string, string>;
   stamp: string;
+  fees: string;
   withholdingApplied: boolean;
   withholdingRate: string;
   notes: string;
@@ -104,6 +105,7 @@ function draftOf(invoice: InvoiceDetail): DraftValues {
       invoice.vat_lines.filter((row) => row.amount_overridden).map((row) => [row.rate, toInput(row.amount)]),
     ),
     stamp: invoice.fiscal_stamp_overridden ? toInput(invoice.fiscal_stamp) : "",
+    fees: isZero(invoice.fees) ? "" : toInput(invoice.fees),
     withholdingApplied: invoice.withholding_applied,
     withholdingRate: invoice.withholding_rate_overridden ? toInput(invoice.withholding_rate) : "",
     notes: invoice.notes,
@@ -157,6 +159,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
           .map(([rate, text]) => ({ rate, amount: money(text, `vat_amounts.${rate}`) }))
       : [];
     const stamp = values.stamp.trim() === "" ? null : money(values.stamp, "fiscal_stamp");
+    const fees = values.fees.trim() === "" ? null : money(values.fees, "fees");
     const withholdingRate = values.withholdingApplied ? percent(values.withholdingRate, "withholding_rate") : null;
     return {
       found,
@@ -165,6 +168,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         lines,
         vat_amounts: vatAmounts,
         fiscal_stamp: stamp,
+        fees,
         withholding_applied: values.withholdingApplied,
         withholding_rate: withholdingRate,
         notes: values.notes.trim(),
@@ -212,7 +216,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
 
   const busy = save.isPending || discard.isPending;
   const generalError = Object.entries(errors).find(
-    ([key]) => !/^(lines\.|vat_amounts\.|fiscal_stamp$|withholding_rate$)/.test(key),
+    ([key]) => !/^(lines\.|vat_amounts\.|fiscal_stamp$|fees$|withholding_rate$)/.test(key),
   )?.[1];
 
   return (
@@ -299,6 +303,17 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
             placeholder={toInput(invoice.settings_fiscal_stamp ?? invoice.fiscal_stamp)}
             onChange={(event) => set({ stamp: event.target.value })}
             aria-invalid={errors.fiscal_stamp ? true : undefined}
+          />
+        </Field>
+
+        <Field label={t("admin.invoices.form.fees")} htmlFor={`${formId}-fees`} error={errors.fees}>
+          <Input
+            id={`${formId}-fees`}
+            inputMode="decimal"
+            value={values.fees}
+            placeholder="0,000"
+            onChange={(event) => set({ fees: event.target.value })}
+            aria-invalid={errors.fees ? true : undefined}
           />
         </Field>
 
@@ -475,6 +490,9 @@ function Totals({ invoice }: { invoice: InvoiceDetail }) {
         <TotalRow label={t("admin.invoices.document.totalNoVat")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
       )}
       {stamp && <TotalRow label={t("admin.invoices.document.stamp")}>{formatMoney(invoice.fiscal_stamp)}</TotalRow>}
+      {!isZero(invoice.fees) && (
+        <TotalRow label={t("admin.invoices.document.fees")}>{formatMoney(invoice.fees)}</TotalRow>
+      )}
       <TotalRow
         label={invoice.apply_vat ? t("admin.invoices.document.totalIncl") : t("admin.invoices.document.total")}
         grand
@@ -562,6 +580,7 @@ export function InvoicePage() {
     invoice.apply_vat,
     invoice.notes,
     invoice.fiscal_stamp,
+    invoice.fees,
     invoice.withholding_rate,
     invoice.withholding_applied,
     invoice.lines.map((line) => line.vat_rate).join("/"),

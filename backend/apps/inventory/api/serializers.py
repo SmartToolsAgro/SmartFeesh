@@ -230,9 +230,17 @@ class TransferSerializer(serializers.ModelSerializer[Transfer]):
 
 class TransferDetailSerializer(TransferSerializer):
     lines = TransferLineDetailSerializer(many=True, read_only=True)
+    # The returnable boxes that go with the transfer, per box type (D-122): what a draft's form reloads,
+    # since saving a draft replaces them. Empty when none.
+    boxes = serializers.SerializerMethodField()
 
     class Meta(TransferSerializer.Meta):
-        pass
+        fields: tuple[str, ...] = (*TransferSerializer.Meta.fields, "boxes")
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
+    def get_boxes(self, transfer: Transfer) -> dict[str, int]:
+        return {line.box_type: line.count for line in transfer.box_lines.all()}
 
 
 class TransferLineWriteSerializer(serializers.Serializer[Any]):
@@ -252,7 +260,8 @@ class TransferWriteSerializer(serializers.Serializer[Any]):
     lines = TransferLineWriteSerializer(many=True, allow_empty=True)
     # Validate at once (moves the stock); otherwise the transfer stays a draft.
     validate_now = serializers.BooleanField(required=False, default=False)
-    # Returnable boxes that go with a load, per box type ("small", "big"): a count, never kg (D-122).
+    # Returnable boxes that go with a load or with a return from a truck to a cold room, per box type ("small",
+    # "big"): a count, never kg (D-122, D-124).
     boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
 
 

@@ -122,7 +122,7 @@ export const fr = {
       making: "Préparation…",
       failed: "Le PDF n'a pas pu être préparé. Réessayez dans un instant.",
       slow: "Le PDF tarde à venir. Réessayez dans un instant.",
-      // D-127 · the header and footer of the paper invoice, on every document shown in the app
+      // D-131 · the header and footer of the paper invoice, on every document shown in the app
       frame: {
         heading: "{{title}} N° {{number}}",
         date: "Date",
@@ -993,6 +993,8 @@ export const fr = {
         amountAt: "TVA à {{rate}} % (DT)",
         amountsHint: "Laissez vide pour le montant calculé ; un montant saisi est signalé et journalisé.",
         stamp: "Timbre fiscal (DT)",
+        // D-126: fees typed by the office, outside VAT, added to the total.
+        fees: "Frais (DT, hors TVA)",
         withholding: "Retenue à la source",
         withholdingRate: "Taux de retenue (%)",
         notes: "Mention sur la facture",
@@ -1029,6 +1031,7 @@ export const fr = {
         vatExempt: "Exonéré de TVA",
         vatTyped: "montant saisi (calculé : {{computed}})",
         stamp: "Timbre fiscal",
+        fees: "Frais",
         totalIncl: "Total TTC",
         total: "Total à payer",
         withholding: "Retenue à la source ({{rate}} %)",
@@ -1958,6 +1961,7 @@ export const fr = {
         leave: "Départ chez le client",
         collect: "Reprise chez le client",
         return: "Retour au fournisseur",
+        truck_return: "Retour du camion en chambre froide",
         write_off: "Casse ou perte",
       },
       types: {
@@ -1997,6 +2001,20 @@ export const fr = {
       customer: {
         title: "Caisses chez le client",
         ambiguous: "Plusieurs partenaires portent ce nom : les caisses affichées peuvent être incomplètes.",
+      },
+      // The counts typed on a receipt (D-122) and on a load to a truck.
+      form: {
+        receiptTitle: "Caisses reçues avec la livraison",
+        receiptHint: "Caisses consignées livrées avec ces produits. Laissez vide ou 0 s'il n'y en a pas.",
+        loadTitle: "Caisses chargées dans le camion",
+        loadHint:
+          "Caisses qui partent avec ce chargement. Elles restent sur le camion jusqu'à leur remise à un client.",
+        invalid: "Indiquez un nombre entier de caisses, zéro ou plus.",
+      },
+      empty: {
+        text: "Aucune caisse enregistrée pour le moment. Les caisses entrent avec une réception fournisseur ou un chargement de camion.",
+        receipt: "Enregistrer une réception",
+        load: "Enregistrer un chargement",
       },
     },
     stockTabs: {
@@ -2991,7 +3009,7 @@ export const fr = {
       dialog: {
         addTitle: "Nouveau frais mensuel",
         editTitle: "Modifier le frais mensuel",
-        body: "Ce modèle génère la dépense du mois. Les mois déjà générés gardent leur montant.",
+        body: "Ce modèle génère la dépense du mois. Un mois déjà généré prend la modification tant que sa dépense n'est pas approuvée ; un mois approuvé garde son montant.",
         name: "Nom (Loyer, Comptable…)",
         category: "Catégorie",
         amount: "Montant mensuel (DT)",
@@ -3488,19 +3506,29 @@ export const fr = {
       opening: "Caisse au départ",
       expected: "Argent attendu dans la caisse",
       stock: "Le stock du camion",
+      stockOpening: "Au départ",
       loaded: "Chargé",
       sold: "vendu",
       lost: "perdu",
       returned: "rendu",
       left: "Reste",
+      unexplained:
+        "Écart de {{kg}} : le stock du camion ne correspond pas aux ventes, pertes et transferts de la journée. Prévenez le bureau.",
       counted: "Argent compté dans la caisse (DT)",
       gap: "Écart avec l'argent attendu : {{amount}}",
       note: "Un mot pour le bureau (facultatif)",
       send: "Envoyer ma journée au bureau",
       sent: "Journée envoyée au bureau",
       needNetwork: "Il faut du réseau pour envoyer la journée.",
-      sendFirst_one: "Attendez : {{count}} envoi doit d'abord partir (il faut du réseau).",
-      sendFirst_other: "Attendez : {{count}} envois doivent d'abord partir (il faut du réseau).",
+      waitingSales_one: "{{count}} envoi n'est pas encore parti vers le bureau. La clôture attend qu'il parte.",
+      waitingSales_other:
+        "{{count}} envois ne sont pas encore partis vers le bureau. La clôture attend qu'ils partent.",
+      waitOffline: "Pas de réseau pour le moment : l'envoi partira seul au retour du réseau.",
+      waitNoAnswer: "Le serveur ne répond pas (réseau faible ?). Nouvel essai automatique.",
+      waitServerBusy: "Le serveur est occupé ou redémarre. Nouvel essai automatique.",
+      waitSession: "Votre session a expiré : reconnectez-vous pour envoyer.",
+      waitRetrying: "L'envoi se fait tout seul, dès que possible.",
+      retrySend: "Réessayer l'envoi",
       countedWas: "Argent compté : {{amount}}",
       approved: "Journée approuvée par le bureau",
       asked: "Le bureau demande : {{reason}}",
@@ -3552,11 +3580,12 @@ export const fr = {
       pickupWho: "Quel client rend des caisses ?",
       pickupSave: "Enregistrer la reprise",
       pickupSaved: "Reprise enregistrée.",
+      pickupKept: "Pas de réseau : la reprise est gardée sur le téléphone et envoyée dès le retour du réseau.",
       pickupAnother: "Autre reprise",
       pickupNone: "Indiquez au moins une caisse.",
       pickupFailed: "La reprise n'a pas pu être enregistrée. Réessayez.",
-      back: "Retour à Ma journée",
     },
+    backToDay: "Retour à Ma journée",
     crash: {
       title: "Cet écran a rencontré un problème",
       body: "Rien n'est perdu. Revenez à « Ma journée » ou rechargez l'application.",

@@ -1456,6 +1456,8 @@ class InvoiceChoices(TypedDict, total=False):
     vat_amounts: dict[Number, Number | None] | None
     # Empty = the settings' stamp.
     fiscal_stamp: Number | None
+    # "Frais" in DT; empty = none (D-126).
+    fees: Number | None
     withholding_applied: bool
     # Empty = the settings' rate.
     withholding_rate: Number | None
@@ -1473,6 +1475,7 @@ class _Overrides:
     withholding_applied: bool
     withholding_rate: Decimal | None
     notes: str
+    fees: Decimal = Decimal("0.000")
 
 
 def _settings_in_force(organization: Organization) -> FinanceSettings:
@@ -1516,6 +1519,13 @@ def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
             stamp = checked_amount(raw_stamp)
         except (ValueError, TypeError):
             errors["fiscal_stamp"] = _("Indiquez un montant en DT, au millime près.")
+    fees = Decimal("0.000")
+    raw_fees: Any = choices.get("fees")
+    if raw_fees not in (None, ""):
+        try:
+            fees = checked_amount(raw_fees)
+        except (ValueError, TypeError):
+            errors["fees"] = _("Indiquez un montant en DT, au millime près.")
     withholding_rate: Decimal | None = None
     raw_withholding = choices.get("withholding_rate")
     if raw_withholding not in (None, ""):
@@ -1532,6 +1542,7 @@ def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
         withholding_applied=choices.get("withholding_applied", False),
         withholding_rate=withholding_rate,
         notes=(choices.get("notes") or "").strip(),
+        fees=fees,
     )
 
 
@@ -1546,6 +1557,7 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
         withholding_applied=invoice.withholding_applied,
         withholding_rate=invoice.withholding_rate if invoice.withholding_rate_overridden else None,
         notes=invoice.notes,
+        fees=invoice.fees,
     )
 
 
@@ -1580,6 +1592,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         fiscal_stamp=stamp,
         withholding_rate=withholding_rate if overrides.withholding_applied else None,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
+        fees=overrides.fees,
     )
     if amounts.refused_overrides:
         raise ValidationError(
@@ -1631,6 +1644,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.vat_total = amounts.vat_total
     invoice.fiscal_stamp = amounts.fiscal_stamp
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
+    invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
     invoice.withholding_applied = overrides.withholding_applied
     invoice.withholding_rate = withholding_rate
@@ -1655,6 +1669,7 @@ def _invoice_snapshot(invoice: Invoice) -> dict[str, Any]:
         "total_excl_tax": str(invoice.total_excl_tax),
         "vat_total": str(invoice.vat_total),
         "fiscal_stamp": str(invoice.fiscal_stamp),
+        "fees": str(invoice.fees),
         "total_incl_tax": str(invoice.total_incl_tax),
         "withholding_applied": invoice.withholding_applied,
         "withholding_rate": str(invoice.withholding_rate),
@@ -2087,15 +2102,19 @@ def create_credit_note(
     if stock not in CreditNoteStock.values:
         raise ValidationError({"stock": _("Indiquez ce que deviennent les kilos rendus.")})
     credited = selectors.credited_by_line(invoice)
-    already = invoice.credit_notes.aggregate(stamp=Sum("fiscal_stamp"), withholding=Sum("withholding_amount"))
+    already = invoice.credit_notes.aggregate(
+        stamp=Sum("fiscal_stamp"), fees=Sum("fees"), withholding=Sum("withholding_amount")
+    )
     withholding_left = invoice.withholding_amount - (already["withholding"] or Decimal("0.000"))
     if kind == CreditNoteKind.FULL:
         parts = _full_credit_parts(invoice, credited)
         stamp = invoice.fiscal_stamp - (already["stamp"] or Decimal("0.000"))
+        fees = invoice.fees - (already["fees"] or Decimal("0.000"))
         withholding = withholding_left
     else:
         parts = _partial_credit_parts(invoice, lines, credited)
         stamp = Decimal("0.000")
+        fees = Decimal("0.000")
         goods = sum((part.excl + part.vat for part in parts), Decimal("0.000"))
         withholding = Decimal("0.000")
         if invoice.withholding_amount > 0:
@@ -2114,9 +2133,10 @@ def create_credit_note(
         total_excl_tax=total_excl,
         vat_total=vat_total,
         fiscal_stamp=stamp,
-        total_incl_tax=total_excl + vat_total + stamp,
+        fees=fees,
+        total_incl_tax=total_excl + vat_total + stamp + fees,
         withholding_amount=withholding,
-        net_amount=total_excl + vat_total + stamp - withholding,
+        net_amount=total_excl + vat_total + stamp + fees - withholding,
         created_by=actor,
     )
     sales = {sale.pk: sale for sale in _locked_sales_of(invoice)}
@@ -2157,6 +2177,7 @@ def create_credit_note(
             "total_excl_tax": str(note.total_excl_tax),
             "vat_total": str(note.vat_total),
             "fiscal_stamp": str(note.fiscal_stamp),
+            "fees": str(note.fees),
             "withholding_amount": str(note.withholding_amount),
             "net_amount": str(note.net_amount),
         },

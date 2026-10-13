@@ -1,6 +1,7 @@
 """Reusable read queries of sales documents."""
 
 import datetime as dt
+import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
@@ -164,6 +165,13 @@ def quote_remaining(quote: Quote) -> Decimal:
 
 
 # ---- Sales (P2-T04, D-051) ----
+
+
+def sale_by_client_uuid(organization: Organization, client_uuid: uuid.UUID | None) -> Sale | None:
+    """The sale the phone sent under this `client_uuid`, if the server has it already (a retried send)."""
+    if client_uuid is None:
+        return None
+    return Sale.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
 
 
 def sales_of(

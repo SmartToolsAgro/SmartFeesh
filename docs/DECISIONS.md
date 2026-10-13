@@ -1635,6 +1635,25 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   to people in the same organization.
 - Not yet: printing the logo on documents (planned with the PDF templates). Done in D-125.
 
+**D-124 · Returnable boxes (caisses): a count ledger, separate from kg stock (Q27)** · accepted · 2026-10-13
+- Two box types (small, big). Boxes are **counted in whole units** in their own append-only movement table
+  (`BoxMovement`: organization, box type, count, from and to, source document, posted through a service in a
+  transaction). They are never products and never touch `StockOnHand`, kg, FIFO or lots (no lot tracking).
+- Holders are **locations** (cold rooms, trucks), **clients** and **suppliers**. Balances are derived from the
+  ledger: boxes per location, boxes held by each client, boxes owed to each supplier. A box left at a client
+  stays out of the truck until collected.
+- Supplier boxes: boxes received from a supplier must go back to that supplier. Each supplier has a balance
+  "boxes owed", separate from money (supplier payables) and from partner capital (three-balances rule).
+- Sign convention (step 1, `apps/boxes`): locations and clients show arrivals minus departures; a **supplier shows
+  receipts minus returns**, i.e. what we owe it, which is never negative.
+- No deposit and no money in the box ledger (owner answer). No tare: box weight is not in kg figures.
+- Lost or broken boxes are a **company overhead** (write-off movement with a reason), not charged to clients or
+  drivers, and not part of a lot's costs (so they do not change partner profit, D-040 / D-041).
+- Driver app: count on loading, "boxes left" on a sale, "boxes collected" on a pickup visit, and a box
+  reconciliation at the evening closing (D-094), the same way as kg. Admin: a "Caisses" page under Stock and a
+  box section on the client page.
+- **Status after PR #100:** built: steps 1 to 4 of the ledger (#95 ledger, #97 receipt and transfer hooks, #98 admin "Caisses" page, #100 sale with boxes online, pickups online, day view with loaded, left and collected counts). **Open, owner decisions, not built:** (2) the truck's "expected boxes" is the real ledger balance, not today only; (3) box actions (sales with boxes, pickups) go into the driver offline queue with idempotent retries; (4) a truck-to-cold-room "return" movement, posted with the transfer. Also open: Arabic box texts, and a browser check of the driver screens.
+
 **D-125 · Invoice PDF follows the company's paper invoice; the uploaded logo everywhere (owner request)** · accepted · 2026-10-13
 - The owner sent their current paper invoice (facture 2026M30013) and asked for the same page "with a small
   enhancement". `sales/pdf/invoice.html` now draws that layout: logo and company block top left (address,
@@ -1659,7 +1678,63 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - The product list the owner forwarded (ART0002 to ART0060) is not imported by this change; the codes print
   as soon as products carry them as `reference` (through the data import or the product page).
 
-**D-127 · Every document uses the invoice's header and footer, in the PDFs and on screen (owner request)** · accepted · 2026-10-13
+**D-126 · "Frais" on invoices; the owner's article codes as product references (owner decision)** · accepted · 2026-10-13
+- `Invoice.fees` ("Frais", DT): an amount the office types on the draft (empty = none), printed in the Frais
+  box of the PDF (D-125) and on the invoice page. It adds to the total like the fiscal stamp: no VAT on it and
+  no withholding (`total_incl_tax = HT + TVA + timbre + frais`), so the customer owes it through `net_to_pay`.
+  It is not lot revenue: lot profit still comes from the sale lines only.
+- `CreditNote.fees`: a full credit note gives back all the fees still on the invoice, a partial one none (like
+  the stamp), so a cancelled invoice leaves nothing owed. Migration `sales.0015`.
+- The owner's product list: only the article codes are taken (`catalog/product_codes.py`, ART0002 to ART0060).
+  `manage.py set_product_codes --organization <id>` reports, `--apply` writes each code into the `reference`
+  of the product with the same name (case, accents and spaces ignored), through `update_product` (audited).
+  No product is created and nothing else changes. Left alone and reported: no product with that name, several
+  products with it, the code already on another product, and names the list gives twice (ART0047 and ART0055
+  were both "Maklouba rosé congelé M0"). It must be run on the server.
+- Owner answer (2026-10-13): "Maklouba rosé congelé M0" takes ART0047; ART0055 is removed from the list and
+  stays unassigned.
+
+**D-127 · Admin can record returnable boxes on a receipt and on a load (bug, owner report)** · accepted · 2026-10-13
+- Found: the admin app had no way to post a box movement. The receipt and transfer APIs took `boxes` since P1-T14b,
+  but the admin forms never sent it, and the Caisses page was read only. The box types are a fixed choice
+  (`BoxType`, small and big), not a table, so "no box type exists" was not the cause. Nothing was seeded wrongly.
+- Fix: a "Caisses reçues avec la livraison" card on the receipt form and a "Caisses chargées dans le camion" card on
+  a load (shown only for a load), both sending the counts the server already takes. A draft load reloads its saved
+  counts: `TransferDetail` now returns `boxes`, because saving a draft replaces them. The empty Caisses page links to
+  both forms for whoever may record them.
+- Still open, not built: an opening balance (boxes already at clients, in cold rooms, or owed to suppliers). It needs
+  a movement kind with one side outside the ledger, and a decision on the sign for a supplier. Proposed as a small
+  owner-approved follow-up, not in this change.
+- Load question (owner): keep the count as a field on the load transfer (one document, posted in the same transaction
+  as the kg), not as a separate movement screen. A separate movement would need its own source document and could drift from the load.
+
+**D-128 · Editing a monthly cost template updates its months not yet approved (owner report)** · accepted · 2026-10-13
+- The owner changed a monthly cost (Frais généraux) and the month result did not move: the template change only
+  applied to months generated later. Now `update_recurring_cost` also rewrites the expense of every month already
+  generated whose expense is still a draft or waiting for approval (amount, category, name, payee, payment method),
+  through `update_expense` (audited). An approved month keeps its amount: a correction is a new expense.
+- The month result counts approved expenses only, so the change shows there once the expense is approved.
+- The admin refreshes the month screen and the dashboard after any expense change (`refreshExpenses`).
+**D-129 · Closing waits for the phone's waiting sales and says why; a sale sent again is not refused (follow-up of D-090, D-091, D-094)** · accepted · 2026-10-13
+- The closing stays blocked while any item of the phone queue is pending (D-090). The page now says how many wait and why (no connection, no answer, server busy, session ended), has a retry button, and sends them as it opens. Pure gate in `closingGate.ts`.
+- A send gives up after 25 s (`SEND_TIMEOUT_MS`, `sync.ts`), so one hung request no longer blocks every later sync until the page is reloaded.
+- 408, 429, 502, 503 and 504 keep the item pending (the server is busy, it did not refuse the item). Other 4xx and 500 still make it refused and reported to the office. 401 keeps it pending and reports the ended session.
+- Backend: a sale the server already has under the same `client_uuid` is answered 201 with that sale, checked before the day-approved check, so a retry after approval is not refused as a new sale. A new sale on an approved day is still 403 (D-094).
+
+**D-130 · A truck's day starts from what it held, not from today's loads (bug on staging, 2026-10-13)** · accepted · 2026-10-13
+- Cause: the driver's Clôture showed "vendu" above "chargé" (Crevette 109 sold, 100 loaded). Nothing was oversold:
+  the ledger never goes below zero (`post_fifo_movements` refuses, DB check `on_hand_never_negative`). The kilos
+  sold had stayed on the truck from an earlier day, and `truck_day` only counts today's validated transfers.
+- `inventory.selectors.location_stock_before`: what a location held at the start of the day, from the ledger
+  (movements dated before it). `day_summary` shows it per product as `opening`.
+- `unexplained` = left (ledger) - (opening + loaded - returned - sold - lost). It is never clamped: a gap is shown in
+  red with "prévenez le bureau" (stock out or in without a sale, loss or transfer of this driver).
+- Historical ledger rows and closing snapshots are not changed; old snapshots simply lack the two new fields.
+- Driver screens other than Ma journée get a "Retour à Ma journée" button under their content (`BackToDay`).
+- Not changed (open): an offline sale is dated when it is sent (`sold_at` is the server's moment for a driver),
+  so a sale made yesterday and sent today counts as today's sale and its price is today's.
+
+**D-131 · Every document uses the invoice's header and footer, in the PDFs and on screen (owner request)** · accepted · 2026-10-13
 - The owner asked that every printed PDF and every document view in the app carry the frame of the facture
   (D-125). The header and footer moved from `sales/pdf/invoice.html` into `documents/pdf_base.html`: logo or
   company name, address, Tél, MF, Identifiant Unique, RC top left; boxed "<Document> N° …", a Date | Client

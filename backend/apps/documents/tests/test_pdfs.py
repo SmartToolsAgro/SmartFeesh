@@ -206,6 +206,14 @@ def test_the_invoice_follows_the_paper_form(organization, invoice):
     assert "Arrêtée la présente Facture à la somme de : Deux cent cinquante Dinars 900 Millimes" in html
 
 
+def test_the_frais_box_prints_the_invoice_fees(organization, sale, manager):
+    invoice = sales.create_invoice(sale=sale, actor=manager.user, issue=True, fees="7.250")
+
+    html = services.render_html(services.printable(organization, "invoice", invoice.pk))
+
+    assert "<tr><th>Frais</th><td>7,250 TND</td></tr>" in html
+
+
 def test_every_pdf_prints_the_logo_and_a_new_logo_makes_the_file_stale(organization, invoice, manager, fake_pdf):
     from django.core.files.uploadedfile import SimpleUploadedFile
     from PIL import Image
@@ -239,7 +247,7 @@ def test_every_pdf_prints_the_logo_and_a_new_logo_makes_the_file_stale(organizat
 
 
 def test_every_document_has_the_invoice_header_and_footer(organization, invoice, sale, setup, manager):
-    """D-127: the logo/company block, boxed number, Date | Client box, client block and address footer of the
+    """D-131: the logo/company block, boxed number, Date | Client box, client block and address footer of the
     paper invoice are on every document, not only on the invoice."""
     FinanceSettings.objects.filter(organization=organization).update(
         address="Route Mahdia KM4\n3011 Sakiet Ezzit", phone="74 000 000", tax_id="1902781/R/N/M/000"

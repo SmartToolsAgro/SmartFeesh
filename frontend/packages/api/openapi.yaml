@@ -2360,7 +2360,7 @@ paths:
         Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
         `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
-        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`.
+        `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
       tags:
       - invoices
       requestBody:
@@ -3676,7 +3676,8 @@ paths:
       operationId: collectMyBoxes
       description: |-
         Boxes a client hands back to the driver's truck today, per box type. Refused as a whole when the
-        client holds fewer boxes of one type than asked, or when the driver's day is approved.
+        client holds fewer boxes of one type than asked, or when the driver's day is approved. A `client_uuid`
+        already used returns the day as it is after that pickup (the driver app retries).
       tags:
       - my-box-pickups
       requestBody:
@@ -3704,8 +3705,8 @@ paths:
     get:
       operationId: getMyBoxDay
       description: |-
-        Today's boxes on the driver's truck, per box type: loaded, left with clients, collected back, and
-        the expected count on the truck (loaded - left + collected). 404 without a truck of the day.
+        Today's boxes on the driver's truck, per box type: loaded, left with clients and collected back today,
+        and the expected count on the truck (the real ledger balance, all days). 404 without a truck of the day.
       tags:
       - my-boxes
       security:
@@ -8335,6 +8336,7 @@ components:
       - leave
       - collect
       - return
+      - truck_return
       - write_off
       type: string
       description: |-
@@ -8343,6 +8345,7 @@ components:
         * `leave` - Départ chez client
         * `collect` - Reprise chez client
         * `return` - Retour fournisseur
+        * `truck_return` - Retour du camion en chambre froide
         * `write_off` - Casse ou perte
     BoxTypeEnum:
       enum:
@@ -9047,6 +9050,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        fees:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         total_incl_tax:
           type: string
           format: decimal
@@ -9086,6 +9094,7 @@ components:
       - created_by
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - id
       - invoice
@@ -10274,6 +10283,11 @@ components:
         product_name:
           type: string
           readOnly: true
+        opening:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
         loaded:
           type: string
           format: decimal
@@ -10299,14 +10313,21 @@ components:
           format: decimal
           pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
           readOnly: true
+        unexplained:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - loaded
       - lost
+      - opening
       - product_id
       - product_name
       - remaining
       - returned
       - sold
+      - unexplained
     DaySummary:
       type: object
       properties:
@@ -11766,6 +11787,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        fees:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         total_incl_tax:
           type: string
           format: decimal
@@ -11837,6 +11863,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - id
       - issued_at
@@ -11932,6 +11959,9 @@ components:
         fiscal_stamp:
           type: string
           nullable: true
+        fees:
+          type: string
+          nullable: true
         withholding_applied:
           type: boolean
           default: false
@@ -11961,6 +11991,9 @@ components:
           items:
             $ref: '#/components/schemas/InvoiceVatAmount'
         fiscal_stamp:
+          type: string
+          nullable: true
+        fees:
           type: string
           nullable: true
         withholding_applied:
@@ -12049,6 +12082,11 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fees:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12187,6 +12225,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - fees
       - fiscal_stamp
       - fiscal_stamp_overridden
       - id
@@ -14140,6 +14179,10 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
       required:
       - customer
     MyDaySummary:
@@ -19995,12 +20038,14 @@ components:
       - expense
       - loss
       - payment
+      - pickup
       type: string
       description: |-
         * `sale` - sale
         * `expense` - expense
         * `loss` - loss
         * `payment` - payment
+        * `pickup` - pickup
     Transfer:
       type: object
       properties:
@@ -20161,7 +20206,13 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
       required:
+      - boxes
       - confirmed_at
       - confirmed_by
       - created_at

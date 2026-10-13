@@ -31,6 +31,7 @@
   <div><span>Total HT</span><span>{{ note.total_excl_tax|money }}</span></div>
   <div><span>TVA</span><span>{{ note.vat_total|money }}</span></div>
   {% if note.fiscal_stamp %}<div><span>Timbre fiscal</span><span>{{ note.fiscal_stamp|money }}</span></div>{% endif %}
+  {% if note.fees %}<div><span>Frais</span><span>{{ note.fees|money }}</span></div>{% endif %}
   <div class="grand"><span>Total TTC</span><span>{{ note.total_incl_tax|money }} DT</span></div>
   {% if note.withholding_amount %}
   <div class="muted"><span>Retenue à la source</span><span>− {{ note.withholding_amount|money }}</span></div>

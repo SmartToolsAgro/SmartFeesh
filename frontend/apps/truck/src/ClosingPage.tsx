@@ -2,10 +2,12 @@ import { ApiError, useCloseMyDay, useGetMyDaySummary } from "@frutti/api";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { useQueue } from "./queue";
+import { closingGate } from "./closingGate";
 import { useOnline } from "./offline";
+import { useQueue } from "./queue";
+import { sendWaiting, useSyncProblem } from "./sync";
 
 const millimes = (value: string) => Math.round(Number(value) * 1000);
 
@@ -25,10 +27,23 @@ export function ClosingPage() {
   const day = useGetMyDaySummary({ query: { retry: false } });
   const queue = useQueue();
   const online = useOnline();
-  const waiting = queue.filter((item) => item.status === "pending").length;
+  const problem = useSyncProblem();
+  const [retrying, setRetrying] = useState(false);
   const [counted, setCounted] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  // Waiting sales are sent as soon as the closing opens, not only on the half-minute timer (D-090).
+  useEffect(() => {
+    void sendWaiting(queryClient);
+  }, [queryClient]);
+  const retry = async () => {
+    setRetrying(true);
+    try {
+      await sendWaiting(queryClient);
+    } finally {
+      setRetrying(false);
+    }
+  };
   const send = useCloseMyDay({
     mutation: {
       onSuccess: () => {
@@ -54,6 +69,18 @@ export function ClosingPage() {
   const locked = closing?.status === "submitted" || closing?.status === "approved";
   const countedValue = parseDecimalInput(counted.trim(), 3);
   const gap = countedValue === null ? null : (millimes(countedValue) - millimes(summary.expected_cash)) / 1000;
+  const gate = closingGate({ queue, online, countedReady: countedValue !== null, busy: send.isPending });
+  const waiting = gate.waiting;
+  // Why the sale has not gone yet: the phone's own connection first, then what the last send ran into.
+  const waitReason = !online
+    ? t("truck.closing.waitOffline")
+    : problem === "session"
+      ? t("truck.closing.waitSession")
+      : problem === "server"
+        ? t("truck.closing.waitServerBusy")
+        : problem === "offline"
+          ? t("truck.closing.waitNoAnswer")
+          : t("truck.closing.waitRetrying");
 
   return (
     <div className="space-y-4">
@@ -80,13 +107,19 @@ export function ClosingPage() {
               <li key={product.product_id} className="space-y-1 py-3">
                 <p className="text-lg font-semibold">{product.product_name}</p>
                 <p className="text-sm text-ink-2">
-                  {t("truck.closing.loaded")} {formatQuantity(product.loaded)} · {t("truck.closing.sold")}{" "}
-                  {formatQuantity(product.sold)} · {t("truck.closing.lost")} {formatQuantity(product.lost)} ·{" "}
-                  {t("truck.closing.returned")} {formatQuantity(product.returned)}
+                  {t("truck.closing.stockOpening")} {formatQuantity(product.opening)} · {t("truck.closing.loaded")}{" "}
+                  {formatQuantity(product.loaded)} · {t("truck.closing.sold")} {formatQuantity(product.sold)} ·{" "}
+                  {t("truck.closing.lost")} {formatQuantity(product.lost)} · {t("truck.closing.returned")}{" "}
+                  {formatQuantity(product.returned)}
                 </p>
                 <p className="font-semibold">
                   {t("truck.closing.left")} {formatQuantity(product.remaining)}
                 </p>
+                {Number(product.unexplained) === 0 ? null : (
+                  <p className="font-semibold text-bad">
+                    {t("truck.closing.unexplained", { kg: formatQuantity(product.unexplained) })}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -133,7 +166,13 @@ export function ClosingPage() {
           </div>
           {error === "" ? null : <p className="text-bad">{error}</p>}
           {waiting > 0 ? (
-            <p className="text-warn">{t("truck.closing.sendFirst", { count: waiting })}</p>
+            <div className="space-y-2">
+              <p className="font-semibold text-warn">{t("truck.closing.waitingSales", { count: waiting })}</p>
+              <p className="text-ink-2">{waitReason}</p>
+              <Button disabled={!online || retrying} onClick={() => void retry()}>
+                {t("truck.closing.retrySend")}
+              </Button>
+            </div>
           ) : !online ? (
             <p className="text-warn">{t("truck.closing.needNetwork")}</p>
           ) : null}
@@ -141,7 +180,7 @@ export function ClosingPage() {
             size="lg"
             variant="primary"
             className="py-4 text-lg"
-            disabled={countedValue === null || send.isPending || !online || waiting > 0}
+            disabled={!gate.canSend}
             onClick={() => countedValue !== null && send.mutate({ data: { counted_cash: countedValue, note } })}
           >
             {t("truck.closing.send")}

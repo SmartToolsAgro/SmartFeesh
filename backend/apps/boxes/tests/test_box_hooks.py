@@ -179,18 +179,118 @@ def test_a_load_without_boxes_posts_no_box_movement(organization, actor, cold_ro
     assert not BoxMovement.objects.for_organization(organization).exists()
 
 
-def test_boxes_only_go_with_a_load(organization, actor, cold_room, truck, dorade):
+def test_boxes_only_go_with_a_load_or_a_truck_return_to_a_cold_room(organization, actor, cold_room, truck, dorade):
     _receive_kg(organization, dorade, truck, "30")
     other_room = StockLocationFactory.create(organization=organization, name="Chambre froide 2")
+    other_place = StockLocationFactory.create(organization=organization, kind=LocationKind.OTHER, name="Marché")
 
-    with pytest.raises(ValidationError) as back_to_room:
-        _draft(organization, actor, truck, cold_room, dorade, boxes={"small": 2})
     with pytest.raises(ValidationError) as between_rooms:
         _draft(organization, actor, cold_room, other_room, dorade, boxes={"small": 2})
+    with pytest.raises(ValidationError) as truck_to_other_place:
+        _draft(organization, actor, truck, other_place, dorade, boxes={"small": 2})
 
-    assert set(back_to_room.value.message_dict) == {"boxes"}
     assert set(between_rooms.value.message_dict) == {"boxes"}
+    assert set(truck_to_other_place.value.message_dict) == {"boxes"}
     assert not StockMovement.objects.for_organization(organization).filter(kind=MovementKind.TRANSFER).exists()
+
+
+# ---- a truck gives its boxes back to a cold room (P1-T14e, D-124) ----
+
+
+def _load_truck(organization, actor, supplier, cold_room, truck, dorade, *, small=0, big=0):
+    """Boxes and kilos into the cold room, then loaded onto the truck (both through the transfer path)."""
+    _receipt(organization, actor, supplier, cold_room, dorade, boxes={"small": small, "big": big})  # 30 kg
+    load = _draft(organization, actor, cold_room, truck, dorade, boxes={"small": small, "big": big})  # 12 kg
+    inventory_services.validate_transfer(transfer=load, actor=actor)
+
+
+def test_a_truck_return_posts_its_boxes_back_with_the_transfer(organization, actor, supplier, cold_room, truck, dorade):
+    _load_truck(organization, actor, supplier, cold_room, truck, dorade, small=4)
+
+    back = _draft(organization, actor, truck, cold_room, dorade, boxes={"small": 3})
+    assert not BoxMovement.objects.filter(kind=BoxMovementKind.TRUCK_RETURN).exists()  # a draft moves nothing
+    inventory_services.validate_transfer(transfer=back, actor=actor)
+
+    (returned,) = BoxMovement.objects.filter(kind=BoxMovementKind.TRUCK_RETURN)
+    assert (returned.box_type, returned.count, returned.source) == ("small", 3, back)
+    assert returned.from_holder == _location_holder(organization, truck)
+    assert returned.to_holder == _location_holder(organization, cold_room)
+    assert _holder_balance(organization, _location_holder(organization, truck)) == 1
+    assert _holder_balance(organization, _location_holder(organization, cold_room)) == 3
+    assert inventory.quantity_on_hand(organization, location_id=cold_room.pk) == Decimal("30.000")
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk) == 0
+
+
+def test_a_refused_truck_return_rolls_the_stock_back_too(organization, actor, supplier, cold_room, truck, dorade):
+    _load_truck(organization, actor, supplier, cold_room, truck, dorade, small=1)
+    back = _draft(organization, actor, truck, cold_room, dorade, boxes={"small": 3})  # the truck holds 1
+
+    with pytest.raises(ValidationError) as refused:
+        inventory_services.validate_transfer(transfer=back, actor=actor)
+
+    assert set(refused.value.message_dict) == {"boxes"}
+    back.refresh_from_db()
+    assert back.status == TransferStatus.DRAFT
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("12.000")
+    assert inventory.quantity_on_hand(organization, location_id=cold_room.pk) == Decimal("18.000")
+    assert not BoxMovement.objects.filter(kind=BoxMovementKind.TRUCK_RETURN).exists()
+    assert _holder_balance(organization, _location_holder(organization, truck)) == 1
+
+
+@pytest.mark.parametrize(
+    ("from_side", "to_side"),
+    [
+        ("cold_room", "cold_room"),  # not from a truck
+        ("truck", "truck"),  # not to a cold room
+        ("truck", "customer"),  # not to a location
+        ("supplier", "cold_room"),  # not from a location
+    ],
+)
+def test_a_truck_return_refuses_the_wrong_holder_kinds(
+    organization, actor, supplier, cold_room, truck, dorade, from_side, to_side
+):
+    _load_truck(organization, actor, supplier, cold_room, truck, dorade, small=2)
+    holders = {
+        "cold_room": _location_holder(organization, cold_room),
+        "truck": _location_holder(organization, truck),
+        "customer": box_services.holder_for(
+            organization=organization, customer=CustomerFactory.create(organization=organization)
+        ),
+        "supplier": box_services.holder_for(organization=organization, supplier=supplier),
+    }
+
+    with pytest.raises(ValidationError):
+        box_services.post_box_movement(
+            organization=organization,
+            actor=actor,
+            kind=BoxMovementKind.TRUCK_RETURN,
+            box_type="small",
+            count=1,
+            from_holder=holders[from_side],
+            to_holder=holders[to_side],
+        )
+    assert not BoxMovement.objects.filter(kind=BoxMovementKind.TRUCK_RETURN).exists()
+
+
+def test_a_truck_return_refuses_a_holder_of_another_organization(
+    organization, actor, supplier, cold_room, truck, dorade
+):
+    _load_truck(organization, actor, supplier, cold_room, truck, dorade, small=2)
+    other = OrganizationFactory.create()
+    foreign_truck = StockLocationFactory.create(organization=other, kind=LocationKind.TRUCK, name="Camion autre")
+    foreign_holder = box_services.holder_for(organization=other, location=foreign_truck)
+
+    with pytest.raises(ValidationError):
+        box_services.post_box_movement(
+            organization=organization,
+            actor=actor,
+            kind=BoxMovementKind.TRUCK_RETURN,
+            box_type="small",
+            count=1,
+            from_holder=foreign_holder,
+            to_holder=_location_holder(organization, cold_room),
+        )
+    assert not BoxMovement.objects.filter(kind=BoxMovementKind.TRUCK_RETURN).exists()
 
 
 def test_a_refused_box_load_rolls_the_stock_back_too(organization, actor, cold_room, truck, dorade):
@@ -280,6 +380,28 @@ def test_a_transfer_api_call_carries_its_boxes(organization, actor, supplier, co
     assert created.status_code == 201, created.json()
     assert _holder_balance(organization, _location_holder(organization, truck)) == 6
     assert _holder_balance(organization, _location_holder(organization, cold_room)) == 0
+
+
+def test_a_draft_load_shows_its_boxes_and_saving_it_back_keeps_them(organization, actor, cold_room, truck, dorade):
+    client, _ = client_for(Role.OWNER, organization)
+    draft = _draft(organization, actor, cold_room, truck, dorade, boxes={"small": 4})
+    url = reverse("transfer-detail", args=[draft.pk])
+
+    shown = client.get(url).json()
+    assert shown["boxes"] == {"small": 4}
+    no_boxes = _draft(organization, actor, cold_room, truck, dorade)
+    assert client.get(reverse("transfer-detail", args=[no_boxes.pk])).json()["boxes"] == {}
+
+    # The form reloads the boxes it shows and saves them back: a draft keeps them (saving replaces them).
+    body = {
+        "from_location": cold_room.pk,
+        "to_location": truck.pk,
+        "transferred_on": timezone.localdate().isoformat(),
+        "lines": [{"product": dorade.pk, "quantity": "12"}],
+        "boxes": shown["boxes"],
+    }
+    assert client.put(url, body, format="json").status_code == 200
+    assert client.get(url).json()["boxes"] == {"small": 4}
 
 
 @pytest.mark.parametrize(

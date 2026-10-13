@@ -8,11 +8,15 @@ from apps.dayclose.models import DayClosing, DayClosingStatus, SyncProblem
 class DayProductSerializer(serializers.Serializer[Any]):
     product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(read_only=True)
+    # What the truck held at the start of the day, from the ledger (kept over from earlier days).
+    opening = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     loaded = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     sold = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     lost = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     returned = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     remaining = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    # Left on the truck minus what the day's records explain: negative when kilos went out without a record.
+    unexplained = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
 
 class DaySummarySerializer(serializers.Serializer[Any]):
@@ -110,7 +114,13 @@ class JustificationSerializer(serializers.Serializer[Any]):
 
 class SyncProblemWriteSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(
-        choices=[("sale", "sale"), ("expense", "expense"), ("loss", "loss"), ("payment", "payment")]
+        choices=[
+            ("sale", "sale"),
+            ("expense", "expense"),
+            ("loss", "loss"),
+            ("payment", "payment"),
+            ("pickup", "pickup"),
+        ]
     )
     # What the driver would call it: the customer, the category, the product.
     what = serializers.CharField(allow_blank=True, max_length=150)

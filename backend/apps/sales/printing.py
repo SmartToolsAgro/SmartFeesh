@@ -69,7 +69,7 @@ def _address(address: str, city: str) -> str:
 
 
 def _customer_party(customer: Any) -> dict[str, str]:
-    """The client block of the shared document header (D-127), read live from the customer."""
+    """The client block of the shared document header (D-131), read live from the customer."""
     return {
         "label": "Client",
         "name": customer.name,

@@ -10,4 +10,6 @@ export interface MyBoxPickupWrite {
   /** @minimum 1 */
   customer: number;
   boxes?: MyBoxPickupWriteBoxes;
+  /** @nullable */
+  client_uuid?: string | null;
 }

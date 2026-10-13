@@ -39,6 +39,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
+import { BoxCountsFields } from "../boxes/BoxCountsFields";
+import { type BoxCountInputs, NO_BOX_INPUTS, boxCountsFromInputs } from "../boxes/shared";
 import { lineTotal, percentChange, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
@@ -123,6 +125,7 @@ export function ReceiptFormPage() {
   const [supplierReference, setSupplierReference] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
+  const [boxes, setBoxes] = useState<BoxCountInputs>(NO_BOX_INPUTS);
   const [errors, setErrors] = useState<Errors>({});
 
   // Choosing an order (or arriving from its page) fills the supplier and the lines, once per order.
@@ -222,6 +225,8 @@ export function ReceiptFormPage() {
         partner: line.partner === NO_PARTNER ? null : Number(line.partner),
       });
     });
+    const boxCounts = boxCountsFromInputs(boxes);
+    for (const boxType of boxCounts.invalid) found[`boxes.${boxType}`] = t("admin.boxes.form.invalid");
     setErrors(found);
     // An order picked but still loading: wait, or the delivery would be saved without it.
     if (Object.keys(found).length > 0 || (orderId !== null && !order)) return;
@@ -233,6 +238,7 @@ export function ReceiptFormPage() {
       supplier_reference: supplierReference.trim(),
       notes: notes.trim(),
       lines: payloadLines,
+      boxes: boxCounts.counts,
     });
   }
 
@@ -499,6 +505,14 @@ export function ReceiptFormPage() {
             </dl>
           </div>
         </Card>
+
+        <BoxCountsFields
+          title={t("admin.boxes.form.receiptTitle")}
+          hint={t("admin.boxes.form.receiptHint")}
+          value={boxes}
+          onChange={setBoxes}
+          errors={errors}
+        />
 
         <Card>
           <Field label={t("admin.receipts.form.notes")} htmlFor={id("notes")} error={errors.notes}>

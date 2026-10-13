@@ -539,7 +539,9 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     fiscal_stamp = MoneyField(default=Decimal("0.000"))
     # The stamp was typed and differs from the settings.
     fiscal_stamp_overridden = models.BooleanField(default=False)
-    # total_excl_tax + vat_total + fiscal_stamp.
+    # "Frais": fees typed by the office (delivery, packing...), outside VAT and withholding (D-126).
+    fees = MoneyField(default=Decimal("0.000"))
+    # total_excl_tax + vat_total + fiscal_stamp + fees.
     total_incl_tax = MoneyField(default=Decimal("0.000"))
     # Chosen before issuing; only shown when its rate is above 0 %.
     withholding_applied = models.BooleanField(default=False)
@@ -589,6 +591,7 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
                 ),
                 name="invoice_amounts_not_negative",
             ),
+            models.CheckConstraint(condition=models.Q(fees__gte=0), name="invoice_fees_not_negative"),
         ]
         indexes = [
             models.Index(fields=["organization", "status", "issued_on"], name="invoice_status_day_idx"),
@@ -723,6 +726,8 @@ class CreditNote(OrganizationScopedModel, TimeStampedModel):
     total_excl_tax = MoneyField(default=Decimal("0.000"))
     vat_total = MoneyField(default=Decimal("0.000"))
     fiscal_stamp = MoneyField(default=Decimal("0.000"))
+    # The invoice's fees given back: all of what is left on a full credit note, none on a partial one (D-126).
+    fees = MoneyField(default=Decimal("0.000"))
     total_incl_tax = MoneyField(default=Decimal("0.000"))
     withholding_amount = MoneyField(default=Decimal("0.000"))
     # total_incl_tax − withholding_amount: what the customer no longer owes (or gets back).
@@ -750,6 +755,7 @@ class CreditNote(OrganizationScopedModel, TimeStampedModel):
                 ),
                 name="credit_note_amounts_not_negative",
             ),
+            models.CheckConstraint(condition=models.Q(fees__gte=0), name="credit_note_fees_not_negative"),
         ]
 
     def __str__(self) -> str:

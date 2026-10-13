@@ -1,7 +1,7 @@
 import { useGetFinanceSettings } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 
-/** Who is printed in the header of a document shown in the app (D-127), see `DocumentFrame`. */
+/** Who is printed in the header of a document shown in the app (D-131), see `DocumentFrame`. */
 export type DocumentSeller = {
   name: string;
   address: string;

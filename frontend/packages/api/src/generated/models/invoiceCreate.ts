@@ -16,6 +16,8 @@ export interface InvoiceCreate {
   vat_amounts?: InvoiceVatAmount[];
   /** @nullable */
   fiscal_stamp?: string | null;
+  /** @nullable */
+  fees?: string | null;
   withholding_applied?: boolean;
   /** @nullable */
   withholding_rate?: string | null;

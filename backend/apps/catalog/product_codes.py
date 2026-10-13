@@ -1,0 +1,49 @@
+"""The article codes of the owner's product list (forwarded 2026-10-13, D-126), as code and name.
+
+Only the codes are taken from that list: `services.set_product_codes` writes each code into the `reference`
+of the existing product with the same name. Stock, prices and units in the list are ignored.
+
+The list gives "Maklouba rosé congelé M0" twice (ART0047 and ART0055): the owner chose ART0047, so ART0055 is
+left out and stays unassigned (2026-10-13).
+"""
+
+PRODUCT_CODES: tuple[tuple[str, str], ...] = (
+    ("ART0002", "Maklouba rosé congelé"),
+    ("ART0009", "Crevette décortiqué"),
+    ("ART0011", "seiches Noir"),
+    ("ART0012", "crevette tigré"),
+    ("ART0013", "crevette rosé"),
+    ("ART0016", "poulpe gros"),
+    ("ART0020", "crevette royale"),
+    ("ART0022", "Rosé bloc"),
+    ("ART0025", "FILET PANGA SANS GLACE"),
+    ("ART0026", "SARDINE EN FILET"),
+    ("ART0027", "SERIOLA gros"),
+    ("ART0028", "PAGEOT MORJAN"),
+    ("ART0029", "PALAMIT vider"),
+    ("ART0030", "MOULE ENTIER"),
+    ("ART0031", "MULLA"),
+    ("ART0032", "Calamar"),
+    ("ART0033", "bloc seriola"),
+    ("ART0034", "saumon entier"),
+    ("ART0040", "bloc maklouba"),
+    ("ART0041", "Calamar avec clacage"),
+    ("ART0042", "Calamar sans clacage"),
+    ("ART0043", "moule sans clacage"),
+    ("ART0044", "moule avec clacage"),
+    ("ART0045", "petit poulpe"),
+    ("ART0046", "BALAMIT(THON)"),
+    ("ART0047", "MAKLOUBA ROSE CONGELE M0"),
+    ("ART0048", "SERIOLA"),
+    ("ART0049", "PALAMIT"),
+    ("ART0050", "FILET PANGA"),
+    ("ART0051", "FILET 0% GLACAGE"),
+    ("ART0052", "CALAMAR PANNE"),
+    ("ART0053", "CALAMAR RONDELLE"),
+    ("ART0054", "SERIOLE PETIT"),
+    ("ART0056", "Maklouba rosé congelé M1"),
+    ("ART0057", "Maklouba rosé congelé M2"),
+    ("ART0058", "Maklouba rosé congelé M3"),
+    ("ART0059", "Maklouba rosé congelé M4"),
+    ("ART0060", "Maklouba rosé congelé M5"),
+)

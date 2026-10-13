@@ -67,7 +67,7 @@ def partner_statement_printable(organization: Organization, partnership_id: int)
         "partnership": partnership,
         "partner_name": supplier.name,
         "doc_date": statement_on,
-        # The partner block of the shared document header (D-127).
+        # The partner block of the shared document header (D-131).
         "party": {
             "label": "Partenaire",
             "name": supplier.name,

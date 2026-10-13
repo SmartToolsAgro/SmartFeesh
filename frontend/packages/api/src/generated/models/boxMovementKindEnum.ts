@@ -11,6 +11,7 @@
  * * `leave` - Départ chez client
  * * `collect` - Reprise chez client
  * * `return` - Retour fournisseur
+ * * `truck_return` - Retour du camion en chambre froide
  * * `write_off` - Casse ou perte
  */
 export type BoxMovementKindEnum = typeof BoxMovementKindEnum[keyof typeof BoxMovementKindEnum];
@@ -22,5 +23,6 @@ export const BoxMovementKindEnum = {
   leave: 'leave',
   collect: 'collect',
   return: 'return',
+  truck_return: 'truck_return',
   write_off: 'write_off',
 } as const;
