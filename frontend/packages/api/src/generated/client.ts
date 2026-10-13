@@ -29,6 +29,7 @@ import type {
   ApprovedMonth,
   Batch,
   BatchSales,
+  BoxBalance,
   CashFlow,
   Category,
   ChangePassword,
@@ -104,6 +105,7 @@ import type {
   Justification,
   LastCost,
   ListBatchesParams,
+  ListBoxMovementsParams,
   ListCountsParams,
   ListCreditNotesParams,
   ListCustomerPaymentsParams,
@@ -171,6 +173,7 @@ import type {
   OrderWrite,
   Organization,
   PaginatedBatchList,
+  PaginatedBoxMovementList,
   PaginatedCountList,
   PaginatedCreditNoteList,
   PaginatedCustomerPaymentList,
@@ -866,6 +869,211 @@ export function useGetBatchSales<TData = Awaited<ReturnType<typeof getBatchSales
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetBatchSalesQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBoxBalancesUrl = () => {
+
+
+
+
+  return `/api/v1/boxes/balances`
+}
+
+/**
+ * How many boxes each holder has, per box type: locations, clients and suppliers that have moved
+ * boxes. A supplier's count is what we owe it (boxes it lent us).
+ */
+export const listBoxBalances = async ( options?: Parameters<typeof apiFetch>[1]): Promise<BoxBalance[]> => {
+
+  return apiFetch<BoxBalance[]>(getListBoxBalancesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBoxBalancesQueryKey = () => {
+    return [
+    `/api/v1/boxes/balances`
+    ] as const;
+    }
+
+
+export const getListBoxBalancesQueryOptions = <TData = Awaited<ReturnType<typeof listBoxBalances>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxBalances>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBoxBalancesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBoxBalances>>> = ({ signal }) => listBoxBalances({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBoxBalances>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBoxBalancesQueryResult = NonNullable<Awaited<ReturnType<typeof listBoxBalances>>>
+export type ListBoxBalancesQueryError = unknown
+
+
+export function useListBoxBalances<TData = Awaited<ReturnType<typeof listBoxBalances>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxBalances>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBoxBalances>>,
+          TError,
+          Awaited<ReturnType<typeof listBoxBalances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBoxBalances<TData = Awaited<ReturnType<typeof listBoxBalances>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxBalances>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBoxBalances>>,
+          TError,
+          Awaited<ReturnType<typeof listBoxBalances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBoxBalances<TData = Awaited<ReturnType<typeof listBoxBalances>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxBalances>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListBoxBalances<TData = Awaited<ReturnType<typeof listBoxBalances>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxBalances>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBoxBalancesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBoxMovementsUrl = (params?: ListBoxMovementsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/boxes/movements?${stringifiedParams}` : `/api/v1/boxes/movements`
+}
+
+/**
+ * The box history, newest first, paginated (`limit`, `offset`). Filter by one holder (either side
+ * of the movement) and by box type.
+ */
+export const listBoxMovements = async (params?: ListBoxMovementsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedBoxMovementList> => {
+
+  return apiFetch<PaginatedBoxMovementList>(getListBoxMovementsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBoxMovementsQueryKey = (params?: ListBoxMovementsParams,) => {
+    return [
+    `/api/v1/boxes/movements`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBoxMovementsQueryOptions = <TData = Awaited<ReturnType<typeof listBoxMovements>>, TError = unknown>(params?: ListBoxMovementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxMovements>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBoxMovementsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBoxMovements>>> = ({ signal }) => listBoxMovements(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBoxMovements>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBoxMovementsQueryResult = NonNullable<Awaited<ReturnType<typeof listBoxMovements>>>
+export type ListBoxMovementsQueryError = unknown
+
+
+export function useListBoxMovements<TData = Awaited<ReturnType<typeof listBoxMovements>>, TError = unknown>(
+ params: undefined |  ListBoxMovementsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxMovements>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBoxMovements>>,
+          TError,
+          Awaited<ReturnType<typeof listBoxMovements>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBoxMovements<TData = Awaited<ReturnType<typeof listBoxMovements>>, TError = unknown>(
+ params?: ListBoxMovementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxMovements>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBoxMovements>>,
+          TError,
+          Awaited<ReturnType<typeof listBoxMovements>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBoxMovements<TData = Awaited<ReturnType<typeof listBoxMovements>>, TError = unknown>(
+ params?: ListBoxMovementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxMovements>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListBoxMovements<TData = Awaited<ReturnType<typeof listBoxMovements>>, TError = unknown>(
+ params?: ListBoxMovementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBoxMovements>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBoxMovementsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

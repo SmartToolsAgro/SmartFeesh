@@ -1,5 +1,6 @@
 """Every write on returnable boxes goes through these functions, inside `transaction.atomic` (ARCHITECTURE §3)."""
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
@@ -11,7 +12,8 @@ from apps.core import audit
 from apps.core.models import Organization, User
 
 from . import selectors
-from .models import BoxHolder, BoxMovement, BoxMovementKind, BoxType
+from .models import BoxHolder, BoxMovement, BoxType
+from .models import BoxMovementKind as BoxMovementKind  # re-exported for apps that post box movements
 
 if TYPE_CHECKING:
     from apps.inventory.models import StockLocation
@@ -149,3 +151,50 @@ def _check_enough(holder: BoxHolder, box_type: str, count: int, *, leaving: bool
     after = selectors.signed_balance(holder, box_type) + _signed_change(holder, leaving=leaving, count=count)
     if after < 0:
         raise ValidationError(_("Pas assez de caisses %(box)s chez ce détenteur.") % {"box": box_type})
+
+
+def checked_box_counts(counts: Mapping[str, object] | None, errors: dict[str, str], *, prefix: str) -> dict[str, int]:
+    """The non-zero counts of a document (receipt, transfer), or each problem on `<prefix>.<box type>`.
+
+    Zero means no boxes of that type: it is dropped, so a document with no boxes posts nothing.
+    """
+    checked: dict[str, int] = {}
+    for box_type, value in (counts or {}).items():
+        key = f"{prefix}.{box_type}"
+        if box_type not in BoxType.values:
+            errors[key] = _("Type de caisse inconnu.")
+        elif value is None:
+            continue
+        elif isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            errors[key] = _("Indiquez un nombre entier de caisses, zéro ou plus.")
+        elif value > 0:
+            checked[box_type] = value
+    return checked
+
+
+@transaction.atomic
+def post_box_counts(
+    *,
+    organization: Organization,
+    actor: User | None,
+    kind: str,
+    counts: Mapping[str, int],
+    from_holder: BoxHolder | None = None,
+    to_holder: BoxHolder | None = None,
+    source: models.Model | None = None,
+) -> list[BoxMovement]:
+    """One movement per box type with a non-zero count, all or nothing (the caller's transaction)."""
+    return [
+        post_box_movement(
+            organization=organization,
+            actor=actor,
+            kind=kind,
+            box_type=box_type,
+            count=count,
+            from_holder=from_holder,
+            to_holder=to_holder,
+            source=source,
+        )
+        for box_type, count in counts.items()
+        if count
+    ]

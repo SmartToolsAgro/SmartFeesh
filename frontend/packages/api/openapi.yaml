@@ -147,6 +147,71 @@ paths:
               schema:
                 $ref: '#/components/schemas/BatchSales'
           description: ''
+  /api/v1/boxes/balances:
+    get:
+      operationId: listBoxBalances
+      description: |-
+        How many boxes each holder has, per box type: locations, clients and suppliers that have moved
+        boxes. A supplier's count is what we owe it (boxes it lent us).
+      tags:
+      - boxes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BoxBalance'
+          description: ''
+  /api/v1/boxes/movements:
+    get:
+      operationId: listBoxMovements
+      description: |-
+        The box history, newest first, paginated (`limit`, `offset`). Filter by one holder (either side
+        of the movement) and by box type.
+      parameters:
+      - in: query
+        name: box_type
+        schema:
+          enum:
+          - small
+          - big
+          type: string
+          minLength: 1
+        description: |-
+          * `small` - Petite caisse
+          * `big` - Grande caisse
+      - in: query
+        name: holder
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - boxes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBoxMovementList'
+          description: ''
   /api/v1/categories:
     get:
       operationId: listCategories
@@ -8138,6 +8203,109 @@ components:
     BlankEnum:
       enum:
       - ''
+    BoxBalance:
+      type: object
+      description: Boxes of one type one holder has now. A supplier's count is what
+        we owe it.
+      properties:
+        holder_id:
+          type: integer
+          readOnly: true
+        holder_kind:
+          type: string
+          readOnly: true
+        holder_name:
+          type: string
+          nullable: true
+          readOnly: true
+        box_type:
+          allOf:
+          - $ref: '#/components/schemas/BoxTypeEnum'
+          readOnly: true
+        count:
+          type: integer
+          readOnly: true
+      required:
+      - box_type
+      - count
+      - holder_id
+      - holder_kind
+      - holder_name
+    BoxMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/BoxMovementKindEnum'
+          readOnly: true
+        box_type:
+          allOf:
+          - $ref: '#/components/schemas/BoxTypeEnum'
+          readOnly: true
+        count:
+          type: integer
+          readOnly: true
+        from_holder:
+          type: integer
+          readOnly: true
+          nullable: true
+        from_holder_name:
+          type: string
+          nullable: true
+          readOnly: true
+        to_holder:
+          type: integer
+          readOnly: true
+          nullable: true
+        to_holder_name:
+          type: string
+          nullable: true
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - box_type
+      - count
+      - created_at
+      - from_holder
+      - from_holder_name
+      - id
+      - kind
+      - reason
+      - to_holder
+      - to_holder_name
+    BoxMovementKindEnum:
+      enum:
+      - receive
+      - load
+      - leave
+      - collect
+      - return
+      - write_off
+      type: string
+      description: |-
+        * `receive` - Réception fournisseur
+        * `load` - Chargement camion
+        * `leave` - Départ chez client
+        * `collect` - Reprise chez client
+        * `return` - Retour fournisseur
+        * `write_off` - Casse ou perte
+    BoxTypeEnum:
+      enum:
+      - small
+      - big
+      type: string
+      description: |-
+        * `small` - Petite caisse
+        * `big` - Grande caisse
     CapitalEntry:
       type: object
       properties:
@@ -14250,6 +14418,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Batch'
+    PaginatedBoxMovementList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoxMovement'
     PaginatedCountList:
       type: object
       required:
@@ -16760,6 +16951,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReceiptLineWrite'
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
       required:
       - lines
       - location
@@ -20018,6 +20214,11 @@ components:
         validate_now:
           type: boolean
           default: false
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
       required:
       - from_location
       - lines

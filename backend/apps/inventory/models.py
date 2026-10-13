@@ -333,6 +333,26 @@ class TransferLine(OrganizationScopedModel):
         return f"{self.transfer} · {self.product_id} · {self.quantity} kg"
 
 
+class TransferBoxLine(OrganizationScopedModel):
+    """Boxes of one type that go with a transfer: a count, not kg (D-122). Posted with the transfer when it
+    is validated; only a load carries boxes. The box type is checked by `boxes.services`, not here, so this
+    app never imports the boxes models."""
+
+    transfer = models.ForeignKey(Transfer, on_delete=models.CASCADE, related_name="box_lines")
+    box_type = models.CharField(max_length=10)
+    count = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["transfer", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(count__gt=0), name="transfer_box_line_count_positive"),
+            models.UniqueConstraint(fields=["transfer", "box_type"], name="one_transfer_box_line_per_type"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.transfer} · {self.box_type} · {self.count}"
+
+
 # ---- Losses and stock counts (P1-T10, D-045) ----
 
 

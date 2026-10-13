@@ -159,6 +159,8 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     lines = ReceiptLineWriteSerializer(many=True, allow_empty=True)
+    # Returnable boxes that came with the delivery, per box type ("small", "big"): a count, never kg (D-122).
+    boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
 
 
 class ReceiptFilterSerializer(serializers.Serializer[Any]):

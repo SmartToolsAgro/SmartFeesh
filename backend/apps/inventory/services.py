@@ -3,7 +3,7 @@
 import datetime as dt
 import itertools
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -13,6 +13,7 @@ from django.db import connection, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.boxes import services as box_services
 from apps.catalog import selectors as catalog
 from apps.core import audit
 from apps.core.images import reencoded_photo
@@ -35,6 +36,7 @@ from .models import (
     StockOnHand,
     StockSettings,
     Transfer,
+    TransferBoxLine,
     TransferKind,
     TransferLine,
     TransferStatus,
@@ -676,16 +678,30 @@ def _prepared_transfer(
     to_location: StockLocation,
     transferred_on: dt.date,
     lines: Sequence[TransferLineFields],
-) -> tuple[str, list[dict[str, Any]]]:
-    """The kind and the checked lines of a transfer, or a ValidationError with every problem at once."""
+    boxes: Mapping[str, int] | None,
+) -> tuple[str, list[dict[str, Any]], dict[str, int]]:
+    """The kind, the checked lines and the box counts of a transfer, or a ValidationError with every problem."""
     errors = _transfer_header_errors(organization, from_location, to_location)
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
     kind = transfer_kind(from_location, to_location)
     checked_lines = _checked_transfer_lines(organization, kind, lines, moment_of(transferred_on), errors)
+    box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
+    # Boxes follow a load only: the one box movement that fits a transfer is "load" (D-122).
+    if box_counts and kind != TransferKind.LOAD:
+        errors["boxes"] = _("Les caisses ne se transfèrent que vers un camion, au chargement.")
     if errors:
         raise ValidationError(errors)
-    return kind, checked_lines
+    return kind, checked_lines, box_counts
+
+
+def _write_box_lines(transfer: Transfer, box_counts: Mapping[str, int]) -> None:
+    TransferBoxLine.objects.bulk_create(
+        [
+            TransferBoxLine(organization_id=transfer.organization_id, transfer=transfer, box_type=box_type, count=count)
+            for box_type, count in box_counts.items()
+        ]
+    )
 
 
 @transaction.atomic
@@ -700,17 +716,21 @@ def create_transfer(
     notes: str = "",
     client_uuid: uuid.UUID | None = None,
     validate: bool = False,
+    boxes: Mapping[str, int] | None = None,
 ) -> Transfer:
     """Prepare a transfer as a draft; with `validate`, also move the stock at once (one transaction).
 
     The kind (load, return, between places) comes from the two locations. A load line without a price
-    takes the sale price in force. A `client_uuid` already used returns that transfer.
+    takes the sale price in force. A load may carry returnable boxes (`boxes`, per box type): they move
+    with the stock when it is validated. A `client_uuid` already used returns that transfer.
     """
     if client_uuid is not None:
         existing = Transfer.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
         if existing is not None:
             return existing
-    kind, checked_lines = _prepared_transfer(organization, from_location, to_location, transferred_on, lines)
+    kind, checked_lines, box_counts = _prepared_transfer(
+        organization, from_location, to_location, transferred_on, lines, boxes
+    )
     transfer = Transfer.objects.create(
         organization=organization,
         number=_next_document_number(organization, TRANSFER_SERIES),
@@ -723,6 +743,7 @@ def create_transfer(
         client_uuid=client_uuid,
     )
     _write_transfer_lines(transfer, checked_lines)
+    _write_box_lines(transfer, box_counts)
     audit.record(
         organization=organization,
         actor=actor,
@@ -760,12 +781,15 @@ def update_transfer(
     lines: Sequence[TransferLineFields],
     notes: str = "",
     validate: bool = False,
+    boxes: Mapping[str, int] | None = None,
 ) -> Transfer:
-    """Change a draft: its places, day, notes and lines (all replaced). With `validate`, validate it too."""
+    """Change a draft: its places, day, notes, lines and boxes (all replaced). With `validate`, validate it too."""
     transfer = _locked_draft(transfer)
     organization = transfer.organization
     before = _transfer_snapshot(transfer)
-    kind, checked_lines = _prepared_transfer(organization, from_location, to_location, transferred_on, lines)
+    kind, checked_lines, box_counts = _prepared_transfer(
+        organization, from_location, to_location, transferred_on, lines, boxes
+    )
     transfer.kind = kind
     transfer.from_location = from_location
     transfer.to_location = to_location
@@ -774,6 +798,8 @@ def update_transfer(
     transfer.save()
     transfer.lines.all().delete()
     _write_transfer_lines(transfer, checked_lines)
+    transfer.box_lines.all().delete()
+    _write_box_lines(transfer, box_counts)
     audit.record(
         organization=organization,
         actor=actor,
@@ -824,6 +850,22 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
                 errors.setdefault(key, messages[0])
     if errors:
         raise ValidationError(errors)
+    # The boxes move with the stock, in this same transaction: a refused box movement (not enough boxes at
+    # the source, say) refuses the whole validation and leaves the stock where it was.
+    box_lines = list(transfer.box_lines.all())
+    if box_lines:
+        try:
+            box_services.post_box_counts(
+                organization=organization,
+                actor=actor,
+                kind=box_services.BoxMovementKind.LOAD,
+                counts={line.box_type: line.count for line in box_lines},
+                from_holder=box_services.holder_for(organization=organization, location=transfer.from_location),
+                to_holder=box_services.holder_for(organization=organization, location=transfer.to_location),
+                source=transfer,
+            )
+        except ValidationError as error:
+            raise ValidationError({"boxes": error.messages}) from error
     transfer.status = TransferStatus.VALIDATED
     transfer.validated_by = actor
     transfer.validated_at = timezone.now()

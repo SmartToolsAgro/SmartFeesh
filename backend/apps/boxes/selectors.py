@@ -60,7 +60,10 @@ def signed_balance(holder: BoxHolder, box_type: str) -> int:
 
 def balances_of(organization: Organization) -> list[BoxBalance]:
     """The balance of every holder that has moved boxes, per box type. A supplier's count is what we owe it."""
-    holders = {h.pk: h for h in BoxHolder.objects.for_organization(organization)}
+    holders = {
+        h.pk: h
+        for h in BoxHolder.objects.for_organization(organization).select_related("location", "customer", "supplier")
+    }
     return [
         BoxBalance(
             holder=holders[holder_id],

@@ -1,7 +1,7 @@
 """Every write on purchases goes through these functions (ARCHITECTURE §3)."""
 
 import datetime as dt
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -11,6 +11,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.boxes import services as box_services
 from apps.core import audit
 from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, line_total
@@ -171,8 +172,12 @@ def create_receipt(
     supplier_reference: str = "",
     notes: str = "",
     purchase_order: PurchaseOrder | None = None,
+    boxes: Mapping[str, int] | None = None,
 ) -> GoodsReceipt:
     """Record goods received from a supplier: one batch per line, and its accepted weight into stock.
+
+    `boxes` counts the returnable boxes that came with the delivery, per box type (D-122): they
+    move from the supplier to the receiving location, in the same transaction as the stock.
 
     Everything is checked before anything is written; problems come back together, the header's on
     their field and each line's on `lines.<index>.<field>`. The receipt, its batches and its movements
@@ -197,6 +202,7 @@ def create_receipt(
                 }
             # The order says what was asked for; a delivery of part of it is not a difference.
             values["ordered_quantity"] = None
+    box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
     if errors:
         raise ValidationError(errors)
 
@@ -257,6 +263,16 @@ def create_receipt(
                 organization=organization, actor=actor, batch=batch, partner=values["partner"]
             )
         saved.append(line)
+    if box_counts:
+        box_services.post_box_counts(
+            organization=organization,
+            actor=actor,
+            kind=box_services.BoxMovementKind.RECEIVE,
+            counts=box_counts,
+            from_holder=box_services.holder_for(organization=organization, supplier=supplier),
+            to_holder=box_services.holder_for(organization=organization, location=location),
+            source=receipt,
+        )
     if order:
         refresh_order_status(order)
     audit.record(
