@@ -32,7 +32,7 @@ import {
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useId, useMemo, useState } from "react";
+import { type FormEvent, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext } from "react-router";
 
 import { isBelowMinimum, lineTotal, sum } from "../lib/decimal";
@@ -54,7 +54,6 @@ const WALK_IN = "walk-in";
 const AUTO_LOT = "fifo";
 const BIG_INPUT = "num py-3 text-[1.6rem] font-semibold";
 
-let nextKey = 0;
 const asTyped = (value: string) => value.replace(".", ",");
 const isPositive = (value: string | null): value is string =>
   value !== null && !value.startsWith("-") && !/^0+(\.0+)?$/.test(value);
@@ -66,6 +65,7 @@ export function CounterSalePage() {
   const queryClient = useQueryClient();
   const formId = useId();
   const id = (name: string) => `${formId}-${name}`;
+  const nextKeyRef = useRef(0);
 
   const locations = useListLocations({ status: "active", kind: "cold_room" });
   const customers = useListCustomers({ status: "active" });
@@ -144,7 +144,7 @@ export function CounterSalePage() {
     if (!isPositive(perKg)) found.unit_price = t("admin.sales.form.money");
     setErrors(found);
     if (!productRow || !isPositive(kg) || !isPositive(perKg)) return;
-    nextKey += 1;
+    nextKeyRef.current += 1;
     const batch = batchChoice === AUTO_LOT ? "" : batchChoice;
     // The same product weighed twice stays one line (one line per product): its kilos add up, at the last
     // price and lot.
@@ -154,7 +154,7 @@ export function CounterSalePage() {
         const kilos = sum([same.quantity, kg]);
         return current.map((line) => (line === same ? { ...line, quantity: kilos, unit_price: perKg, batch } : line));
       }
-      return [...current, { key: nextKey, product, name: productRow.name, quantity: kg, unit_price: perKg, batch }];
+      return [...current, { key: nextKeyRef.current, product, name: productRow.name, quantity: kg, unit_price: perKg, batch }];
     });
     setProduct("");
     setQuantity("");
