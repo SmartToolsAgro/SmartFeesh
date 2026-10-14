@@ -20,7 +20,7 @@ from apps.expenses.costing import (
 from apps.expenses.models import ExpenseStatus
 
 from .conftest import category
-from .test_cold_room_cost import put
+from .test_cold_room_cost import put, whole_days
 
 pytestmark = pytest.mark.django_db
 
@@ -37,6 +37,26 @@ def current_month():
 
 def days_so_far():
     return (timezone.localdate() - current_month()).days + 1
+
+
+def today_so_far():
+    """The part of today that has passed, in days: 0 at midnight, 1 at the end of the day."""
+    now = timezone.localtime()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return D(str((now - midnight).total_seconds() / 86400))
+
+
+def elapsed_days():
+    """Days of this month up to now, the last one part-way through: a lot in stock from midnight is charged
+    by the hour, so today counts only the hours that have come (D-142)."""
+    return D((timezone.localdate() - current_month()).days) + today_so_far()
+
+
+def assert_charged(amount, per_day, before, after):
+    """`amount` is `per_day` for each day passed, read between `before` and `after` (the clock moves during the
+    call). The margin is a millime per hour passed: each hour's share is rounded to the millime per lot."""
+    margin = D("0.001") * (after * 24 + 1)
+    assert per_day * before - margin <= amount <= per_day * after + margin
 
 
 # ---- pure functions ----
@@ -57,10 +77,10 @@ def test_a_bill_over_several_months_is_spread_exactly():
 def test_each_days_general_cost_is_shared_over_the_lots_in_stock_that_day():
     month = dt.date(2026, 9, 1)
     days = month_days(month)
-    kg = {day: {1: D("75.000"), 2: D("25.000")} for day in days[:10]}
-    charges = allocate_general_days(D("260.000"), days, kg)
+    held = whole_days(days[:10], {1: D("75.000"), 2: D("25.000")})
+    charges = allocate_general_days(D("260.000"), days, held)
     assert charges[1].amount + charges[2].amount == D("100.000")  # 10 days x 10 DT
-    assert charges[1].amount == D("75.000")
+    assert abs(charges[1].amount - D("75.000")) <= D("0.050")  # hour by hour, to the millime
     assert charges[2].kg_days == D("250.000")
     assert allocate_general_days(D("260.000"), days, {}) == {}
 
@@ -227,22 +247,23 @@ def test_rent_is_a_26th_per_day_split_over_the_lots_in_stock_by_kg(organization,
     assert general_lines(organization, big) == []  # a draft counts for nothing
     services.approve_expense(expense=period.expense, actor=actor)
 
-    days = days_so_far()
+    before = elapsed_days()
     [line_big] = general_lines(organization, big)
     [line_small] = general_lines(organization, small)
-    assert line_big.amount + line_small.amount == D("10.000") * days
-    assert abs(line_big.amount - D("7.500") * days) <= D("0.001") * days
+    after = elapsed_days()
+    assert_charged(line_big.amount + line_small.amount, D("10.000"), before, after)
+    assert_charged(line_big.amount, D("7.500"), before, after)
     assert (line_big.month, line_big.expense_number, line_big.category_code) == (
         current_month(),
         period.expense.number,
         "rent",
     )
-    assert line_big.quantity == D("300.000") * days
+    assert_charged(line_big.quantity, D("300.000"), before, after)
     # It joins the other costs of the lot and its total.
     assert selectors.lot_cost_total(selectors.lot_cost_lines(organization, batch_id=big.pk)) == line_big.amount
 
 
-def test_days_with_nothing_in_stock_charge_nobody(organization, actor, cold_room):
+def test_only_the_hours_a_lot_is_in_stock_are_charged(organization, actor, cold_room):
     rent = category(organization, "rent")
     services.create_recurring_cost(
         organization=organization,
@@ -256,9 +277,11 @@ def test_days_with_nothing_in_stock_charge_nobody(organization, actor, cold_room
         organization=organization, actor=actor, month=current_month(), approve=True
     )
     assert period.expense.status == ExpenseStatus.APPROVED
-    lot = put(organization, "Dorade", "10", cold_room, timezone.localdate())  # arrived today only
+    lot = put(organization, "Dorade", "10", cold_room, timezone.localdate())  # arrived at midnight today
+    before = today_so_far()
     [line] = general_lines(organization, lot)
-    assert line.amount == D("10.000")  # one day
+    after = today_so_far()
+    assert_charged(line.amount, D("10.000"), before, after)  # today's hours so far only
 
 
 def test_a_bill_over_several_months_is_spread_over_them(organization, actor, cold_room):
@@ -276,10 +299,12 @@ def test_a_bill_over_several_months_is_spread_over_them(organization, actor, col
         approve=True,
     )
     lot = put(organization, "Dorade", "100", cold_room, start - dt.timedelta(days=5))
+    before = elapsed_days()
     lines = general_lines(organization, lot)
+    after = elapsed_days()
     assert [line.month for line in lines] == [start, current_month()]  # next month has not come yet
     assert lines[0].amount == D("260.000") / 26 * len(month_days(start))  # 10 DT x days
-    assert lines[1].amount == D("10.000") * days_so_far()
+    assert_charged(lines[1].amount, D("10.000"), before, after)
     assert lines[0].description == "Assurance trimestrielle"
     assert cost_selectors.general_periods_of(organization, month=add_months(start, 2)).count() == 1
     assert cost_selectors.general_periods_of(organization, month=add_months(start, 3)).count() == 0
