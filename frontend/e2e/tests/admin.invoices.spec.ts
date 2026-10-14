@@ -6,8 +6,6 @@ import { OWNER_STATE } from "./owner";
 // Sidi Mansour's is a draft. These tests make their own sale in Sardine (never Seiche: the partnership lot test counts its kilos).
 test.use({ storageState: OWNER_STATE });
 
-const FRESH_ROOM = "Chambre froide 1 (frais)";
-
 async function choose(page: Page, scope: Page | Locator, label: string, option: string) {
   await scope.getByRole("combobox", { name: label }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
@@ -43,7 +41,6 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   test.slow();
   await page.goto("/ventes/nouvelle");
   await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
-  await choose(page, page, "Depuis", FRESH_ROOM);
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Sardine · SA-010");
   await line.getByLabel("Poids (kg)").fill("2");
@@ -95,7 +92,6 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
   for (let i = 0; i < 2; i++) {
     await page.goto("/ventes/nouvelle");
     await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
-    await choose(page, page, "Depuis", FRESH_ROOM);
     const line = page.getByRole("row", { name: "Ligne 1", exact: true });
     await choose(page, line, "Produit", "Sardine · SA-010");
     await line.getByLabel("Poids (kg)").fill("1");

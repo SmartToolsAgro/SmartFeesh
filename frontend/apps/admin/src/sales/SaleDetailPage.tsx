@@ -218,7 +218,6 @@ export function SaleDetailPage() {
             number={data.number}
             date={data.sold_at}
             party={data.customer}
-            meta={<p>{t("admin.documents.frame.departure", { location: data.location.name })}</p>}
           />
           <CardTitle>{t("admin.sales.detail.lines")}</CardTitle>
           <Table>
@@ -328,7 +327,6 @@ export function SaleDetailPage() {
                 {data.customer.name}
               </Link>
             </Detail>
-            <Detail label={t("admin.sales.detail.location")}>{data.location.name}</Detail>
             <Detail label={t("admin.sales.detail.soldAt")} numeric>
               {formatDateTime(data.sold_at)}
             </Detail>
@@ -378,7 +376,7 @@ export function SaleDetailPage() {
           <DialogTitle>{t("admin.sales.detail.cancelTitle", { number: data.number })}</DialogTitle>
           <DialogDescription>
             {data.status === "confirmed"
-              ? t("admin.sales.detail.cancelConfirmedBody", { location: data.location.name })
+              ? t("admin.sales.detail.cancelConfirmedBody")
               : t("admin.sales.detail.cancelDraftBody")}
           </DialogDescription>
           <Field label={t("admin.sales.detail.reasonLabel")} htmlFor={reasonId} error={reasonError}>

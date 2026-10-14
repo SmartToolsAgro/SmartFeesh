@@ -2091,3 +2091,18 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   `X-Forwarded-Proto` in the check).
 - **Accepted as D-108 said:** PDFs and receipts served inline as `application/pdf` with nosniff; no general rate limit
   on the API; drivers read prices and minimum prices (D-049), managers read margins (D-113).
+
+**D-143 · Sales screens: the product first, the place found from the lines, no location field or column (P2-T12)** · accepted · 2026-10-14
+- Asked by the owner (2026-10-14): the seller should not pick "Depuis" (cold room or truck) and guess which place holds
+  the product. The sale form, the counter sale, the quote-to-sale dialog and the quote form no longer show a location
+  field; the sales list, the sale page, the lot's sales and the quote page no longer show a "Lieu" column or line.
+- The sale's place is **found from the rows**, in the browser (`apps/admin/src/lib/placeStock.ts`): the place that holds
+  every row's kilos, the fullest first. Stock of all the places is read together (`usePlacesStock`); the grid's stock
+  cell shows the kilos left in all the places after the row, red when the row takes more than there is; under each
+  product the grid says where it leaves from (`admin.lines.origin`).
+- When no single place holds the whole sale, the form refuses it and names the products: a sale still takes its kilos
+  from one place only (the model keeps `Sale.location`). The server validates the stock again as before.
+- Still open for the owner: whether one sale may take kilos from a cold room and a truck at once. If yes, `SaleLine` gets
+  its own location and the sale-level field goes (a model change, a new decision). The PDFs of the BL and invoice may
+  still print the place: left as they are for now.
+

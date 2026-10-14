@@ -286,7 +286,6 @@ export function QuoteDetailPage() {
                 {formatDateTime(data.expired_at)}
               </Detail>
             )}
-            {data.location && <Detail label={t("admin.quotes.detail.location")}>{data.location.name}</Detail>}
             {started && (
               <Detail label={t("admin.sales.fromQuote.sale", { count: data.sales.length })}>
                 {data.sales.map((sale) => (

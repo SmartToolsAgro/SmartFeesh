@@ -1,9 +1,10 @@
 import type { Product } from "@frutti/api";
-import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
+import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, cn, Combobox, type ComboboxOption, Icon, Table, Th } from "@frutti/ui";
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { amountsOf, filled, isBlank, isShort, isZero, type Line, shownPrice, withSpare } from "./lines";
+import { subtract } from "./decimal";
+import { amountsOf, filled, isBlank, isShort, type Line, shownPrice, withSpare } from "./lines";
 
 type Column = "product" | "quantity" | "unit_price" | "discount_rate";
 
@@ -16,8 +17,10 @@ type LinesGridProps = {
   products: Product[];
   /** The price a product is charged until one is typed: the customer's own list, else the daily price. */
   proposedPrice: (product: string) => string | null;
-  /** Kilos per product at the place the goods leave from; missing while no place is chosen. */
+  /** Kilos per product over all the places; missing while the stock is not loaded. The row shows what is left. */
   stock?: Map<string, string>;
+  /** The place each product leaves from, once the sale has one (D-143); shown under the product. */
+  origin?: Map<string, string>;
   /** Messages keyed "lines.<n>.<field>", where n counts the filled rows only, as they are sent. */
   errors: Record<string, string>;
   /** The discount column: a quote and a sale have one, the counter sale does not. */
@@ -52,6 +55,7 @@ export function LinesGrid({
   products,
   proposedPrice,
   stock,
+  origin,
   errors,
   discount = false,
   extra,
@@ -180,7 +184,7 @@ export function LinesGrid({
               </Th>
             )}
             <Th numeric className="w-32 border border-line">
-              {t("admin.lines.stock")}
+              {t("admin.lines.remaining")}
             </Th>
             <Th numeric className="w-36 border border-line">
               {t("admin.lines.amount")}
@@ -199,6 +203,9 @@ export function LinesGrid({
             const price = shownPrice(line, line.product ? proposedPrice(line.product) : null);
             const amounts = amountsOf(line, price);
             const available = stock && line.product ? (stock.get(line.product) ?? "0") : undefined;
+            // What is left once this row is taken out of the stock; a negative amount is shown in red.
+            const typedKg = parseDecimalInput(line.quantity.trim(), 3);
+            const left = available !== undefined ? subtract(available, typedKg ?? "0") : undefined;
             const message = (text: string | undefined) =>
               text && <p className="px-2.5 pb-1.5 text-[0.78rem] font-semibold text-bad">{text}</p>;
             const number = (column: Exclude<Column, "product">, name: string, value: string) => (
@@ -252,6 +259,11 @@ export function LinesGrid({
                     className={CELL_INPUT}
                   />
                   {message(errorOf("product") ?? duplicate)}
+                  {line.product && origin?.get(line.product) && (
+                    <p className="px-2.5 pb-1.5 text-[0.78rem] text-ink-2">
+                      {t("admin.lines.origin", { place: origin.get(line.product) })}
+                    </p>
+                  )}
                 </td>
                 {extra && (
                   <td className={CELL}>
@@ -267,12 +279,12 @@ export function LinesGrid({
                     CELL,
                     CELL_TEXT,
                     "num text-end text-ink-2",
-                    available !== undefined &&
-                      (isZero(available) || isShort(line.quantity, available)) &&
+                    left !== undefined &&
+                      (left.startsWith("-") || isShort(line.quantity, available)) &&
                       "font-semibold text-bad",
                   )}
                 >
-                  {available !== undefined ? formatQuantity(available) : line.product ? "—" : ""}
+                  {left !== undefined ? formatQuantity(left) : line.product ? "—" : ""}
                 </td>
                 <td className={cn(CELL, CELL_TEXT, "num text-end font-semibold")}>
                   {amounts ? formatMoney(amounts.amount) : ""}

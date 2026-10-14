@@ -7,7 +7,6 @@ import {
   useGetQuote,
   useListCustomers,
   useListLocations,
-  useListLocationStock,
   useListPriceLists,
   useListProducts,
 } from "@frutti/api";
@@ -48,6 +47,7 @@ import {
   withSpare,
 } from "../lib/lines";
 import { LinesGrid } from "../lib/LinesGrid";
+import { totalsOf, usePlacesStock } from "../lib/placeStock";
 import { todayInTunis } from "../receipts/shared";
 import { canWriteQuotes, refreshAfterQuote } from "./shared";
 
@@ -55,8 +55,6 @@ type Errors = Record<string, string>;
 
 // The server's default validity (D-050); the form shows it so it can be changed before saving.
 const VALIDITY_DAYS = 3;
-// Radix Select has no empty choice: this value stands for "no location".
-const NO_LOCATION = "none";
 
 const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 
@@ -102,7 +100,6 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   const products = useListProducts({ status: "active" });
 
   const [customer, setCustomer] = useState(draft ? String(draft.customer.id) : "");
-  const [location, setLocation] = useState(draft?.location ? String(draft.location.id) : NO_LOCATION);
   const [day, setDay] = useState(draft?.quoted_on ?? todayInTunis());
   const [validUntil, setValidUntil] = useState(draft?.valid_until ?? addDays(todayInTunis(), VALIDITY_DAYS));
   // Until the validity is typed, it follows the quote's day.
@@ -123,13 +120,9 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   );
   const [errors, setErrors] = useState<Errors>({});
 
-  const place = (locations.data ?? []).find((option) => String(option.id) === location);
-  const stock = useListLocationStock(Number(location), { query: { enabled: place !== undefined } });
-  const availableOf = useMemo(() => {
-    const byProduct = new Map<string, string>();
-    for (const row of stock.data ?? []) byProduct.set(String(row.product_id), row.quantity);
-    return byProduct;
-  }, [stock.data]);
+  // A quote has no place of its own: the kilos left are those in all the places (D-143).
+  const byPlace = usePlacesStock((locations.data ?? []).map((option) => option.id));
+  const availableOf = useMemo(() => totalsOf(byPlace), [byPlace]);
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
@@ -224,7 +217,8 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
     if (Object.keys(found).length > 0) return;
     save.mutate({
       customer: Number(customer),
-      location: location === NO_LOCATION ? null : Number(location),
+      // Kept as it was: the place is chosen when the quote is delivered.
+      location: draft?.location?.id ?? null,
       quoted_on: day,
       valid_until: validUntil,
       notes: notes.trim(),
@@ -308,15 +302,6 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
             setValidUntil(value);
             setValidTouched(true);
           })}
-          <div className="col-span-2 max-[600px]:col-span-1">
-            {select("location", t("admin.quotes.form.location"), location, setLocation, [
-              { value: NO_LOCATION, label: t("admin.quotes.form.noLocation") },
-              ...(locations.data ?? []).map((option) => ({ value: String(option.id), label: option.name })),
-            ])}
-          </div>
-          <p className="col-span-2 self-end pb-2.5 text-[0.85rem] text-ink-2 max-[600px]:col-span-1">
-            {t("admin.quotes.form.locationHint")}
-          </p>
         </Card>
 
         <Card className="flex flex-col gap-3">
@@ -327,7 +312,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
             onChange={setLines}
             products={products.data ?? []}
             proposedPrice={proposedPrice}
-            stock={place && stock.data ? availableOf : undefined}
+            stock={locations.data ? availableOf : undefined}
             errors={errors}
             discount
             hint={priceHint}

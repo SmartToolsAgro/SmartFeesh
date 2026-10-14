@@ -55,10 +55,7 @@ export function BatchSalesSection({ batchId }: { batchId: number }) {
                       </Link>
                     </Td>
                     <Td className="num whitespace-nowrap">{formatDateTime(row.sold_at)}</Td>
-                    <Td>
-                      {row.customer}
-                      <div className="text-[0.8rem] text-ink-2">{row.location}</div>
-                    </Td>
+                    <Td>{row.customer}</Td>
                     <Td numeric className="whitespace-nowrap">
                       {formatQuantity(row.quantity)}
                     </Td>
