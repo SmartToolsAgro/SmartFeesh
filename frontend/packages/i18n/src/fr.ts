@@ -1958,6 +1958,7 @@ export const fr = {
         supplier: "Fournisseurs",
       },
       kindLabels: {
+        opening: "Stock initial",
         receive: "Réception fournisseur",
         load: "Chargement camion",
         leave: "Départ chez le client",
