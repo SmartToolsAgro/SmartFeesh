@@ -23,6 +23,7 @@ const PAGE_SIZE = 50;
 const SELECT_CLASSES = "rounded-control border border-line bg-surface px-3 py-2 text-ink";
 const LABEL_CLASSES = "flex flex-col gap-1 text-[0.78rem] font-semibold text-ink-2";
 const KIND_TONES = {
+  opening: "good",
   receive: "good",
   load: "sea",
   leave: "coral",

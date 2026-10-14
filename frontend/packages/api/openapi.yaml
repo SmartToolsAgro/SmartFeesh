@@ -8434,6 +8434,7 @@ components:
       - to_holder_name
     BoxMovementKindEnum:
       enum:
+      - opening
       - receive
       - load
       - leave
@@ -8443,6 +8444,7 @@ components:
       - write_off
       type: string
       description: |-
+        * `opening` - Stock initial
         * `receive` - Réception fournisseur
         * `load` - Chargement camion
         * `leave` - Départ chez client

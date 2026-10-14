@@ -1922,3 +1922,21 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
     outside its window and in no closing.
   - The office list does not flag the days whose figures changed; the dialog does (it reads the day's records).
   - The monthly closing's "driver days closed" check still does not list days left running (D-074).
+  - A driver still cannot close a day that is over (the closing endpoints are today's only).
+
+**D-135 · Boxes the company already owns enter the ledger as an opening stock (owner answer; follow-up of D-124, D-127)** · accepted · 2026-10-13
+- Owner answer: the company starts with **50 small and 50 big boxes** of its own.
+- Before, a box could only enter the ledger on a receipt from a supplier, which also raises what we owe that
+  supplier. Company boxes posted that way would have shown as 100 boxes to give back.
+- New movement kind `opening` ("Stock initial"): no sender, and the receiver must be a **location** (cold room or
+  truck). It raises that location's balance only, so the supplier balances stay what was really lent
+  (three-balances rule). Posted through `post_box_movement` like every other kind, audited, append-only.
+  Migration `boxes.0003` (the choices of `kind` only).
+- `seed_dev` posts the owner's figures into "Chambre froide 1 (frais)" (`apps/demo/boxes.py`), once per box type:
+  a type that already has an opening stock is left alone, so a second run and every later deploy add nothing.
+  Staging gets them on the deploy that follows the merge. Which cold room holds them was not said: the first one
+  is an assumption. A wrong room or figure is corrected by new movements, never by an edit.
+- The admin Caisses page shows the kind in its history, from "Hors stock".
+- **Still open, not built:** an opening balance for boxes already at a client or already owed to a supplier (the
+  sign question of D-127), and a screen or command to type an opening stock on a real database. `opening` refuses
+  a client or a supplier until that is decided.

@@ -26,8 +26,10 @@ _Last updated: 2026-10-14_
 ## Next step (do this first)
 
 1. **Owner decisions still open:**
-   - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
-     (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
+   - Boxes, opening balance: **the company's own boxes are done (D-135):** 50 small and 50 big, posted by `seed_dev`
+     as an opening stock ("Stock initial") into "Chambre froide 1 (frais)". The cold room is an assumption: ask the
+     owner where they are. Still open, not built: boxes already at clients or owed to suppliers (the sign for
+     suppliers), and a screen or command to type an opening stock on a real database.
    - Product codes on staging (D-126): **done 2026-10-13.** 2 codes written (crevette royale, Calamar) and 36
      products created from the owner's list, with no price, in the category "À classer". The owner sets their
      prices on the price board and sorts them into categories.
@@ -115,6 +117,8 @@ browser tests (`make e2e`) were not run locally.
 - 2026-10-14 · D-134 sending the closing closes the driver's day; a load of that date reopens it, also when
   approved; the next count is less the cash already handed over; the driver's history of days (#114).
 
+- 2026-10-13 · D-135 the company's 50 small and 50 big boxes are in the ledger as an opening stock (new movement
+  kind `opening`, into a location, no supplier owed); `seed_dev` posts them once into "Chambre froide 1 (frais)".
 - 2026-10-13 · D-132 a driver day worked on after it was sent (a new load, more sales) can be sent again; the office
   cannot approve it until then (staging report).
 - 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that

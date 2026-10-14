@@ -67,6 +67,43 @@ def test_receive_from_supplier_raises_the_owed_count_and_the_cold_room(organizat
     assert _balance(organization, sup, BoxType.BIG) == 10  # we owe the supplier 10 big boxes
 
 
+def test_opening_stock_puts_the_company_boxes_in_a_location_and_owes_no_supplier(organization, cold_room):
+    cold = _holder(organization, location=cold_room)
+
+    movement = _post(organization, kind=BoxMovementKind.OPENING, box_type=BoxType.SMALL, count=50, to_holder=cold)
+
+    assert movement.from_holder is None
+    assert _balance(organization, cold) == 50
+    # The boxes are the company's: the cold room is the only holder with a balance, no supplier is owed any.
+    assert [(row.holder, row.box_type, row.count) for row in selectors.balances_of(organization)] == [
+        (cold, BoxType.SMALL, 50)
+    ]
+
+
+def test_opening_stock_only_enters_a_location_from_outside_the_ledger(organization, cold_room, supplier):
+    cold = _holder(organization, location=cold_room)
+    sup = _holder(organization, supplier=supplier)
+    client = _holder(organization, customer=CustomerFactory.create(organization=organization))
+
+    with pytest.raises(ValidationError):  # it has no sender: boxes from a supplier are a receipt
+        _post(
+            organization,
+            kind=BoxMovementKind.OPENING,
+            box_type=BoxType.SMALL,
+            count=1,
+            from_holder=sup,
+            to_holder=cold,
+        )
+    with pytest.raises(ValidationError):  # boxes already at a client are not an opening stock (D-135)
+        _post(organization, kind=BoxMovementKind.OPENING, box_type=BoxType.SMALL, count=1, to_holder=client)
+    with pytest.raises(ValidationError):  # nor boxes already owed to a supplier
+        _post(organization, kind=BoxMovementKind.OPENING, box_type=BoxType.SMALL, count=1, to_holder=sup)
+    with pytest.raises(ValidationError):  # it needs the location that holds them
+        _post(organization, kind=BoxMovementKind.OPENING, box_type=BoxType.SMALL, count=1)
+
+    assert BoxMovement.objects.for_organization(organization).count() == 0
+
+
 def test_load_to_truck_moves_boxes_between_locations(organization, cold_room, truck):
     cold = _holder(organization, location=cold_room)
     tr = _holder(organization, location=truck)
