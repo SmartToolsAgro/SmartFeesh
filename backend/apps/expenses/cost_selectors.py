@@ -125,9 +125,9 @@ def _months_between(first: dt.date, last: dt.date) -> list[dt.date]:
 
 
 def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date) -> list[ComputedLine]:
-    """A lot's cold-room costs: for each cold room and month it spent days in, one line = the room's cost
-    of those days split by kg held that day (D-041), **estimated** (flagged) until the month's bill is
-    approved. After the bill the estimate line stays as it was charged and the difference is a
+    """A lot's cold-room costs: for each cold room and month it spent time in, one line = the room's cost
+    of that time charged by the hour and split by kg held (D-041, D-142), **estimated** (flagged) until the
+    month's bill is approved. After the bill the estimate line stays as it was charged and the difference is a
     `cold_room_adjustment` line dated when the bill was typed (D-041: a closed lot is never reopened)."""
     first = inventory.first_movement_day(organization, batch_id=batch_id)
     if first is None or first > today:
@@ -137,7 +137,7 @@ def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date
     }
     if not rooms:
         return []
-    kg = inventory.kg_by_batch_by_day(organization, date_from=first, date_to=today, location_ids=list(rooms))
+    held = inventory.held_slices_by_hour(organization, date_from=first, date_to=today, location_ids=list(rooms))
     frozen = _frozen_rates(organization)
     bills = {bill.month: bill for bill in bills_of(organization).filter(finalized_at__isnull=False)}
     lines: list[ComputedLine] = []
@@ -151,8 +151,7 @@ def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date
             estimate = estimates.get(room_id)
             if estimate is None or estimate <= 0:
                 continue
-            kg_by_day = {day: kg[room_id][day] for day in days}
-            charge = allocate_room_days(dict.fromkeys(days, estimate), kg_by_day).get(batch_id)
+            charge = allocate_room_days(dict.fromkeys(days, estimate), held.get(room_id, {})).get(batch_id)
             if charge is None or charge.amount == 0:
                 continue
             bill = bills.get(month)
@@ -209,11 +208,13 @@ def bill_adjustments(
     lot and cold room. `rates` is `{room id: (the room's part of the month, the estimate's daily rate or
     None)}`. A lot with no difference is left out."""
     days = month_days(month)
-    kg = inventory.kg_by_batch_by_day(organization, date_from=days[0], date_to=days[-1], location_ids=list(rates))
+    held = inventory.held_slices_by_hour(organization, date_from=days[0], date_to=days[-1], location_ids=list(rates))
     adjustments: list[RoomAdjustment] = []
     for room_id, (month_amount, estimate) in rates.items():
-        real = allocate_room_days(room_day_amounts(month_amount, month), kg[room_id])
-        guessed = allocate_room_days(dict.fromkeys(days, estimate), kg[room_id]) if estimate is not None else {}
+        real = allocate_room_days(room_day_amounts(month_amount, month), held.get(room_id, {}))
+        guessed = (
+            allocate_room_days(dict.fromkeys(days, estimate), held.get(room_id, {})) if estimate is not None else {}
+        )
         for batch_id in sorted(set(real) | set(guessed)):
             difference = (real[batch_id].amount if batch_id in real else ZERO) - (
                 guessed[batch_id].amount if batch_id in guessed else ZERO
@@ -366,14 +367,14 @@ def general_lines(organization: Organization, *, batch_id: int, today: dt.date) 
     )
     if not periods:
         return []
-    kg = inventory.kg_by_batch_by_day(organization, date_from=first, date_to=today)[inventory.EVERYWHERE]
+    held = inventory.held_slices_by_hour(organization, date_from=first, date_to=today)[inventory.EVERYWHERE]
     lines: list[ComputedLine] = []
     for period in periods:
         amounts = spread_over_months(period.expense.amount, period.months)
         month = period.first_month
         for monthly in amounts:
             days = [day for day in month_days(month) if first <= day <= today]
-            charge = allocate_general_days(monthly, days, {day: kg[day] for day in days}).get(batch_id)
+            charge = allocate_general_days(monthly, days, held).get(batch_id)
             if charge is not None and charge.amount != 0:
                 lines.append(
                     ComputedLine(

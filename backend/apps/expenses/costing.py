@@ -6,7 +6,7 @@ amount always add up to it exactly.
 
 import calendar
 import datetime as dt
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -70,29 +70,58 @@ def estimate_day_amount(room_month_amount: Decimal, month: dt.date) -> Decimal:
     return money(room_month_amount / days_in_month(month))
 
 
+HOURS_PER_DAY = 24
+SECONDS_PER_HOUR = 3600
+SECONDS_PER_DAY = HOURS_PER_DAY * SECONDS_PER_HOUR
+
+# What a room held, hour by hour (`inventory.selectors.held_slices_by_hour`): `{day: {hour: [(seconds, {batch
+# id: kg}), ...]}}`. Each entry is a stretch of time inside one hour in which the same lots were in the room.
+HeldByHour = Mapping[dt.date, Mapping[int, Sequence[tuple[int, Mapping[int, Decimal]]]]]
+
+
 @dataclass(frozen=True)
 class RoomCharge:
     """What one lot carries for one cold room over some days."""
 
     amount: Decimal
-    # Kg held, summed over the days charged ("kg-days").
+    # Kg held, over the time it was there, in kg-days (kg x hours / 24).
     kg_days: Decimal
 
 
-def allocate_room_days(
-    day_amounts: Mapping[dt.date, Decimal], kg_by_day: Mapping[dt.date, Mapping[int, Decimal]]
-) -> dict[int, RoomCharge]:
-    """Each day's cost of a cold room shared over the lots in it that day by kg held, then added up per
-    lot. On a day the room is empty nobody pays (the day stays unallocated). Every day's shares add up to
-    that day's amount exactly."""
+def _hour_shares(hour_amount: Decimal, slices: Sequence[tuple[int, Mapping[int, Decimal]]]) -> dict[int, Decimal]:
+    """One hour's amount over the stretches of time in it: each stretch takes its seconds' part of the hour,
+    the seconds the room was empty take nothing, and each stretch shares its part over its lots by kg."""
+    weights = {index: Decimal(seconds) for index, (seconds, _lots) in enumerate(slices)}
+    empty = SECONDS_PER_HOUR - sum(seconds for seconds, _lots in slices)
+    if empty > 0:
+        weights[-1] = Decimal(empty)
+    parts = split_by_weight(hour_amount, weights)
+    shares: dict[int, Decimal] = {}
+    for index, (_seconds, lots) in enumerate(slices):
+        for batch_id, share in split_by_weight(parts.get(index, ZERO), lots).items():
+            shares[batch_id] = shares.get(batch_id, ZERO) + share
+    return shares
+
+
+def allocate_room_days(day_amounts: Mapping[dt.date, Decimal], held: HeldByHour) -> dict[int, RoomCharge]:
+    """A cold room's cost charged by the hour (D-142): each day's amount is 24 equal hours (to the millime),
+    and each hour is shared over the time the lots spent in the room during it, by kg. Time the room was
+    empty is nobody's: a lot that stayed from 00:28 to 21:38 pays those 21 h 10 min and no more. Every hour
+    adds up to its amount exactly, so every day does too."""
     totals: dict[int, Decimal] = {}
-    kg_days: dict[int, Decimal] = {}
+    kg_seconds: dict[int, Decimal] = {}
     for day, amount in day_amounts.items():
-        held = kg_by_day.get(day, {})
-        for batch_id, share in split_by_weight(amount, held).items():
-            totals[batch_id] = totals.get(batch_id, ZERO) + share
-            kg_days[batch_id] = kg_days.get(batch_id, ZERO) + held[batch_id]
-    return {batch_id: RoomCharge(amount=totals[batch_id], kg_days=kg_days[batch_id]) for batch_id in sorted(totals)}
+        hour_amounts = split_evenly(amount, HOURS_PER_DAY)
+        for hour, slices in held.get(day, {}).items():
+            for batch_id, share in _hour_shares(hour_amounts[hour], slices).items():
+                totals[batch_id] = totals.get(batch_id, ZERO) + share
+            for seconds, lots in slices:
+                for batch_id, kg in lots.items():
+                    kg_seconds[batch_id] = kg_seconds.get(batch_id, ZERO) + kg * seconds
+    return {
+        batch_id: RoomCharge(amount=totals.get(batch_id, ZERO), kg_days=kg_seconds[batch_id] / SECONDS_PER_DAY)
+        for batch_id in sorted(kg_seconds)
+    }
 
 
 def general_day_amount(monthly_amount: Decimal) -> Decimal:
@@ -105,10 +134,8 @@ def spread_over_months(amount: Decimal, months: int) -> list[Decimal]:
     return split_evenly(amount, months)
 
 
-def allocate_general_days(
-    monthly_amount: Decimal, days: list[dt.date], kg_by_day: Mapping[dt.date, Mapping[int, Decimal]]
-) -> dict[int, RoomCharge]:
-    """A month's general cost: each of `days` costs monthly / 26, shared over the lots in stock that day by
-    kg held, the same split as the cold room (Q21, confirmed 2026-10-13). Days with nothing in stock are not
+def allocate_general_days(monthly_amount: Decimal, days: list[dt.date], held: HeldByHour) -> dict[int, RoomCharge]:
+    """A month's general cost: each of `days` costs monthly / 26, charged by the hour over the lots in stock
+    (D-142, the same split as the cold room, Q21 confirmed 2026-10-13). Time with nothing in stock is not
     charged to anyone."""
-    return allocate_room_days({day: general_day_amount(monthly_amount) for day in days}, kg_by_day)
+    return allocate_room_days({day: general_day_amount(monthly_amount) for day in days}, held)

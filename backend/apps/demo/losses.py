@@ -58,7 +58,10 @@ def seed_losses(*, organization: Organization, actor: User | None) -> int:
         )
         created += 1
     frozen_room = locations[FROZEN_ROOM]
-    if not selectors.counts_of(organization, location_id=frozen_room.pk).exists():
+    # On staging the seed runs on every deploy against data people use: an emptied room has nothing to count, and
+    # the demo count must not stop the deploy (start_count refuses an empty place).
+    nothing_to_count = not selectors.on_hand_of(organization, location_id=frozen_room.pk).exists()
+    if not nothing_to_count and not selectors.counts_of(organization, location_id=frozen_room.pk).exists():
         services.start_count(
             organization=organization,
             actor=actor,

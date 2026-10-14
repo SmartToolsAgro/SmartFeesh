@@ -1000,6 +1000,87 @@ def kg_by_batch_on_day(organization: Organization, *, location_id: int, day: dt.
     return kg_by_batch_by_day(organization, date_from=day, date_to=day, location_ids=[location_id])[location_id][day]
 
 
+HeldSlices = dict[int, dict[dt.date, dict[int, list[tuple[int, dict[int, Decimal]]]]]]
+
+
+def held_slices_by_hour(
+    organization: Organization,
+    *,
+    date_from: dt.date,
+    date_to: dt.date,
+    location_ids: Sequence[int] | None = None,
+) -> HeldSlices:
+    """Who held what, hour by hour, replayed from the ledger (D-142): `{location id: {day: {hour 0-23: [(seconds,
+    {batch id: kg}), ...]}}}`. Each entry is a stretch of time inside one local hour in which the place held
+    the same lots: `seconds` long, with the kilos of each lot. Places and lots with nothing are left out.
+
+    The day runs from midnight. For today the time stops at now, so the hours to come are not charged yet.
+    With `location_ids`, one entry per place; without, one entry under `EVERYWHERE` (every place together).
+    Read-only: stock is never written here (D-035).
+    """
+    start = dt.datetime.combine(date_from, dt.time.min)
+    end_of_range = dt.datetime.combine(date_to + dt.timedelta(days=1), dt.time.min)
+    end = min(end_of_range, timezone.localtime(timezone.now()).replace(tzinfo=None))
+    keys = list(location_ids) if location_ids is not None else [EVERYWHERE]
+    zero = Decimal("0.000")
+    balance: dict[int, dict[int, Decimal]] = {key: {} for key in keys}
+    out: HeldSlices = {key: {} for key in keys}
+
+    def shift(key: int, batch_id: int, change: Decimal) -> None:
+        balance[key][batch_id] = balance[key].get(batch_id, zero) + change
+
+    def emit(since: dt.datetime, until: dt.datetime) -> None:
+        """What each place held from `since` to `until`, clipped to the window."""
+        begin, finish = max(since, start), min(until, end)
+        if begin >= finish:
+            return
+        for key in keys:
+            lots = {batch_id: kg for batch_id, kg in balance[key].items() if kg > 0}
+            if lots:
+                _add_hour_pieces(out[key], begin, finish, lots)
+
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(occurred_at__lt=timezone.make_aware(end_of_range))
+        .order_by("occurred_at", "id")
+        .values_list("batch_id", "from_location_id", "to_location_id", "quantity", "occurred_at")
+    )
+    last = start
+    for batch_id, from_id, to_id, kg, occurred_at in rows:
+        moment = timezone.localtime(occurred_at).replace(tzinfo=None)
+        if moment > last:
+            emit(last, moment)
+            last = moment
+        if location_ids is None:
+            if to_id is not None:
+                shift(EVERYWHERE, batch_id, kg)
+            if from_id is not None:
+                shift(EVERYWHERE, batch_id, -kg)
+        else:
+            if to_id in balance:
+                shift(to_id, batch_id, kg)
+            if from_id in balance:
+                shift(from_id, batch_id, -kg)
+    emit(last, end_of_range)
+    return out
+
+
+def _add_hour_pieces(
+    days: dict[dt.date, dict[int, list[tuple[int, dict[int, Decimal]]]]],
+    begin: dt.datetime,
+    finish: dt.datetime,
+    lots: dict[int, Decimal],
+) -> None:
+    """Cut `begin` to `finish` at the hours and add each piece to its day and hour."""
+    cursor = begin
+    while cursor < finish:
+        hour_end = cursor.replace(minute=0, second=0, microsecond=0) + dt.timedelta(hours=1)
+        stop = min(finish, hour_end)
+        seconds = int((stop - cursor).total_seconds())
+        days.setdefault(cursor.date(), {}).setdefault(cursor.hour, []).append((seconds, dict(lots)))
+        cursor = stop
+
+
 def return_destination(organization: Organization, *, truck_location_id: int) -> StockLocation | None:
     """Where a truck's unsold stock goes back to: the cold room of its latest validated load, else the first
     active cold room by name."""
