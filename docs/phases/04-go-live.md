@@ -19,8 +19,15 @@ Today everything is in paper notebooks (Q15), so there is no file to convert.
 - [ ] Deploy from git tags; database migrations run safely.
 
 ### P4-T03 · Backups and restore · S
-- [ ] Daily encrypted DB backup + file storage backup, kept 30 days, stored off-site.
-- [ ] Restore drill done once and written down in `docs/runbook.md`.
+- [x] (D-139) Daily encrypted DB backup + file storage backup, kept 30 days: `deploy/backup.sh` from the `debian`
+      crontab at 02:30 UTC on staging, gpg to a public key, `~/frutti-staging/backups/`.
+- [ ] Stored off-site: built and tested (rclone to any S3 bucket, `BACKUP_S3_*` in `.env`), **waiting on the owner** to
+      create the bucket and put its credentials in `~/frutti-staging/.env`. Also: move the private key off Mahmoud's
+      machine (runbook, "Backups").
+- [x] (D-139) Restore drill done once and written down in `docs/runbook.md` (2026-10-14: 99 tables identical, stock
+      check clean). `deploy/restore.sh` restores into a throwaway container.
+- [ ] Production (P4-T02): same cron line with the production project name once it exists; the in-place emergency
+      restore (runbook) is written but not drilled.
 
 ### P4-T04 · Monitoring · S
 - [ ] Sentry (backend + both apps), uptime check, alert on failed nightly stock consistency check.

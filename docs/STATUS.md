@@ -26,6 +26,10 @@ _Last updated: 2026-10-14_
 ## Next step (do this first)
 
 1. **Owner decisions still open:**
+   - Backups (D-139, runbook "Backups"): **create the off-site storage and put its credentials in `.env`**
+     (`BACKUP_S3_*` in `~/frutti-staging/.env`, lines already there), and move the backup private key
+     (`C:\Users\ITDT\frutti-backup-key\frutti-backup-PRIVATE-key.asc` on Mahmoud's machine) into a password manager and
+     onto a USB key, then delete it there.
    - Boxes, opening balance: **the company's own boxes are done (D-135):** 50 small and 50 big, posted by `seed_dev`
      as an opening stock ("Stock initial") into "Chambre froide 1 (frais)". The cold room is an assumption: ask the
      owner where they are. Still open, not built: boxes already at clients or owed to suppliers (the sign for
@@ -117,6 +121,9 @@ D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in n
 
 ## Recently done
 
+- 2026-10-14 · P4-T03 / D-139 nightly backups on staging (02:30 UTC, `debian` crontab): database and media, gpg to a
+  public key, 30 days in `~/frutti-staging/backups/`, off-site copy ready but waiting for a bucket; restore drill done
+  (99 tables identical, stock check clean) with `deploy/restore.sh`.
 - 2026-10-14 · D-138 "Nouveau document" on Documents opens the creation form in a window (no page change), with a
   guard: Escape or an outside click asks before a half-filled form is dropped. In PR #123 (`document-new-window`);
   unit tests, lint, tsc and the Documents e2e spec (4 tests) pass.
