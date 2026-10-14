@@ -33,5 +33,33 @@ test("a new document starts from the documents page", async ({ page }) => {
   await page.getByRole("button", { name: "Nouveau document" }).click();
   await page.getByRole("button", { name: /Bon de livraison direct/ }).click();
 
-  await expect(page).toHaveURL(/\/ventes\/nouvelle$/);
+  // The form opens in a window over the list; the person stays on Documents (D-137).
+  await expect(page.getByRole("dialog", { name: "Bon de livraison direct" })).toBeVisible();
+  await expect(page).toHaveURL(/\/documents$/);
+});
+
+test("Escape asks before a half-filled document is thrown away", async ({ page }) => {
+  await page.goto("/documents");
+  await page.getByRole("button", { name: "Nouveau document" }).click();
+  await page.getByRole("button", { name: /Devis \(commande client\)/ }).click();
+  const form = page.getByRole("dialog", { name: "Devis (commande client)" });
+  await expect(form).toBeVisible();
+
+  // Nothing typed yet: Escape closes at once.
+  await page.keyboard.press("Escape");
+  await expect(form).toBeHidden();
+
+  await page.getByRole("button", { name: "Nouveau document" }).click();
+  await page.getByRole("button", { name: /Devis \(commande client\)/ }).click();
+  await form.getByLabel("Notes pour le client").fill("Livrer avant midi");
+  await page.keyboard.press("Escape");
+  const ask = page.getByRole("dialog", { name: "Abandonner ce document ?" });
+  await expect(ask).toBeVisible();
+  await ask.getByRole("button", { name: "Continuer la saisie" }).click();
+  await expect(ask).toBeHidden();
+  await expect(form.getByLabel("Notes pour le client")).toHaveValue("Livrer avant midi");
+
+  await page.keyboard.press("Escape");
+  await ask.getByRole("button", { name: "Abandonner" }).click();
+  await expect(form).toBeHidden();
 });

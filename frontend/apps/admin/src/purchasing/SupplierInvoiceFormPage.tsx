@@ -31,9 +31,10 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useOutletContext, useParams, useSearchParams } from "react-router";
 
 import { sum } from "../lib/decimal";
+import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import { addDays, DEFAULT_PAYMENT_DAYS, idFrom, refreshPurchasing } from "./shared";
@@ -81,7 +82,7 @@ export function SupplierInvoiceFormPage() {
 
 function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const { embedded, leave } = useLeave();
   const queryClient = useQueryClient();
   const formId = useId();
   const [params] = useSearchParams();
@@ -136,7 +137,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
             : "admin.supplierInvoices.form.createdDraft";
       toast.success(t(message, { number: saved.number }));
       await refreshPurchasing(queryClient);
-      void navigate(`/achats/factures/${saved.id}`);
+      leave(`/achats/factures/${saved.id}`);
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
@@ -337,11 +338,15 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
 
         <p className="text-end text-[0.85rem] text-ink-2">{t("admin.supplierInvoices.form.postHint")}</p>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button asChild>
-            <Link to={invoice ? `/achats/factures/${invoice.id}` : "/achats/factures"}>
-              {t("admin.supplierInvoices.form.cancel")}
-            </Link>
-          </Button>
+          {embedded ? (
+            <Button onClick={() => leave("/achats/factures")}>{t("admin.supplierInvoices.form.cancel")}</Button>
+          ) : (
+            <Button asChild>
+              <Link to={invoice ? `/achats/factures/${invoice.id}` : "/achats/factures"}>
+                {t("admin.supplierInvoices.form.cancel")}
+              </Link>
+            </Button>
+          )}
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? t("admin.supplierInvoices.form.saving") : t("admin.supplierInvoices.form.saveDraft")}
           </Button>

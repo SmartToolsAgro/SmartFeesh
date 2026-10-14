@@ -274,6 +274,10 @@ export const fr = {
       back: "Retour",
       newTitle: "Nouveau document",
       newBody: "Choisissez ce que vous voulez créer.",
+      discardTitle: "Abandonner ce document ?",
+      discardBody: "Ce qui est saisi et pas encore enregistré sera perdu.",
+      discardKeep: "Continuer la saisie",
+      discardConfirm: "Abandonner",
       newDocs: {
         quote: "Devis (commande client)",
         quoteHint: "Prix proposés au client ; accepté, il devient un bon de livraison.",
