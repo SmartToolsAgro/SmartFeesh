@@ -45,9 +45,11 @@ function monthStart(offset: number): Date {
 
 /** That month as the screens write it ("octobre 2026"). */
 function monthLabel(offset: number): string {
-  return new Intl.DateTimeFormat("fr-TN", { month: "long", year: "numeric", timeZone: "UTC" }).format(
-    monthStart(offset),
-  );
+  return new Intl.DateTimeFormat("fr-TN", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(monthStart(offset));
 }
 
 async function choose(page: Page, scope: Page | Locator, label: string, option: string) {
