@@ -6,11 +6,12 @@ from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from . import audit, selectors
 from .images import reencoded_photo
-from .models import Membership, Organization, Role, User
+from .models import Job, JobRun, Membership, Organization, Role, User
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -260,3 +261,12 @@ def reset_member_password(
     membership.user.save(update_fields=["password"])
     audit.record(organization=organization, actor=actor, action="membership.password_reset", target=membership)
     return membership
+
+
+@transaction.atomic
+def record_job_run(*, job: Job, ok: bool, problems: int = 0) -> JobRun:
+    """Keeps the last run of a scheduled job (P4-T04, D-140): the monitoring reads it, the next run replaces it."""
+    run, _ = JobRun.objects.update_or_create(
+        job=job, defaults={"ran_at": timezone.now(), "ok": ok, "problems": problems}
+    )
+    return run

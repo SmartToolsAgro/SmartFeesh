@@ -23,7 +23,7 @@ pytestmark = pytest.mark.django_db
 METHODS = ("get", "post", "put", "patch", "delete")
 WRITES = ("post", "put", "patch", "delete")
 # Nobody needs to be logged in: liveness, the CSRF cookie and the login itself.
-PUBLIC = {"/api/v1/health", "/api/v1/auth/csrf", "/api/v1/auth/login"}
+PUBLIC = {"/api/v1/health", "/api/v1/health/stock-check", "/api/v1/auth/csrf", "/api/v1/auth/login"}
 # Any logged-in session, whatever the role: leaving.
 ANY_SESSION = {"/api/v1/auth/logout"}
 OFFICE = (Role.OWNER, Role.MANAGER)

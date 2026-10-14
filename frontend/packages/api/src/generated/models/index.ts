@@ -470,6 +470,7 @@ export * from './settlementRecord';
 export * from './settlementStateEnum';
 export * from './slowLot';
 export * from './slowReport';
+export * from './stockCheckHealth';
 export * from './stockLocation';
 export * from './stockLocationCreate';
 export * from './stockLocationCreateKindEnum';

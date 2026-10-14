@@ -14,6 +14,7 @@
     "@frutti/api": "workspace:*",
     "@frutti/auth": "workspace:*",
     "@frutti/i18n": "workspace:*",
+    "@frutti/monitoring": "workspace:*",
     "@frutti/ui": "workspace:*",
     "@tanstack/react-query": "5.103.2",
     "react": "19.3.0",

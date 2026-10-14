@@ -1,4 +1,5 @@
 import { applyLanguage, useTranslation } from "@frutti/i18n";
+import { setMonitoringUser } from "@frutti/monitoring";
 import { Button, Card } from "@frutti/ui";
 import { type ReactNode, useEffect } from "react";
 import { Navigate, useLocation } from "react-router";
@@ -33,6 +34,12 @@ export function RequireRole({ allow, wrongAppMessage, children }: Props) {
   useEffect(() => {
     if (language) applyLanguage(language);
   }, [language]);
+
+  // Error reports name the user by id only, never by name (D-140); nothing at all without a Sentry DSN.
+  const userId = session.data?.user.id;
+  useEffect(() => {
+    setMonitoringUser(userId ?? null);
+  }, [userId]);
 
   if (session.isPending) {
     return (

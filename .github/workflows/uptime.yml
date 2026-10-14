@@ -1,0 +1,63 @@
+# Uptime watch of staging (P4-T04, D-140), separate from CI. Every 15 minutes it opens the admin app, the
+# driver app, the API health and the nightly stock check status. When one fails, the run fails and GitHub
+# e-mails the person the scheduled runs belong to (docs/runbook.md, "Monitoring").
+# It reads public addresses only: no secret, no SSH key, no checkout, no third-party action.
+# GitHub turns scheduled workflows off after 60 days without activity in the repository: see the runbook.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    name: Staging is up and its stock check passed
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      # Repository variables (Settings → Secrets and variables → Actions → Variables) override these, for
+      # example once production has its own addresses.
+      ADMIN_URL: ${{ vars.UPTIME_ADMIN_URL || 'http://admin.217-182-205-137.sslip.io:8095' }}
+      DRIVER_URL: ${{ vars.UPTIME_DRIVER_URL || 'http://chauffeur.217-182-205-137.sslip.io:8096' }}
+    steps:
+      - name: Check the apps, the API and the nightly stock check
+        run: |
+          failed=0
+          # A slow answer is retried before it counts: one lost packet must not e-mail the owner.
+          fetch() { rm -f body; curl -sS --max-time 20 --retry 2 --retry-delay 15 --retry-all-errors -o body -w '%{http_code}' "$1"; }
+
+          check_app() {  # $1 name, $2 URL: the page must answer 200 and be our app, not an error page
+            code=$(fetch "$2/") || code=000
+            if [ "$code" = 200 ] && grep -q 'id="root"' body; then
+              echo "OK   $1 ($2)"
+            else
+              echo "::error title=$1 is down::$2 answered $code"; failed=1
+            fi
+          }
+          check_app "Admin app" "$ADMIN_URL"
+          check_app "Driver app" "$DRIVER_URL"
+
+          code=$(fetch "$ADMIN_URL/api/v1/health") || code=000
+          if [ "$code" = 200 ] && [ "$(jq -r .status body 2>/dev/null)" = ok ]; then
+            echo "OK   API health"
+          else
+            echo "::error title=API is down::$ADMIN_URL/api/v1/health answered $code: $(head -c 300 body 2>/dev/null)"; failed=1
+          fi
+
+          # ok, or failed / late (no run for 26 hours) / never: see docs/runbook.md, "Monitoring".
+          code=$(fetch "$ADMIN_URL/api/v1/health/stock-check") || code=000
+          state=$(jq -r .status body 2>/dev/null || echo unknown)
+          checked_at=$(jq -r .checked_at body 2>/dev/null || echo unknown)
+          if [ "$code" = 200 ] && [ "$state" = ok ]; then
+            echo "OK   nightly stock check (last run $checked_at)"
+          else
+            echo "::error title=Nightly stock check $state::answered $code, state $state, last run $checked_at"; failed=1
+          fi
+          exit $failed

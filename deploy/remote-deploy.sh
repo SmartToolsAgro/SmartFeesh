@@ -22,6 +22,7 @@ POSTGRES_PASSWORD=$(openssl rand -hex 24)
 DJANGO_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')
 DEMO_PASSWORD=$(openssl rand -hex 12)
 SENTRY_DSN=
+SENTRY_DSN_FRONTEND=
 EOF
 fi
 chmod 600 "$ENV_FILE"

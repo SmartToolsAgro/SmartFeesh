@@ -255,6 +255,7 @@ import type {
   SetPrices,
   SettleLot,
   SlowReport,
+  StockCheckHealth,
   StockLocation,
   StockLocationCreate,
   StockOverview,
@@ -7275,6 +7276,107 @@ export function useGetHealth<TData = Awaited<ReturnType<typeof getHealth>>, TErr
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetHealthQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStockCheckHealthUrl = () => {
+
+
+
+
+  return `/api/v1/health/stock-check`
+}
+
+/**
+ * Did the nightly stock check pass recently? Watched by the uptime workflow (P4-T04, D-140).
+ *
+ * Public like `health`, so the watcher needs no login or secret. It reveals a time and a state only: never the
+ * number of differences, a product, a location or an organization.
+ */
+export const getStockCheckHealth = async ( options?: Parameters<typeof apiFetch>[1]): Promise<StockCheckHealth> => {
+
+  return apiFetch<StockCheckHealth>(getGetStockCheckHealthUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStockCheckHealthQueryKey = () => {
+    return [
+    `/api/v1/health/stock-check`
+    ] as const;
+    }
+
+
+export const getGetStockCheckHealthQueryOptions = <TData = Awaited<ReturnType<typeof getStockCheckHealth>>, TError = StockCheckHealth>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockCheckHealth>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStockCheckHealthQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockCheckHealth>>> = ({ signal }) => getStockCheckHealth({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStockCheckHealth>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStockCheckHealthQueryResult = NonNullable<Awaited<ReturnType<typeof getStockCheckHealth>>>
+export type GetStockCheckHealthQueryError = StockCheckHealth
+
+
+export function useGetStockCheckHealth<TData = Awaited<ReturnType<typeof getStockCheckHealth>>, TError = StockCheckHealth>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockCheckHealth>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockCheckHealth>>,
+          TError,
+          Awaited<ReturnType<typeof getStockCheckHealth>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockCheckHealth<TData = Awaited<ReturnType<typeof getStockCheckHealth>>, TError = StockCheckHealth>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockCheckHealth>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockCheckHealth>>,
+          TError,
+          Awaited<ReturnType<typeof getStockCheckHealth>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockCheckHealth<TData = Awaited<ReturnType<typeof getStockCheckHealth>>, TError = StockCheckHealth>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockCheckHealth>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetStockCheckHealth<TData = Awaited<ReturnType<typeof getStockCheckHealth>>, TError = StockCheckHealth>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockCheckHealth>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStockCheckHealthQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

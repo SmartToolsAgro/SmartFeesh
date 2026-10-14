@@ -136,3 +136,29 @@ class AuditLog(OrganizationScopedModel):
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise TypeError("Audit entries are append-only: they are never deleted")
+
+
+class Job(models.TextChoices):
+    """Scheduled jobs whose last run is watched (P4-T04, D-140)."""
+
+    STOCK_CHECK = "stock_check", "Nightly stock check"
+
+
+class JobRun(models.Model):
+    """The last run of a scheduled job, one row per job, for monitoring (P4-T04, D-140).
+
+    Not a business table: a job such as the nightly stock check runs once for the whole installation, over every
+    organization, so the row has no `organization`. It keeps only when the job ran, whether it passed and how many
+    problems it found; the public status endpoint shows the time and ok/failed only.
+    """
+
+    job = models.CharField(max_length=50, choices=Job.choices, unique=True)
+    ran_at = models.DateTimeField()
+    ok = models.BooleanField()
+    problems = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["job"]
+
+    def __str__(self) -> str:
+        return f"{self.job} · {'ok' if self.ok else 'failed'} · {self.ran_at:%Y-%m-%d %H:%M}"

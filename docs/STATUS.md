@@ -63,7 +63,9 @@ _Last updated: 2026-10-14_
 - **P0-T02** (worked example) is not started; it is now **one real lot** worked out by hand with the owner.
   Phase 6 has no target without it. D-031's uncovered loss and Q24 are provisional; Q21 is confirmed.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
-- **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); a Sentry project and its DSN.
+- **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); **owner to do: create a Sentry project
+  and put its DSN in `.env`** (`SENTRY_DSN` for the API, `SENTRY_DSN_FRONTEND` for the apps, then redeploy;
+  runbook "Monitoring", D-140).
 - **TTN / El Fatoora is on hold** (D-016) although Q5 says it is required now.
 - **For the accountant** (`docs/spec/sample/README.md`): the VAT code lists Tunisian fishing products as exempt,
   which does not match "19 % for all"; e-invoicing is mandatory since 01/01/2026. Employee CNSS rate 9,18 % is
@@ -117,6 +119,9 @@ D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in n
 
 ## Recently done
 
+- 2026-10-14 · P4-T04 monitoring (D-140): Sentry in the API and both apps (off without a DSN), the nightly stock
+  check records its run (`/api/v1/health/stock-check`), and `.github/workflows/uptime.yml` checks staging every
+  15 minutes; a failure e-mails through GitHub. Runbook "Monitoring".
 - 2026-10-14 · D-138 "Nouveau document" on Documents opens the creation form in a window (no page change), with a
   guard: Escape or an outside click asks before a half-filled form is dropped. In PR #123 (`document-new-window`);
   unit tests, lint, tsc and the Documents e2e spec (4 tests) pass.

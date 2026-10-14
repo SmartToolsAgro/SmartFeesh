@@ -65,6 +65,7 @@ frontend/
   apps/truck/             driver PWA
   packages/ui/            design tokens, icons, illustrations, shared components
   packages/api/           generated TypeScript client + Zod schemas (do not edit by hand)
+  packages/monitoring/    Sentry error reporting of both apps, off without a DSN (D-140)
 docs/                     STATUS, roadmap, phases, decisions, questions, spec
 prototype/                approved clickable mockup
 docker-compose.yml

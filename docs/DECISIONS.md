@@ -1979,3 +1979,36 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   detection is event-based (typing, picking), so a field typed and then emptied still asks.
 - Not changed yet: the row actions that still open a page (edit, receive from a BA, supplier invoice from a
   reception, pay, credit note).
+
+**D-140 · Monitoring: Sentry in the API and both apps, a recorded nightly stock check, an uptime workflow (P4-T04)** · accepted · 2026-10-14
+- No new paid account. Everything is off until the owner creates a Sentry project and puts its DSN in the
+  server's `.env`; the uptime watch runs on GitHub Actions, which the repository already has.
+- **Sentry, API:** unchanged (`SENTRY_DSN`, nothing sent when empty, `send_default_pii=False`), plus the release
+  (`SENTRY_RELEASE`, the deploy's `<time>-<commit>`) and the tag `app=api`.
+- **Sentry, admin and driver apps:** new package `@frutti/monitoring` (`@sentry/react` 10.75.3, the mature 10.x
+  line; 11.x is three weeks old). The DSN is read **at build time** (`VITE_SENTRY_DSN`), because the apps had no
+  run-time configuration and the server builds the images on every deploy: `SENTRY_DSN_FRONTEND` in `.env` goes
+  to the `web` image as a build argument (`Dockerfile`, `deploy/compose.staging.yml`). Empty: `Sentry.init` is never
+  called and nothing leaves the browser. Each report carries the tag `app=admin|truck`, the release and the
+  environment. Personal data: the user's id only (`RequireRole`), no IP (`sendDefaultPii: false`), no query strings
+  (a search can hold a customer's name) and no console breadcrumbs. React's root error callbacks report the errors a
+  route's error screen catches. One browser project for both apps is enough (the tag tells them apart); the API can
+  use the same DSN or its own.
+- **Nightly stock check:** `rebuild_on_hand --check` records its run in `core.JobRun` (one row per job: when, ok or
+  failed, number of differences; a crash is recorded as failed). `JobRun` has no `organization`: the check runs
+  once over every company, it is not business data. `GET /api/v1/health/stock-check` answers `{status, checked_at}`
+  with `status` ok (200) or failed, late (no run for 26 hours) or never (503). It is public like `/health`
+  (`AllowAny`, no authentication), so the watcher needs no login or secret, and it shows only a time and a state: not
+  the number of differences, nor any product, place or company. It is not folded into `/health`: Docker and the
+  deploy use `/health` to know whether the API is up, and a failed stock check must not restart or block the API.
+  The `nightly` container also runs the check once when it starts, so a fresh deploy does not read as "never".
+  The repair (`rebuild_on_hand` without `--check`) does not clear the state; the next check does.
+- **Uptime and alert:** `.github/workflows/uptime.yml`, every 15 minutes (and by hand): the admin app, the driver
+  app, `/api/v1/health` and the stock check status, each retried twice before it counts. Any failure fails the run,
+  and GitHub e-mails the account that owns the scheduled runs (the one that put the workflow on `main`, or last
+  changed its cron line). No secret, no deploy key, no checkout, no third-party action (so nothing to pin);
+  `permissions: {}`; `ubuntu-24.04` like CI. Addresses can be overridden by repository variables
+  (`UPTIME_ADMIN_URL`, `UPTIME_DRIVER_URL`) for production.
+- Limits: GitHub runs schedules late at busy times and turns them off after 60 days without repository activity; a
+  failure e-mails on every run until it is fixed or the workflow is disabled. The check sees staging from outside
+  only (no disk, memory or backup check; backups are P4-T03).

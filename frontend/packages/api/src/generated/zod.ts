@@ -3553,6 +3553,18 @@ export const GetHealthResponse = zod.object({
 
 
 /**
+ * Did the nightly stock check pass recently? Watched by the uptime workflow (P4-T04, D-140).
+ *
+ * Public like `health`, so the watcher needs no login or secret. It reveals a time and a state only: never the
+ * number of differences, a product, a location or an organization.
+ */
+export const GetStockCheckHealthResponse = zod.object({
+  "status": zod.string().describe('ok, failed, late (older than 26 hours) or never.'),
+  "checked_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
  * Check a filled Excel template (`dry_run`, the default: nothing is written) or import it for real.
  * The report lists every row: created, skipped (reference already known) or in error with its column.
  * A real import is all or nothing: one error anywhere and nothing is saved (`committed` false). Owner only.
