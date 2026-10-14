@@ -2,6 +2,7 @@
 
 import re
 from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -241,7 +242,8 @@ def unassign_truck(*, assignment: TruckAssignment, actor: User | None) -> None:
 def open_driver_day(
     *, organization: Organization, actor: User, truck: Truck, opening_cash: Decimal, date: date_type
 ) -> DriverDay:
-    """Open the driver's day on their truck with the cash they start with. Asking again changes nothing."""
+    """Open the driver's day on their truck with the cash they start with. One day per driver and date: asking
+    again changes nothing, also once its closing is sent (only a new load opens a sent day again, D-134)."""
     if opening_cash < 0:
         raise ValidationError({"opening_cash": _("Le fonds de caisse ne peut pas être négatif.")})
     existing = DriverDay.objects.for_organization(organization).filter(driver=actor, date=date).first()
@@ -258,3 +260,21 @@ def open_driver_day(
         after={"truck": truck.location.name, "date": str(date), "opening_cash": str(opening_cash)},
     )
     return day
+
+
+def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:
+    """The driver sent the day's closing: the day is over and its records stop here (D-134). Called inside the
+    closing's transaction, on a locked row; ending a day already ended (sent again) keeps its end."""
+    if driver_day.ended_at is None:
+        driver_day.ended_at = ended_at
+        driver_day.save(update_fields=["ended_at", "updated_at"])
+    return driver_day
+
+
+def reopen_driver_day(*, driver_day: DriverDay) -> DriverDay:
+    """A new load opened the sent day again (D-134): it runs until its closing is sent again. Called inside the
+    reopening's transaction, on a locked row."""
+    if driver_day.ended_at is not None:
+        driver_day.ended_at = None
+        driver_day.save(update_fields=["ended_at", "updated_at"])
+    return driver_day

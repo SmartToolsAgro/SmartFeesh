@@ -1,6 +1,7 @@
 """Reusable read queries of trucks, and the "own truck" rule for drivers (ARCHITECTURE §4.8)."""
 
 from datetime import date as date_type
+from datetime import datetime, time, timedelta
 from typing import Literal
 
 from django.db.models import QuerySet
@@ -101,13 +102,59 @@ def truck_ref_of_driver(membership: Membership) -> TruckRef | None:
 
 
 def driver_day_of(membership: Membership, on: date_type | None = None) -> DriverDay | None:
-    """The day this driver has opened (today by default), if any."""
+    """The day this driver opened on that date (today by default), if any: running, or closed once its
+    closing is sent (D-134)."""
     return (
         DriverDay.objects.for_organization(membership.organization)
         .select_related("truck__location")
         .filter(driver_id=membership.user_id, date=on or timezone.localdate())
         .first()
     )
+
+
+def driver_days_of(organization: Organization, *, driver_id: int) -> QuerySet[DriverDay]:
+    """A driver's days, newest first, with the truck."""
+    return (
+        DriverDay.objects.for_organization(organization)
+        .filter(driver_id=driver_id)
+        .select_related("truck__location", "driver")
+        .order_by("-date", "-id")
+    )
+
+
+def day_window(driver_day: DriverDay) -> tuple[datetime, datetime]:
+    """The moments a driver's day covers, `start` included and `end` excluded (D-134): its date, up to the
+    moment its closing was sent. A day that runs (not sent yet, or opened again by a new load), or one closed
+    on a later date from the history, covers its whole date and no more."""
+    midnight = timezone.make_aware(datetime.combine(driver_day.date, time.min))
+    next_midnight = timezone.make_aware(datetime.combine(driver_day.date + timedelta(days=1), time.min))
+    end = next_midnight if driver_day.ended_at is None else min(driver_day.ended_at, next_midnight)
+    return midnight, max(midnight, end)
+
+
+def closed_days_on_truck(organization: Organization, *, location_id: int, on: date_type) -> list[DriverDay]:
+    """The days of one date whose closing was sent, on the truck of this location, by a driver who still has
+    that truck that date: the days a new load opens again (D-134). A driver moved to another truck since, or
+    who is no longer a driver, keeps their day closed."""
+    days = list(
+        DriverDay.objects.for_organization(organization)
+        .filter(truck__location_id=location_id, date=on, ended_at__isnull=False)
+        .select_related("truck__location", "driver")
+        .order_by("id")
+    )
+    drivers = {
+        membership.user_id: membership
+        for membership in Membership.objects.filter(
+            organization=organization, user_id__in=[day.driver_id for day in days], role=Role.DRIVER, is_active=True
+        )
+    }
+    still_theirs = []
+    for day in days:
+        membership = drivers.get(day.driver_id)
+        truck = truck_of_driver(membership, on) if membership is not None else None
+        if truck is not None and truck.pk == day.truck_id:
+            still_theirs.append(day)
+    return still_theirs
 
 
 def locked_driver_day(driver_day: DriverDay) -> DriverDay:

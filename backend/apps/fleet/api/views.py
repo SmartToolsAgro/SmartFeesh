@@ -243,7 +243,8 @@ class MyDayView(APIView):
 
     @extend_schema(operation_id="openMyDay", request=DriverDayOpenSerializer, responses={201: DriverDaySerializer})
     def post(self, request: Request) -> Response:
-        """Start the day on the driver's truck of the day, with the cash they start with."""
+        """Start the day on the driver's truck of the day, with the cash they start with. One day per date:
+        asking again returns it unchanged, also once its closing is sent."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         serializer = DriverDayOpenSerializer(data=request.data)

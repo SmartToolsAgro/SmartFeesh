@@ -4,7 +4,9 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ChangedFigure } from './changedFigure';
 import type { DayClosingStatusEnum } from './dayClosingStatusEnum';
+import type { DayReopening } from './dayReopening';
 import type { DaySummary } from './daySummary';
 
 export interface DayClosingDetail {
@@ -26,5 +28,7 @@ export interface DayClosingDetail {
   readonly reviewed_at: string | null;
   readonly reviewed_by_name: string;
   readonly summary: DaySummary;
+  readonly reopenings: readonly DayReopening[];
+  readonly changes_since_sent: readonly ChangedFigure[];
   readonly changed_since_sent: boolean;
 }

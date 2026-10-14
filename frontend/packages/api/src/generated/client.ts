@@ -169,6 +169,7 @@ import type {
   MonthView,
   MyBoxDay,
   MyBoxPickupWrite,
+  MyDayRow,
   MyDaySummary,
   MyStockLine,
   Order,
@@ -3549,7 +3550,8 @@ export const getListDayClosingsUrl = (params?: ListDayClosingsParams,) => {
 }
 
 /**
- * Days sent by the drivers, newest first. Filter by status.
+ * Days sent by the drivers, newest first (the last 200 matching): to check, and their history. Filter by
+ * status, driver or truck, and dates.
  */
 export const listDayClosings = async (params?: ListDayClosingsParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingRow[]> => {
 
@@ -3745,7 +3747,8 @@ export const getApproveDayClosingUrl = (closingId: number,) => {
 }
 
 /**
- * Approve the day (owner or manager): it is locked.
+ * Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
+ * records changed since the send: the driver sends it again first.
  */
 export const approveDayClosing = async (closingId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
 
@@ -12137,7 +12140,8 @@ export const getOpenMyDayUrl = () => {
 }
 
 /**
- * Start the day on the driver's truck of the day, with the cash they start with.
+ * Start the day on the driver's truck of the day, with the cash they start with. One day per date:
+ * asking again returns it unchanged, also once its closing is sent.
  */
 export const openMyDay = async (driverDayOpen: DriverDayOpen, options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
 
@@ -12222,8 +12226,9 @@ export const getCloseMyDayUrl = () => {
 }
 
 /**
- * Send the end of the day with the cash counted and an optional note. Sent again only after the office
- * asked for a justification.
+ * Send the end of the day with the cash counted and an optional note: the day is closed until a load
+ * validated that date opens it again. Sent again after the office asked for a justification, after such
+ * a load, or when the day's records changed since the send.
  */
 export const closeMyDay = async (dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
 
@@ -12397,6 +12402,289 @@ export function useGetMyDaySummary<TData = Awaited<ReturnType<typeof getMyDaySum
 
 
 
+
+export const getListMyDaysUrl = () => {
+
+
+
+
+  return `/api/v1/my-days`
+}
+
+/**
+ * The driver's own days, newest first (the last 60), each with its closing when sent (D-134).
+ */
+export const listMyDays = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyDayRow[]> => {
+
+  return apiFetch<MyDayRow[]>(getListMyDaysUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyDaysQueryKey = () => {
+    return [
+    `/api/v1/my-days`
+    ] as const;
+    }
+
+
+export const getListMyDaysQueryOptions = <TData = Awaited<ReturnType<typeof listMyDays>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyDaysQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyDays>>> = ({ signal }) => listMyDays({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyDays>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyDaysQueryResult = NonNullable<Awaited<ReturnType<typeof listMyDays>>>
+export type ListMyDaysQueryError = unknown
+
+
+export function useListMyDays<TData = Awaited<ReturnType<typeof listMyDays>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDays>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDays>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDays<TData = Awaited<ReturnType<typeof listMyDays>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDays>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDays>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDays<TData = Awaited<ReturnType<typeof listMyDays>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyDays<TData = Awaited<ReturnType<typeof listMyDays>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyDaysQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyPastDayUrl = (dayId: number,) => {
+
+
+
+
+  return `/api/v1/my-days/${dayId}`
+}
+
+/**
+ * One of the driver's days: the figures as sent, or live while it runs.
+ */
+export const getMyPastDay = async (dayId: number, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+
+  return apiFetch<MyDaySummary>(getGetMyPastDayUrl(dayId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyPastDayQueryKey = (dayId: number,) => {
+    return [
+    `/api/v1/my-days/${dayId}`
+    ] as const;
+    }
+
+
+export const getGetMyPastDayQueryOptions = <TData = Awaited<ReturnType<typeof getMyPastDay>>, TError = unknown>(dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPastDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPastDayQueryKey(dayId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPastDay>>> = ({ signal }) => getMyPastDay(dayId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: dayId !== null && dayId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPastDay>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyPastDayQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPastDay>>>
+export type GetMyPastDayQueryError = unknown
+
+
+export function useGetMyPastDay<TData = Awaited<ReturnType<typeof getMyPastDay>>, TError = unknown>(
+ dayId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPastDay>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyPastDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyPastDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyPastDay<TData = Awaited<ReturnType<typeof getMyPastDay>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPastDay>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyPastDay>>,
+          TError,
+          Awaited<ReturnType<typeof getMyPastDay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyPastDay<TData = Awaited<ReturnType<typeof getMyPastDay>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPastDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyPastDay<TData = Awaited<ReturnType<typeof getMyPastDay>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPastDay>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyPastDayQueryOptions(dayId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCloseMyPastDayUrl = (dayId: number,) => {
+
+
+
+
+  return `/api/v1/my-days/${dayId}/closing`
+}
+
+/**
+ * Send the closing of one of the driver's days from the history: again after the office asked for a
+ * justification, or a day left open.
+ */
+export const closeMyPastDay = async (dayId: number,
+    dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MyDaySummary>(getCloseMyPastDayUrl(dayId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayClosingWrite)
+  }
+);}
+
+
+
+
+
+export const getCloseMyPastDayMutationKey = () => ['closeMyPastDay'] as const;
+
+export const getCloseMyPastDayMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyPastDay>>, TError,CloseMyPastDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeMyPastDay>>, TError,CloseMyPastDayMutationVariables, TContext> => {
+
+const mutationKey = getCloseMyPastDayMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeMyPastDay>>, CloseMyPastDayMutationVariables> = (props) => {
+          const {dayId,data} = props ?? {};
+
+          return  closeMyPastDay(dayId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseMyPastDayMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyPastDay>>>
+    export type CloseMyPastDayMutationBody = DayClosingWrite
+    export type CloseMyPastDayMutationError = unknown
+    export type CloseMyPastDayMutationVariables = {dayId: number;data: DayClosingWrite}
+
+    export const useCloseMyPastDay = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyPastDay>>, TError,CloseMyPastDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof closeMyPastDay>>,
+        TError,
+        CloseMyPastDayMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCloseMyPastDayMutationOptions(options), queryClient);
+    }
 
 export const getListRoadCategoriesUrl = () => {
 
@@ -23977,7 +24265,8 @@ export const getValidateTransferUrl = (transferId: number,) => {
 
 /**
  * Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
- * too little (on `lines.<index>.quantity`) or for a day still to come.
+ * too little (on `lines.<index>.quantity`) or for a day still to come. A load of today into a truck
+ * whose driver already sent the day opens that day again.
  */
 export const validateTransfer = async (transferId: number, options?: Parameters<typeof apiFetch>[1]): Promise<TransferDetail> => {
 

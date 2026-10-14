@@ -68,7 +68,7 @@ class MyBoxPickupView(APIView):
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise exceptions.ValidationError(_("Choisissez d'abord votre camion."))
-        dayclose.refuse_if_day_approved(membership)
+        dayclose.refuse_if_day_closed(membership)
         serializer = MyBoxPickupWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         errors: dict[str, str] = {}

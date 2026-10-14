@@ -1774,6 +1774,8 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   `day_closing.resubmitted`), and the office **cannot approve** (400) until the day is sent again; it can still ask
   for a justification. The phone shows the count form again with a warning; the office dialog shows a warning and
   the approve button is disabled. Selling after sending stays allowed (only an approved day is closed, D-109).
+  (Changed by D-134: sending closes the day and a new load of that date opens it again; `changed_since_sent`
+  reads D-134's list of changed figures.)
 
 **D-133 · A driver's sale is dated when it was made, as the phone says, within limits (owner decision; follow-up of D-091, D-094, D-129, D-130)** · accepted · 2026-10-13
 - Before: for a driver `sold_at` was the server's clock, so a sale made without connection yesterday and sent today
@@ -1823,4 +1825,120 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   - A phone clock set wrong in the past cannot be seen, as long as the driver had the truck and the kilos that day.
   - The check on stock held since is not applied to a sale typed late by the office, nor to a driver's draft that
     waits for a credit approval and is confirmed later.
+  - A driver still cannot close a day that is over (the closing endpoints are today's only). (Changed by D-134:
+    the history sends a day left running.)
+
+**D-134 · Sending the closing closes the driver's day; a new load of that date opens it again; the history of days (owner decisions 2026-10-13 and 2026-10-14; follow-up of D-094, replaces D-109's lock, reworks D-132; carries D-129, D-130 and D-133)** · accepted · 2026-10-14
+- **The owner's rule.** One day per driver and date. Sending the closing closes it: `DriverDay.ended_at` is set
+  (`fleet.services.end_driver_day`, inside `submit_day_closing`). From then on the driver gets 403 "Votre journée
+  est clôturée : elle rouvre quand le bureau recharge votre camion." on road expenses, losses, returns, customer
+  payments and box pickups (`dayclose.selectors.refuse_if_day_closed`, was `refuse_if_day_approved`), and on sales
+  (below). Before, only an approved day was closed. The driver cannot open the day again: `POST my-day` returns
+  the same day, still closed.
+- **How this decision moved.** First built on 2026-10-13 as "a later sale needs a new day": the driver started a
+  numbered second day on the same date with a new cash float. The owner changed it on 2026-10-14, before it was
+  merged: no second day, the same day opens again, and what opens it is a new load. `DriverDay.number`, the days
+  numbered per date and the windows between them are gone.
+- **A load reopens the day.** When the office validates a load (a transfer into a truck) dated today, the day that
+  truck's driver had sent today runs again, in the load's own transaction. `inventory.services.validate_transfer`
+  sends the signal `load_validated`; `dayclose.signals` answers with `dayclose.services.reopen_days_after_load`
+  (inventory does not import dayclose, which depends on it). `ended_at` is cleared and the closing takes the new
+  status **`reopened`** ("Rouverte"). The driver sells, then sends the closing again, and the day ends at that send.
+  Not reopened by: a load dated another day, a return, a move between cold rooms, a load into another truck, or a
+  load into a truck the driver no longer has that date (`fleet.selectors.closed_days_on_truck`).
+- **An approved day reopens too (owner decision): the one exception to "an approved closing never changes".** The
+  approval is not lost. Each reopening writes a `DayReopening` row, never changed afterwards: the send as it was
+  (status, expected and counted cash, difference, note, figures, when it was sent, who reviewed it and when), the
+  load and who validated it. The audit log has `day_closing.reopened` too. This is the "reopened closing with
+  reason" of ARCHITECTURE §4 rule 5: the reason is the load. Nothing else undoes an approval.
+- **Cash already handed over (owner decision).** The cash counted at a send that a load undid went to the office.
+  `day_summary` has `handed_over` (the counted cash of the day's reopenings, added up), and `expected_cash` is what
+  the driver should hold now: opening cash + cash sales + cash payments - expenses - handed over. So at the next
+  send the driver counts only the money in hand. Cash missing at the first count is still missing at the last one:
+  the last closing's difference is the whole day's. **Assumed, not typed by anyone:** the driver gave the office
+  exactly what they counted. One who kept the money counts it again, and the surplus is a difference to explain in
+  the note.
+- **While the day is reopened** the office can neither approve nor ask (only a `submitted` closing is reviewed).
+  The list has a "Rouvertes" filter; the dialog says the day was reopened and lists the sends that were undone. A
+  reopened day is left out of the dashboard's days waiting for the office and of its unexplained cash differences.
+  The office's question (`review_note`) survives a reopening and the phone still shows it.
+- **D-132 kept, read on one comparison.** `changed_since_sent` is now "`changes_since_sent` has a row": the day's
+  figures and, per product, opening / loaded / sold / lost / returned / left, all over the day's window. While it
+  is true the office cannot approve (400), the driver sends the day again, the phone shows the day's records and
+  the count form with a warning, and the office dialog lists each figure as sent against now. D-132's "selling
+  after sending stays allowed" is replaced by the rule above; the case it was written for (loaded again after
+  sending) is now a reopening.
+- **A day is a window of its date** (`fleet.selectors.day_window`): from local midnight to the moment its closing
+  was sent, and at the latest the end of the date. While the day runs (never sent, or reopened) it is the whole
+  date.
+- **Which sales a day takes (D-133 carried):** `dayclose.selectors.refuse_sale_outside_day`, called by the sale
+  view after the truck check, with D-133's order kept (a sale already recorded under its `client_uuid` is answered
+  first, D-129; then the clock checks; then the truck of that day):
+  1. No day started on that date: accepted, the sale belongs to no closing (D-133, unchanged).
+  2. Made at or after the moment the day ended: 403, with the message above for today, and for an earlier date
+     "Votre journée du JJ/MM/AAAA était déjà clôturée quand cette vente a été faite : elle n'est pas enregistrée.
+     Prévenez le bureau."
+  3. The day is approved: 403 with D-133's messages.
+  4. Otherwise accepted. In particular **a sale made before the closing was sent and received after it is recorded
+     on that day** while the office has not approved it; the closing then counts as changed (above).
+- **A refusal never waits for ever.** Each one is a 403: the phone's queue marks the sale refused and reports it to
+  the office (D-099, D-129, `sync.ts` unchanged). Online, the driver reads the message on the sale screen.
+- **The sent figures stay as sent.** `DayClosing.summary` is not rewritten by a late sale. The phone shows a sent
+  day as sent (`selectors.day_answer`), and the day's records whenever the driver is about to send again: the
+  office asked a question, a load reopened the day, or the records changed since the send.
+- **Stock per day (D-130 carried).** Everything is read from the ledger on one clock, `occurred_at`: `opening` is
+  the truck's balance at the start of the window (`inventory.selectors.location_stock_at`), `loaded` / `returned` /
+  `lost` are the transfer and loss movements dated inside it (`location_moves_between`), `sold` the driver's sales
+  made inside it, `remaining` the balance at the end of the window (what the truck holds now while the window is
+  open). So opening + loaded - returned - sold - lost = left, and `unexplained` is only stock that moved with no
+  sale of this driver, loss or transfer. What the office moves after the send (the truck unloaded in the evening)
+  stays out of the sent day. Customer payments and road expenses are cut on `created_at` (they are dated when they
+  are sent, D-133).
+- **The driver's screens (D-129, D-130 carried).** The closing screen and the history share `DayReport.tsx`: the
+  wait for the phone's unsent items with its reason and the retry button (`closingGate.ts`), the send as it opens,
+  the opening stock and the gap in red, "Déjà remis au bureau", and the notice of a reopened or changed day. On a
+  closed day "Ma journée" says the day reopens with a load and has a button to ask the server again; no cash float
+  is asked a second time. A day sent before D-130 has no opening stock in its kept figures and is shown without it.
+  The office's stock table shows "Au départ" and "Écart" too.
+- **History:** the driver sees their last 60 days (`GET my-days`, `GET my-days/<id>`) and can send a day from there
+  (`POST my-days/<id>/closing`): the answer to the office's question, or a day left running on an earlier date.
+  "Ma journée" shows a warning when the office asked about a day. The office's `/journees` page filters by driver
+  or truck name and dates (last 200 rows).
+- Migrations `fleet.0004` (`ended_at`), `dayclose.0003` (days already sent end when their closing was sent) and
+  `dayclose.0004` (`DayReopening`, the `reopened` status). The Arabic texts are provisional (D-103).
+- **Known limits:**
+  - The load screen does not warn before it reopens a day, also an approved one. The Journées page shows it after.
+  - Nothing is pushed to the phone: it learns of the reopening when it next asks the server (a screen opened, the
+    button on "Ma journée"). The sale screen does not check the day first: a sale tried on a closed day is refused
+    by the server (online the driver reads why; kept on the phone, it is reported to the office when it is sent).
+  - Once reopened, the day takes every sale of its date, also one the phone says was made while it was closed.
+  - A load typed for an earlier date does not reopen that date's day. It changes its figures: the day is sent
+    again before approval (D-132), and an approved day keeps its figures as sent.
+  - Within the 5 minutes of clock tolerance the server's clock dates the sale (D-133): a sale made in the last
+    minutes before the closing and received just after it counts as made after it, and is refused. The closing
+    screen does not let the driver send while a sale waits on the phone (D-129), so this needs two phones or a
+    request still in flight.
+  - The stock a late sale may take is checked per day, not per hour (D-133).
+  - A sale made after an earlier date's closing stays refused and the office types it.
+  - A day sent before this change may have sales made after its send (then allowed until approval): they are
+    outside its window and in no closing.
+  - The office list does not flag the days whose figures changed; the dialog does (it reads the day's records).
+  - The monthly closing's "driver days closed" check still does not list days left running (D-074).
   - A driver still cannot close a day that is over (the closing endpoints are today's only).
+
+**D-135 · Boxes the company already owns enter the ledger as an opening stock (owner answer; follow-up of D-124, D-127)** · accepted · 2026-10-13
+- Owner answer: the company starts with **50 small and 50 big boxes** of its own.
+- Before, a box could only enter the ledger on a receipt from a supplier, which also raises what we owe that
+  supplier. Company boxes posted that way would have shown as 100 boxes to give back.
+- New movement kind `opening` ("Stock initial"): no sender, and the receiver must be a **location** (cold room or
+  truck). It raises that location's balance only, so the supplier balances stay what was really lent
+  (three-balances rule). Posted through `post_box_movement` like every other kind, audited, append-only.
+  Migration `boxes.0003` (the choices of `kind` only).
+- `seed_dev` posts the owner's figures into "Chambre froide 1 (frais)" (`apps/demo/boxes.py`), once per box type:
+  a type that already has an opening stock is left alone, so a second run and every later deploy add nothing.
+  Staging gets them on the deploy that follows the merge. Which cold room holds them was not said: the first one
+  is an assumption. A wrong room or figure is corrected by new movements, never by an edit.
+- The admin Caisses page shows the kind in its history, from "Hors stock".
+- **Still open, not built:** an opening balance for boxes already at a client or already owed to a supplier (the
+  sign question of D-127), and a screen or command to type an opening stock on a real database. `opening` refuses
+  a client or a supplier until that is decided.

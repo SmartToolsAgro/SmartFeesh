@@ -22,6 +22,7 @@ from .models import (
     FIFO_ORDER,
     Batch,
     LocationKind,
+    MovementKind,
     StockCount,
     StockCountLine,
     StockLocation,
@@ -392,11 +393,11 @@ def on_hand_differences(organization: Organization) -> list[OnHandDifference]:
         return [OnHandDifference(*row) for row in cursor.fetchall()]
 
 
-def location_stock_before(organization: Organization, *, location_id: int, day: dt.date) -> list[dict[str, Any]]:
-    """What one location held at the start of `day` (local time) per product, from the ledger: every movement
-    dated before that day. Same keys as `location_stock`. A truck keeps what it did not sell or return, so
-    this is its opening stock, which loaded-today figures leave out (dayclose.day_summary)."""
-    before = StockMovement.objects.for_organization(organization).filter(occurred_at__date__lt=day).order_by()
+def location_stock_at(organization: Organization, *, location_id: int, moment: dt.datetime) -> list[dict[str, Any]]:
+    """What one location held just before `moment` per product, from the ledger: every movement dated
+    (`occurred_at`) before it. Same keys as `location_stock`. Read at the moment a driver's day starts, it is
+    the day's opening stock; read at the moment it ended, what was left (dayclose.day_summary)."""
+    before = StockMovement.objects.for_organization(organization).filter(occurred_at__lt=moment).order_by()
     incoming = before.filter(to_location_id=location_id).values("product_id", "product__name")
     outgoing = before.filter(from_location_id=location_id).values("product_id", "product__name")
     balance: dict[int, dict[str, Any]] = {}
@@ -410,6 +411,75 @@ def location_stock_before(organization: Organization, *, location_id: int, day: 
     return sorted(
         (entry for entry in balance.values() if entry["quantity"] != 0),
         key=lambda entry: (entry["product__name"], entry["product_id"]),
+    )
+
+
+def location_stock_before(organization: Organization, *, location_id: int, day: dt.date) -> list[dict[str, Any]]:
+    """What one location held at the start of `day` (local time) per product, from the ledger: every movement
+    dated before that day. Same keys as `location_stock`. A truck keeps what it did not sell or return, so
+    this is its opening stock, which loaded-today figures leave out."""
+    start = timezone.make_aware(dt.datetime.combine(day, dt.time.min))
+    return location_stock_at(organization, location_id=location_id, moment=start)
+
+
+@dataclass(frozen=True)
+class LocationMoves:
+    """One product at one location over a stretch of time, from the ledger: kg that came in by transfer, kg
+    that left by transfer, and kg written off by a loss document."""
+
+    product_id: int
+    product_name: str
+    loaded: Decimal
+    returned: Decimal
+    lost: Decimal
+
+
+def location_moves_between(
+    organization: Organization, *, location_id: int, start: dt.datetime, end: dt.datetime
+) -> list[LocationMoves]:
+    """Per product, what was loaded into a location, returned from it and lost there between two moments
+    (`start` included, `end` excluded), read from the ledger by the date each movement happened
+    (`occurred_at`): the same clock as `location_stock_at`, so opening + loaded - returned - lost - sold is
+    what the ledger holds at `end` (a driver's day, D-134). A transfer or a loss typed for an earlier day is
+    dated at noon of that day (D-039), a loss waiting for approval when it is approved. Losses are those of
+    loss documents; a damaged customer return (credit note) comes in and goes out and is not counted."""
+    loss_type = ContentType.objects.get_for_model(StockLoss)
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(occurred_at__gte=start, occurred_at__lt=end)
+        .filter(
+            Q(kind=MovementKind.TRANSFER, to_location_id=location_id)
+            | Q(kind=MovementKind.TRANSFER, from_location_id=location_id)
+            | Q(kind=MovementKind.LOSS, from_location_id=location_id, source_type=loss_type)
+        )
+        .order_by()
+        .values("product_id", "product__name", "kind", "to_location_id")
+        .annotate(total=Sum("quantity"))
+    )
+    zero = Decimal("0.000")
+    totals: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        entry = totals.setdefault(
+            row["product_id"], {"name": row["product__name"], "loaded": zero, "returned": zero, "lost": zero}
+        )
+        if row["kind"] == MovementKind.LOSS:
+            entry["lost"] += row["total"]
+        elif row["to_location_id"] == location_id:
+            entry["loaded"] += row["total"]
+        else:
+            entry["returned"] += row["total"]
+    return sorted(
+        (
+            LocationMoves(
+                product_id=product_id,
+                product_name=entry["name"],
+                loaded=entry["loaded"],
+                returned=entry["returned"],
+                lost=entry["lost"],
+            )
+            for product_id, entry in totals.items()
+        ),
+        key=lambda moves: (moves.product_name, moves.product_id),
     )
 
 

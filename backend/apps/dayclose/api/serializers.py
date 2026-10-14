@@ -1,9 +1,10 @@
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.dayclose import selectors
-from apps.dayclose.models import DayClosing, DayClosingStatus, SyncProblem
+from apps.dayclose.models import DayClosing, DayClosingStatus, DayReopening, SyncProblem
 
 
 class DayProductSerializer(serializers.Serializer[Any]):
@@ -33,6 +34,9 @@ class DaySummarySerializer(serializers.Serializer[Any]):
     other_payments = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     on_credit = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     expenses_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Cash already given to the office that day: counted at the sends a new load undid (D-134).
+    handed_over = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # What the driver should hold now: the day's cash less `handed_over`.
     expected_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     products = DayProductSerializer(many=True, read_only=True)
 
@@ -45,7 +49,17 @@ class DayClosingStateSerializer(serializers.ModelSerializer[DayClosing]):
 
     class Meta:
         model = DayClosing
-        fields = ("id", "status", "counted_cash", "driver_note", "review_note", "submitted_at", "changed_since_sent")
+        fields = (
+            "id",
+            "status",
+            "expected_cash",
+            "counted_cash",
+            "difference",
+            "driver_note",
+            "review_note",
+            "submitted_at",
+            "changed_since_sent",
+        )
         read_only_fields = fields
 
     def get_changed_since_sent(self, closing: DayClosing) -> bool:
@@ -61,6 +75,19 @@ class DayClosingWriteSerializer(serializers.Serializer[Any]):
     # The cash in the driver's hands, in DT as a string ("250.500").
     counted_cash = serializers.CharField(allow_blank=True)
     note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class MyDayRowSerializer(serializers.Serializer[Any]):
+    """One of the driver's days in their history, with its closing when sent."""
+
+    id = serializers.IntegerField(read_only=True)
+    date = serializers.DateField(read_only=True)
+    truck_name = serializers.CharField(source="truck.location.name", read_only=True)
+    opening_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Null while the day runs: not sent yet, or opened again by a new load (D-134).
+    ended_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    # Not sent yet: null.
+    closing = DayClosingStateSerializer(read_only=True, allow_null=True)
 
 
 class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
@@ -88,10 +115,61 @@ class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
         return f"{driver.first_name} {driver.last_name}".strip() or driver.username
 
 
+class ChangedFigureSerializer(serializers.Serializer[Any]):
+    """One figure of a day that the records, read now, no longer give as the driver sent it (D-134)."""
+
+    # Which figure: one of the day (`sales_total`...) or of a product (`sold`...).
+    figure = serializers.ChoiceField(choices=[(name, name) for name in selectors.CHANGED_FIGURES], read_only=True)
+    # Empty for a figure of the whole day.
+    product_name = serializers.CharField(read_only=True)
+    # DT, kg, or a number of sales for `sales_count`.
+    sent = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    live = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+def _person(user: Any) -> str:
+    if user is None:
+        return ""
+    return f"{user.first_name} {user.last_name}".strip() or user.username
+
+
+class DayReopeningSerializer(serializers.ModelSerializer[DayReopening]):
+    """A send that a new load undid (D-134), as it was: its cash was handed to the office."""
+
+    status = serializers.ChoiceField(choices=DayClosingStatus.choices, read_only=True)
+    reviewed_by_name = serializers.SerializerMethodField()
+    reopened_at = serializers.DateTimeField(source="created_at", read_only=True)
+    load_number = serializers.CharField(source="load.number", read_only=True)
+
+    class Meta:
+        model = DayReopening
+        fields = (
+            "status",
+            "expected_cash",
+            "counted_cash",
+            "difference",
+            "driver_note",
+            "submitted_at",
+            "reviewed_by_name",
+            "reviewed_at",
+            "reopened_at",
+            "load_number",
+        )
+        read_only_fields = fields
+
+    def get_reviewed_by_name(self, reopening: DayReopening) -> str:
+        return _person(reopening.reviewed_by)
+
+
 class DayClosingDetailSerializer(DayClosingRowSerializer):
     summary = DaySummarySerializer(read_only=True)
     reviewed_by_name = serializers.SerializerMethodField()
-    # The driver worked after sending: the office waits for the day sent again (D-132).
+    # The earlier sends of this day that a new load undid, oldest first.
+    reopenings = DayReopeningSerializer(many=True, read_only=True)
+    # Where the day's records now differ from `summary`, the figures as sent (a sale received after the send,
+    # D-134). Empty when nothing changed, and once approved.
+    changes_since_sent = serializers.SerializerMethodField()
+    # Any such difference: the office waits for the day sent again (D-132).
     changed_since_sent = serializers.SerializerMethodField()
 
     class Meta(DayClosingRowSerializer.Meta):
@@ -103,22 +181,29 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
             "reviewed_at",
             "reviewed_by_name",
             "summary",
+            "reopenings",
+            "changes_since_sent",
             "changed_since_sent",
         )
         read_only_fields = fields
+
+    @extend_schema_field(ChangedFigureSerializer(many=True))
+    def get_changes_since_sent(self, closing: DayClosing) -> Any:
+        return ChangedFigureSerializer(selectors.changes_since_sent(closing), many=True).data
 
     def get_changed_since_sent(self, closing: DayClosing) -> bool:
         return selectors.changed_since_sent(closing)
 
     def get_reviewed_by_name(self, closing: DayClosing) -> str:
-        user = closing.reviewed_by
-        if user is None:
-            return ""
-        return f"{user.first_name} {user.last_name}".strip() or user.username
+        return _person(closing.reviewed_by)
 
 
 class DayClosingFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=DayClosingStatus.choices, required=False)
+    # Matches the driver's name or login, or the truck.
+    search = serializers.CharField(required=False, allow_blank=True, default="")
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
 
 
 class JustificationSerializer(serializers.Serializer[Any]):

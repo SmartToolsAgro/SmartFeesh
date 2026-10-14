@@ -1,5 +1,9 @@
 import {
+  type ChangedFigure,
   type DayClosingRow,
+  type DayProduct,
+  type DayReopening,
+  type DaySummary,
   useApproveDayClosing,
   useGetDayClosing,
   useListDayClosings,
@@ -8,7 +12,7 @@ import {
   useRequestDayJustification,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
+import { formatDate, formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -31,8 +35,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
 
-const STATUSES = ["submitted", "justification", "approved"] as const;
-const TONES = { submitted: "warn", justification: "bad", approved: "good" } as const;
+import { useDebounced } from "../lib/useDebounced";
+
+const STATUSES = ["submitted", "justification", "reopened", "approved"] as const;
+const TONES = { submitted: "warn", justification: "bad", reopened: "sea", approved: "good" } as const;
 
 function signed(value: string): string {
   return `${Number(value) > 0 ? "+" : ""}${formatMoney(value)}`;
@@ -44,6 +50,119 @@ function Line({ label, value }: { label: string; value: string }) {
       <span className="text-ink-2">{label}</span>
       <span className="num font-semibold">{value}</span>
     </p>
+  );
+}
+
+/** The opening stock and the gap of a product (D-130): a day sent before they existed has neither. */
+function stockOf(product: DayProduct): { opening?: string; unexplained?: string } {
+  const kept: Partial<Pick<DayProduct, "opening" | "unexplained">> = product;
+  return { opening: kept.opening, unexplained: kept.unexplained };
+}
+
+const PRODUCT_FIGURES: ReadonlySet<ChangedFigure["figure"]> = new Set([
+  "opening",
+  "loaded",
+  "sold",
+  "lost",
+  "returned",
+  "remaining",
+]);
+
+function changedValue(change: ChangedFigure, value: string): string {
+  if (change.figure === "sales_count") return String(Number(value));
+  return PRODUCT_FIGURES.has(change.figure) ? formatQuantity(value) : formatMoney(value);
+}
+
+/** The cash counted at the sends a new load undid: it is with the office (D-134). A day sent before the figure
+ * existed has none in its kept figures. */
+function handedOverOf(summary: DaySummary): string | null {
+  const kept: Partial<Pick<DaySummary, "handed_over">> = summary;
+  return kept.handed_over !== undefined && Number(kept.handed_over) !== 0 ? kept.handed_over : null;
+}
+
+/** A day a new load opened again (D-134): the driver sells and will send it again, so the figures shown are
+ * those of the send the load undid. Below, every send undone that day, as it was: its cash is with the office. */
+function Reopenings({ reopened, sends }: { reopened: boolean; sends: readonly DayReopening[] }) {
+  const { t } = useTranslation();
+  if (!reopened && sends.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {reopened && (
+        <div role="status" className="flex flex-col gap-1 rounded-control bg-sea-soft px-3 py-2">
+          <p className="font-semibold text-sea">{t("admin.dayClosings.reopened.title")}</p>
+          <p className="text-[0.88rem]">{t("admin.dayClosings.reopened.body")}</p>
+        </div>
+      )}
+      {sends.length > 0 && (
+        <>
+          <p className="font-semibold">{t("admin.dayClosings.reopened.earlier")}</p>
+          <Table>
+            <thead>
+              <tr>
+                <Th>{t("admin.dayClosings.reopened.sentAt")}</Th>
+                <Th>{t("admin.dayClosings.reopened.was")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.expected")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.counted")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.difference")}</Th>
+                <Th>{t("admin.dayClosings.reopened.load")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {sends.map((send) => (
+                <tr key={send.reopened_at}>
+                  <Td>{formatDateTime(send.submitted_at)}</Td>
+                  <Td>
+                    {send.status === "approved" && send.reviewed_by_name !== ""
+                      ? t("admin.dayClosings.reopened.approvedBy", { name: send.reviewed_by_name })
+                      : t(`admin.dayClosings.statuses.${send.status}`)}
+                  </Td>
+                  <Td className="num text-end">{formatMoney(send.expected_cash)}</Td>
+                  <Td className="num text-end font-semibold">{formatMoney(send.counted_cash)}</Td>
+                  <Td className="num text-end">{signed(send.difference)}</Td>
+                  <Td>
+                    {send.load_number} · {formatDateTime(send.reopened_at)}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** What the records say now against what the driver sent (D-132, D-134): a sale received after the send, or a
+ * correction by the office. The office cannot approve until the driver sends the day again. */
+function ChangesSinceSent({ changes }: { changes: readonly ChangedFigure[] }) {
+  const { t } = useTranslation();
+  if (changes.length === 0) return null;
+  return (
+    <div role="status" className="flex flex-col gap-2 rounded-control bg-warn-soft px-3 py-2">
+      <p className="font-semibold text-warn">{t("admin.dayClosings.changed.title")}</p>
+      <p className="text-[0.88rem]">{t("admin.dayClosings.changed.body")}</p>
+      <Table>
+        <thead>
+          <tr>
+            <Th>{t("admin.dayClosings.changed.figure")}</Th>
+            <Th className="text-end">{t("admin.dayClosings.changed.sent")}</Th>
+            <Th className="text-end">{t("admin.dayClosings.changed.live")}</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {changes.map((change) => (
+            <tr key={`${change.figure}-${change.product_name}`}>
+              <Td>
+                {t(`admin.dayClosings.changed.figures.${change.figure}`)}
+                {change.product_name === "" ? "" : ` · ${change.product_name}`}
+              </Td>
+              <Td className="num text-end">{changedValue(change, change.sent)}</Td>
+              <Td className="num text-end font-semibold">{changedValue(change, change.live)}</Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
   );
 }
 
@@ -77,12 +196,14 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
     },
   });
   const data = closing.data;
+  const handedOver = data ? handedOverOf(data.summary) : null;
   return (
     <DialogContent>
       <DialogTitle>{data ? `${data.truck_name} · ${formatDate(data.date)}` : t("common.loading")}</DialogTitle>
       <DialogDescription>{data?.driver_name ?? ""}</DialogDescription>
       {data && (
         <div className="flex flex-col gap-4">
+          <Reopenings reopened={data.status === "reopened"} sends={data.reopenings} />
           <div className="space-y-1">
             <Line
               label={t("admin.dayClosings.sales", { count: data.summary.sales_count })}
@@ -94,32 +215,44 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             <Line label={t("admin.dayClosings.credit")} value={formatMoney(data.summary.on_credit)} />
             <Line label={t("admin.dayClosings.expenses")} value={formatMoney(data.summary.expenses_total)} />
             <Line label={t("admin.dayClosings.opening")} value={formatMoney(data.summary.opening_cash)} />
+            {handedOver !== null && <Line label={t("admin.dayClosings.handedOver")} value={formatMoney(handedOver)} />}
             <Line label={t("admin.dayClosings.expected")} value={formatMoney(data.expected_cash)} />
             <Line label={t("admin.dayClosings.counted")} value={formatMoney(data.counted_cash)} />
             <Line label={t("admin.dayClosings.difference")} value={signed(data.difference)} />
           </div>
+          <ChangesSinceSent changes={data.changes_since_sent} />
           <Table>
             <thead>
               <tr>
                 <Th>{t("admin.dayClosings.product")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.stockOpening")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.loaded")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.sold")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.lost")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.returned")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.left")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.unexplained")}</Th>
               </tr>
             </thead>
             <tbody>
-              {data.summary.products.map((product) => (
-                <tr key={product.product_id}>
-                  <Td>{product.product_name}</Td>
-                  <Td className="num text-end">{formatQuantity(product.loaded)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.sold)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.lost)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.returned)}</Td>
-                  <Td className="num text-end">{formatQuantity(product.remaining)}</Td>
-                </tr>
-              ))}
+              {data.summary.products.map((product) => {
+                // The truck's stock when the day started and the gap the records do not explain (D-130), as sent.
+                const { opening, unexplained } = stockOf(product);
+                return (
+                  <tr key={product.product_id}>
+                    <Td>{product.product_name}</Td>
+                    <Td className="num text-end">{opening === undefined ? "" : formatQuantity(opening)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.loaded)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.sold)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.lost)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.returned)}</Td>
+                    <Td className="num text-end">{formatQuantity(product.remaining)}</Td>
+                    <Td className={cn("num text-end", Number(unexplained ?? 0) !== 0 && "font-semibold text-bad")}>
+                      {unexplained === undefined ? "" : formatQuantity(unexplained)}
+                    </Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Table>
           {data.driver_note !== "" && (
@@ -134,7 +267,6 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
               {data.review_note}
             </p>
           )}
-          {data.changed_since_sent && <p className="font-semibold text-warn">{t("admin.dayClosings.changed")}</p>}
           {canDecide && data.status === "submitted" && asking && (
             <Input
               aria-label={t("admin.dayClosings.reason")}
@@ -226,14 +358,24 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
   );
 }
 
-/** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06). */
+/** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06), and their history (D-134). */
 export function DayClosingsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const canDecide = session.role === "owner" || session.role === "manager";
   const [status, setStatus] = useState<(typeof STATUSES)[number] | "">("submitted");
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [open, setOpen] = useState<number | null>(null);
-  const closings = useListDayClosings(status ? { status } : {});
+  const query = useDebounced(search.trim());
+  // "Toutes" with a driver and dates is the history of the drivers' days (D-134).
+  const closings = useListDayClosings({
+    ...(status ? { status } : {}),
+    ...(query ? { search: query } : {}),
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  });
   const list: readonly DayClosingRow[] = closings.data ?? [];
 
   const statusButton = (value: (typeof STATUSES)[number] | "", label: string) => (
@@ -264,6 +406,28 @@ export function DayClosingsPage() {
           {STATUSES.map((value) => statusButton(value, t(`admin.dayClosings.statuses.${value}`)))}
           {statusButton("", t("admin.dayClosings.all"))}
         </div>
+        <Input
+          type="search"
+          aria-label={t("admin.dayClosings.search")}
+          placeholder={t("admin.dayClosings.search")}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className="min-w-52 flex-[2_1_14rem]"
+        />
+        <Input
+          type="date"
+          aria-label={t("admin.dayClosings.dateFrom")}
+          value={dateFrom}
+          onChange={(event) => setDateFrom(event.target.value)}
+          className="w-40"
+        />
+        <Input
+          type="date"
+          aria-label={t("admin.dayClosings.dateTo")}
+          value={dateTo}
+          onChange={(event) => setDateTo(event.target.value)}
+          className="w-40"
+        />
       </Card>
       {closings.isPending ? (
         <p className="text-ink-2">{t("common.loading")}</p>

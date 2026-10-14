@@ -15,12 +15,14 @@ from apps.core import audit
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
 from apps.fleet import selectors as fleet
+from apps.fleet import services as fleet_services
 
 from . import selectors
-from .models import DayClosing, DayClosingStatus, SyncProblem
+from .models import DayClosing, DayClosingStatus, DayReopening, SyncProblem
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
+    from apps.inventory.models import Transfer
 
 
 def _plain(value: Any) -> Any:
@@ -31,8 +33,9 @@ def _plain(value: Any) -> Any:
 @transaction.atomic
 def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Number, note: str = "") -> DayClosing:
     """The driver sends the end of their day with the cash they counted. Allowed once, and again after the office
-    asked for a justification, or when the driver worked after sending (a new load, more sales: the sent figures
-    are out of date). An approved day never changes."""
+    asked for a justification, after a new load reopened the day (D-134), or when the day's records no longer
+    say what was sent (D-132). An approved day does not change. The figures are kept as they are at this moment
+    (`DayClosing.summary`); nothing recorded later rewrites them."""
     try:
         counted = checked_amount(counted_cash)
     except (ValueError, TypeError):
@@ -47,6 +50,12 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Nu
         raise ValidationError({"counted_cash": _("Cette journée est déjà envoyée.")})
     if existing is not None and existing.status == DayClosingStatus.APPROVED:
         raise ValidationError({"counted_cash": _("Cette journée est approuvée : elle ne change plus.")})
+    now = timezone.now()
+    # Sending ends the day (D-134): nothing made from now on is taken. Sent again while it is still closed (a
+    # justification, changed records), the day keeps its end, so the figures are those of the same window: a
+    # sale made in it and received since is now in them, and the stock left is what the ledger held when the
+    # day ended. A day a new load reopened ends now.
+    driver_day = fleet_services.end_driver_day(driver_day=driver_day, ended_at=now)
     summary = selectors.day_summary(driver_day.organization, driver_day)
     expected: Decimal = summary["expected_cash"]
     fields: dict[str, Any] = {
@@ -56,7 +65,7 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Nu
         "difference": counted - expected,
         "driver_note": note.strip(),
         "summary": _plain(summary),
-        "submitted_at": timezone.now(),
+        "submitted_at": now,
     }
     if existing is None:
         closing = DayClosing.objects.create(organization=driver_day.organization, driver_day=driver_day, **fields)
@@ -85,11 +94,12 @@ def _reviewable(closing: DayClosing) -> DayClosing:
 
 @transaction.atomic
 def approve_day_closing(*, closing: DayClosing, actor: User) -> DayClosing:
-    """The office checked the day: it is locked."""
+    """The office checked the day: it is locked. Refused while the day's records no longer say what the driver
+    sent (D-132): the driver sends it again first."""
     closing = _reviewable(closing)
     if selectors.changed_since_sent(closing):
         raise ValidationError(
-            _("Le chauffeur a travaillé après l'envoi : il doit renvoyer sa journée avant qu'elle soit approuvée.")
+            _("Les chiffres ont changé depuis l'envoi : le chauffeur doit renvoyer sa journée avant l'approbation.")
         )
     closing.status = DayClosingStatus.APPROVED
     closing.reviewed_by = actor
@@ -119,6 +129,64 @@ def request_justification(*, closing: DayClosing, actor: User, reason: str) -> D
         after={"reason": closing.review_note},
     )
     return closing
+
+
+@transaction.atomic
+def reopen_days_after_load(*, load: "Transfer", actor: User | None) -> list[DayClosing]:
+    """A load validated into a truck opens again the day its driver had sent that date (D-134): the driver sells
+    what was loaded, then sends the day again. The send it undoes is kept as it was in a `DayReopening`, and the
+    cash counted then stays with the office. An approved day opens again too: the one case where an approved
+    closing changes, with the approval kept on that record. A load dated another day changes nothing, as does
+    one into a truck whose driver's day runs or was never started."""
+    if load.transferred_on != timezone.localdate():
+        return []
+    reopened = []
+    days = fleet.closed_days_on_truck(load.organization, location_id=load.to_location_id, on=load.transferred_on)
+    for day in days:
+        driver_day = fleet.locked_driver_day(day)
+        if driver_day.ended_at is None:
+            continue
+        fleet_services.reopen_driver_day(driver_day=driver_day)
+        closing = DayClosing.objects.select_for_update().filter(driver_day=driver_day).first()
+        if closing is None:
+            continue
+        undone = DayReopening.objects.create(
+            organization=closing.organization,
+            closing=closing,
+            status=closing.status,
+            expected_cash=closing.expected_cash,
+            counted_cash=closing.counted_cash,
+            difference=closing.difference,
+            driver_note=closing.driver_note,
+            summary=closing.summary,
+            submitted_at=closing.submitted_at,
+            reviewed_by=closing.reviewed_by,
+            reviewed_at=closing.reviewed_at,
+            review_note=closing.review_note,
+            load=load,
+            reopened_by=actor,
+        )
+        closing.status = DayClosingStatus.REOPENED
+        # The review was of the send that is undone; the office's question stays for the driver to read.
+        closing.reviewed_by = None
+        closing.reviewed_at = None
+        closing.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+        audit.record(
+            organization=closing.organization,
+            actor=actor,
+            action="day_closing.reopened",
+            target=closing,
+            before={
+                "status": undone.status,
+                "expected": str(undone.expected_cash),
+                "counted": str(undone.counted_cash),
+                "difference": str(undone.difference),
+                "reviewed_by": undone.reviewed_by.username if undone.reviewed_by else None,
+            },
+            after={"load": load.number},
+        )
+        reopened.append(closing)
+    return reopened
 
 
 @transaction.atomic

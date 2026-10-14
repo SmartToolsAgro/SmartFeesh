@@ -53,13 +53,19 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
 
 
 class DriverDay(OrganizationScopedModel, TimeStampedModel):
-    """A driver's working day on a truck, opened from the phone with the cash float in hand (P3-T01)."""
+    """A driver's working day on a truck, opened from the phone with the cash float in hand (P3-T01).
+
+    One per driver and date. Sending the closing ends it (D-134): it covers its date up to that moment
+    (`selectors.day_window`) and takes nothing made after it, until a load validated that date opens it again.
+    """
 
     truck = models.ForeignKey(Truck, on_delete=models.PROTECT, related_name="driver_days")
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="driver_days")
     date = models.DateField()
     # Cash the driver starts the day with (millimes).
     opening_cash = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    # When the driver sent the closing; null while the day is running, and again once a new load reopened it.
+    ended_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-date", "id"]

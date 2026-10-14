@@ -26,14 +26,20 @@ _Last updated: 2026-10-14_
 ## Next step (do this first)
 
 1. **Owner decisions still open:**
-   - Boxes, opening balance: boxes already at clients, in cold rooms or owed to suppliers. Needs a design first
-     (a movement kind with one side outside the ledger; the sign for suppliers). Not built.
+   - Boxes, opening balance: **the company's own boxes are done (D-135):** 50 small and 50 big, posted by `seed_dev`
+     as an opening stock ("Stock initial") into "Chambre froide 1 (frais)". The cold room is an assumption: ask the
+     owner where they are. Still open, not built: boxes already at clients or owed to suppliers (the sign for
+     suppliers), and a screen or command to type an opening stock on a real database.
    - Product codes on staging (D-126): **done 2026-10-13.** 2 codes written (crevette royale, Calamar) and 36
      products created from the owner's list, with no price, in the category "À classer". The owner sets their
      prices on the price board and sorts them into categories.
-   - Driver day after the closing: the owner chose "sending the closing ends the day; a later sale needs a new day"
-     (branch `driver-day-history`, PR #114, being brought onto main: it must carry D-129, D-130 and D-133). The
-     other answer, "resend the same day" (`claude/bold-gates-b8j6yz`), is dropped: do not merge it.
+   - Driver day after the closing: **decided 2026-10-14, built on `driver-day-history` (PR #114, D-134).** Sending
+     the closing closes the day; a load validated that date opens the same day again, also an approved one; the
+     cash counted before is "already handed over". No second day on a date. #118 (D-132, "send the same day
+     again") was merged to `main` on 2026-10-13 and is folded into #114. **To do: merge #114 once CI is green,**
+     then check on staging with a real phone (send, load again, sell, send again; the same on an approved day).
+   - Still to ask the owner (D-134 assumes it): does the driver always give the office exactly the cash counted at
+     the first send? And should the load screen warn before it reopens an approved day?
    - Staging check: no owner check yet of the closing fixes (D-129, D-130, D-133) on a real phone.
    - Uncommitted work in the shared checkout: resolved 2026-10-13. Its code was already on main, its one
      unfinished piece (Q21 confirmed) is merged (#111), and the checkout is back on `main`.
@@ -91,19 +97,30 @@ _Last updated: 2026-10-14_
   missing from `main`: do not merge it.
 - CI runs on `ubuntu-24.04`, pinned (#115): `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19. Move on purpose.
 
-## Last session (2026-10-13)
+## Last sessions (2026-10-13 and 2026-10-14)
 
 Team-lead session. Merged to `main`: #92 (lot picker), #96 (sidebar), #97 and #98 (box steps 2 and 3), #99 (invoice
 PDF, D-125), #100 (box step 4), #101 (box docs, D-124), #102 (Arabic box texts, provisional), #103 (Frais and product
 codes, D-126), #105 (month-cost changes, D-128), #106 (boxes entered on a receipt and a load, D-127), #107 (box
 follow-up, decisions 2 to 4), #108 (closing after a sale, D-129), #110 (opening stock and gap, D-130), #111 (Q21),
 #112 (document header and footer, D-131), #113 (sale dated when made, D-133), #115 (CI image pinned), #116 (create
-the missing articles). Open: #114 (driver day history, not ready). Every merge deployed to staging.
+the missing articles), #118 (D-132). Every merge deployed to staging.
+
+**2026-10-14, PR #114 reworked on the owner's new rule (D-134):** `main` merged in (with D-132), the numbered
+second day removed (`DriverDay.number`, the driver's "Commencer une nouvelle journée"), a load of the date reopens
+the sent day (`inventory.services.load_validated` → `dayclose.services.reopen_days_after_load`), the undone sends
+kept in `DayReopening` with the cash handed over, the history kept. Open: #114, ready to merge on green CI. The
+browser tests (`make e2e`) were not run locally.
 
 ## Recently done
 
 - 2026-10-14 · Admin sale form and counter sale warn at once when the typed price is under the product's minimum
   (D-049 follow-up; warning only).
+- 2026-10-14 · D-134 sending the closing closes the driver's day; a load of that date reopens it, also when
+  approved; the next count is less the cash already handed over; the driver's history of days (#114).
+
+- 2026-10-13 · D-135 the company's 50 small and 50 big boxes are in the ledger as an opening stock (new movement
+  kind `opening`, into a location, no supplier owed); `seed_dev` posts them once into "Chambre froide 1 (frais)".
 - 2026-10-13 · D-132 a driver day worked on after it was sent (a new load, more sales) can be sent again; the office
   cannot approve it until then (staging report).
 - 2026-10-13 · D-126 follow-up: `set_product_codes --create-missing` creates the articles of the owner's list that

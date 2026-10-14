@@ -98,6 +98,8 @@ never its models' internals or private helpers. `core` depends on nothing.
    of the agreement terms they used. Later edits never change history.
 5. **Immutability.** Issued invoices, posted movements, approved expenses and approved closings cannot be
    edited. Corrections are new documents (credit note, adjustment movement, reopened closing with reason).
+   A driver's day closing is reopened by a new load of that date, also once approved: the send it undoes is
+   kept as a record (`DayReopening`, D-134).
 6. **Tenancy.** Every business model has `organization = ForeignKey(Organization)` (shared reference
    tables such as units excepted, D-029). Querysets are scoped by
    a base manager / mixin. One organization exists today.

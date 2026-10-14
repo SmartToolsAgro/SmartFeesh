@@ -23,6 +23,8 @@ class BoxType(models.TextChoices):
 
 
 class BoxMovementKind(models.TextChoices):
+    # Boxes the company already owned when the ledger started: they enter a location from outside it (D-135).
+    OPENING = "opening", _("Stock initial")
     RECEIVE = "receive", _("Réception fournisseur")
     LOAD = "load", _("Chargement camion")
     LEAVE = "leave", _("Départ chez client")
@@ -118,7 +120,8 @@ class BoxMovementQuerySet(OrganizationScopedQuerySet["BoxMovement"]):
 
 
 class BoxMovement(OrganizationScopedModel):
-    """`count` boxes of one type moving from one holder to another (or out of the ledger on a write-off).
+    """`count` boxes of one type moving from one holder to another (or out of the ledger on a write-off, or
+    into it on an opening stock).
 
     Always positive; the holders give the direction. Append-only: a mistake is corrected by a new movement.
     Written only by `services.post_box_movement`.

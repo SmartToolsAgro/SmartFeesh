@@ -243,9 +243,13 @@ class SaleView(OfficeView):
         data = SaleDetailSerializer(self.sale(sale_id), context={"show_costs": not self.is_driver}).data
         return Response(data, status=status_code)
 
-    def check_location(self, location_id: int, on: dt.date | None = None) -> None:
-        """A driver sells only from the truck of their day (D-042, D-046), on a day the office has not approved
-        (D-094): today, or `on` for a sale made on an earlier day and sent later (D-133)."""
+    def check_location(
+        self, location_id: int, on: dt.date | None = None, *, made_at: dt.datetime | None = None
+    ) -> None:
+        """A driver sells only from the truck of their day (D-042, D-046): today, or `on` for a sale made on an
+        earlier day and sent later (D-133). And only on a day that takes the sale (D-134): the driver's day
+        that covers the moment the sale was made (`made_at`, now by default) must not have been sent before
+        that moment, nor be approved by the office (D-094)."""
         if not fleet.may_use_location(self.membership, location_id, on):
             if on is None or on == timezone.localdate():
                 raise PermissionDenied(_("Un chauffeur ne vend que depuis son camion du jour."))
@@ -253,7 +257,7 @@ class SaleView(OfficeView):
                 _("Ce camion n'était pas le vôtre le %(day)s : la vente n'est pas enregistrée.")
                 % {"day": on.strftime("%d/%m/%Y")}
             )
-        dayclose.refuse_if_day_approved(self.membership, on)
+        dayclose.refuse_sale_outside_day(self.membership, made_at)
 
     def sale_fields(self, data: dict[str, Any], *, new: bool = False) -> dict[str, Any]:
         """The ids of a sale replaced by the rows they name in the organization; unknown ids are field errors.
@@ -268,7 +272,7 @@ class SaleView(OfficeView):
             # changed, the moment stays the server's.
             sold_at = services.moment_from_phone(sold_at) if new else None
             made_on = timezone.localtime(sold_at).date() if sold_at is not None else None
-        self.check_location(data["location"], made_on)
+        self.check_location(data["location"], made_on, made_at=sold_at if self.is_driver else None)
         fields: dict[str, Any] = {
             "customer": None,
             "notes": data["notes"],

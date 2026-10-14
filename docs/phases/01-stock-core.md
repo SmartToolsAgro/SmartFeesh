@@ -157,3 +157,7 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
 - [ ] Open, owner decision 3: box actions (sales with boxes, pickups) in the driver offline queue, idempotent retries.
 - [ ] Open, owner decision 4: truck-to-cold-room "return" movement, posted with the transfer.
 - [ ] Open: Arabic box texts; browser check of the driver screens.
+- [x] Opening stock of the company's own boxes: movement kind `opening` into a location, and the owner's 50 small
+      and 50 big boxes in `seed_dev` (D-135).
+- [ ] Open: opening balance for boxes already at a client or owed to a supplier; a screen or command to type an
+      opening stock on a real database (D-135).
