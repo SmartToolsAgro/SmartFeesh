@@ -612,6 +612,8 @@ Builds D-042 before Phase 3's `DriverDay` exists.
 - **Minimum price** per product (`Product.min_price`, optional, set from the board). A price below it is
   accepted and returned in `below_minimum` (screen warning); the audit logs `product.price_below_minimum`.
   Changing the minimum is audited too (`product.min_price_set`).
+  The admin sale form and the counter sale also show a red alert as the price is typed (2026-10-14): still
+  a warning, never a block.
 - **Price lists** (`PriceList` + `PriceListItem`): a name, optionally one customer (one list per customer,
   customer checked through `partners.selectors`), an active flag and items (product, price) replaced as a
   whole on update; audited. API `price-lists` (members read, owner/manager write). No admin screen yet.
@@ -1923,6 +1925,18 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   - The office list does not flag the days whose figures changed; the dialog does (it reads the day's records).
   - The monthly closing's "driver days closed" check still does not list days left running (D-074).
   - A driver still cannot close a day that is over (the closing endpoints are today's only).
+
+**D-137 · Pickers hide archived records; a lot picker shows its place, lot and supplier in colour (Mahmoud's request)** · accepted · 2026-10-14
+- A dropdown lists only active places, products, trucks, categories and suppliers. An archived one stays in the list
+  only when it is the current value of that field (a saved record or a link still points at it), so the field
+  never shows blank. The manage dialogs (expense categories) still list archived ones, to restore them.
+- The lot picker (counter sale, D-121) is the only dropdown that lists a product's lots, so it carries the colours:
+  place in green (`text-good`), lot number in yellow (`text-lot`), supplier in grey (`text-ink-2`), or in gold
+  (`text-gold`) with the word "partenaire" when the supplier is a partner (D-060). The word keeps the mark readable
+  without colour.
+- New tokens `--lot` and `--gold` in `packages/ui/src/styles.css`, for light and both dark themes (`--warn` is too
+  close to a yellow to tell apart from the gold).
+- Other product dropdowns list catalogue products, with no place or lot, so they keep the plain name. Frontend only.
 
 **D-136 · The expenses list opens on this month (Mahmoud's request)** · accepted · 2026-10-14
 - Numbers D-134 and D-135 are taken by work not yet on `main` (`driver-day-history`, `box-opening-stock`).

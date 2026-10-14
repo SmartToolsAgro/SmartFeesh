@@ -262,11 +262,13 @@ export function ExpensesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>{t("admin.expenses.allCategories")}</SelectItem>
-            {(categories.data ?? []).map((one) => (
-              <SelectItem key={one.id} value={String(one.id)}>
-                {one.name}
-              </SelectItem>
-            ))}
+            {(categories.data ?? [])
+              .filter((one) => one.is_active || String(one.id) === category)
+              .map((one) => (
+                <SelectItem key={one.id} value={String(one.id)}>
+                  {one.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
         <div

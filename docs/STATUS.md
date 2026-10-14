@@ -114,6 +114,11 @@ browser tests (`make e2e`) were not run locally.
 
 ## Recently done
 
+- 2026-10-14 · D-137 pickers hide archived places, products, trucks, categories and suppliers (unless the current
+  value); the counter-sale lot picker shows place (green), lot (yellow), supplier (grey, gold + "partenaire" for a
+  partner). Frontend only, on branch `worktree-dropdown-archived-lot-colors`.
+- 2026-10-14 · Admin sale form and counter sale warn at once when the typed price is under the product's minimum
+  (D-049 follow-up; warning only).
 - 2026-10-14 · D-136 "Dépenses" opens on this month, with ‹ › to the months before and a "Période" switch that
   keeps the two free dates (Mahmoud's request). Frontend only.
 - 2026-10-14 · D-134 sending the closing closes the driver's day; a load of that date reopens it, also when

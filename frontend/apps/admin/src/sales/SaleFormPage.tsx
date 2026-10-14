@@ -35,6 +35,7 @@ import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { subtract, sum } from "../lib/decimal";
+import { isBelowMinimum, lineTotal, percentOf, subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import {
   amountsOf,
@@ -128,6 +129,11 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
+    return byProduct;
+  }, [products.data]);
+  const minimumOf = useMemo(() => {
+    const byProduct = new Map<string, string | null>();
+    for (const product of products.data ?? []) byProduct.set(String(product.id), product.min_price);
     return byProduct;
   }, [products.data]);
   // The customer's own price list wins over the daily price, as on the server (D-049).
@@ -329,6 +335,95 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             discount
             hint={priceHint}
           />
+          {lines.map((line, index) => {
+            const available = line.product ? availableOf.get(line.product) : undefined;
+            const fromList = line.product ? listPrice.get(line.product) : undefined;
+            const inForce = line.product ? dailyPrice.get(line.product) : undefined;
+            const hints = [
+              line.product
+                ? fromList && customerList
+                  ? t("admin.sales.form.listPrice", { list: customerList.name, price: formatMoney(fromList) })
+                  : inForce
+                    ? t("admin.sales.form.priceInForce", { price: formatMoney(inForce) })
+                    : t("admin.sales.form.noPrice")
+                : null,
+              line.product && place && stock.data
+                ? available
+                  ? t("admin.sales.form.available", { location: place.name, quantity: formatQuantity(available) })
+                  : t("admin.sales.form.notAvailable", { location: place.name })
+                : null,
+            ].filter(Boolean);
+            const preview = previews[index];
+            const input = (field: "quantity" | "unit_price" | "discount_rate", label: string) => (
+              <Field label={label} htmlFor={id(lineKey(index, field))} error={errors[lineKey(index, field)]}>
+                <Input
+                  id={id(lineKey(index, field))}
+                  inputMode="decimal"
+                  value={field === "unit_price" ? priceOf(line) : line[field]}
+                  onChange={(event) =>
+                    setLine(
+                      line.key,
+                      field === "unit_price"
+                        ? { unit_price: event.target.value, priceTouched: true }
+                        : { [field]: event.target.value },
+                    )
+                  }
+                  aria-invalid={errors[lineKey(index, field)] ? true : undefined}
+                  autoComplete="off"
+                  className="num"
+                />
+              </Field>
+            );
+            return (
+              <div
+                key={line.key}
+                role="group"
+                aria-label={t("admin.sales.form.lineNumber", { number: index + 1 })}
+                className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] items-start gap-3 rounded-card border border-line p-3 max-[900px]:grid-cols-3"
+              >
+                {select(
+                  lineKey(index, "product"),
+                  t("admin.sales.form.product"),
+                  line.product,
+                  (value) => setLine(line.key, { product: value, priceTouched: false, unit_price: "" }),
+                  (products.data ?? []).map((product) => ({
+                    value: String(product.id),
+                    label: `${product.name} · ${product.reference}`,
+                  })),
+                  "max-[900px]:col-span-3",
+                )}
+                {input("quantity", t("admin.sales.form.quantity"))}
+                {input("unit_price", t("admin.sales.form.price"))}
+                {input("discount_rate", t("admin.sales.form.discount"))}
+                <div className="flex items-end self-stretch max-[900px]:col-span-3 max-[900px]:justify-end">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={t("admin.sales.form.removeLine")}
+                    title={t("admin.sales.form.removeLine")}
+                    onClick={() => setLines((current) => current.filter((other) => other.key !== line.key))}
+                  >
+                    <Icon name="trash" />
+                  </Button>
+                </div>
+                <p className="col-span-4 text-[0.85rem] text-ink-2 max-[900px]:col-span-2" aria-live="polite">
+                  {hints.join(" · ")}
+                </p>
+                {line.product &&
+                  isBelowMinimum(parseDecimalInput(priceOf(line).trim(), 3), minimumOf.get(line.product) ?? null) && (
+                    <p
+                      role="alert"
+                      className="col-span-5 rounded-chip bg-bad-soft px-3 py-2 text-[0.85rem] font-semibold text-bad max-[900px]:col-span-3"
+                    >
+                      {t("admin.sales.form.belowMinimum", {
+                        minimum: formatMoney(minimumOf.get(line.product) ?? "0"),
+                      })}
+                    </p>
+                  )}
+                <p className="num text-end font-semibold">{preview ? formatMoney(preview.amount) : ""}</p>
+              </div>
+            );
+          })}
           {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
           <div className="flex flex-wrap items-start gap-x-8 gap-y-2">
             <dl className="ms-auto flex flex-wrap gap-x-8 gap-y-2">
