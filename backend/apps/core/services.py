@@ -197,6 +197,17 @@ def create_member(
     return add_member(organization=organization, user=user, role=role, actor=actor)
 
 
+def _lock_owners(organization: Organization) -> None:
+    """Lock the organization's active owners, before the member changed: two owners removing each other at the
+    same moment would otherwise both see the other one still there and both pass the guard below (D-141)."""
+    list(
+        Membership.objects.select_for_update()
+        .filter(organization=organization, role=Role.OWNER, is_active=True)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
 def _guard_last_owner(*, organization: Organization, membership: Membership) -> None:
     if membership.role == Role.OWNER and selectors.active_owner_count(organization) <= 1:
         raise ValidationError({"detail": _("Impossible : ce serait le dernier propriétaire actif.")})
@@ -207,6 +218,7 @@ def set_member_role(
     *, organization: Organization, membership: Membership, actor: User | None, role: Role
 ) -> Membership:
     """Change a member's role. Refused when it would leave the organization without an active owner."""
+    _lock_owners(organization)
     membership = Membership.objects.select_for_update().get(pk=membership.pk, organization=organization)
     if role != Role.OWNER:
         _guard_last_owner(organization=organization, membership=membership)
@@ -229,6 +241,7 @@ def set_member_active(
     *, organization: Organization, membership: Membership, actor: User | None, is_active: bool
 ) -> Membership:
     """Deactivate (or reactivate) a member. Never a hard delete: other tables point to the user (D-123)."""
+    _lock_owners(organization)
     membership = Membership.objects.select_for_update().get(pk=membership.pk, organization=organization)
     if not is_active:
         _guard_last_owner(organization=organization, membership=membership)

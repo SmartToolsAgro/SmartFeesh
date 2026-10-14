@@ -40,6 +40,19 @@ class LoginUsernameThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": username.strip().lower()}
 
 
+class PasswordChangeThrottle(SimpleRateThrottle):
+    """Limits the old-password guesses of one account on "Mon profil" (D-141): a session left open on a shared
+    computer must not be a way to find the password by trying."""
+
+    scope = "password_change"
+
+    def get_cache_key(self, request: Request, view: "APIView") -> str | None:
+        user_id = getattr(request.user, "pk", None)
+        if user_id is None:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": user_id}
+
+
 class AdminLoginThrottle(LoginIPThrottle):
     """Limits password attempts on the Django admin's own login form, which has no throttle of its own (D-108)."""
 

@@ -157,7 +157,12 @@ REST_FRAMEWORK = {
     # Amounts travel as strings so no precision is lost (docs/ARCHITECTURE.md rule 1).
     "COERCE_DECIMAL_TO_STRING": True,
     # Login attempts, per address and per account (apps/core/authentication.py).
-    "DEFAULT_THROTTLE_RATES": {"login_ip": "30/min", "login_username": "8/min", "admin_login": "8/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login_ip": "30/min",
+        "login_username": "8/min",
+        "admin_login": "8/min",
+        "password_change": "8/min",
+    },
 }
 
 SPECTACULAR_SETTINGS = {

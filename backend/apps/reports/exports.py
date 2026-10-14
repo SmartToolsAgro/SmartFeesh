@@ -32,6 +32,12 @@ def workbook_bytes(
         sheet.append(list(totals))
         for cell in sheet[sheet.max_row]:
             cell.font = Font(bold=True)
+    # Names come from people (a driver's own display name, customers, suppliers, products): openpyxl would store a
+    # text starting with "=" as a formula, which Excel runs when the owner opens the file (D-141). Text stays text.
+    for line in sheet.iter_rows():
+        for cell in line:
+            if isinstance(cell.value, str) and cell.data_type == "f":
+                cell.data_type = "s"
     for column in sheet.iter_cols(min_row=1):
         width = max((len(str(cell.value)) for cell in column if cell.value is not None), default=8)
         sheet.column_dimensions[get_column_letter(column[0].column)].width = min(max(width + 2, 10), 40)

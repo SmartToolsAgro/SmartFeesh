@@ -117,6 +117,9 @@ D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in n
 
 ## Recently done
 
+- 2026-10-14 · P4-T05 security review (D-141): a driver can no longer take a truck another driver started the day
+  on; Excel exports keep names as text (no formulas); old-password guesses limited; import zip bombs refused; last
+  owner guard locked; undici override. Owner to decide how far back a late sale may be dated.
 - 2026-10-14 · D-138 "Nouveau document" on Documents opens the creation form in a window (no page change), with a
   guard: Escape or an outside click asks before a half-filled form is dropped. In PR #123 (`document-new-window`);
   unit tests, lint, tsc and the Documents e2e spec (4 tests) pass.
