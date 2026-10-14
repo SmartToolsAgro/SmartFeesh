@@ -150,13 +150,14 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
 - [x] Holders: locations, clients and suppliers. Movements: receive, load, leave, collect, return, write off. (#95, #97)
 - [x] Balances derived from the ledger, never negative (D-006). (#95)
 - [x] Admin "Caisses" page (balances and history). (#98)
-- [ ] Box section on the client page: not confirmed, check before ticking.
+- [x] Box section on the client page (`CustomerBoxesCard` on the customer page).
 - [x] Goods receipt and transfers carry an optional box count, default 0. (#97)
 - [x] Driver: sale with boxes (online), pickup visit (online), day view with loaded, left and collected counts. (#100)
-- [ ] Open, owner decision 2: the truck's "expected boxes" is the real ledger balance, not today only.
-- [ ] Open, owner decision 3: box actions (sales with boxes, pickups) in the driver offline queue, idempotent retries.
-- [ ] Open, owner decision 4: truck-to-cold-room "return" movement, posted with the transfer.
-- [ ] Open: Arabic box texts; browser check of the driver screens.
+- [x] Owner decision 2: the truck's "expected boxes" is the real ledger balance, not today only. (#107)
+- [x] Owner decision 3: box actions (sales with boxes, pickups) in the driver offline queue, idempotent retries. (#107)
+- [x] Owner decision 4: truck-to-cold-room "return" movement (`truck_return`), posted with the transfer. (#107)
+- [x] Arabic box texts (#102, provisional until a native speaker reviews them).
+- [ ] Browser check of the driver box screens on a real phone.
 - [x] Opening stock of the company's own boxes: movement kind `opening` into a location, and the owner's 50 small
       and 50 big boxes in `seed_dev` (D-135).
 - [ ] Open: opening balance for boxes already at a client or owed to a supplier; a screen or command to type an

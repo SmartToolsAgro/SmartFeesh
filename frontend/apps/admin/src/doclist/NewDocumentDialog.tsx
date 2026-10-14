@@ -14,7 +14,7 @@ import { SaleFormPage } from "../sales/SaleFormPage";
 export type NewDocumentKind = "quote" | "sale" | "counter" | "order" | "receipt" | "supplierInvoice";
 
 // The creation screens of each kind, shown as they are on their own page; they learn they are in a window
-// through `EmbeddedContext` (D-137).
+// through `EmbeddedContext` (D-138).
 const FORMS: Record<NewDocumentKind, ComponentType> = {
   quote: QuoteFormPage,
   sale: SaleFormPage,
@@ -28,7 +28,7 @@ const FORMS: Record<NewDocumentKind, ComponentType> = {
 const isPick = (target: EventTarget) => target instanceof Element && target.closest('[role="option"]') !== null;
 
 /**
- * "Nouveau document" on the Documents page (D-137): the creation form opens in a window over the list, so the
+ * "Nouveau document" on the Documents page (D-138): the creation form opens in a window over the list, so the
  * person never leaves it. Closing it, saved or not, refreshes the list. Escape or a click outside asks first when
  * something was typed or picked and not saved yet (the Annuler button closes at once). Closed while `kind` is null.
  */
