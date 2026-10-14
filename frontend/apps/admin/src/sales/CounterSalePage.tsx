@@ -32,11 +32,12 @@ import {
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useId, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext } from "react-router";
 
 import { isBelowMinimum, lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { usePartnerSuppliers } from "../partnerships/usePartnerSuppliers";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
 type BasketLine = {
@@ -62,6 +63,7 @@ const isPositive = (value: string | null): value is string =>
 export function CounterSalePage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
+  const partners = usePartnerSuppliers(session);
   const queryClient = useQueryClient();
   const formId = useId();
   const id = (name: string) => `${formId}-${name}`;
@@ -188,7 +190,7 @@ export function CounterSalePage() {
     label: string,
     value: string,
     onChange: (value: string) => void,
-    options: { value: string; label: string }[],
+    options: { value: string; label: string; detail?: ReactNode }[],
   ) => (
     <Field label={label} htmlFor={id(name)} error={errors[name]}>
       <Select value={value} onValueChange={onChange}>
@@ -198,7 +200,7 @@ export function CounterSalePage() {
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {option.detail ?? option.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -273,15 +275,37 @@ export function CounterSalePage() {
                   <div className="col-span-2 max-[700px]:col-span-2">
                     {choose("batch", t("admin.sales.counterSale.lot"), batchChoice, setBatchChoice, [
                       { value: AUTO_LOT, label: t("admin.sales.counterSale.lotAuto") },
-                      ...(batches.data ?? []).map((option) => ({
-                        value: String(option.batch_id),
-                        label: t("admin.sales.counterSale.lotChoice", {
-                          batch: option.batch_number,
-                          supplier: option.supplier_name,
-                          location: option.location_name,
-                          quantity: formatQuantity(option.quantity),
-                        }),
-                      })),
+                      ...(batches.data ?? []).map((option) => {
+                        // Green place, yellow lot, grey supplier, gold when the supplier is a partner (D-060).
+                        const partner = partners?.has(option.supplier_id) ?? false;
+                        return {
+                          value: String(option.batch_id),
+                          label: t("admin.sales.counterSale.lotChoice", {
+                            batch: option.batch_number,
+                            supplier: option.supplier_name,
+                            location: option.location_name,
+                            quantity: formatQuantity(option.quantity),
+                          }),
+                          detail: (
+                            <span className="flex flex-col gap-0.5 leading-snug">
+                              <span className="font-semibold text-good">{option.location_name}</span>
+                              <span>
+                                <span className="num font-semibold text-lot">{option.batch_number}</span>
+                                <span className="text-ink-2">
+                                  {" · "}
+                                  {t("admin.sales.counterSale.lotDetail", {
+                                    quantity: formatQuantity(option.quantity),
+                                  })}
+                                </span>
+                              </span>
+                              <span className={cn(partner ? "font-semibold text-gold" : "text-ink-2")}>
+                                {option.supplier_name}
+                                {partner && ` · ${t("admin.sales.counterSale.partnerTag")}`}
+                              </span>
+                            </span>
+                          ),
+                        };
+                      }),
                     ])}
                     {chosenBatch &&
                       isPositive(parseDecimalInput(quantity.trim(), 3)) &&
