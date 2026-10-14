@@ -61,9 +61,7 @@ async function openNewExpense(page: Page) {
   const categoriesLoaded = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return (
-      url.pathname === "/api/v1/expense-categories" &&
-      url.searchParams.get("status") === "active" &&
-      response.ok()
+      url.pathname === "/api/v1/expense-categories" && url.searchParams.get("status") === "active" && response.ok()
     );
   });
   await page.getByRole("button", { name: "Nouvelle dépense" }).click();

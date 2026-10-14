@@ -34,7 +34,6 @@ import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams } from "react-router";
 
 import { subtract, sum } from "../lib/decimal";
-import { lineTotal, percentOf, subtract, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import {
