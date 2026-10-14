@@ -311,7 +311,8 @@ class TransferValidateView(TransferView):
     @extend_schema(operation_id="validateTransfer", request=None, responses=TransferDetailSerializer)
     def post(self, request: Request, transfer_id: int) -> Response:
         """Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
-        too little (on `lines.<index>.quantity`) or for a day still to come."""
+        too little (on `lines.<index>.quantity`) or for a day still to come. A load of today into a truck
+        whose driver already sent the day opens that day again."""
         services.validate_transfer(transfer=self.transfer(transfer_id), actor=self.membership.user)
         return _transfer_answer(self.organization, transfer_id)
 
@@ -401,7 +402,7 @@ class MyLossesView(APIView):
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
-        dayclose.refuse_if_day_approved(membership)
+        dayclose.refuse_if_day_closed(membership)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})
@@ -435,7 +436,7 @@ class MyReturnView(APIView):
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
-        dayclose.refuse_if_day_approved(membership)
+        dayclose.refuse_if_day_closed(membership)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})

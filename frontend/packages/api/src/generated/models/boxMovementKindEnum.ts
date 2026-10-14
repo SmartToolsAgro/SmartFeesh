@@ -6,6 +6,7 @@
  */
 
 /**
+ * * `opening` - Stock initial
  * * `receive` - Réception fournisseur
  * * `load` - Chargement camion
  * * `leave` - Départ chez client
@@ -18,6 +19,7 @@ export type BoxMovementKindEnum = typeof BoxMovementKindEnum[keyof typeof BoxMov
 
 
 export const BoxMovementKindEnum = {
+  opening: 'opening',
   receive: 'receive',
   load: 'load',
   leave: 'leave',

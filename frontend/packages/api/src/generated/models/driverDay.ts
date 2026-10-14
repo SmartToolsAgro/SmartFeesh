@@ -11,4 +11,6 @@ export interface DriverDay {
   readonly truck_name: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly opening_cash: string;
+  /** @nullable */
+  readonly ended_at: string | null;
 }

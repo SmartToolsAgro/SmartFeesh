@@ -13,8 +13,9 @@ from apps.core import audit
 from apps.core.models import Organization, User
 
 from . import selectors
-from .models import BoxHolder, BoxMovement, BoxPickup, BoxType
+from .models import BoxHolder, BoxMovement, BoxPickup
 from .models import BoxMovementKind as BoxMovementKind  # re-exported for apps that post box movements
+from .models import BoxType as BoxType
 
 if TYPE_CHECKING:
     from apps.inventory.models import StockLocation
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 
 # Which holder kind each movement kind takes on each side. None means the side is empty.
 _HOLDER_KINDS: dict[str, tuple[str | None, str | None]] = {
+    BoxMovementKind.OPENING: (None, "location"),
     BoxMovementKind.RECEIVE: ("supplier", "location"),
     BoxMovementKind.LOAD: ("location", "location"),
     BoxMovementKind.LEAVE: ("location", "customer"),

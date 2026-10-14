@@ -7,6 +7,7 @@ from django.db import transaction
 from apps.core import services
 from apps.core.models import Organization, Role, User
 from apps.demo.batches import seed_batches
+from apps.demo.boxes import seed_boxes
 from apps.demo.catalogue import seed_catalogue
 from apps.demo.costing import seed_costing
 from apps.demo.customers import seed_customers
@@ -76,6 +77,7 @@ class Command(BaseCommand):
         suppliers = seed_suppliers(organization=organization, actor=owner)
         driver = User.objects.get(username=DEV_USERS[1][0])
         locations = seed_locations(organization=organization, actor=owner, driver=driver)
+        boxes = seed_boxes(organization=organization, actor=owner)
         batches = seed_batches(organization=organization, actor=owner)
         movements = seed_stock(organization=organization, actor=owner)
         receipts = seed_receipts(organization=organization, actor=owner)
@@ -104,6 +106,7 @@ class Command(BaseCommand):
                 f"{invoices} new supplier invoices, {customers} new customers"
             )
         )
+        self.stdout.write(self.style.SUCCESS(f"{boxes} new opening stocks of returnable boxes"))
         self.stdout.write(self.style.SUCCESS(f"{transfers} new transfers"))
         self.stdout.write(self.style.SUCCESS(f"{losses} new losses and stock counts"))
         self.stdout.write(self.style.SUCCESS(f"{prices} new minimum prices and price lists"))

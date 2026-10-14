@@ -42,6 +42,13 @@ Look and feel: the "Camion" view of `prototype/index.html`.
       loaded vs sold vs returned (client meeting 2026-10-11).
 - [x] Driver enters counted cash → difference shown neutrally; driver can add a note.
 - [x] (approved day locks its closing, D-094) Admin review screen: approve or ask for a justification. Approved day is locked.
+- [x] (D-134) Sending the closing closes the day: nothing more goes on it. One day per driver and date; a load
+      validated that date opens the same day again (also an approved one), and the driver sends it again. Each
+      send a load undid is kept, and its counted cash is "already handed over" at the next count.
+- [x] (D-134) "Mes journées" on the phone: the driver's past days, and the answer to the office's question sent
+      from there. The office page searches by driver or truck and filters by dates.
+- [x] (D-132, D-134) The office sees where the day's records differ from what the driver sent (a sale made
+      before the send and received after it) and cannot approve until the driver sends the day again.
 
 ### P3-T07 · Offline mode · L → split into T07a to T07d, in this order
 Read: ARCHITECTURE §4 rule 7. Keep it invisible to the driver: the app just works with weak signal, and one
