@@ -88,7 +88,7 @@ export function DocumentsPage() {
   const [converting, setConverting] = useState<DocumentRow | null>(null);
 
   const [creating, setCreating] = useState(false);
-  // The creation form opened in a window over this list (D-137); null while closed.
+  // The creation form opened in a window over this list (D-138); null while closed.
   const [newKind, setNewKind] = useState<NewDocumentKind | null>(null);
 
   const start = periodStart(period);

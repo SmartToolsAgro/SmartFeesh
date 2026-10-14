@@ -33,7 +33,7 @@ test("a new document starts from the documents page", async ({ page }) => {
   await page.getByRole("button", { name: "Nouveau document" }).click();
   await page.getByRole("button", { name: /Bon de livraison direct/ }).click();
 
-  // The form opens in a window over the list; the person stays on Documents (D-137).
+  // The form opens in a window over the list; the person stays on Documents (D-138).
   await expect(page.getByRole("dialog", { name: "Bon de livraison direct" })).toBeVisible();
   await expect(page).toHaveURL(/\/documents$/);
 });

@@ -33,11 +33,12 @@ _Last updated: 2026-10-14_
    - Product codes on staging (D-126): **done 2026-10-13.** 2 codes written (crevette royale, Calamar) and 36
      products created from the owner's list, with no price, in the category "À classer". The owner sets their
      prices on the price board and sorts them into categories.
-   - Driver day after the closing: **decided 2026-10-14, built on `driver-day-history` (PR #114, D-134).** Sending
-     the closing closes the day; a load validated that date opens the same day again, also an approved one; the
-     cash counted before is "already handed over". No second day on a date. #118 (D-132, "send the same day
-     again") was merged to `main` on 2026-10-13 and is folded into #114. **To do: merge #114 once CI is green,**
-     then check on staging with a real phone (send, load again, sell, send again; the same on an approved day).
+   - Driver day after the closing: **decided 2026-10-14, merged (#114, D-134; with #118, D-132).** Sending the
+     closing closes the day; a load validated that date opens the same day again, also an approved one; the cash
+     counted before is "already handed over". No second day on a date. A day whose records changed after it was
+     sent (a late sale, an office decision on an expense or a loss) is sent again before the office can approve it;
+     a past day is sent again from "Mes journées". **To do:** check on staging with a real phone (send, load
+     again, sell, send again; the same on an approved day).
    - Still to ask the owner (D-134 assumes it): does the driver always give the office exactly the cash counted at
      the first send? And should the load screen warn before it reopens an approved day?
    - Staging check: no owner check yet of the closing fixes (D-129, D-130, D-133) on a real phone.
@@ -109,12 +110,14 @@ the missing articles), #118 (D-132). Every merge deployed to staging.
 **2026-10-14, PR #114 reworked on the owner's new rule (D-134):** `main` merged in (with D-132), the numbered
 second day removed (`DriverDay.number`, the driver's "Commencer une nouvelle journée"), a load of the date reopens
 the sent day (`inventory.services.load_validated` → `dayclose.services.reopen_days_after_load`), the undone sends
-kept in `DayReopening` with the cash handed over, the history kept. Open: #114, ready to merge on green CI. The
-browser tests (`make e2e`) were not run locally.
+kept in `DayReopening` with the cash handed over, the history kept. Merged 2026-10-14 (#114), after #118 (D-132)
+and #119 (D-135); later the same night #120 to #126 (D-136 to D-138, expenses month filter, archived records hidden
+in pickers, documents opened in a window, Prettier fix). `main` CI green. Two decisions had both been numbered
+D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in number order.
 
 ## Recently done
 
-- 2026-10-14 · D-137 "Nouveau document" on Documents opens the creation form in a window (no page change), with a
+- 2026-10-14 · D-138 "Nouveau document" on Documents opens the creation form in a window (no page change), with a
   guard: Escape or an outside click asks before a half-filled form is dropped. In PR #123 (`document-new-window`);
   unit tests, lint, tsc and the Documents e2e spec (4 tests) pass.
 - 2026-10-14 · D-137 pickers hide archived places, products, trucks, categories and suppliers (unless the current
