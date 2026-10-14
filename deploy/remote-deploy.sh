@@ -70,7 +70,13 @@ DEMO_PASSWORD="$(grep '^DEMO_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)"
 sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml \
   exec -T backend python manage.py seed_dev --password "$DEMO_PASSWORD"
 
-# 6. Keep the last 3 releases and their images; remove only Frutti's older ones.
+# 6. Nightly backup (D-139): the script the debian user's crontab calls, and the public key it encrypts to.
+#    The cron entry itself is installed once by hand (docs/runbook.md, "Backups").
+install -d -m 700 "$BASE/bin"
+install -m 755 "$RELEASE_DIR/deploy/backup.sh" "$BASE/bin/backup.sh"
+install -m 644 "$RELEASE_DIR/deploy/backup-public-key.asc" "$BASE/backup-public-key.asc"
+
+# 7. Keep the last 3 releases and their images; remove only Frutti's older ones.
 cd "$BASE/releases"
 for old in $(ls -1t | tail -n +4); do
   rm -rf "$old"

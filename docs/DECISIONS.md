@@ -1980,6 +1980,41 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Not changed yet: the row actions that still open a page (edit, receive from a BA, supplier invoice from a
   reception, pay, credit note).
 
+**D-139 · Nightly encrypted backups of the database and the media files, kept 30 days, restored in a drill (P4-T03)** · accepted · 2026-10-14
+- `deploy/backup.sh <project>` runs from the `debian` user's crontab at 02:30 UTC (a cron line, not a container: it
+  must reach Docker and outlive the stack it backs up). It writes `~/<project>/backups/<UTC time>/` with
+  `db.dump.gpg` (`pg_dump --format=custom` from the db container), `media.tar.gz.gpg` (the `<project>_media` volume,
+  tarred by a throwaway `postgres:16-alpine` container with no network) and a plain `manifest.txt` (fingerprint,
+  PostgreSQL version, SHA-256). It prints one `BACKUP OK ...` line (sizes, duration, kept, removed, off-site) or
+  `BACKUP FAILED ...: <reason>` with exit code 1, to `~/<project>/backup.log`, for monitoring (P4-T04).
+- **Encryption: gpg to a public key**, not age or openssl. gpg is already on the server (no package, no image) and in
+  Git for Windows (the machine that decrypts), and OpenPGP will be readable for decades. age is not on the server and
+  has no official image; openssl has no simple, authenticated public-key format for large files (`cms` reads the whole
+  file to decrypt). The data is encrypted while it streams, so nothing readable touches the disk; `--rfc4880` keeps
+  classic packets (AES-256 with MDC) that every OpenPGP tool reads, and gpg runs with a throwaway home, never the
+  `debian` keyring. The key is RSA 4096 (fingerprint `8C69CE47FE726683B3732261C5D2D8A982D43BCF`), made on Mahmoud's
+  machine without a passphrase: the file is the secret. The public key is in git (`deploy/backup-public-key.asc`) and
+  installed by every deploy; the private key never goes to the server or git, and the owner must keep it (password
+  manager and USB key). The server therefore cannot read its own backups, and neither can a thief of the bucket.
+- **Retention: 30 days** on the server, by the folder's date in its name; a run of a few MB a night is nothing next to
+  the disk. Off-site, the bucket's own lifecycle rule deletes old copies: the script never deletes off-site, so its
+  keys can be write-only.
+- **Off-site: rclone** (`rclone/rclone:1.68.2`, official, pinned) to any S3 bucket named by `BACKUP_S3_ENDPOINT`,
+  `BACKUP_S3_REGION`, `BACKUP_S3_BUCKET`, `BACKUP_S3_PREFIX`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`
+  in `~/<project>/.env` (empty lines added on staging). An empty bucket means local copy only, said in the log line.
+  The secrets reach the container by name (`-e NAME`), never on the command line. Short timeouts: an unreachable
+  bucket fails the run in seconds to minutes, after the local copy is kept. **Missing: the bucket itself**, to be
+  created by the owner (another provider or region than the VPS).
+- **Restore: `deploy/restore.sh`**, run where the private key is. It decrypts locally and streams into a new
+  `frutti-restore-<time>` container (`postgres:16-alpine`, its own network, no port) and volume, on local Docker or on
+  `RESTORE_SSH`, prints the exact row count of every table and, with `RESTORE_BACKEND_IMAGE`, runs
+  `rebuild_on_hand --check`. It never touches a running database; `--remove` deletes what it made. The in-place
+  emergency restore is a written command sequence in the runbook, not a script, and is not drilled yet.
+- Backed up: the database and the media volume. Not backed up: `.env` (a deploy recreates it; the off-site keys go in
+  the password manager), Redis (keeps nothing, D-071), code, images and the nginx site (git).
+- Drill on 2026-10-14 (runbook "Backups"): 99 tables with the same row counts as live (1 551 rows), 24 of 24 media
+  files, stock check "0 difference(s)".
+
 **D-140 · Monitoring: Sentry in the API and both apps, a recorded nightly stock check, an uptime workflow (P4-T04)** · accepted · 2026-10-14
 - No new paid account. Everything is off until the owner creates a Sentry project and puts its DSN in the
   server's `.env`; the uptime watch runs on GitHub Actions, which the repository already has.
