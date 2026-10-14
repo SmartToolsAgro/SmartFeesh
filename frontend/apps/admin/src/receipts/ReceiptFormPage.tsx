@@ -37,11 +37,12 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
-import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router";
+import { Navigate, useOutletContext, useSearchParams } from "react-router";
 
 import { BoxCountsFields } from "../boxes/BoxCountsFields";
 import { type BoxCountInputs, NO_BOX_INPUTS, boxCountsFromInputs } from "../boxes/shared";
 import { lineTotal, percentChange, sum } from "../lib/decimal";
+import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { canWriteResults } from "../partnerships/shared";
@@ -106,7 +107,7 @@ function linesOfOrder(order: Order): Line[] {
 export function ReceiptFormPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const navigate = useNavigate();
+  const { leave } = useLeave();
   const queryClient = useQueryClient();
   const formId = useId();
 
@@ -179,7 +180,7 @@ export function ReceiptFormPage() {
     onSuccess: async (saved) => {
       toast.success(t("admin.receipts.form.created", { number: saved.number }));
       await refreshAfterReceipt(queryClient);
-      void navigate(`/achats/${saved.id}`);
+      leave(`/achats/${saved.id}`);
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
@@ -533,7 +534,7 @@ export function ReceiptFormPage() {
         )}
 
         <div className="flex justify-end gap-2">
-          <Button onClick={() => void navigate("/achats")}>{t("admin.receipts.form.cancel")}</Button>
+          <Button onClick={() => leave("/achats")}>{t("admin.receipts.form.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={save.isPending}>
             {save.isPending ? t("admin.receipts.form.saving") : t("admin.receipts.form.save")}
           </Button>

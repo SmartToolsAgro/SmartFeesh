@@ -32,10 +32,11 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useOutletContext, useParams } from "react-router";
+import { Link, Navigate, useOutletContext, useParams } from "react-router";
 
 import { subtract, sum } from "../lib/decimal";
 import { isBelowMinimum, lineTotal, percentOf, subtract, sum } from "../lib/decimal";
+import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import {
   amountsOf,
@@ -85,7 +86,7 @@ export function SaleEditPage() {
 function SaleForm({ draft }: { draft?: SaleDetail }) {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const navigate = useNavigate();
+  const { embedded, leave } = useLeave();
   const queryClient = useQueryClient();
   const formId = useId();
 
@@ -171,7 +172,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
         }),
       );
       await refreshAfterSale(queryClient);
-      void navigate(`/ventes/${saved.id}`);
+      leave(`/ventes/${saved.id}`);
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
@@ -274,9 +275,11 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
 
   return (
     <>
-      <Link to={back} className="text-[0.85rem] font-semibold text-sea hover:underline">
-        {t("admin.sales.back")}
-      </Link>
+      {!embedded && (
+        <Link to={back} className="text-[0.85rem] font-semibold text-sea hover:underline">
+          {t("admin.sales.back")}
+        </Link>
+      )}
       <PageHeader
         eyebrow={t("admin.sales.title")}
         title={draft ? t("admin.sales.form.titleEdit", { number: draft.number }) : t("admin.sales.form.titleNew")}
@@ -510,7 +513,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
         )}
 
         <div className="flex flex-wrap justify-end gap-2">
-          <Button onClick={() => void navigate(back)}>{t("admin.sales.form.cancel")}</Button>
+          <Button onClick={() => leave(back)}>{t("admin.sales.form.cancel")}</Button>
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? t("admin.sales.form.saving") : t("admin.sales.form.saveDraft")}
           </Button>

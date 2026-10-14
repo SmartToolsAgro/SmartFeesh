@@ -39,6 +39,7 @@ import { type FormEvent, type ReactNode, useId, useMemo, useRef, useState } from
 import { Link, Navigate, useOutletContext } from "react-router";
 
 import { isBelowMinimum, lineTotal, sum } from "../lib/decimal";
+import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { usePartnerSuppliers } from "../partnerships/usePartnerSuppliers";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
@@ -104,6 +105,7 @@ export function CounterSalePage() {
   const session = useOutletContext<Session>();
   const partners = usePartnerSuppliers(session);
   const queryClient = useQueryClient();
+  const { embedded, leave } = useLeave();
   const formId = useId();
   const id = (name: string) => `${formId}-${name}`;
   const nextKeyRef = useRef(0);
@@ -263,9 +265,11 @@ export function CounterSalePage() {
 
   return (
     <>
-      <Link to="/ventes" className="text-[0.85rem] font-semibold text-sea hover:underline">
-        {t("admin.sales.back")}
-      </Link>
+      {!embedded && (
+        <Link to="/ventes" className="text-[0.85rem] font-semibold text-sea hover:underline">
+          {t("admin.sales.back")}
+        </Link>
+      )}
       <PageHeader eyebrow={t("admin.sales.title")} title={t("admin.sales.counterSale.title")} />
       <p className="text-ink-2">{t("admin.sales.counterSale.intro")}</p>
 
@@ -497,12 +501,21 @@ export function CounterSalePage() {
                 {alerts.join(" ")}
               </p>
             )}
+            <Button variant="primary" size="lg" disabled={basket.length === 0 || collect.isPending} onClick={pay}>
+              <Icon name="cash" />
+              {collect.isPending
+                ? t("admin.sales.counterSale.collecting")
+                : t("admin.sales.counterSale.collect", { total: formatMoney(total) })}
+            </Button>
+            {embedded && <Button onClick={() => leave("/ventes")}>{t("admin.docHub.back")}</Button>}
             {lastSale && (
               <p role="status" className="w-full text-[0.9rem] text-ink-2">
                 {t("admin.sales.counterSale.done", { number: lastSale.number })}{" "}
-                <Link to={`/ventes/${lastSale.id}`} className="font-semibold text-sea hover:underline">
-                  {t("admin.sales.counterSale.open")}
-                </Link>
+                {!embedded && (
+                  <Link to={`/ventes/${lastSale.id}`} className="font-semibold text-sea hover:underline">
+                    {t("admin.sales.counterSale.open")}
+                  </Link>
+                )}
               </p>
             )}
           </Card>

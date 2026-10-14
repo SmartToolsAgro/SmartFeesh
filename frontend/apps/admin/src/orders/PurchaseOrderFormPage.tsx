@@ -25,9 +25,10 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
-import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router";
+import { Navigate, useOutletContext, useSearchParams } from "react-router";
 
 import { lineTotal, sum } from "../lib/decimal";
+import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
@@ -57,7 +58,7 @@ const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 export function PurchaseOrderFormPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const navigate = useNavigate();
+  const { leave } = useLeave();
   const queryClient = useQueryClient();
   const formId = useId();
   const [params] = useSearchParams();
@@ -94,7 +95,7 @@ export function PurchaseOrderFormPage() {
     onSuccess: async (saved) => {
       toast.success(t("admin.purchaseOrders.form.created", { number: saved.number }));
       await refreshOrders(queryClient);
-      void navigate(`/achats/bons/${saved.id}`);
+      leave(`/achats/bons/${saved.id}`);
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
@@ -310,7 +311,7 @@ export function PurchaseOrderFormPage() {
         )}
 
         <div className="flex justify-end gap-2">
-          <Button onClick={() => void navigate("/achats/bons")}>{t("admin.purchaseOrders.form.cancel")}</Button>
+          <Button onClick={() => leave("/achats/bons")}>{t("admin.purchaseOrders.form.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={save.isPending}>
             {save.isPending ? t("admin.purchaseOrders.form.saving") : t("admin.purchaseOrders.form.save")}
           </Button>
