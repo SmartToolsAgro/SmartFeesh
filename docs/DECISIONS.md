@@ -2047,3 +2047,47 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Limits: GitHub runs schedules late at busy times and turns them off after 60 days without repository activity; a
   failure e-mails on every run until it is fixed or the workflow is disabled. The check sees staging from outside
   only (no disk, memory or backup check; backups are P4-T03).
+
+**D-141 · Security review before production: what was found after D-108, what is closed, what is left (P4-T05)** · accepted, two points for the owner · 2026-10-14
+- **Reviewed:** every API view added since D-108 (day closings and reopenings D-129 to D-134, late sales D-133, the
+  driver's history of days, payments and box pickups, Documents and the PDFs D-102/D-131, Paramètres and users D-123,
+  logo/avatar/receipt/loss/certificate uploads, the Excel import P4-T01, reports and their Excel files, the price board
+  and product codes), the object checks between two drivers of the same company, ids sent in a request body, login,
+  password change and reset, sessions of a deactivated user, production settings, nginx, the two front ends and the
+  dependencies (`pip-audit` on `uv.lock`: nothing; `pnpm audit`: 21 advisories, all in undici under orval).
+  The D-108 sweep (a role on every route, 401/403 per role, another company's ids) still passes on all new routes.
+- **Closed, each with a test in `apps/core/tests/test_api_security.py` that fails without the fix:**
+  1. *Medium.* A driver could "choose" for the day the truck another driver had already started the day on (their
+     usual truck, with no assignment that date): the first driver lost the truck mid-day and the second sold its stock.
+     `POST /truck-assignments` by a driver is now refused (400 on `truck`) when another driver has a day on that truck
+     that date. The office may still move it (unchanged).
+  2. *Medium.* Excel exports wrote any text starting with `=` as a live formula. A driver can set their own display
+     name (`/me/profile`), which the sales report by driver exports; managers name customers, suppliers and products.
+     `reports.exports.workbook_bytes` now stores every text cell as text (same value shown).
+  3. *Low.* `POST /me/password` checked the old password without any limit: a session left open on a shared computer
+     could guess it. 8 tries a minute per account (`password_change` throttle), as the login.
+  4. *Low.* The Excel import (owner only) unpacked any zip: a 5 MB file can unpack to gigabytes in memory. Refused
+     above 100 MB unpacked, before openpyxl opens it.
+  5. *Low, no test (a race).* Two owners deactivating or demoting each other at the same moment could both pass the
+     "last owner" guard: every active owner row is now locked first.
+  6. *Low, dev machines only.* undici < 7.29.1 (TLS, header injection, DoS advisories) came with orval:
+     `pnpm-workspace.yaml` overrides it to 7.29.1 (released 2026-09-04, D-012). `pnpm audit` is clean.
+- Pinned by new tests (already right): a deactivated member's open sessions answer 401 at the next request; a
+  password reset by the owner ends the member's sessions; another company's customer, product, place, truck, driver
+  or sale sent in a body is refused on that field and nothing changes.
+- **For the owner (not changed, it would change what a driver can do):** a driver's late sale (D-133) has no limit
+  on how far back the phone may date it, and a sale dated on a day the driver never started belongs to no closing, so
+  its cash is expected in no closing. The "stock held since" check limits it to kilos the truck kept since that day.
+  Proposal: refuse a phone time older than a few days, or show the office the sales outside any closing.
+- **Listed, not changed (low):** a driver's road expense accepts any expense category of the company (it still waits
+  for approval); `/django-admin/` answers on both public app hosts (throttled, business data read-only): restrict it by
+  address in the production nginx; the driver app's offline queue is not tied to the driver who filled it, so on a
+  shared phone the next driver's session sends it (sales are refused by the truck check, payments and pickups are
+  not); the truck's usual driver (office field) accepts any member, not only active drivers; usernames typed by the
+  owner are not checked for odd characters; the per-account login limit lets anyone lock a known username out for a
+  minute (D-023 trade-off). Deploy and monitoring (other tasks): production must set `DJANGO_NUM_PROXIES=2` if it
+  keeps the host nginx plus the web container (with 1, every visitor shares one login limit); once HTTPS is on,
+  `SECURE_SSL_REDIRECT` redirects the container health check on plain HTTP (exempt `api/v1/health` or send
+  `X-Forwarded-Proto` in the check).
+- **Accepted as D-108 said:** PDFs and receipts served inline as `application/pdf` with nosniff; no general rate limit
+  on the API; drivers read prices and minimum prices (D-049), managers read margins (D-113).

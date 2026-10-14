@@ -2,3 +2,8 @@ packages:
   - "apps/*"
   - "packages/*"
   - "e2e"
+
+# Known-vulnerable versions pulled in by tools (D-141). The API client generator (orval) brings undici 7.24 through
+# @scalar/json-magic: dev machines only, never in the apps, but `pnpm audit` should stay clean.
+overrides:
+  "undici@>=7.0.0 <7.29.1": "7.29.1"

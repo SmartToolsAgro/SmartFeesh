@@ -51,6 +51,18 @@ def assignment_of(organization: Organization, assignment_id: int) -> TruckAssign
     return assignments_of(organization).get(pk=assignment_id)
 
 
+def day_on_truck_of_another(
+    organization: Organization, *, truck_id: int, day: date_type, driver_id: int
+) -> DriverDay | None:
+    """Another driver's day started on this truck that date (running or sent), if any (D-141)."""
+    return (
+        DriverDay.objects.for_organization(organization)
+        .filter(truck_id=truck_id, date=day)
+        .exclude(driver_id=driver_id)
+        .first()
+    )
+
+
 def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truck | None:
     """The active truck this member drives on a day (today by default), if they are a driver and have one.
 

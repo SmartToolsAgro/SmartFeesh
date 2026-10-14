@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core import selectors, services
-from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle
+from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle, PasswordChangeThrottle
 from apps.core.models import Job, Membership, Organization, User
 from apps.core.permissions import IsMember, IsOwner, ReadOfficeWriteOwnerOrManager, membership_of
 
@@ -188,6 +188,7 @@ class MyPasswordView(APIView):
     """A user changes their own password; the old one proves it is really them (no email reset exists, D-123)."""
 
     permission_classes = (IsMember,)
+    throttle_classes = (PasswordChangeThrottle,)
 
     @extend_schema(operation_id="changeMyPassword", request=ChangePasswordSerializer, responses={204: None})
     def post(self, request: Request) -> Response:
