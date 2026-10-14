@@ -1482,6 +1482,8 @@ export const fr = {
         lot: "Lot",
         lotAuto: "Lot le plus ancien (FIFO)",
         lotChoice: "{{batch}} · {{supplier}} · {{location}} · {{quantity}} dispo.",
+        lotDetail: "{{quantity}} dispo.",
+        partnerTag: "partenaire",
         lotShort: "Ce lot n'a que {{quantity}} : le reste viendra automatiquement d'un autre lot.",
         add: "Ajouter",
         basket: "Panier",

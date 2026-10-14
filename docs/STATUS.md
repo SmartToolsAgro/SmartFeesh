@@ -117,6 +117,9 @@ browser tests (`make e2e`) were not run locally.
 - 2026-10-14 · D-137 "Nouveau document" on Documents opens the creation form in a window (no page change), with a
   guard: Escape or an outside click asks before a half-filled form is dropped. In PR #123 (`document-new-window`);
   unit tests, lint, tsc and the Documents e2e spec (4 tests) pass.
+- 2026-10-14 · D-137 pickers hide archived places, products, trucks, categories and suppliers (unless the current
+  value); the counter-sale lot picker shows place (green), lot (yellow), supplier (grey, gold + "partenaire" for a
+  partner). Frontend only, on branch `worktree-dropdown-archived-lot-colors`.
 - 2026-10-14 · Admin sale form and counter sale warn at once when the typed price is under the product's minimum
   (D-049 follow-up; warning only).
 - 2026-10-14 · D-136 "Dépenses" opens on this month, with ‹ › to the months before and a "Période" switch that

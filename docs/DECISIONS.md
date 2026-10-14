@@ -1936,6 +1936,17 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   detection is event-based (typing, picking), so a field typed and then emptied still asks.
 - Not changed yet: the row actions that still open a page (edit, receive from a BA, supplier invoice from a
   reception, pay, credit note).
+**D-137 · Pickers hide archived records; a lot picker shows its place, lot and supplier in colour (Mahmoud's request)** · accepted · 2026-10-14
+- A dropdown lists only active places, products, trucks, categories and suppliers. An archived one stays in the list
+  only when it is the current value of that field (a saved record or a link still points at it), so the field
+  never shows blank. The manage dialogs (expense categories) still list archived ones, to restore them.
+- The lot picker (counter sale, D-121) is the only dropdown that lists a product's lots, so it carries the colours:
+  place in green (`text-good`), lot number in yellow (`text-lot`), supplier in grey (`text-ink-2`), or in gold
+  (`text-gold`) with the word "partenaire" when the supplier is a partner (D-060). The word keeps the mark readable
+  without colour.
+- New tokens `--lot` and `--gold` in `packages/ui/src/styles.css`, for light and both dark themes (`--warn` is too
+  close to a yellow to tell apart from the gold).
+- Other product dropdowns list catalogue products, with no place or lot, so they keep the plain name. Frontend only.
 
 **D-136 · The expenses list opens on this month (Mahmoud's request)** · accepted · 2026-10-14
 - Numbers D-134 and D-135 are taken by work not yet on `main` (`driver-day-history`, `box-opening-stock`).
