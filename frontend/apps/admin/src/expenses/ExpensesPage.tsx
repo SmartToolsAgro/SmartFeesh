@@ -38,9 +38,11 @@ import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-q
 import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
+import { currentMonth, monthLabel, shiftMonth } from "../hr/shared";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { ExpensesTabs } from "./ExpensesTabs";
+import { asMonth, asPeriod, openingPeriod, type Period, periodDates } from "./period";
 import { canManageCategories, canWriteExpenses, EXPENSE_STATUSES, EXPENSE_TONES, refreshExpenses } from "./shared";
 
 const PAGE_SIZE = 50;
@@ -146,17 +148,20 @@ function CategoriesDialog({ onDone }: { onDone: () => void }) {
 
 /** "Dépenses": every expense with its status, filters, totals, and the way to record and approve them. */
 export function ExpensesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canWrite = canWriteExpenses(session);
-  // The month closing's cost lines link here with a category and a date range pre-set (D-122).
+  const thisMonth = currentMonth();
+  // The month closing's cost lines link here with a category and a date range pre-set (D-122); without a
+  // link the list opens on this month.
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ExpenseStatusEnum | "">("");
   const [category, setCategory] = useState(searchParams.get("category") ?? ALL);
-  const [dateFrom, setDateFrom] = useState(searchParams.get("date_from") ?? "");
-  const [dateTo, setDateTo] = useState(searchParams.get("date_to") ?? "");
+  const [period, setPeriod] = useState<Period>(() =>
+    openingPeriod(searchParams.get("date_from"), searchParams.get("date_to"), thisMonth),
+  );
   const [offset, setOffset] = useState(0);
   const [managing, setManaging] = useState(false);
   const query = useDebounced(search.trim());
@@ -165,8 +170,7 @@ export function ExpensesPage() {
   const filters = {
     ...(statusFilter ? { status: statusFilter } : {}),
     ...(category !== ALL ? { category: Number(category) } : {}),
-    ...(dateFrom ? { date_from: dateFrom } : {}),
-    ...(dateTo ? { date_to: dateTo } : {}),
+    ...periodDates(period),
     ...(query ? { search: query } : {}),
   };
   const expenses = useListExpenses(
@@ -176,25 +180,38 @@ export function ExpensesPage() {
   const totals = useGetExpenseTotals(filters, { query: { placeholderData: keepPreviousData } });
   const page = expenses.data;
   const list = page?.results ?? [];
-  const filtering = query !== "" || statusFilter !== "" || category !== ALL || dateFrom !== "" || dateTo !== "";
+  // The month shown, as people say it ("octobre 2026"); empty on a period.
+  const month = period.mode === "month" ? monthLabel(period.month, i18n.language) : "";
+  const filtering =
+    query !== "" ||
+    statusFilter !== "" ||
+    category !== ALL ||
+    (period.mode === "period" && (period.from !== "" || period.to !== ""));
 
-  const statusButton = (value: ExpenseStatusEnum | "", label: string) => (
+  const showPeriod = (next: Period) => {
+    setPeriod(next);
+    setOffset(0);
+  };
+
+  const segment = (key: string, label: string, pressed: boolean, onClick: () => void) => (
     <button
-      key={value || "all"}
+      key={key}
       type="button"
-      aria-pressed={statusFilter === value}
-      onClick={() => {
-        setStatusFilter(value);
-        setOffset(0);
-      }}
+      aria-pressed={pressed}
+      onClick={onClick}
       className={cn(
         "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
-        statusFilter === value && "bg-surface text-ink shadow-card",
+        pressed && "bg-surface text-ink shadow-card",
       )}
     >
       {label}
     </button>
   );
+  const statusButton = (value: ExpenseStatusEnum | "", label: string) =>
+    segment(value || "all", label, statusFilter === value, () => {
+      setStatusFilter(value);
+      setOffset(0);
+    });
 
   return (
     <>
@@ -252,26 +269,63 @@ export function ExpensesPage() {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          aria-label={t("admin.expenses.dateFrom")}
-          value={dateFrom}
-          onChange={(event) => {
-            setDateFrom(event.target.value);
-            setOffset(0);
-          }}
-          className="w-40"
-        />
-        <Input
-          type="date"
-          aria-label={t("admin.expenses.dateTo")}
-          value={dateTo}
-          onChange={(event) => {
-            setDateTo(event.target.value);
-            setOffset(0);
-          }}
-          className="w-40"
-        />
+        <div
+          role="group"
+          aria-label={t("admin.expenses.dateFilter")}
+          className="flex flex-wrap items-center gap-x-3 gap-y-2"
+        >
+          <div className="flex rounded-control bg-surface-2 p-1">
+            {segment("month", t("admin.expenses.byMonth"), period.mode === "month", () =>
+              showPeriod(asMonth(period, thisMonth)),
+            )}
+            {segment("period", t("admin.expenses.byPeriod"), period.mode === "period", () =>
+              showPeriod(asPeriod(period)),
+            )}
+          </div>
+          {period.mode === "month" ? (
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={t("admin.expenses.previousMonth")}
+                title={t("admin.expenses.previousMonth")}
+                onClick={() => showPeriod({ mode: "month", month: shiftMonth(period.month, -1) })}
+              >
+                ‹
+              </Button>
+              <b className="min-w-32 text-center capitalize" aria-live="polite">
+                {month}
+              </b>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={t("admin.expenses.nextMonth")}
+                title={t("admin.expenses.nextMonth")}
+                disabled={period.month >= thisMonth}
+                onClick={() => showPeriod({ mode: "month", month: shiftMonth(period.month, 1) })}
+              >
+                ›
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Input
+                type="date"
+                aria-label={t("admin.expenses.dateFrom")}
+                value={period.from}
+                onChange={(event) => showPeriod({ ...period, from: event.target.value })}
+                className="w-40"
+              />
+              <Input
+                type="date"
+                aria-label={t("admin.expenses.dateTo")}
+                value={period.to}
+                onChange={(event) => showPeriod({ ...period, to: event.target.value })}
+                className="w-40"
+              />
+            </>
+          )}
+        </div>
       </Card>
 
       {totals.data && (
@@ -294,9 +348,14 @@ export function ExpensesPage() {
         </p>
       ) : list.length === 0 ? (
         filtering ? (
-          <p className="text-ink-2">{t("admin.expenses.noMatch")}</p>
+          <p className="text-ink-2">
+            {month ? t("admin.expenses.noMatchInMonth", { month }) : t("admin.expenses.noMatch")}
+          </p>
         ) : (
-          <EmptyState illustration="mix" title={t("admin.expenses.empty")}>
+          <EmptyState
+            illustration="mix"
+            title={month ? t("admin.expenses.emptyMonth", { month }) : t("admin.expenses.empty")}
+          >
             {t("admin.expenses.emptyBody")}
           </EmptyState>
         )

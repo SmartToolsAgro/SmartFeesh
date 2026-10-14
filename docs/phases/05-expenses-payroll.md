@@ -19,6 +19,8 @@ _Coarse plan: detail each task when the phase starts._
       split over the lots on that truck's load that day, by kg loaded (D-041, Q24 provisional), and
       shows as a line on each lot.
 - [x] Approval workflow; driver expenses from P3-T04 land here.
+- [x] (D-136) The list opens on this month, with arrows to the months before; a period of free dates is
+      still there.
 
 ### P5-T02 · Cold-room cost per day · M
 - [x] Monthly electricity bill per company (or per meter), typed by the owner.
