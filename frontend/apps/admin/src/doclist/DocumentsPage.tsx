@@ -38,6 +38,7 @@ import { DeliverDialog } from "../quotes/DeliverDialog";
 import { canWriteQuotes } from "../quotes/shared";
 import { todayInTunis } from "../receipts/shared";
 import { type DocumentAction, isDanger, isMain, planOf, type RunResult } from "./actions";
+import { NewDocumentDialog, type NewDocumentKind } from "./NewDocumentDialog";
 import { buildTree, detailPath, flatLines, parseKey, PURCHASE_TYPES, SALES_TYPES, type TreeLine } from "./tree";
 
 type Period = "month" | "quarter" | "year" | "all";
@@ -87,6 +88,8 @@ export function DocumentsPage() {
   const [converting, setConverting] = useState<DocumentRow | null>(null);
 
   const [creating, setCreating] = useState(false);
+  // The creation form opened in a window over this list (D-137); null while closed.
+  const [newKind, setNewKind] = useState<NewDocumentKind | null>(null);
 
   const start = periodStart(period);
   // Type and status are filtered here, so the chips can count every type of the period.
@@ -255,13 +258,13 @@ export function DocumentsPage() {
     </button>
   );
 
-  const newDocs: { key: string; to: string; label: string; hint: string }[] = [
-    { key: "quote", to: "/devis/nouveau", label: "quote", hint: "quoteHint" },
-    { key: "sale", to: "/ventes/nouvelle", label: "sale", hint: "saleHint" },
-    { key: "counter", to: "/ventes/comptoir", label: "counter", hint: "counterHint" },
-    { key: "order", to: "/achats/bons/nouveau", label: "order", hint: "orderHint" },
-    { key: "receipt", to: "/achats/nouvelle", label: "receipt", hint: "receiptHint" },
-    { key: "supplierInvoice", to: "/achats/factures/nouvelle", label: "supplierInvoice", hint: "supplierInvoiceHint" },
+  const newDocs: { key: NewDocumentKind; hint: string }[] = [
+    { key: "quote", hint: "quoteHint" },
+    { key: "sale", hint: "saleHint" },
+    { key: "counter", hint: "counterHint" },
+    { key: "order", hint: "orderHint" },
+    { key: "receipt", hint: "receiptHint" },
+    { key: "supplierInvoice", hint: "supplierInvoiceHint" },
   ];
 
   const askTitle =
@@ -495,6 +498,12 @@ export function DocumentsPage() {
 
       <DeliverDialog quoteId={converting?.id ?? null} onClose={() => setConverting(null)} />
 
+      <NewDocumentDialog
+        kind={newKind}
+        title={newKind ? t(`admin.docHub.newDocs.${newKind as "quote"}`) : ""}
+        onClose={() => setNewKind(null)}
+      />
+
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent>
           <DialogTitle>{t("admin.docHub.newTitle")}</DialogTitle>
@@ -511,11 +520,11 @@ export function DocumentsPage() {
                   type="button"
                   onClick={() => {
                     setCreating(false);
-                    void navigate(item.to);
+                    setNewKind(item.key);
                   }}
                   className="flex flex-col items-start rounded-control border border-line bg-surface px-3 py-2 text-start hover:bg-surface-2"
                 >
-                  <span className="font-semibold">{t(`admin.docHub.newDocs.${item.label as "quote"}`)}</span>
+                  <span className="font-semibold">{t(`admin.docHub.newDocs.${item.key as "quote"}`)}</span>
                   <span className="text-[0.8rem] text-ink-2">
                     {t(`admin.docHub.newDocs.${item.hint as "quoteHint"}`)}
                   </span>

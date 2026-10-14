@@ -1924,6 +1924,17 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   - The monthly closing's "driver days closed" check still does not list days left running (D-074).
   - A driver still cannot close a day that is over (the closing endpoints are today's only).
 
+**D-137 · "Nouveau document" opens the creation form in a window on the Documents page** · accepted · 2026-10-14
+- Asked by Mahmoud: creating a devis, BL, vente comptoir, bon d'achat, réception or facture fournisseur from
+  Documents must not leave the list. The six screens are the same pages as before, shown in a wide window
+  (`doclist/NewDocumentDialog.tsx`). Inside it, `lib/embedded.ts` (`useLeave`) closes the window instead of
+  navigating; closing (saved or cancelled) refreshes the list. The window's own breadcrumb links are hidden.
+- Guard: Escape or a click outside asks "Abandonner ce document ?" when something was typed or picked (a select
+  option) and not saved yet; "Continuer la saisie" keeps it. Annuler and the saved path close at once. The edit
+  detection is event-based (typing, picking), so a field typed and then emptied still asks.
+- Not changed yet: the row actions that still open a page (edit, receive from a BA, supplier invoice from a
+  reception, pay, credit note).
+
 **D-136 · The expenses list opens on this month (Mahmoud's request)** · accepted · 2026-10-14
 - Numbers D-134 and D-135 are taken by work not yet on `main` (`driver-day-history`, `box-opening-stock`).
 - Before: "Dépenses" listed every expense ever, with two optional date fields. Now a "Mois | Période" switch in the

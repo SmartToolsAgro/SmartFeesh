@@ -31,9 +31,10 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useOutletContext, useParams } from "react-router";
+import { Link, Navigate, useOutletContext, useParams } from "react-router";
 
 import { lineTotal, percentOf, subtract, sum } from "../lib/decimal";
+import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { todayInTunis } from "../receipts/shared";
 import { canWriteQuotes, refreshAfterQuote } from "./shared";
@@ -100,7 +101,7 @@ export function QuoteEditPage() {
 function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const navigate = useNavigate();
+  const { embedded, leave } = useLeave();
   const queryClient = useQueryClient();
   const formId = useId();
 
@@ -172,7 +173,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
         t(saved.status === "sent" ? "admin.quotes.form.sent" : "admin.quotes.form.created", { number: saved.number }),
       );
       await refreshAfterQuote(queryClient);
-      void navigate(`/devis/${saved.id}`);
+      leave(`/devis/${saved.id}`);
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
@@ -287,9 +288,11 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
 
   return (
     <>
-      <Link to={back} className="text-[0.85rem] font-semibold text-sea hover:underline">
-        {t("admin.quotes.back")}
-      </Link>
+      {!embedded && (
+        <Link to={back} className="text-[0.85rem] font-semibold text-sea hover:underline">
+          {t("admin.quotes.back")}
+        </Link>
+      )}
       <PageHeader
         eyebrow={t("admin.quotes.title")}
         title={draft ? t("admin.quotes.form.titleEdit", { number: draft.number }) : t("admin.quotes.form.titleNew")}
@@ -455,7 +458,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
         )}
 
         <div className="flex flex-wrap justify-end gap-2">
-          <Button onClick={() => void navigate(back)}>{t("admin.quotes.form.cancel")}</Button>
+          <Button onClick={() => leave(back)}>{t("admin.quotes.form.cancel")}</Button>
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? t("admin.quotes.form.saving") : t("admin.quotes.form.saveDraft")}
           </Button>
