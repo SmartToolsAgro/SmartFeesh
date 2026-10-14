@@ -1,59 +1,28 @@
-import { ApiError, useCloseMyDay, useGetMyDaySummary } from "@frutti/api";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Input } from "@frutti/ui";
+import { useCloseMyDay, useGetMyDaySummary } from "@frutti/api";
+import { useTranslation } from "@frutti/i18n";
+import { Button, Card, EmptyState } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Link } from "react-router";
 
-import { closingGate } from "./closingGate";
-import { useOnline } from "./offline";
-import { useQueue } from "./queue";
-import { sendWaiting, useSyncProblem } from "./sync";
+import { DayReport } from "./DayReport";
+import { sendError } from "./sendError";
 
-const millimes = (value: string) => Math.round(Number(value) * 1000);
-
-function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <p className={`flex items-baseline justify-between gap-3 ${strong ? "text-xl font-bold" : ""}`}>
-      <span>{label}</span>
-      <span>{value}</span>
-    </p>
-  );
-}
-
-// "Clôture": the day in a few lines, the cash counted, and one button to send it to the office.
+// "Clôture": the day in a few lines, the cash counted, and one button to send it to the office (the figures, the
+// wait for the phone's unsent sales and the form are in DayReport, shared with the history). Sending closes the
+// day; it opens again when the office loads the truck again that date (D-134).
 export function ClosingPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const day = useGetMyDaySummary({ query: { retry: false } });
-  const queue = useQueue();
-  const online = useOnline();
-  const problem = useSyncProblem();
-  const [retrying, setRetrying] = useState(false);
-  const [counted, setCounted] = useState("");
-  const [note, setNote] = useState("");
   const [error, setError] = useState("");
-  // Waiting sales are sent as soon as the closing opens, not only on the half-minute timer (D-090).
-  useEffect(() => {
-    void sendWaiting(queryClient);
-  }, [queryClient]);
-  const retry = async () => {
-    setRetrying(true);
-    try {
-      await sendWaiting(queryClient);
-    } finally {
-      setRetrying(false);
-    }
-  };
   const send = useCloseMyDay({
     mutation: {
       onSuccess: () => {
         setError("");
         void queryClient.invalidateQueries();
       },
-      onError: (failure) => {
-        const body = failure instanceof ApiError ? JSON.stringify(failure.body ?? "") : "";
-        setError(body === "" || body === '""' ? t("truck.closing.failed") : body);
-      },
+      onError: (failure) => setError(sendError(failure, t("truck.closing.failed"))),
     },
   });
 
@@ -65,131 +34,27 @@ export function ClosingPage() {
       </EmptyState>
     );
   }
-  const { summary, closing } = day.data;
-  // Sent, but the driver worked after (a new load, more sales): the day is counted and sent again.
-  const changed = closing?.status === "submitted" && closing.changed_since_sent;
-  const locked = closing?.status === "approved" || (closing?.status === "submitted" && !changed);
-  const countedValue = parseDecimalInput(counted.trim(), 3);
-  const gap = countedValue === null ? null : (millimes(countedValue) - millimes(summary.expected_cash)) / 1000;
-  const gate = closingGate({ queue, online, countedReady: countedValue !== null, busy: send.isPending });
-  const waiting = gate.waiting;
-  // Why the sale has not gone yet: the phone's own connection first, then what the last send ran into.
-  const waitReason = !online
-    ? t("truck.closing.waitOffline")
-    : problem === "session"
-      ? t("truck.closing.waitSession")
-      : problem === "server"
-        ? t("truck.closing.waitServerBusy")
-        : problem === "offline"
-          ? t("truck.closing.waitNoAnswer")
-          : t("truck.closing.waitRetrying");
-
+  const { closing } = day.data;
+  // Sent and nothing to send again: the day is closed until a new load.
+  const closed =
+    closing !== null &&
+    (closing.status === "approved" || (closing.status === "submitted" && !closing.changed_since_sent));
   return (
     <div className="space-y-4">
-      <Card className="space-y-2">
-        <h2>{t("truck.closing.title")}</h2>
-        <Row
-          label={t("truck.closing.sales", { count: summary.sales_count })}
-          value={formatMoney(summary.sales_total)}
-          strong
-        />
-        <Row label={t("truck.closing.cash")} value={formatMoney(summary.cash_received)} />
-        <Row label={t("truck.closing.payments")} value={formatMoney(summary.payments_cash ?? "0.000")} />
-        <Row label={t("truck.closing.other")} value={formatMoney(summary.other_payments)} />
-        <Row label={t("truck.closing.credit")} value={formatMoney(summary.on_credit)} />
-        <Row label={t("truck.closing.expenses")} value={formatMoney(summary.expenses_total)} />
-        <Row label={t("truck.closing.opening")} value={formatMoney(summary.opening_cash)} />
-        <Row label={t("truck.closing.expected")} value={formatMoney(summary.expected_cash)} strong />
-      </Card>
-      {summary.products.length === 0 ? null : (
+      <DayReport
+        data={day.data}
+        sending={send.isPending}
+        error={error}
+        onSend={(counted, note) => send.mutate({ data: { counted_cash: counted, note } })}
+      />
+      {closed ? (
         <Card>
-          <h2 className="mb-3">{t("truck.closing.stock")}</h2>
-          <ul className="divide-y divide-line">
-            {summary.products.map((product) => (
-              <li key={product.product_id} className="space-y-1 py-3">
-                <p className="text-lg font-semibold">{product.product_name}</p>
-                <p className="text-sm text-ink-2">
-                  {t("truck.closing.stockOpening")} {formatQuantity(product.opening)} · {t("truck.closing.loaded")}{" "}
-                  {formatQuantity(product.loaded)} · {t("truck.closing.sold")} {formatQuantity(product.sold)} ·{" "}
-                  {t("truck.closing.lost")} {formatQuantity(product.lost)} · {t("truck.closing.returned")}{" "}
-                  {formatQuantity(product.returned)}
-                </p>
-                <p className="font-semibold">
-                  {t("truck.closing.left")} {formatQuantity(product.remaining)}
-                </p>
-                {Number(product.unexplained) === 0 ? null : (
-                  <p className="font-semibold text-bad">
-                    {t("truck.closing.unexplained", { kg: formatQuantity(product.unexplained) })}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-      {closing?.status === "approved" ? (
-        <Card>
-          <p className="text-xl font-bold">{t("truck.closing.approved")}</p>
-        </Card>
-      ) : closing?.status === "submitted" ? (
-        <Card>
-          <p className="text-xl font-bold">{t("truck.closing.sent")}</p>
-          <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
-          {changed ? <p className="font-semibold text-warn">{t("truck.closing.changed")}</p> : null}
+          <p className="text-ink-2">{t("truck.closing.closedBody")}</p>
         </Card>
       ) : null}
-      {locked ? null : (
-        <Card className="space-y-4">
-          {closing?.status === "justification" ? (
-            <p className="font-semibold text-bad">{t("truck.closing.asked", { reason: closing.review_note })}</p>
-          ) : null}
-          <div className="space-y-1">
-            <label htmlFor="counted-cash" className="font-semibold">
-              {t("truck.closing.counted")}
-            </label>
-            <Input
-              id="counted-cash"
-              inputMode="decimal"
-              placeholder="0"
-              className="text-2xl"
-              value={counted}
-              onChange={(event) => setCounted(event.target.value)}
-            />
-          </div>
-          {gap === null ? null : (
-            <p className="text-lg font-semibold">
-              {t("truck.closing.gap", { amount: `${gap > 0 ? "+" : ""}${formatMoney(gap.toFixed(3))}` })}
-            </p>
-          )}
-          <div className="space-y-1">
-            <label htmlFor="closing-note" className="font-semibold">
-              {t("truck.closing.note")}
-            </label>
-            <Input id="closing-note" value={note} onChange={(event) => setNote(event.target.value)} />
-          </div>
-          {error === "" ? null : <p className="text-bad">{error}</p>}
-          {waiting > 0 ? (
-            <div className="space-y-2">
-              <p className="font-semibold text-warn">{t("truck.closing.waitingSales", { count: waiting })}</p>
-              <p className="text-ink-2">{waitReason}</p>
-              <Button disabled={!online || retrying} onClick={() => void retry()}>
-                {t("truck.closing.retrySend")}
-              </Button>
-            </div>
-          ) : !online ? (
-            <p className="text-warn">{t("truck.closing.needNetwork")}</p>
-          ) : null}
-          <Button
-            size="lg"
-            variant="primary"
-            className="py-4 text-lg"
-            disabled={!gate.canSend}
-            onClick={() => countedValue !== null && send.mutate({ data: { counted_cash: countedValue, note } })}
-          >
-            {t("truck.closing.send")}
-          </Button>
-        </Card>
-      )}
+      <Button asChild size="lg" className="py-4 text-lg">
+        <Link to="/historique">{t("truck.history.open")}</Link>
+      </Button>
     </div>
   );
 }

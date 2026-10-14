@@ -210,29 +210,62 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
     assert day["office"].post(reverse("day-closing-approve", args=[closing["id"]])).status_code == 400
 
 
-def test_a_day_worked_on_after_sending_is_sent_again_before_the_office_approves_it(day):
+def load_again(day, kg):
+    return inventory.create_transfer(
+        organization=day["organization"],
+        actor=None,
+        from_location=day["room"],
+        to_location=day["truck"].location,
+        transferred_on=timezone.localdate(),
+        lines=[{"product": day["product"], "quantity": Decimal(kg)}],
+        validate=True,
+    )
+
+
+def test_a_day_loaded_again_after_sending_is_sent_again_before_the_office_approves_it(day):
+    """Seen on staging (D-132): the driver sent the day, was loaded again and went back out. The load opens the
+    day again (D-134); the office waits for it sent again, with the cash of the first send already in."""
     sell(day, "1", "28.000")
     sent = day["api"].post(reverse("my-day-closing"), {"counted_cash": "78.000"}, format="json").json()
-    assert sent["closing"]["changed_since_sent"] is False
+    assert (sent["closing"]["status"], sent["closing"]["changed_since_sent"]) == ("submitted", False)
     closing_id = sent["closing"]["id"]
+    assert sell(day, "2", "56.000").status_code == 403  # sent: closed until the truck is loaded again
 
-    sell(day, "2", "56.000")  # the driver goes back out after sending
+    load_again(day, "3")
 
+    assert sell(day, "2", "56.000").status_code == 201
     now = day["api"].get(reverse("my-day-summary")).json()
-    assert now["closing"]["changed_since_sent"] is True
-    assert day["office"].get(reverse("day-closing-detail", args=[closing_id])).json()["changed_since_sent"] is True
-    refused = day["office"].post(reverse("day-closing-approve", args=[closing_id]))
-    assert refused.status_code == 400
-    resent = day["api"].post(reverse("my-day-closing"), {"counted_cash": "134.000"}, format="json")
+    assert (now["closing"]["status"], now["summary"]["sales_count"]) == ("reopened", 2)
+    assert (now["summary"]["handed_over"], now["summary"]["expected_cash"]) == ("78.000", "56.000")
+    assert day["office"].post(reverse("day-closing-approve", args=[closing_id])).status_code == 400
+    resent = day["api"].post(reverse("my-day-closing"), {"counted_cash": "56.000"}, format="json")
     assert resent.status_code == 201
-    assert resent.json()["closing"]["changed_since_sent"] is False
     detail = day["office"].get(reverse("day-closing-detail", args=[closing_id])).json()
     assert (detail["expected_cash"], detail["counted_cash"], detail["summary"]["sales_count"]) == (
-        "134.000",
-        "134.000",
+        "56.000",
+        "56.000",
         2,
     )
+    assert [undone["counted_cash"] for undone in detail["reopenings"]] == ["78.000"]
     assert day["office"].post(reverse("day-closing-approve", args=[closing_id])).json()["status"] == "approved"
+
+
+def test_a_reopened_day_does_not_wait_for_the_office(day):
+    """Its send is undone and its cash difference is that of the first count: neither is the office's to chase
+    until the driver sends the day again."""
+    from apps.dayclose import selectors
+
+    sell(day, "5", "100.000")  # expected cash: 150
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "140.000"}, format="json")
+    organization = day["organization"]
+    assert selectors.waiting_for_office(organization) == 1
+
+    load_again(day, "3")
+
+    assert selectors.waiting_for_office(organization) == 0
+    assert selectors.unexplained_cash_differences(organization) == []
+    dashboard = day["owner"].get(reverse("dashboard")).json()
+    assert (dashboard["days_waiting"], dashboard["cash_difference_count"]) == (0, 0)
 
 
 def test_only_the_right_people_use_the_screens(day):
@@ -377,3 +410,85 @@ def test_an_approved_day_refuses_new_customer_payments(day):
     body = {"customer": day["customer"].pk, "amount": "5.000", "method": "cash"}
 
     assert day["api"].post(reverse("my-payments"), body, format="json").status_code == 403
+
+
+# ---- A sent day is closed, and the history (D-134) ----
+
+
+def test_a_sent_day_is_closed_to_sales_expenses_losses_returns_and_payments(day):
+    sell(day, "5", "100.000")
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "150.000"}, format="json")
+
+    sale = sell(day, "1", "28.000")
+    expense = day["api"].post(reverse("my-expenses"), {"category": 1, "amount": "5"}, format="multipart")
+    loss = day["api"].post(
+        reverse("my-losses"),
+        {"product": day["product"].pk, "quantity": "1", "reason": "spoiled"},
+        format="multipart",
+    )
+    back = day["api"].post(reverse("my-return"))
+    payment = day["api"].post(
+        reverse("my-payments"), {"customer": day["customer"].pk, "amount": "5.000", "method": "cash"}, format="json"
+    )
+
+    for refused in (sale, expense, loss, back, payment):
+        assert refused.status_code == 403
+        assert refused.json()["detail"] == (
+            "Votre journée est clôturée : elle rouvre quand le bureau recharge votre camion."
+        )
+    assert day["api"].get(reverse("my-day")).json()["ended_at"] is not None
+    # Starting the day again changes nothing: it is the same day, still closed.
+    again = day["api"].post(reverse("my-day"), {"opening_cash": "20"}, format="json").json()
+    assert (again["opening_cash"], again["ended_at"] is None) == ("50.000", False)
+
+
+def test_the_driver_sees_the_history_and_sends_a_justification_from_it(day):
+    sell(day, "5", "100.000")
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "140.000"}, format="json")
+    first = day["api"].get(reverse("my-day-list")).json()[0]
+    closing_id = day["office"].get(reverse("day-closing-list")).json()[0]["id"]
+    day["office"].post(
+        reverse("day-closing-justification", args=[closing_id]), {"reason": "Il manque 10 DT"}, format="json"
+    )
+
+    (row,) = day["api"].get(reverse("my-day-list")).json()
+    assert (row["closing"]["status"], row["closing"]["difference"]) == ("justification", "-10.000")
+    assert (row["truck_name"], row["ended_at"] is None) == ("Camion 1", False)
+    detail = day["api"].get(reverse("my-day-detail", args=[first["id"]])).json()
+    assert (detail["summary"]["sales_total"], detail["summary"]["products"][0]["remaining"]) == ("140.000", "7.000")
+
+    resent = day["api"].post(
+        reverse("my-past-day-closing", args=[first["id"]]),
+        {"counted_cash": "140.000", "note": "Pourboire"},
+        format="json",
+    )
+    assert resent.status_code == 201
+    summary = resent.json()["summary"]
+    assert (summary["sales_total"], summary["products"][0]["remaining"]) == ("140.000", "7.000")
+    assert resent.json()["closing"]["status"] == "submitted"
+    assert sell(day, "1", "28.000").status_code == 403  # sent again: still closed
+
+
+def test_a_driver_only_sees_their_own_days(day):
+    other = client_for(MembershipFactory.create(role=Role.DRIVER))
+    first = day["api"].get(reverse("my-day-list")).json()[0]
+
+    assert other.get(reverse("my-day-list")).json() == []
+    assert other.get(reverse("my-day-detail", args=[first["id"]])).status_code == 404
+    assert (
+        other.post(reverse("my-past-day-closing", args=[first["id"]]), {"counted_cash": "1"}, format="json").status_code
+        == 404
+    )
+
+
+def test_the_office_history_filters_by_driver_and_dates(day):
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "50.000"}, format="json")
+    today = timezone.localdate()
+
+    def rows(**params):
+        return day["office"].get(reverse("day-closing-list"), params).json()
+
+    assert len(rows(search="Camion 1")) == 1
+    assert rows(search="personne") == []
+    assert len(rows(date_from=today.isoformat(), date_to=today.isoformat())) == 1
+    assert rows(date_from=(today + dt.timedelta(days=1)).isoformat()) == []

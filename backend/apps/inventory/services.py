@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import connection, models, transaction
+from django.dispatch import Signal
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -533,6 +534,11 @@ def _difference_entry(difference: selectors.OnHandDifference, quantity: Decimal)
 
 TRANSFER_SERIES = "TR"
 
+# Sent when a load into a truck is validated, inside the same transaction, with `transfer` and `actor`. Apps
+# that depend on inventory react to it there (the driver's sent day opens again, D-134); a receiver that
+# raises refuses the validation.
+load_validated = Signal()
+
 
 class TransferLineFields(TypedDict, total=False):
     product: "Product"
@@ -895,6 +901,8 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
         target=transfer,
         after=_transfer_snapshot(transfer),
     )
+    if transfer.kind == TransferKind.LOAD:
+        load_validated.send(sender=Transfer, transfer=transfer, actor=actor)
     return transfer
 
 

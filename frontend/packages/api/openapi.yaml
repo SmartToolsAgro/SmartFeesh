@@ -1001,8 +1001,25 @@ paths:
   /api/v1/day-closings:
     get:
       operationId: listDayClosings
-      description: Days sent by the drivers, newest first. Filter by status.
+      description: |-
+        Days sent by the drivers, newest first (the last 200 matching): to check, and their history. Filter by
+        status, driver or truck, and dates.
       parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
       - in: query
         name: status
         schema:
@@ -1010,12 +1027,14 @@ paths:
           - submitted
           - justification
           - approved
+          - reopened
           type: string
           minLength: 1
         description: |-
           * `submitted` - À vérifier
           * `justification` - Justification demandée
           * `approved` - Approuvée
+          * `reopened` - Rouverte
       tags:
       - day-closings
       security:
@@ -1053,7 +1072,9 @@ paths:
   /api/v1/day-closings/{closing_id}/approve:
     post:
       operationId: approveDayClosing
-      description: 'Approve the day (owner or manager): it is locked.'
+      description: |-
+        Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
+        records changed since the send: the driver sends it again first.
       parameters:
       - in: path
         name: closing_id
@@ -3797,8 +3818,9 @@ paths:
           description: ''
     post:
       operationId: openMyDay
-      description: Start the day on the driver's truck of the day, with the cash they
-        start with.
+      description: |-
+        Start the day on the driver's truck of the day, with the cash they start with. One day per date:
+        asking again returns it unchanged, also once its closing is sent.
       tags:
       - my-day
       requestBody:
@@ -3826,8 +3848,9 @@ paths:
     post:
       operationId: closeMyDay
       description: |-
-        Send the end of the day with the cash counted and an optional note. Sent again only after the office
-        asked for a justification.
+        Send the end of the day with the cash counted and an optional note: the day is closed until a load
+        validated that date opens it again. Sent again after the office asked for a justification, after such
+        a load, or when the day's records changed since the send.
       tags:
       - my-day-closing
       requestBody:
@@ -3863,6 +3886,81 @@ paths:
       - cookieAuth: []
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-days:
+    get:
+      operationId: listMyDays
+      description: The driver's own days, newest first (the last 60), each with its
+        closing when sent (D-134).
+      tags:
+      - my-days
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyDayRow'
+          description: ''
+  /api/v1/my-days/{day_id}:
+    get:
+      operationId: getMyPastDay
+      description: 'One of the driver''s days: the figures as sent, or live while
+        it runs.'
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - my-days
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-days/{day_id}/closing:
+    post:
+      operationId: closeMyPastDay
+      description: |-
+        Send the closing of one of the driver's days from the history: again after the office asked for a
+        justification, or a day left open.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - my-days
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayClosingWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
           content:
             application/json:
               schema:
@@ -7471,7 +7569,8 @@ paths:
       operationId: validateTransfer
       description: |-
         Validate a draft: its kg move, oldest batch first. Refused as a whole when the source holds
-        too little (on `lines.<index>.quantity`) or for a day still to come.
+        too little (on `lines.<index>.quantity`) or for a day still to come. A load of today into a truck
+        whose driver already sent the day opens that day again.
       parameters:
       - in: path
         name: transfer_id
@@ -8601,6 +8700,33 @@ components:
       required:
       - new_password
       - old_password
+    ChangedFigure:
+      type: object
+      description: One figure of a day that the records, read now, no longer give
+        as the driver sent it (D-134).
+      properties:
+        figure:
+          allOf:
+          - $ref: '#/components/schemas/FigureEnum'
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        sent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        live:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - figure
+      - live
+      - product_name
+      - sent
     CloseLot:
       type: object
       properties:
@@ -10005,11 +10131,22 @@ components:
           allOf:
           - $ref: '#/components/schemas/DaySummary'
           readOnly: true
+        reopenings:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayReopening'
+          readOnly: true
+        changes_since_sent:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangedFigure'
+          readOnly: true
         changed_since_sent:
           type: boolean
           readOnly: true
       required:
       - changed_since_sent
+      - changes_since_sent
       - counted_cash
       - date
       - difference
@@ -10017,6 +10154,7 @@ components:
       - driver_note
       - expected_cash
       - id
+      - reopenings
       - review_note
       - reviewed_at
       - reviewed_by_name
@@ -10079,7 +10217,17 @@ components:
           allOf:
           - $ref: '#/components/schemas/DayClosingStatusEnum'
           readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -10100,7 +10248,9 @@ components:
       required:
       - changed_since_sent
       - counted_cash
+      - difference
       - driver_note
+      - expected_cash
       - id
       - review_note
       - status
@@ -10110,11 +10260,13 @@ components:
       - submitted
       - justification
       - approved
+      - reopened
       type: string
       description: |-
         * `submitted` - À vérifier
         * `justification` - Justification demandée
         * `approved` - Approuvée
+        * `reopened` - Rouverte
     DayClosingWrite:
       type: object
       properties:
@@ -10342,6 +10494,63 @@ components:
       - returned
       - sold
       - unexplained
+    DayReopening:
+      type: object
+      description: 'A send that a new load undid (D-134), as it was: its cash was
+        handed to the office.'
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_by_name:
+          type: string
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reopened_at:
+          type: string
+          format: date-time
+          readOnly: true
+        load_number:
+          type: string
+          readOnly: true
+      required:
+      - counted_cash
+      - difference
+      - driver_note
+      - expected_cash
+      - load_number
+      - reopened_at
+      - reviewed_at
+      - reviewed_by_name
+      - status
+      - submitted_at
     DaySummary:
       type: object
       properties:
@@ -10393,6 +10602,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        handed_over:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         expected_cash:
           type: string
           format: decimal
@@ -10409,6 +10623,7 @@ components:
       - driver_name
       - expected_cash
       - expenses_total
+      - handed_over
       - on_credit
       - opening_cash
       - other_payments
@@ -10600,8 +10815,14 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
       required:
       - date
+      - ended_at
       - id
       - opening_cash
       - truck_name
@@ -11272,6 +11493,38 @@ components:
       - product_name
       - quantity
       - use_by
+    FigureEnum:
+      enum:
+      - sales_count
+      - sales_total
+      - cash_received
+      - payments_cash
+      - other_payments
+      - on_credit
+      - expenses_total
+      - expected_cash
+      - opening
+      - loaded
+      - sold
+      - lost
+      - returned
+      - remaining
+      type: string
+      description: |-
+        * `sales_count` - sales_count
+        * `sales_total` - sales_total
+        * `cash_received` - cash_received
+        * `payments_cash` - payments_cash
+        * `other_payments` - other_payments
+        * `on_credit` - on_credit
+        * `expenses_total` - expenses_total
+        * `expected_cash` - expected_cash
+        * `opening` - opening
+        * `loaded` - loaded
+        * `sold` - sold
+        * `lost` - lost
+        * `returned` - returned
+        * `remaining` - remaining
     FinanceSettings:
       type: object
       description: One version of the finance settings.
@@ -14199,6 +14452,43 @@ components:
           nullable: true
       required:
       - customer
+    MyDayRow:
+      type: object
+      description: One of the driver's days in their history, with its closing when
+        sent.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closing:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingState'
+          readOnly: true
+          nullable: true
+      required:
+      - closing
+      - date
+      - ended_at
+      - id
+      - opening_cash
+      - truck_name
     MyDaySummary:
       type: object
       properties:

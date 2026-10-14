@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
@@ -12,12 +14,16 @@ from apps.dayclose import selectors, services
 from apps.dayclose.models import DayClosing, SyncProblem
 from apps.fleet import selectors as fleet
 
+if TYPE_CHECKING:
+    from apps.fleet.models import DriverDay
+
 from .serializers import (
     DayClosingDetailSerializer,
     DayClosingFilterSerializer,
     DayClosingRowSerializer,
     DayClosingWriteSerializer,
     JustificationSerializer,
+    MyDayRowSerializer,
     MyDaySummarySerializer,
     SyncProblemSerializer,
     SyncProblemWriteSerializer,
@@ -28,10 +34,14 @@ def _my_day_answer(membership: Membership) -> dict[str, object]:
     driver_day = fleet.driver_day_of(membership)
     if driver_day is None:
         raise Http404
-    return {
-        "summary": selectors.day_summary(membership.organization, driver_day),
-        "closing": selectors.closing_of(driver_day),
-    }
+    return selectors.day_answer(membership.organization, driver_day)
+
+
+def _my_past_day(membership: Membership, day_id: int) -> "DriverDay":
+    try:
+        return fleet.driver_days_of(membership.organization, driver_id=membership.user_id).get(pk=day_id)
+    except ObjectDoesNotExist:
+        raise Http404 from None
 
 
 class MyDaySummaryView(APIView):
@@ -53,8 +63,9 @@ class MyDayClosingView(APIView):
         operation_id="closeMyDay", request=DayClosingWriteSerializer, responses={201: MyDaySummarySerializer}
     )
     def post(self, request: Request) -> Response:
-        """Send the end of the day with the cash counted and an optional note. Sent again only after the office
-        asked for a justification."""
+        """Send the end of the day with the cash counted and an optional note: the day is closed until a load
+        validated that date opens it again. Sent again after the office asked for a justification, after such
+        a load, or when the day's records changed since the send."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         serializer = DayClosingWriteSerializer(data=request.data)
@@ -69,6 +80,57 @@ class MyDayClosingView(APIView):
             note=serializer.validated_data["note"],
         )
         return Response(MyDaySummarySerializer(_my_day_answer(membership)).data, status=status.HTTP_201_CREATED)
+
+
+class MyDayListView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="listMyDays", responses=MyDayRowSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The driver's own days, newest first (the last 60), each with its closing when sent (D-134)."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        rows = fleet.driver_days_of(membership.organization, driver_id=membership.user_id).select_related("closing")
+        return Response(MyDayRowSerializer(rows[:60], many=True).data)
+
+
+class MyDayDetailView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="getMyPastDay", responses=MyDaySummarySerializer)
+    def get(self, request: Request, day_id: int) -> Response:
+        """One of the driver's days: the figures as sent, or live while it runs."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        driver_day = _my_past_day(membership, day_id)
+        return Response(MyDaySummarySerializer(selectors.day_answer(membership.organization, driver_day)).data)
+
+
+class MyPastDayClosingView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(
+        operation_id="closeMyPastDay", request=DayClosingWriteSerializer, responses={201: MyDaySummarySerializer}
+    )
+    def post(self, request: Request, day_id: int) -> Response:
+        """Send the closing of one of the driver's days from the history: again after the office asked for a
+        justification, or a day left open."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = DayClosingWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        driver_day = _my_past_day(membership, day_id)
+        services.submit_day_closing(
+            driver_day=driver_day,
+            actor=membership.user,
+            counted_cash=serializer.validated_data["counted_cash"],
+            note=serializer.validated_data["note"],
+        )
+        driver_day = _my_past_day(membership, day_id)
+        return Response(
+            MyDaySummarySerializer(selectors.day_answer(membership.organization, driver_day)).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # Base of the office views: rows of the user's organization only. Owner and manager decide, the accountant reads.
@@ -98,11 +160,19 @@ class DayClosingListView(DayClosingView):
         responses=DayClosingRowSerializer(many=True),
     )
     def get(self, request: Request) -> Response:
-        """Days sent by the drivers, newest first. Filter by status."""
+        """Days sent by the drivers, newest first (the last 200 matching): to check, and their history. Filter by
+        status, driver or truck, and dates."""
         filters = DayClosingFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
-        rows = selectors.closings_of(self.membership.organization, status=filters.validated_data.get("status"))
-        return Response(DayClosingRowSerializer(rows[:100], many=True).data)
+        data = filters.validated_data
+        rows = selectors.closings_of(
+            self.membership.organization,
+            status=data.get("status"),
+            search=data["search"],
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+        )
+        return Response(DayClosingRowSerializer(rows[:200], many=True).data)
 
 
 class DayClosingDetailView(DayClosingView):
@@ -115,7 +185,8 @@ class DayClosingDetailView(DayClosingView):
 class DayClosingApproveView(DayClosingView):
     @extend_schema(operation_id="approveDayClosing", request=None, responses=DayClosingDetailSerializer)
     def post(self, request: Request, closing_id: int) -> Response:
-        """Approve the day (owner or manager): it is locked."""
+        """Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
+        records changed since the send: the driver sends it again first."""
         services.approve_day_closing(closing=self.closing(closing_id), actor=self.membership.user)
         return self.answer(closing_id)
 

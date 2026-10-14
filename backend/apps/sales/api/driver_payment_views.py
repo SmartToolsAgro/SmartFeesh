@@ -37,7 +37,7 @@ class MyPaymentsView(APIView):
         the day's cash when it is cash. The same `client_uuid` sent twice records it once."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
-        dayclose.refuse_if_day_approved(membership)
+        dayclose.refuse_if_day_closed(membership)
         serializer = RoadPaymentWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

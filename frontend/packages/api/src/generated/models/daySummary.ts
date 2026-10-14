@@ -26,6 +26,8 @@ export interface DaySummary {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expenses_total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly handed_over: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_cash: string;
   readonly products: readonly DayProduct[];
 }
