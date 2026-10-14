@@ -330,12 +330,6 @@ export function CounterSalePage() {
                 {alerts.join(" ")}
               </p>
             )}
-            <Button variant="primary" size="lg" disabled={basket.length === 0 || collect.isPending} onClick={pay}>
-              <Icon name="cash" />
-              {collect.isPending
-                ? t("admin.sales.counterSale.collecting")
-                : t("admin.sales.counterSale.collect", { total: formatMoney(total) })}
-            </Button>
             {embedded && <Button onClick={() => leave("/ventes")}>{t("admin.docHub.back")}</Button>}
             {lastSale && (
               <p role="status" className="w-full text-[0.9rem] text-ink-2">
