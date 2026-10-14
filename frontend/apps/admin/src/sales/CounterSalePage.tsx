@@ -154,7 +154,10 @@ export function CounterSalePage() {
         const kilos = sum([same.quantity, kg]);
         return current.map((line) => (line === same ? { ...line, quantity: kilos, unit_price: perKg, batch } : line));
       }
-      return [...current, { key: nextKeyRef.current, product, name: productRow.name, quantity: kg, unit_price: perKg, batch }];
+      return [
+        ...current,
+        { key: nextKeyRef.current, product, name: productRow.name, quantity: kg, unit_price: perKg, batch },
+      ];
     });
     setProduct("");
     setQuantity("");

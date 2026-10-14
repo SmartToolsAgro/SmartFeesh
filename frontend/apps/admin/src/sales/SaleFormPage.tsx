@@ -408,10 +408,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
                   {hints.join(" · ")}
                 </p>
                 {line.product &&
-                  isBelowMinimum(
-                    parseDecimalInput(priceOf(line).trim(), 3),
-                    minimumOf.get(line.product) ?? null,
-                  ) && (
+                  isBelowMinimum(parseDecimalInput(priceOf(line).trim(), 3), minimumOf.get(line.product) ?? null) && (
                     <p
                       role="alert"
                       className="col-span-5 rounded-chip bg-bad-soft px-3 py-2 text-[0.85rem] font-semibold text-bad max-[900px]:col-span-3"
