@@ -11103,7 +11103,7 @@ export const getUpdateMemberUrl = (memberId: number,) => {
 }
 
 /**
- * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-143).
  */
 export const updateMember = async (memberId: number,
     patchedMemberProfile?: PatchedMemberProfile, options?: Parameters<typeof apiFetch>[1]): Promise<Member> => {
@@ -11189,7 +11189,7 @@ export const getDeleteMemberUrl = (memberId: number,) => {
 }
 
 /**
- * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-143).
  */
 export const deleteMember = async (memberId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
 
