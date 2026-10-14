@@ -138,6 +138,20 @@ class TruckAssignmentView(APIView):
                 {"truck": _("Votre journée est ouverte : seul le bureau change le camion.")}
             )
 
+    def refuse_truck_in_use(self, day: date, truck_id: int) -> None:
+        # A truck another driver started their day on (usually their own truck, with no assignment that day) is
+        # theirs for that date: their cash, sales and closing are counted on it. A driver taking it would lock
+        # them out of their own truck and sell their stock (D-141). Only the office may move it.
+        if not self.is_driver:
+            return
+        other = selectors.day_on_truck_of_another(
+            self.membership.organization, truck_id=truck_id, day=day, driver_id=self.membership.user_id
+        )
+        if other is not None:
+            raise exceptions.ValidationError(
+                {"truck": _("Ce camion est déjà utilisé ce jour-là par un autre chauffeur : demandez au bureau.")}
+            )
+
 
 class TruckAssignmentListView(TruckAssignmentView):
     @extend_schema(
@@ -168,6 +182,7 @@ class TruckAssignmentListView(TruckAssignmentView):
         day = data.get("date") or timezone.localdate()
         self.refuse_past_day(day)
         self.refuse_open_day(day, keeping=data["truck"])
+        self.refuse_truck_in_use(day, data["truck"])
         driver = data.get("driver")
         if self.is_driver:
             if driver is not None and driver.pk != self.membership.user_id:

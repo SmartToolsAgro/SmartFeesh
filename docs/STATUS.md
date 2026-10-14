@@ -121,6 +121,9 @@ D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in n
 
 ## Recently done
 
+- 2026-10-14 · P4-T05 security review (D-141): a driver can no longer take a truck another driver started the day
+  on; Excel exports keep names as text (no formulas); old-password guesses limited; import zip bombs refused; last
+  owner guard locked; undici override. Owner to decide how far back a late sale may be dated.
 - 2026-10-14 · P4-T03 / D-139 nightly backups on staging (02:30 UTC, `debian` crontab): database and media, gpg to a
   public key, 30 days in `~/frutti-staging/backups/`, off-site copy ready but waiting for a bucket; restore drill done
   (99 tables identical, stock check clean) with `deploy/restore.sh`.

@@ -33,10 +33,14 @@ Today everything is in paper notebooks (Q15), so there is no file to convert.
 - [ ] Sentry (backend + both apps), uptime check, alert on failed nightly stock consistency check.
 
 ### P4-T05 · Security review · S
-- [ ] Run the `security-review` skill; check permissions per role, CSRF, rate limits, file upload limits.
+- [x] Run the `security-review` skill; check permissions per role, CSRF, rate limits, file upload limits.
   - API review done (D-108): roles per route, tenancy, uploads, throttles, CSRF and cookies, with tests in
-    `apps/core/tests/test_api_security.py`. Still to run: the `security-review` skill on the front ends and the sales
-    and invoices views (after PR #55).
+    `apps/core/tests/test_api_security.py`.
+  - Second review 2026-10-14 (D-141): everything added since D-108, the front ends, sales and invoices, users and
+    sessions, production settings and dependencies. 2 medium and 4 low holes closed with tests.
+  - Still open: the owner's decision on how far back a driver's late sale may be dated (D-141); restrict
+    `/django-admin/` by address in the production nginx; `DJANGO_NUM_PROXIES` and the health check under HTTPS in the
+    production deploy; tie the driver app's offline queue to the driver who filled it (P3-T07).
 
 ### P4-T06 · Training and support · human · S
 - [ ] Short guides with screenshots: French for the owner, French and Arabic for drivers (Q14).
