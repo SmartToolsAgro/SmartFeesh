@@ -34,7 +34,13 @@ D = Decimal
 
 
 def at(day: dt.date) -> dt.datetime:
-    return timezone.make_aware(dt.datetime.combine(day, dt.time(12)))
+    """Midnight: a lot moved on `day` is in the room from the start of that day (charged by the hour, D-142)."""
+    return timezone.make_aware(dt.datetime.combine(day, dt.time.min))
+
+
+def whole_days(days, kg):
+    """The lots of `kg` held through every hour of each day, as `inventory.held_slices_by_hour` gives them."""
+    return {day: {hour: [(3600, kg)] for hour in range(24)} for day in days}
 
 
 def put(organization, name, kg, room, day):
@@ -115,14 +121,36 @@ def test_a_rooms_month_is_spread_over_the_days_exactly(amount, month):
 def test_a_days_cost_is_shared_over_the_lots_by_kg_and_every_day_adds_up():
     month = dt.date(2026, 9, 1)
     days = room_day_amounts(D("100.000"), month)
-    kg = {day: {1: D("30.500"), 2: D("12.250"), 3: D("7.001")} for day in month_days(month)}
-    charges = allocate_room_days(days, kg)
+    held = whole_days(month_days(month), {1: D("30.500"), 2: D("12.250"), 3: D("7.001")})
+    charges = allocate_room_days(days, held)
     assert sum(charge.amount for charge in charges.values()) == D("100.000")
     assert charges[1].kg_days == D("30.500") * 30
-    # No lot in the room on some days: those days are not charged to anyone.
-    sparse = allocate_room_days(days, {dt.date(2026, 9, 1): {1: D("5.000")}})
-    assert sparse[1].amount == days[dt.date(2026, 9, 1)]
+    # Empty hours: that time is charged to nobody. One hour of stock takes that hour's part of the day.
+    sparse = allocate_room_days(days, {dt.date(2026, 9, 1): {5: [(3600, {1: D("5.000")})]}})
+    assert sparse[1].amount == split_evenly(days[dt.date(2026, 9, 1)], 24)[5]
     assert split_by_weight(D("10.000"), {}) == {}
+
+
+def test_a_lot_pays_the_hours_it_stayed_not_a_whole_day():
+    # In the room alone from 00:28 to 21:38: 21 h 10 min of a 24 DT day, not the whole day.
+    day = dt.date(2026, 9, 1)
+    held = {day: {hour: [(3600, {1: D("10.000")})] for hour in range(1, 21)}}
+    held[day][0] = [(32 * 60, {1: D("10.000")})]
+    held[day][21] = [(38 * 60, {1: D("10.000")})]
+    charge = allocate_room_days({day: D("24.000")}, held)[1]
+    assert charge.amount == D("21.166")  # 0.533 (32 min of hour 0) + 20 hours + 0.633 (38 min of hour 21)
+    assert charge.kg_days == D("10.000") * (21 * 3600 + 10 * 60) / 86400
+
+
+def test_two_lots_share_the_time_they_overlap_by_kg():
+    day = dt.date(2026, 9, 1)
+    # Hour 9: lot 1 (30 kg) for the whole hour; lot 2 (10 kg) only for the first 30 minutes, so it gets a
+    # quarter of that half hour's share and nothing of the rest.
+    held = {day: {9: [(1800, {1: D("30.000"), 2: D("10.000")}), (1800, {1: D("30.000")})]}}
+    charges = allocate_room_days({day: D("24.000")}, held)
+    hour = split_evenly(D("24.000"), 24)[9]
+    assert charges[1].amount + charges[2].amount == hour
+    assert charges[2].amount == split_by_weight(hour / 2, {1: D("30.000"), 2: D("10.000")})[2]
 
 
 def test_the_estimate_is_the_previous_months_daily_rate():
@@ -167,6 +195,40 @@ def test_kilos_in_a_room_are_replayed_from_the_ledger_day_by_day(organization, c
 # ---- bill, estimate, correction ----
 
 
+def test_the_ledger_gives_the_hours_a_lot_was_in_a_room(organization, cold_room):
+    day = dt.date(2026, 9, 1)
+    product = ProductFactory.create(organization=organization, name="Dorade")
+    batch = BatchFactory.create(organization=organization, product=product, received_on=day)
+
+    def moment(hour, minute):
+        return timezone.make_aware(dt.datetime.combine(day, dt.time(hour, minute)))
+
+    inventory_services.post_movement(
+        organization=organization,
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=batch,
+        quantity="10",
+        to_location=cold_room,
+        occurred_at=moment(0, 28),
+    )
+    inventory_services.post_movement(
+        organization=organization,
+        actor=None,
+        kind=MovementKind.SALE,
+        batch=batch,
+        quantity="10",
+        from_location=cold_room,
+        occurred_at=moment(21, 38),
+    )
+    held = inventory.held_slices_by_hour(organization, date_from=day, date_to=day, location_ids=[cold_room.pk])
+    hours = held[cold_room.pk][day]
+    assert sorted(hours) == list(range(22))
+    assert hours[0] == [(32 * 60, {batch.pk: D("10.000")})]
+    assert hours[21] == [(38 * 60, {batch.pk: D("10.000")})]
+    assert hours[5] == [(3600, {batch.pk: D("10.000")})]
+
+
 def test_before_any_bill_there_is_no_estimate_to_copy(organization, cold_room):
     lot = put(organization, "Dorade", "100", cold_room, timezone.localdate() - dt.timedelta(days=5))
     assert lines_of(organization, lot, "cold_room") == []
@@ -189,11 +251,9 @@ def test_the_estimate_is_flagged_then_the_real_bill_adds_a_dated_correction(orga
     assert [line.month for line in estimated] == [m1, m2, m3]
     assert all(line.estimated for line in estimated)
     today_days = (timezone.localdate() - m3).days + 1
-    assert [line.amount for line in estimated] == [
-        estimate * days_in_month(m1),
-        estimate * days_in_month(m2),
-        estimate * today_days,
-    ]
+    # The lot came in at midnight: whole months, and today only up to now (hours to come are not charged).
+    assert [line.amount for line in estimated[:2]] == [estimate * days_in_month(m1), estimate * days_in_month(m2)]
+    assert 0 <= estimated[2].amount <= estimate * today_days
     assert estimated[0].location_name == "Chambre froide 1"
     assert estimated[0].quantity == D("100.000") * days_in_month(m1)
     assert selectors.lot_cost_total(selectors.lot_cost_lines(organization, batch_id=lot.pk)) == sum(
@@ -292,7 +352,7 @@ def test_a_lot_that_moves_rooms_is_charged_by_room_and_day(organization, actor, 
     assert corrections["Chambre froide -20"] == sum(
         (room_two_days[day] for day in month_days(m1) if day >= switch), D("0")
     )
-    # The day it moves is charged to the room it ends the day in (end-of-day balance).
+    # The move is at midnight: each room is charged for the hours the lot was in it.
     assert sum(corrections.values()) == sum(
         (room_one_days[day] if day < switch else room_two_days[day] for day in month_days(m1)), D("0")
     )

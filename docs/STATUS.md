@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-14_
+_Last updated: 2026-10-14 (D-142, hourly lot costs)_
 
 ## Where we are
 
@@ -122,6 +122,11 @@ in pickers, documents opened in a window, Prettier fix). `main` CI green. Two de
 D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in number order.
 
 ## Recently done
+
+- 2026-10-14 · D-142 cold-room and general costs charged **by the hour**: a lot pays the time it spent in the room
+  (00:28 to 21:38 = 21 h 10 min of the room's day), the empty time of a room is nobody's. `held_slices_by_hour` in
+  `inventory.selectors`, `allocate_room_days` / `allocate_general_days` in `expenses.costing`. Owner guide updated.
+  **Open:** approved electricity bills already booked under the daily rule are not recalculated (D-142, owner to decide).
 
 - 2026-10-14 · P4-T04 monitoring (D-140): Sentry in the API and both apps (off without a DSN), the nightly stock
   check records its run (`/api/v1/health/stock-check`), and `.github/workflows/uptime.yml` checks staging every

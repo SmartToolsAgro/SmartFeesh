@@ -2091,3 +2091,23 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   `X-Forwarded-Proto` in the check).
 - **Accepted as D-108 said:** PDFs and receipts served inline as `application/pdf` with nosniff; no general rate limit
   on the API; drivers read prices and minimum prices (D-049), managers read margins (D-113).
+
+**D-142 · Cold-room and general costs charged by the hour, not by the day (owner's request, 2026-10-14)** · accepted · 2026-10-14
+- **Why:** a lot that came in at 00:28 and went out at 21:38 on the same day was charged nothing: the day was
+  allocated by the stock at the end of the day (D-058, D-059), which is empty for such a lot. Rent, insurance and
+  electricity must follow the time a lot actually spends in the room.
+- **Rule (replaces "per day by kg held" of D-041, D-058 and Q21 for the split; the monthly amount / 26 and the
+  electricity bill stay as they were):** a day's amount is 24 equal hours (to the millime). Each hour is shared over
+  the time the lots spent in the room in that hour, each stretch of time by the kilos it held. Time the room was
+  empty is charged to nobody. So a lot that stays 00:28 to 21:38 pays 21 h 10 min of the room's cost. Today counts
+  only up to now.
+- **Ledger:** `inventory.selectors.held_slices_by_hour` replays the ledger by the movement times (not by the day):
+  `{place: {day: {hour: [(seconds, {lot: kg})]}}}`. `kg_by_batch_by_day` (end of day) is kept for the stock check.
+- **Pure functions:** `expenses.costing.allocate_room_days` and `allocate_general_days` take that hourly structure;
+  `split_by_weight` keeps every hour exact to the millime. `kg_days` is kg x hours / 24 as before.
+- **Consequence to know:** lots already closed or costs already approved (`LotCostAdjustment` rows booked under the
+  daily rule) are not rewritten. Lines computed after this change use hours, so for a lot whose month was already
+  corrected under the daily rule, the estimate line and the correction no longer add up to the bill's real share
+  (the gap is the difference between the two rules for that lot). Open point for the owner: recalculate the
+  approved bills, or apply the hourly rule only from a date.
+- **Shown on the lot:** the cost lines show the same kg-days quantity as before.
