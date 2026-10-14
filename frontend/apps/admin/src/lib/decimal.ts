@@ -66,6 +66,13 @@ export function marginPercent(price: string, cost: string): string | null {
   return `${negative ? "-" : ""}${absolute / 10n}.${absolute % 10n}`;
 }
 
+/** True when a typed price is above zero and under the product's minimum (a warning, never a block, D-049). */
+export function isBelowMinimum(price: string | null, minimum: string | null): boolean {
+  if (!price || !minimum) return false;
+  const typed = toThousandths(price);
+  return typed > 0n && typed < toThousandths(minimum);
+}
+
 /** `percent` % of an amount, rounded once to the millime: a quote line's discount (D-050). */
 export function percentOf(amount: string, percent: string): string {
   return fromThousandths(divideRounded(toThousandths(amount) * toThousandths(percent), SCALE * 100n));
