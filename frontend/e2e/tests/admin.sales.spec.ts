@@ -170,7 +170,7 @@ test("a sale asking more than the cold room holds is refused under its line", as
   await page.getByRole("button", { name: "Enregistrer et confirmer" }).click();
 
   // No place holds 5 000 kg: the sale names the products and asks for two sales.
-  await expect(page.getByText(/Aucun lieu ne contient tout ce poids \(Poulpe · PO-006\)/)).toBeVisible();
+  await expect(page.getByText(/Aucun lieu ne contient tout ce poids \(Poulpe\)/)).toBeVisible();
   await expect(page).toHaveURL(/\/ventes\/nouvelle$/);
 });
 
