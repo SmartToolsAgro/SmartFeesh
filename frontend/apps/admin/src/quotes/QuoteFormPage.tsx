@@ -12,7 +12,7 @@ import {
   useListProducts,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -33,21 +33,24 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams } from "react-router";
 
-import { lineTotal, percentOf, subtract, sum } from "../lib/decimal";
+import { subtract, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
+import {
+  amountsOf,
+  asTyped,
+  filled,
+  isZero,
+  type Line,
+  newLine,
+  rateAsTyped,
+  shownPrice,
+  withSpare,
+} from "../lib/lines";
+import { LinesGrid } from "../lib/LinesGrid";
 import { todayInTunis } from "../receipts/shared";
 import { canWriteQuotes, refreshAfterQuote } from "./shared";
 
-type Line = {
-  key: number;
-  product: string;
-  quantity: string;
-  unit_price: string;
-  discount_rate: string;
-  // Once a person types a price, the form stops showing the price in force.
-  priceTouched: boolean;
-};
 type Errors = Record<string, string>;
 
 // The server's default validity (D-050); the form shows it so it can be changed before saving.
@@ -55,18 +58,7 @@ const VALIDITY_DAYS = 3;
 // Radix Select has no empty choice: this value stands for "no location".
 const NO_LOCATION = "none";
 
-// Gives each line a stable React key, also for lines not saved yet.
-let nextKey = 0;
-function newLine(fields: Partial<Line> = {}): Line {
-  nextKey += 1;
-  return { key: nextKey, product: "", quantity: "", unit_price: "", discount_rate: "", priceTouched: false, ...fields };
-}
-
-// The API writes "20.250"; people here write "20,250". Both are read back by parseDecimalInput.
-const asTyped = (value: string) => value.replace(".", ",");
 const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
-// "5.00" is shown as "5", "2.50" as "2,5": a rate is typed like a person writes it.
-const rateAsTyped = (value: string) => asTyped(value.replace(/\.?0+$/, ""));
 
 /** An ISO day plus some days, in the calendar (no time zone involved). */
 function addDays(day: string, days: number): string {
@@ -117,17 +109,17 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   const [validTouched, setValidTouched] = useState(draft !== undefined);
   const [notes, setNotes] = useState(draft?.notes ?? "");
   const [lines, setLines] = useState<Line[]>(() =>
-    draft
-      ? draft.lines.map((line) =>
-          newLine({
-            product: String(line.product.id),
-            quantity: asTyped(line.quantity),
-            unit_price: asTyped(line.unit_price),
-            discount_rate: /^0+(\.0+)?$/.test(line.discount_rate) ? "" : rateAsTyped(line.discount_rate),
-            priceTouched: true,
-          }),
-        )
-      : [newLine()],
+    withSpare(
+      (draft?.lines ?? []).map((line) =>
+        newLine({
+          product: String(line.product.id),
+          quantity: asTyped(line.quantity),
+          unit_price: asTyped(line.unit_price),
+          discount_rate: isZero(line.discount_rate) ? "" : rateAsTyped(line.discount_rate),
+          priceTouched: true,
+        }),
+      ),
+    ),
   );
   const [errors, setErrors] = useState<Errors>({});
 
@@ -157,14 +149,18 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   const proposedPrice = (product: string): string | null => listPrice.get(product) ?? dailyPrice.get(product) ?? null;
 
   // A line shows the price the customer is charged until a price is typed; the server keeps it on the line.
-  const priceOf = (line: Line): string => {
-    if (line.priceTouched) return line.unit_price;
-    const price = proposedPrice(line.product);
-    return price ? asTyped(price) : "";
+  const priceOf = (line: Line): string => shownPrice(line, proposedPrice(line.product));
+  // Said under the grid for the row being typed in: where its price comes from.
+  const priceHint = (line: Line): string => {
+    const fromList = listPrice.get(line.product);
+    const inForce = dailyPrice.get(line.product);
+    if (fromList && customerList) {
+      return t("admin.quotes.form.listPrice", { list: customerList.name, price: formatMoney(fromList) });
+    }
+    return inForce
+      ? t("admin.quotes.form.priceInForce", { price: formatMoney(inForce) })
+      : t("admin.quotes.form.noPrice");
   };
-
-  const setLine = (key: number, change: Partial<Line>) =>
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, ...change } : line)));
 
   const save = useMutation({
     mutationFn: (payload: QuoteWrite) => (draft ? updateQuote(draft.id, payload) : createQuote(payload)),
@@ -184,16 +180,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   if (!canWriteQuotes(session)) return <Navigate to="/devis" replace />;
 
   // Browser-side preview of the server's amounts (D-050): gross, discount, net per line.
-  const previews = lines.map((line) => {
-    const quantity = parseDecimalInput(line.quantity.trim(), 3);
-    const price = parseDecimalInput(priceOf(line).trim(), 3);
-    const rate = line.discount_rate.trim() === "" ? "0" : parseDecimalInput(line.discount_rate.trim(), 2);
-    if (!quantity || !price || !rate || [quantity, price, rate].some((value) => value.startsWith("-"))) return null;
-    const gross = lineTotal(quantity, price);
-    const discount = percentOf(gross, rate);
-    return { gross, discount, amount: subtract(gross, discount) };
-  });
-  const priced = previews.flatMap((preview) => (preview ? [preview] : []));
+  const priced = lines.flatMap((line) => amountsOf(line, priceOf(line)) ?? []);
   const subtotal = sum(priced.map((preview) => preview.gross));
   const discountTotal = sum(priced.map((preview) => preview.discount));
   const totalExclTax = subtract(subtotal, discountTotal);
@@ -204,12 +191,14 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
     if (!day) found.quoted_on = t("admin.quotes.form.required");
     if (!validUntil) found.valid_until = t("admin.quotes.form.required");
     else if (day && validUntil < day) found.valid_until = t("admin.quotes.form.validBefore");
-    if (lines.length === 0) found.lines = t("admin.quotes.form.noLines");
+    // The grid's blank rows are places to type in, not lines of the quote.
+    const rows = filled(lines);
+    if (rows.length === 0) found.lines = t("admin.quotes.form.noLines");
     const payloadLines: QuoteWrite["lines"] = [];
-    lines.forEach((line, index) => {
+    rows.forEach((line, index) => {
       if (!line.product) found[lineKey(index, "product")] = t("admin.quotes.form.required");
       const quantity = parseDecimalInput(line.quantity.trim(), 3);
-      if (quantity === null || quantity.startsWith("-") || /^0+(\.0+)?$/.test(quantity)) {
+      if (quantity === null || quantity.startsWith("-") || isZero(quantity)) {
         found[lineKey(index, "quantity")] = t("admin.quotes.form.weight");
       }
       let price: string | null = null;
@@ -332,90 +321,19 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
 
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.quotes.form.lines")}</CardTitle>
-          {lines.map((line, index) => {
-            const available = line.product ? availableOf.get(line.product) : undefined;
-            const fromList = line.product ? listPrice.get(line.product) : undefined;
-            const inForce = line.product ? dailyPrice.get(line.product) : undefined;
-            const hints = [
-              line.product
-                ? fromList && customerList
-                  ? t("admin.quotes.form.listPrice", { list: customerList.name, price: formatMoney(fromList) })
-                  : inForce
-                    ? t("admin.quotes.form.priceInForce", { price: formatMoney(inForce) })
-                    : t("admin.quotes.form.noPrice")
-                : null,
-              line.product && place && stock.data
-                ? available
-                  ? t("admin.quotes.form.available", { location: place.name, quantity: formatQuantity(available) })
-                  : t("admin.quotes.form.notAvailable", { location: place.name })
-                : null,
-            ].filter(Boolean);
-            const preview = previews[index];
-            const input = (field: "quantity" | "unit_price" | "discount_rate", label: string) => (
-              <Field label={label} htmlFor={id(lineKey(index, field))} error={errors[lineKey(index, field)]}>
-                <Input
-                  id={id(lineKey(index, field))}
-                  inputMode="decimal"
-                  value={field === "unit_price" ? priceOf(line) : line[field]}
-                  onChange={(event) =>
-                    setLine(
-                      line.key,
-                      field === "unit_price"
-                        ? { unit_price: event.target.value, priceTouched: true }
-                        : { [field]: event.target.value },
-                    )
-                  }
-                  aria-invalid={errors[lineKey(index, field)] ? true : undefined}
-                  autoComplete="off"
-                  className="num"
-                />
-              </Field>
-            );
-            return (
-              <div
-                key={line.key}
-                role="group"
-                aria-label={t("admin.quotes.form.lineNumber", { number: index + 1 })}
-                className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] items-start gap-3 rounded-card border border-line p-3 max-[900px]:grid-cols-3"
-              >
-                {select(
-                  lineKey(index, "product"),
-                  t("admin.quotes.form.product"),
-                  line.product,
-                  (value) => setLine(line.key, { product: value, priceTouched: false, unit_price: "" }),
-                  (products.data ?? []).map((product) => ({
-                    value: String(product.id),
-                    label: `${product.name} · ${product.reference}`,
-                  })),
-                  "max-[900px]:col-span-3",
-                )}
-                {input("quantity", t("admin.quotes.form.quantity"))}
-                {input("unit_price", t("admin.quotes.form.price"))}
-                {input("discount_rate", t("admin.quotes.form.discount"))}
-                <div className="flex items-end self-stretch max-[900px]:col-span-3 max-[900px]:justify-end">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("admin.quotes.form.removeLine")}
-                    title={t("admin.quotes.form.removeLine")}
-                    onClick={() => setLines((current) => current.filter((other) => other.key !== line.key))}
-                  >
-                    <Icon name="trash" />
-                  </Button>
-                </div>
-                <p className="col-span-4 text-[0.85rem] text-ink-2 max-[900px]:col-span-2" aria-live="polite">
-                  {hints.join(" · ")}
-                </p>
-                <p className="num text-end font-semibold">{preview ? formatMoney(preview.amount) : ""}</p>
-              </div>
-            );
-          })}
+          <LinesGrid
+            label={t("admin.quotes.form.lines")}
+            lines={lines}
+            onChange={setLines}
+            products={products.data ?? []}
+            proposedPrice={proposedPrice}
+            stock={place && stock.data ? availableOf : undefined}
+            errors={errors}
+            discount
+            hint={priceHint}
+          />
           {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
           <div className="flex flex-wrap items-start gap-x-8 gap-y-2">
-            <Button onClick={() => setLines((current) => [...current, newLine()])}>
-              <Icon name="plus" />
-              {t("admin.quotes.form.addLine")}
-            </Button>
             <dl className="ms-auto flex flex-wrap gap-x-8 gap-y-2">
               {discountTotal !== "0.000" && (
                 <>
