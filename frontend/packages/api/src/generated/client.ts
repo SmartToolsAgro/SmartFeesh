@@ -201,6 +201,7 @@ import type {
   PatchedExpenseCategoryUpdate,
   PatchedLanguage,
   PatchedLotPartnershipUpdate,
+  PatchedMemberProfile,
   PatchedMemberRole,
   PatchedProductUpdate,
   PatchedSalaryRecordUpdate,
@@ -11091,6 +11092,163 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateMemberMutationOptions(options), queryClient);
+    }
+
+export const getUpdateMemberUrl = (memberId: number,) => {
+
+
+
+
+  return `/api/v1/members/${memberId}`
+}
+
+/**
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ */
+export const updateMember = async (memberId: number,
+    patchedMemberProfile?: PatchedMemberProfile, options?: Parameters<typeof apiFetch>[1]): Promise<Member> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Member>(getUpdateMemberUrl(memberId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedMemberProfile)
+  }
+);}
+
+
+
+
+
+export const getUpdateMemberMutationKey = () => ['updateMember'] as const;
+
+export const getUpdateMemberMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,UpdateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,UpdateMemberMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMember>>, UpdateMemberMutationVariables> = (props) => {
+          const {memberId,data} = props ?? {};
+
+          return  updateMember(memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMemberMutationResult = NonNullable<Awaited<ReturnType<typeof updateMember>>>
+    export type UpdateMemberMutationBody = PatchedMemberProfile | undefined
+    export type UpdateMemberMutationError = unknown
+    export type UpdateMemberMutationVariables = {memberId: number;data?: PatchedMemberProfile}
+
+    export const useUpdateMember = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,UpdateMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateMember>>,
+        TError,
+        UpdateMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMemberMutationOptions(options), queryClient);
+    }
+
+export const getDeleteMemberUrl = (memberId: number,) => {
+
+
+
+
+  return `/api/v1/members/${memberId}`
+}
+
+/**
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ */
+export const deleteMember = async (memberId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteMemberUrl(memberId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMemberMutationKey = () => ['deleteMember'] as const;
+
+export const getDeleteMemberMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,DeleteMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,DeleteMemberMutationVariables, TContext> => {
+
+const mutationKey = getDeleteMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMember>>, DeleteMemberMutationVariables> = (props) => {
+          const {memberId} = props ?? {};
+
+          return  deleteMember(memberId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMemberMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMember>>>
+
+    export type DeleteMemberMutationError = unknown
+    export type DeleteMemberMutationVariables = {memberId: number}
+
+    export const useDeleteMember = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,DeleteMemberMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMember>>,
+        TError,
+        DeleteMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteMemberMutationOptions(options), queryClient);
     }
 
 export const getDeactivateMemberUrl = (memberId: number,) => {

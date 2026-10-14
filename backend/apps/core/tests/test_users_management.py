@@ -8,6 +8,7 @@ from django.urls import reverse
 from PIL import Image
 from rest_framework.test import APIClient
 
+from apps.core import audit
 from apps.core.models import Membership, Role, User
 
 from .factories import MembershipFactory, OrganizationFactory, UserFactory
@@ -300,3 +301,87 @@ def test_the_company_logo_of_another_organization_is_not_served():
 
     other_owner, _ = client_for(Role.OWNER)
     assert other_owner.get(reverse("organization-logo", args=[owner_membership.organization.pk])).status_code == 404
+
+
+# ---- Owner edits a member's identifier and name, and deletes an unused account (D-143) ----
+
+
+@pytest.mark.parametrize("role", [Role.MANAGER, Role.ACCOUNTANT, Role.DRIVER])
+def test_only_the_owner_edits_or_deletes_a_member(role):
+    client, membership = client_for(role)
+    colleague = MembershipFactory.create(organization=membership.organization, role=Role.DRIVER)
+
+    patched = client.patch(
+        reverse("member-detail", args=[colleague.pk]), {"username": "autre", "first_name": "X"}, format="json"
+    )
+    assert patched.status_code == 403
+    assert client.delete(reverse("member-detail", args=[colleague.pk])).status_code == 403
+    colleague.user.refresh_from_db()
+    assert colleague.user.username != "autre"
+    assert Membership.objects.filter(pk=colleague.pk).exists()
+
+
+def test_the_owner_corrects_a_members_identifier_and_name():
+    client, owner = client_for(Role.OWNER)
+    colleague = MembershipFactory.create(organization=owner.organization, role=Role.DRIVER)
+
+    response = client.patch(
+        reverse("member-detail", args=[colleague.pk]),
+        {"username": "sami.b", "first_name": "Sami", "last_name": "Bouzid"},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["user"]["username"] == "sami.b"
+    assert response.json()["user"]["last_name"] == "Bouzid"
+    colleague.user.refresh_from_db()
+    assert colleague.user.username == "sami.b"
+    assert colleague.user.first_name == "Sami"
+
+
+def test_a_taken_identifier_is_refused_when_editing_a_member():
+    client, owner = client_for(Role.OWNER)
+    colleague = MembershipFactory.create(organization=owner.organization, role=Role.DRIVER)
+    UserFactory.create(username="prise")
+
+    response = client.patch(reverse("member-detail", args=[colleague.pk]), {"username": "prise"}, format="json")
+
+    assert response.status_code == 400
+    assert "username" in response.json()
+    colleague.user.refresh_from_db()
+    assert colleague.user.username != "prise"
+
+
+def test_the_owner_deletes_an_account_without_history():
+    client, owner = client_for(Role.OWNER)
+    colleague = MembershipFactory.create(organization=owner.organization, role=Role.DRIVER)
+    user_id = colleague.user_id
+
+    response = client.delete(reverse("member-detail", args=[colleague.pk]))
+
+    assert response.status_code == 204
+    assert not User.objects.filter(pk=user_id).exists()
+    assert not Membership.objects.filter(pk=colleague.pk).exists()
+
+
+def test_an_account_with_history_cannot_be_deleted_only_deactivated():
+    client, owner = client_for(Role.OWNER)
+    colleague = MembershipFactory.create(organization=owner.organization, role=Role.DRIVER)
+    # Their name is on an audit entry (the actor of a recorded action): the history must stay.
+    audit.record(organization=owner.organization, actor=colleague.user, action="test.something")
+
+    response = client.delete(reverse("member-detail", args=[colleague.pk]))
+
+    assert response.status_code == 400
+    assert User.objects.filter(pk=colleague.user_id).exists()
+    assert Membership.objects.filter(pk=colleague.pk).exists()
+
+
+def test_the_owner_cannot_delete_their_own_account():
+    client, owner = client_for(Role.OWNER)
+    MembershipFactory.create(organization=owner.organization, role=Role.OWNER)  # a second owner, so not the last
+
+    response = client.delete(reverse("member-detail", args=[owner.pk]))
+
+    assert response.status_code == 400
+    assert Membership.objects.filter(pk=owner.pk).exists()

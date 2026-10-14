@@ -6399,6 +6399,55 @@ export const CreateMemberResponse = zod.object({
 })
 
 
+/**
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ */
+export const UpdateMemberParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const updateMemberBodyUsernameMax = 150;
+
+export const updateMemberBodyFirstNameDefault = ``;
+export const updateMemberBodyFirstNameMax = 150;
+
+export const updateMemberBodyLastNameDefault = ``;
+export const updateMemberBodyLastNameMax = 150;
+
+
+
+export const UpdateMemberBody = zod.object({
+  "username": zod.string().max(updateMemberBodyUsernameMax).optional(),
+  "first_name": zod.string().max(updateMemberBodyFirstNameMax).default(updateMemberBodyFirstNameDefault),
+  "last_name": zod.string().max(updateMemberBodyLastNameMax).default(updateMemberBodyLastNameDefault)
+})
+
+export const UpdateMemberResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "is_active": zod.boolean()
+})
+
+
+/**
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ */
+export const DeleteMemberParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const DeleteMemberResponse = zod.void()
+
+
 export const DeactivateMemberParams = zod.object({
   "member_id": zod.int()
 })

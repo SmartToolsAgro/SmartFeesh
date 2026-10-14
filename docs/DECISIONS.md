@@ -2111,3 +2111,14 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   (the gap is the difference between the two rules for that lot). Open point for the owner: recalculate the
   approved bills, or apply the hourly rule only from a date.
 - **Shown on the lot:** the cost lines show the same kg-days quantity as before.
+
+**D-143 · Paramètres > Utilisateurs: the owner can change a user's login and name, and delete an account that has no history (owner's request, 2026-10-15)** · accepted · 2026-10-15
+- **Why:** the owner could not correct a typo in a name or login, and could not remove a test or mistaken account; only deactivation existed.
+- **Change a user:** the owner edits the login identifier, first name and last name (`PATCH members/<id>`). The login stays unique (refused with a field error when taken). Audited as `membership.profile_changed`.
+- **Delete a user:** `DELETE members/<id>`, owner only. Refused when the account:
+  - is the owner's own account (`Vous ne pouvez pas supprimer votre propre compte`);
+  - would leave the organization without an active owner (D-141 guard);
+  - also has access to another company (deactivate it instead);
+  - has any history: invoices, closings, driver days, fleet assignments or audit entries that name the user as actor. These are `PROTECT` foreign keys, so the delete is rolled back and the owner is told to deactivate instead.
+- **What is kept:** D-123 still stands for accounts with history, which are deactivated, never deleted. The audit trail keeps an entry `membership.deleted` with the login and role.
+- **Not done:** the audit entries that name the deleted account as the *target* (not the actor) keep the old id; no soft-delete column exists.

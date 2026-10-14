@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -261,6 +262,71 @@ def set_member_active(
         after={"is_active": is_active},
     )
     return membership
+
+
+@transaction.atomic
+def update_member_profile(
+    *,
+    organization: Organization,
+    membership: Membership,
+    actor: User | None,
+    username: str,
+    first_name: str,
+    last_name: str,
+) -> Membership:
+    """The owner corrects a member's login identifier and name (D-143); the identifier stays unique."""
+    membership = Membership.objects.select_for_update().get(pk=membership.pk, organization=organization)
+    user = User.objects.select_for_update().get(pk=membership.user_id)
+    before = {"username": user.username, "first_name": user.first_name, "last_name": user.last_name}
+    user.username = username
+    user.first_name = first_name
+    user.last_name = last_name
+    try:
+        with transaction.atomic():
+            user.save(update_fields=["username", "first_name", "last_name"])
+    except IntegrityError:
+        raise ValidationError({"username": _("Cet identifiant existe déjà.")}) from None
+    membership.user = user
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="membership.profile_changed",
+        target=membership,
+        before=before,
+        after={"username": username, "first_name": first_name, "last_name": last_name},
+    )
+    return membership
+
+
+@transaction.atomic
+def delete_member(*, organization: Organization, membership: Membership, actor: User | None) -> None:
+    """The owner deletes a user. Only possible while the account has no history: its invoices, closings, days
+    and audit entries point to the user and must keep working, so those accounts are deactivated instead (D-143)."""
+    _lock_owners(organization)
+    membership = Membership.objects.select_for_update().get(pk=membership.pk, organization=organization)
+    user = membership.user
+    if actor is not None and user.pk == actor.pk:
+        raise ValidationError({"detail": _("Vous ne pouvez pas supprimer votre propre compte.")})
+    _guard_last_owner(organization=organization, membership=membership)
+    if user.memberships.exclude(organization=organization).exists():
+        raise ValidationError({"detail": _("Ce compte a aussi accès à une autre société : désactivez-le à la place.")})
+    avatar_name = user.avatar.name if user.avatar else None
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="membership.deleted",
+        target=membership,
+        before={"username": user.username, "role": membership.role},
+    )
+    try:
+        with transaction.atomic():
+            user.delete()
+    except ProtectedError:
+        raise ValidationError(
+            {"detail": _("Ce compte a déjà des opérations à son nom : il ne peut pas être supprimé. Désactivez-le.")}
+        ) from None
+    if avatar_name:
+        _delete_file_after_commit(User._meta.get_field("avatar"), avatar_name)
 
 
 @transaction.atomic

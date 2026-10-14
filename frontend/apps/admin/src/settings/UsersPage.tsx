@@ -2,12 +2,14 @@ import type { Session } from "@frutti/auth";
 import {
   createMember,
   deactivateMember,
+  deleteMember,
   getListMembersQueryKey,
   type Member,
   type RoleEnum,
   reactivateMember,
   resetMemberPassword,
   setMemberRole,
+  updateMember,
   useListMembers,
 } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
@@ -189,10 +191,112 @@ function ResetPasswordDialog({ member, onDone }: { member: Member; onDone: () =>
   );
 }
 
+function EditMemberDialog({ member, onDone }: { member: Member; onDone: () => void }) {
+  const { t } = useTranslation();
+  const formId = useId();
+  const queryClient = useQueryClient();
+  const [username, setUsername] = useState(member.user.username);
+  const [firstName, setFirstName] = useState(member.user.first_name);
+  const [lastName, setLastName] = useState(member.user.last_name);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const name = member.user.first_name || member.user.username;
+
+  const save = useMutation({
+    mutationFn: () =>
+      updateMember(member.id, {
+        username: username.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+      }),
+    onSuccess: async () => {
+      toast.success(t("admin.users.saved"));
+      await queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+      onDone();
+    },
+    onError: (failure) => {
+      const found = fieldErrors(failure);
+      if (Object.keys(found).length > 0) setErrors(found);
+      else toast.error(t("admin.users.error"));
+    },
+  });
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setErrors({});
+    save.mutate();
+  };
+
+  return (
+    <DialogContent className="w-[min(480px,calc(100vw-2rem))]">
+      <DialogTitle>{t("admin.users.editTitle", { name })}</DialogTitle>
+      <DialogDescription>{t("admin.users.editDescription")}</DialogDescription>
+      <form onSubmit={submit} className="flex flex-col gap-3.5">
+        <Field label={t("admin.users.username")} htmlFor={`${formId}-username`} error={errors.username}>
+          <Input
+            id={`${formId}-username`}
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-3 max-[520px]:grid-cols-1">
+          <Field label={t("admin.users.firstName")} htmlFor={`${formId}-first`} error={errors.first_name}>
+            <Input id={`${formId}-first`} value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+          </Field>
+          <Field label={t("admin.users.lastName")} htmlFor={`${formId}-last`} error={errors.last_name}>
+            <Input id={`${formId}-last`} value={lastName} onChange={(event) => setLastName(event.target.value)} />
+          </Field>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onDone}>
+            {t("admin.users.cancel")}
+          </Button>
+          <Button type="submit" variant="primary" disabled={save.isPending}>
+            {t("admin.users.save")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  );
+}
+
+function DeleteMemberDialog({ member, onDone }: { member: Member; onDone: () => void }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const name = member.user.first_name || member.user.username;
+
+  const remove = useMutation({
+    mutationFn: () => deleteMember(member.id),
+    onSuccess: async () => {
+      toast.success(t("admin.users.removed"));
+      await queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+      onDone();
+    },
+    onError: (failure) => toast.error(errorText(failure, t("admin.users.error"))),
+  });
+
+  return (
+    <DialogContent className="w-[min(440px,calc(100vw-2rem))]">
+      <DialogTitle>{t("admin.users.removeTitle", { name })}</DialogTitle>
+      <DialogDescription>{t("admin.users.removeDescription")}</DialogDescription>
+      <DialogFooter>
+        <Button variant="ghost" onClick={onDone}>
+          {t("admin.users.cancel")}
+        </Button>
+        <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
+          {t("admin.users.removeConfirm")}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
 function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [resetting, setResetting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const refresh = () => queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
 
   const changeRole = useMutation({
@@ -262,6 +366,9 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
       </Td>
       <Td>
         <div className="flex flex-wrap justify-end gap-1.5">
+          <Button variant="ghost" onClick={() => setEditing(true)}>
+            {t("admin.users.edit")}
+          </Button>
           <Button variant="ghost" onClick={() => setResetting(true)}>
             <Icon name="lock" />
             {t("admin.users.resetPassword")}
@@ -271,9 +378,21 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
               {member.is_active ? t("admin.users.deactivate") : t("admin.users.reactivate")}
             </Button>
           )}
+          {!isMe && (
+            <Button variant="ghost" onClick={() => setRemoving(true)}>
+              <Icon name="trash" />
+              {t("admin.users.remove")}
+            </Button>
+          )}
         </div>
+        <Dialog open={editing} onOpenChange={(open) => !open && setEditing(false)}>
+          {editing && <EditMemberDialog member={member} onDone={() => setEditing(false)} />}
+        </Dialog>
         <Dialog open={resetting} onOpenChange={(open) => !open && setResetting(false)}>
           {resetting && <ResetPasswordDialog member={member} onDone={() => setResetting(false)} />}
+        </Dialog>
+        <Dialog open={removing} onOpenChange={(open) => !open && setRemoving(false)}>
+          {removing && <DeleteMemberDialog member={member} onDone={() => setRemoving(false)} />}
         </Dialog>
       </Td>
     </tr>
