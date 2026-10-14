@@ -6400,7 +6400,7 @@ export const CreateMemberResponse = zod.object({
 
 
 /**
- * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-143).
  */
 export const UpdateMemberParams = zod.object({
   "member_id": zod.int()
@@ -6439,7 +6439,7 @@ export const UpdateMemberResponse = zod.object({
 
 
 /**
- * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-142).
+ * One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-143).
  */
 export const DeleteMemberParams = zod.object({
   "member_id": zod.int()
