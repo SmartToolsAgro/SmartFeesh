@@ -32,10 +32,10 @@ import {
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useId, useMemo, useState } from "react";
+import { type FormEvent, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext } from "react-router";
 
-import { lineTotal, sum } from "../lib/decimal";
+import { isBelowMinimum, lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
@@ -54,7 +54,6 @@ const WALK_IN = "walk-in";
 const AUTO_LOT = "fifo";
 const BIG_INPUT = "num py-3 text-[1.6rem] font-semibold";
 
-let nextKey = 0;
 const asTyped = (value: string) => value.replace(".", ",");
 const isPositive = (value: string | null): value is string =>
   value !== null && !value.startsWith("-") && !/^0+(\.0+)?$/.test(value);
@@ -66,6 +65,7 @@ export function CounterSalePage() {
   const queryClient = useQueryClient();
   const formId = useId();
   const id = (name: string) => `${formId}-${name}`;
+  const nextKeyRef = useRef(0);
 
   const locations = useListLocations({ status: "active", kind: "cold_room" });
   const customers = useListCustomers({ status: "active" });
@@ -144,7 +144,7 @@ export function CounterSalePage() {
     if (!isPositive(perKg)) found.unit_price = t("admin.sales.form.money");
     setErrors(found);
     if (!productRow || !isPositive(kg) || !isPositive(perKg)) return;
-    nextKey += 1;
+    nextKeyRef.current += 1;
     const batch = batchChoice === AUTO_LOT ? "" : batchChoice;
     // The same product weighed twice stays one line (one line per product): its kilos add up, at the last
     // price and lot.
@@ -154,7 +154,10 @@ export function CounterSalePage() {
         const kilos = sum([same.quantity, kg]);
         return current.map((line) => (line === same ? { ...line, quantity: kilos, unit_price: perKg, batch } : line));
       }
-      return [...current, { key: nextKey, product, name: productRow.name, quantity: kg, unit_price: perKg, batch }];
+      return [
+        ...current,
+        { key: nextKeyRef.current, product, name: productRow.name, quantity: kg, unit_price: perKg, batch },
+      ];
     });
     setProduct("");
     setQuantity("");
@@ -314,6 +317,14 @@ export function CounterSalePage() {
                     className={BIG_INPUT}
                   />
                 </Field>
+                {productRow && isBelowMinimum(parseDecimalInput(shownPrice.trim(), 3), productRow.min_price) && (
+                  <p
+                    role="alert"
+                    className="col-span-3 rounded-chip bg-bad-soft px-3 py-2 text-[0.85rem] font-semibold text-bad max-[700px]:col-span-2"
+                  >
+                    {t("admin.sales.form.belowMinimum", { minimum: formatMoney(productRow.min_price ?? "0") })}
+                  </p>
+                )}
                 <p className="col-span-2 text-[0.85rem] text-ink-2 max-[700px]:col-span-2" aria-live="polite">
                   {product && stock.data
                     ? available.get(product)
