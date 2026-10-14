@@ -3485,7 +3485,7 @@ paths:
     patch:
       operationId: updateMember
       description: One member's identifier and name (PATCH), or the user itself (DELETE,
-        only without history; D-142).
+        only without history; D-143).
       parameters:
       - in: path
         name: member_id
@@ -3517,7 +3517,7 @@ paths:
     delete:
       operationId: deleteMember
       description: One member's identifier and name (PATCH), or the user itself (DELETE,
-        only without history; D-142).
+        only without history; D-143).
       parameters:
       - in: path
         name: member_id
