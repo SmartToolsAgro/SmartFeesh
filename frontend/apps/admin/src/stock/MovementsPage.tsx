@@ -68,22 +68,26 @@ export function MovementsPage() {
           {t("admin.stock.movements.location")}
           <select className={SELECT_CLASSES} value={location} onChange={change(setLocation)}>
             <option value="">{t("admin.stock.movements.allLocations")}</option>
-            {(locations.data ?? []).map((place) => (
-              <option key={place.id} value={place.id}>
-                {place.name}
-              </option>
-            ))}
+            {(locations.data ?? [])
+              .filter((place) => place.is_active || String(place.id) === location)
+              .map((place) => (
+                <option key={place.id} value={place.id}>
+                  {place.name}
+                </option>
+              ))}
           </select>
         </label>
         <label className={LABEL_CLASSES}>
           {t("admin.stock.movements.product")}
           <select className={SELECT_CLASSES} value={product} onChange={change(setProduct)}>
             <option value="">{t("admin.stock.movements.allProducts")}</option>
-            {(products.data ?? []).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
+            {(products.data ?? [])
+              .filter((item) => item.is_active || String(item.id) === product)
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
           </select>
         </label>
         <label className={LABEL_CLASSES}>

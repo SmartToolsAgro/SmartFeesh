@@ -251,7 +251,9 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
                 t("admin.expenses.form.truck"),
                 truck,
                 setTruck,
-                (trucks.data ?? []).map((one) => ({ value: String(one.id), label: `${one.name} · ${one.plate}` })),
+                (trucks.data ?? [])
+                  .filter((one) => one.is_active || String(one.id) === truck)
+                  .map((one) => ({ value: String(one.id), label: `${one.name} · ${one.plate}` })),
               )}
           </div>
         </Card>

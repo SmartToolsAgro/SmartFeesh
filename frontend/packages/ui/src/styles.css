@@ -26,6 +26,8 @@
   --warn-soft: #fbefd5;
   --bad: #c2413a;
   --bad-soft: #f8dedc;
+  --lot: #8a6700; /* a lot's number in a picker */
+  --gold: #b8860b; /* a partner supplier */
   --tile-a: #cfe6ef;
   --tile-b: #a9d2e2;
   --shadow: 0 1px 2px rgba(12, 38, 51, 0.06), 0 8px 24px -12px rgba(12, 38, 51, 0.18);
@@ -50,6 +52,8 @@
     --warn-soft: #3a2e14;
     --bad: #f07068;
     --bad-soft: #3e1c1b;
+    --lot: #f2cf4f;
+    --gold: #e0b04a;
     --tile-a: #123b4a;
     --tile-b: #0b2c38;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
@@ -73,6 +77,8 @@
   --warn-soft: #3a2e14;
   --bad: #f07068;
   --bad-soft: #3e1c1b;
+  --lot: #f2cf4f;
+  --gold: #e0b04a;
   --tile-a: #123b4a;
   --tile-b: #0b2c38;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
@@ -97,6 +103,8 @@
   --color-warn-soft: var(--warn-soft);
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
+  --color-lot: var(--lot);
+  --color-gold: var(--gold);
   --color-tile-a: var(--tile-a);
   --color-tile-b: var(--tile-b);
 
