@@ -1926,6 +1926,19 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   - The monthly closing's "driver days closed" check still does not list days left running (D-074).
   - A driver still cannot close a day that is over (the closing endpoints are today's only).
 
+**D-136 · The expenses list opens on this month (Mahmoud's request)** · accepted · 2026-10-14
+- Numbers D-134 and D-135 are taken by work not yet on `main` (`driver-day-history`, `box-opening-stock`).
+- Before: "Dépenses" listed every expense ever, with two optional date fields. Now a "Mois | Période" switch in the
+  filter bar: **Mois** (the default) shows one calendar month, this month on opening, with ‹ › to walk the months;
+  › stops at this month, since no expense is dated in the future. **Période** keeps the two date fields; it starts
+  on the dates of the month shown, and both fields empty means every date.
+- The count and the approved / waiting totals follow the dates, like every other filter: in "Mois" they are the
+  month's totals. The search, the status and the category also stay inside the month shown, so an old expense is
+  found by its number only after going to its month or emptying the period. The "nothing found" message names the
+  month for that reason.
+- A link with `date_from` / `date_to` (the month closing's cost lines, D-122) opens on that month when the dates are
+  exactly one month, else on that period. Frontend only (`expenses/period.ts`): the API already had both parameters.
+- Not done: the month is not kept in the address, so coming back from an expense returns to this month.
 **D-135 · Boxes the company already owns enter the ledger as an opening stock (owner answer; follow-up of D-124, D-127)** · accepted · 2026-10-13
 - Owner answer: the company starts with **50 small and 50 big boxes** of its own.
 - Before, a box could only enter the ledger on a receipt from a supplier, which also raises what we owe that
