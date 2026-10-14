@@ -2274,6 +2274,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
           description: ''
+  /api/v1/health/stock-check:
+    get:
+      operationId: getStockCheckHealth
+      description: |-
+        Did the nightly stock check pass recently? Watched by the uptime workflow (P4-T04, D-140).
+
+        Public like `health`, so the watcher needs no login or secret. It reveals a time and a state only: never the
+        number of differences, a product, a location or an organization.
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCheckHealth'
+          description: The last nightly stock check passed and is recent.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCheckHealth'
+          description: It failed, is older than 26 hours, or never ran.
   /api/v1/imports/{kind}:
     post:
       operationId: runImport
@@ -19518,6 +19543,19 @@ components:
       - rows
       - total_quantity
       - total_value
+    StockCheckHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          description: ok, failed, late (older than 26 hours) or never.
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - checked_at
+      - status
     StockLocation:
       type: object
       properties:

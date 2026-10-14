@@ -41,6 +41,9 @@ if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         environment=env("SENTRY_ENVIRONMENT", default="production"),
+        # The deployed release (deploy/remote-deploy.sh), the same one the two apps report (D-140).
+        release=env("SENTRY_RELEASE", default="") or None,
         send_default_pii=False,  # no customer or user data leaves the server
         traces_sample_rate=0.0,
     )
+    sentry_sdk.set_tag("app", "api")

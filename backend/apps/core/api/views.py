@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 
 from apps.core import selectors, services
 from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle, PasswordChangeThrottle
-from apps.core.models import Membership, Organization, User
+from apps.core.models import Job, Membership, Organization, User
 from apps.core.permissions import IsMember, IsOwner, ReadOfficeWriteOwnerOrManager, membership_of
 
 from .serializers import (
@@ -56,6 +56,38 @@ def health(request: Request) -> Response:
         database = "unavailable"
     status_code = 200 if database == "ok" else 503
     return Response({"status": "ok" if status_code == 200 else "degraded", "database": database}, status=status_code)
+
+
+_STOCK_CHECK_HEALTH = inline_serializer(
+    "StockCheckHealth",
+    fields={
+        "status": serializers.CharField(help_text="ok, failed, late (older than 26 hours) or never."),
+        "checked_at": serializers.DateTimeField(allow_null=True),
+    },
+)
+
+
+@extend_schema(
+    operation_id="getStockCheckHealth",
+    responses={
+        200: OpenApiResponse(_STOCK_CHECK_HEALTH, description="The last nightly stock check passed and is recent."),
+        503: OpenApiResponse(_STOCK_CHECK_HEALTH, description="It failed, is older than 26 hours, or never ran."),
+    },
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def stock_check_health(request: Request) -> Response:
+    """Did the nightly stock check pass recently? Watched by the uptime workflow (P4-T04, D-140).
+
+    Public like `health`, so the watcher needs no login or secret. It reveals a time and a state only: never the
+    number of differences, a product, a location or an organization.
+    """
+    health = selectors.job_health(Job.STOCK_CHECK, max_age=selectors.STOCK_CHECK_MAX_AGE)
+    return Response(
+        {"status": health.state.value, "checked_at": health.ran_at},
+        status=status.HTTP_200_OK if health.ok else status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")

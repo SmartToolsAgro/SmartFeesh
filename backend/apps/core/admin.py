@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.http import HttpRequest
 
-from .models import AuditLog, Membership, Organization, User
+from .models import AuditLog, JobRun, Membership, Organization, User
 
 
 @admin.register(User)
@@ -36,4 +36,17 @@ class AuditLogAdmin(admin.ModelAdmin[AuditLog]):
         return False
 
     def has_delete_permission(self, request: HttpRequest, obj: AuditLog | None = None) -> bool:
+        return False
+
+
+@admin.register(JobRun)
+class JobRunAdmin(admin.ModelAdmin[JobRun]):
+    """Read-only: written by the scheduled jobs themselves (D-140)."""
+
+    list_display = ("job", "ran_at", "ok", "problems")
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: JobRun | None = None) -> bool:
         return False

@@ -30,7 +30,14 @@ Today everything is in paper notebooks (Q15), so there is no file to convert.
       restore (runbook) is written but not drilled.
 
 ### P4-T04 · Monitoring · S
-- [ ] Sentry (backend + both apps), uptime check, alert on failed nightly stock consistency check.
+- [x] Sentry (backend + both apps), uptime check, alert on failed nightly stock consistency check (D-140): Sentry
+      wired in the API and both apps, off until a DSN is set; the nightly check records its run
+      (`/api/v1/health/stock-check`); `.github/workflows/uptime.yml` checks staging every 15 minutes and fails,
+      so GitHub e-mails. Runbook "Monitoring".
+  - Still to do (human): create the Sentry project and put `SENTRY_DSN` / `SENTRY_DSN_FRONTEND` in the server's
+    `.env`, then redeploy; check that the GitHub account owning the schedule gets Actions e-mails; watch the first
+    scheduled runs on `main`. For production (P4-T02): set `UPTIME_ADMIN_URL` / `UPTIME_DRIVER_URL` and its own
+    `SENTRY_ENVIRONMENT`.
 
 ### P4-T05 · Security review · S
 - [x] Run the `security-review` skill; check permissions per role, CSRF, rate limits, file upload limits.

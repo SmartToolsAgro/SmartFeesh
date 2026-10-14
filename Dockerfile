@@ -9,8 +9,16 @@ ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 WORKDIR /app/frontend
 RUN corepack enable
 COPY frontend/ ./
-RUN pnpm install --frozen-lockfile \
- && pnpm --filter @frutti/admin --filter @frutti/truck run build
+RUN pnpm install --frozen-lockfile
+# Sentry in the two apps (D-140): built in when SENTRY_DSN_FRONTEND is set in the server's .env, off when empty.
+# The release changes on every deploy, so only the build step below runs again, not the install.
+ARG SENTRY_DSN_FRONTEND=""
+ARG SENTRY_ENVIRONMENT=""
+ARG RELEASE=""
+ENV VITE_SENTRY_DSN=$SENTRY_DSN_FRONTEND \
+    VITE_SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT \
+    VITE_RELEASE=$RELEASE
+RUN pnpm --filter @frutti/admin --filter @frutti/truck run build
 
 # ---- backend: Django + gunicorn ----
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
