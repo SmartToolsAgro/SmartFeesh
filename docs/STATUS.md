@@ -115,9 +115,10 @@ browser tests (`make e2e`) were not run locally.
 ## Recently done
 
 - 2026-10-14 · D-137 "Nouveau document" on Documents opens the creation form in a window (no page change), with a
-  guard: Escape or an outside click asks before a half-filled form is dropped. Uncommitted in the working tree on
-  `main`; unit tests, lint, tsc and the Documents e2e spec (4 tests) pass.
-
+  guard: Escape or an outside click asks before a half-filled form is dropped. In PR #123 (`document-new-window`);
+  unit tests, lint, tsc and the Documents e2e spec (4 tests) pass.
+- 2026-10-14 · Admin sale form and counter sale warn at once when the typed price is under the product's minimum
+  (D-049 follow-up; warning only).
 - 2026-10-14 · D-136 "Dépenses" opens on this month, with ‹ › to the months before and a "Période" switch that
   keeps the two free dates (Mahmoud's request). Frontend only.
 - 2026-10-14 · D-134 sending the closing closes the driver's day; a load of that date reopens it, also when
