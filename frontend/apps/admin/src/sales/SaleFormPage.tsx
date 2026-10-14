@@ -117,7 +117,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   );
   const [errors, setErrors] = useState<Errors>({});
 
-  // The sale leaves from one place: the seller picks products, and the place that holds them is found (D-143).
+  // The sale leaves from one place: the seller picks products, and the place that holds them is found (D-144).
   const places = (locations.data ?? []).filter((option) => option.sells);
   const byPlace = usePlacesStock(places.map((option) => option.id));
   const totals = useMemo(() => totalsOf(byPlace), [byPlace]);

@@ -3481,6 +3481,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/members/{member_id}:
+    patch:
+      operationId: updateMember
+      description: One member's identifier and name (PATCH), or the user itself (DELETE,
+        only without history; D-142).
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberProfile'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
+    delete:
+      operationId: deleteMember
+      description: One member's identifier and name (PATCH), or the user itself (DELETE,
+        only without history; D-142).
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/members/{member_id}/deactivate:
     post:
       operationId: deactivateMember
@@ -15674,6 +15724,20 @@ components:
           type: string
         notes:
           type: string
+    PatchedMemberProfile:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+        first_name:
+          type: string
+          default: ''
+          maxLength: 150
+        last_name:
+          type: string
+          default: ''
+          maxLength: 150
     PatchedMemberRole:
       type: object
       properties:

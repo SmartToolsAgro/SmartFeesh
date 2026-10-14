@@ -1,4 +1,4 @@
-// The stock of each place, read together, so a seller picks the product first and the place comes after (D-143).
+// The stock of each place, read together, so a seller picks the product first and the place comes after (D-144).
 
 import { getListLocationStockQueryKey, listLocationStock } from "@frutti/api";
 import { parseDecimalInput } from "@frutti/i18n";

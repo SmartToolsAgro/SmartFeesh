@@ -27,6 +27,7 @@ from .serializers import (
     LoginSerializer,
     MemberCreateSerializer,
     MemberPasswordResetSerializer,
+    MemberProfileSerializer,
     MemberRoleSerializer,
     MemberSerializer,
     OrganizationSerializer,
@@ -331,6 +332,32 @@ class MemberListView(ListAPIView[Membership]):
             organization=membership.organization, actor=membership.user, **serializer.validated_data
         )
         return Response(MemberSerializer(created).data, status=status.HTTP_201_CREATED)
+
+
+class MemberDetailView(APIView):
+    """One member's identifier and name (PATCH), or the user itself (DELETE, only without history; D-143)."""
+
+    permission_classes = (IsOwner,)
+
+    @extend_schema(operation_id="updateMember", request=MemberProfileSerializer, responses=MemberSerializer)
+    def patch(self, request: Request, member_id: int) -> Response:
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        target = _member_or_404(membership.organization, member_id)
+        serializer = MemberProfileSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_member_profile(
+            organization=membership.organization, membership=target, actor=membership.user, **serializer.validated_data
+        )
+        return Response(MemberSerializer(updated).data)
+
+    @extend_schema(operation_id="deleteMember", request=None, responses={204: None})
+    def delete(self, request: Request, member_id: int) -> Response:
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        target = _member_or_404(membership.organization, member_id)
+        services.delete_member(organization=membership.organization, membership=target, actor=membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MemberRoleView(APIView):

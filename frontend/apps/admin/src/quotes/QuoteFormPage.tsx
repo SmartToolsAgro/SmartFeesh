@@ -120,7 +120,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   );
   const [errors, setErrors] = useState<Errors>({});
 
-  // A quote has no place of its own: the kilos left are those in all the places (D-143).
+  // A quote has no place of its own: the kilos left are those in all the places (D-144).
   const byPlace = usePlacesStock((locations.data ?? []).map((option) => option.id));
   const availableOf = useMemo(() => totalsOf(byPlace), [byPlace]);
   const dailyPrice = useMemo(() => {

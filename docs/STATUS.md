@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-14 (D-142, hourly lot costs)_
+_Last updated: 2026-10-15 (D-143, users: edit and delete)_
 
 ## Where we are
 
@@ -23,7 +23,7 @@ _Last updated: 2026-10-14 (D-142, hourly lot costs)_
   handed out in advance; check `main` before taking one. The client is not available: build with the stand-in
   data of `docs/spec/sample/`.
 
-- **Sales (D-143, P2-T12, PR open):** the seller picks the products; the place a sale leaves from is found from
+- **Sales (D-144, P2-T12, PR open):** the seller picks the products; the place a sale leaves from is found from
   the rows and no location field or column shows on the sales and quote screens. A sale with no single place that
   holds all its kilos is refused, and the form names the products. Open: may one sale mix a cold room and a truck?
 
@@ -127,6 +127,8 @@ D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in n
 
 ## Recently done
 
+- 2026-10-15 · D-143 Paramètres > Utilisateurs: the owner can change a user's login and name, and delete an account with no
+  history (accounts with history are still deactivated, D-123). Browser check on staging still to do.
 - 2026-10-14 · D-142 cold-room and general costs charged **by the hour**: a lot pays the time it spent in the room
   (00:28 to 21:38 = 21 h 10 min of the room's day), the empty time of a room is nobody's. `held_slices_by_hour` in
   `inventory.selectors`, `allocate_room_days` / `allocate_general_days` in `expenses.costing`. Owner guide updated.

@@ -339,6 +339,7 @@ export * from './patchedEmployeeWrite';
 export * from './patchedExpenseCategoryUpdate';
 export * from './patchedLanguage';
 export * from './patchedLotPartnershipUpdate';
+export * from './patchedMemberProfile';
 export * from './patchedMemberRole';
 export * from './patchedProductUpdate';
 export * from './patchedSalaryRecordUpdate';

@@ -104,6 +104,12 @@ class MemberCreateSerializer(serializers.Serializer[Any]):
     email = serializers.EmailField(required=False, allow_blank=True, default="")
 
 
+class MemberProfileSerializer(serializers.Serializer[Any]):
+    username = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+
+
 class MemberRoleSerializer(serializers.Serializer[Any]):
     role = serializers.ChoiceField(choices=Role.choices)
 

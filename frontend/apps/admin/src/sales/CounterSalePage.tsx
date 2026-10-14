@@ -114,7 +114,7 @@ export function CounterSalePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lastSale, setLastSale] = useState<SaleDetail | null>(null);
 
-  // The counter sale leaves from one open cold room: the one that holds the whole basket (D-143).
+  // The counter sale leaves from one open cold room: the one that holds the whole basket (D-144).
   const byRoom = usePlacesStock(rooms.map((option) => option.id));
   const totals = useMemo(() => totalsOf(byRoom), [byRoom]);
   const room = choosePlace(needsOf(filled(basket)), byRoom);

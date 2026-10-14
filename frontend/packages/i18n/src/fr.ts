@@ -92,6 +92,17 @@ export const fr = {
       empty: "Aucun utilisateur pour l'instant.",
       error: "L'action n'a pas pu être faite. Vérifiez les champs et réessayez.",
       cancel: "Annuler",
+      edit: "Modifier",
+      editTitle: "Modifier {{name}}",
+      editDescription: "L'identifiant sert à se connecter. Le nom s'affiche dans l'application et sur les documents.",
+      save: "Enregistrer",
+      saved: "Compte modifié.",
+      remove: "Supprimer",
+      removeTitle: "Supprimer {{name}} ?",
+      removeDescription:
+        "Le compte et son accès sont effacés. Seul un compte sans aucune opération (facture, journée, saisie) peut être supprimé ; sinon, désactivez-le.",
+      removeConfirm: "Supprimer définitivement",
+      removed: "Compte supprimé.",
     },
     profile: {
       title: "Mon profil",

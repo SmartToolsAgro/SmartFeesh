@@ -109,12 +109,12 @@ commande fournisseur: no separate CC or CF document. Chains: DV → BL → FA �
       and refuses more; the devis page shows what is left and all its BL.
 - [ ] Later: supplier return (RF) once a supplier credit note exists (`RF-` is already the supplier payment code).
 
-### P2-T12 · Product first, no location on the sales screens (D-143) · M
+### P2-T12 · Product first, no location on the sales screens (D-144) · M
 Asked by the owner (2026-10-14): the seller picks the products, not the cold room or the truck.
 - [x] Sale form, counter sale, quote-to-sale dialog and quote form: no location field. The place is found from the rows
       (`lib/placeStock.ts`); the grid shows the kilos left in all the places and where each product leaves from.
 - [x] Sales list, sale page, a lot's sales and the quote page: no "Lieu" column or line.
-- [ ] Owner question: may one sale take kilos from a cold room and a truck at once? (D-143)
+- [ ] Owner question: may one sale take kilos from a cold room and a truck at once? (D-144)
 
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays

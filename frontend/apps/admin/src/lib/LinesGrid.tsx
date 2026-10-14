@@ -19,7 +19,7 @@ type LinesGridProps = {
   proposedPrice: (product: string) => string | null;
   /** Kilos per product over all the places; missing while the stock is not loaded. The row shows what is left. */
   stock?: Map<string, string>;
-  /** The place each product leaves from, once the sale has one (D-143); shown under the product. */
+  /** The place each product leaves from, once the sale has one (D-144); shown under the product. */
   origin?: Map<string, string>;
   /** Messages keyed "lines.<n>.<field>", where n counts the filled rows only, as they are sent. */
   errors: Record<string, string>;

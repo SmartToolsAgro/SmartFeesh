@@ -60,7 +60,7 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const locations = useListLocations({ status: "active" });
-  // The sale leaves from the one place that holds all the kilos typed here (D-143).
+  // The sale leaves from the one place that holds all the kilos typed here (D-144).
   const byPlace = usePlacesStock((locations.data ?? []).filter((option) => option.sells).map((option) => option.id));
 
   const convert = useMutation({

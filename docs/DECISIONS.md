@@ -2112,7 +2112,18 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   approved bills, or apply the hourly rule only from a date.
 - **Shown on the lot:** the cost lines show the same kg-days quantity as before.
 
-**D-143 · Sales screens: the product first, the place found from the lines, no location field or column (P2-T12)** · accepted · 2026-10-14
+**D-143 · Paramètres > Utilisateurs: the owner can change a user's login and name, and delete an account that has no history (owner's request, 2026-10-15)** · accepted · 2026-10-15
+- **Why:** the owner could not correct a typo in a name or login, and could not remove a test or mistaken account; only deactivation existed.
+- **Change a user:** the owner edits the login identifier, first name and last name (`PATCH members/<id>`). The login stays unique (refused with a field error when taken). Audited as `membership.profile_changed`.
+- **Delete a user:** `DELETE members/<id>`, owner only. Refused when the account:
+  - is the owner's own account (`Vous ne pouvez pas supprimer votre propre compte`);
+  - would leave the organization without an active owner (D-141 guard);
+  - also has access to another company (deactivate it instead);
+  - has any history: invoices, closings, driver days, fleet assignments or audit entries that name the user as actor. These are `PROTECT` foreign keys, so the delete is rolled back and the owner is told to deactivate instead.
+- **What is kept:** D-123 still stands for accounts with history, which are deactivated, never deleted. The audit trail keeps an entry `membership.deleted` with the login and role.
+- **Not done:** the audit entries that name the deleted account as the *target* (not the actor) keep the old id; no soft-delete column exists.
+
+**D-144 · Sales screens: the product first, the place found from the lines, no location field or column (P2-T12)** · accepted · 2026-10-14
 - Asked by the owner (2026-10-14): the seller should not pick "Depuis" (cold room or truck) and guess which place holds
   the product. The sale form, the counter sale, the quote-to-sale dialog and the quote form no longer show a location
   field; the sales list, the sale page, the lot's sales and the quote page no longer show a "Lieu" column or line.
