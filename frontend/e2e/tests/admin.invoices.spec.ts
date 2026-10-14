@@ -44,7 +44,7 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await page.goto("/ventes/nouvelle");
   await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
   await choose(page, page, "Depuis", FRESH_ROOM);
-  const line = page.getByRole("group", { name: "Produit 1" });
+  const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Sardine · SA-010");
   await line.getByLabel("Poids (kg)").fill("2");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
@@ -96,7 +96,7 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
     await page.goto("/ventes/nouvelle");
     await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
     await choose(page, page, "Depuis", FRESH_ROOM);
-    const line = page.getByRole("group", { name: "Produit 1" });
+    const line = page.getByRole("row", { name: "Ligne 1", exact: true });
     await choose(page, line, "Produit", "Sardine · SA-010");
     await line.getByLabel("Poids (kg)").fill("1");
     await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();

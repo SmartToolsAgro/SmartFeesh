@@ -40,13 +40,14 @@ test("the owner quotes a hotel with a discount, sends it, and records the yes", 
 
   await choose(page, page, "Client", "Hôtel Thyna · C-002");
   await choose(page, page, "Stock consulté", FRESH_ROOM);
-  const line = page.getByRole("group", { name: "Produit 1" });
+  const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Dorade royale · DO-003");
   // The hotel's own price list is proposed (D-049), and the stock of the chosen cold room is shown for
   // information.
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("22,500");
-  await expect(line).toContainText(/Prix du client \(Hôtel Thyna\) : 22,500\sDT/);
-  await expect(line).toContainText(/En stock à Chambre froide 1 \(frais\) : [\d\s,]+kg/);
+  await expect(page.getByText(/Prix du client \(Hôtel Thyna\) : 22,500\sDT/)).toBeVisible();
+  // The cell after the discount: the kilos in stock at the cold room.
+  await expect(line.getByRole("cell").nth(5)).toHaveText(/^[\d\s,]+kg$/);
   await line.getByLabel("Poids (kg)").fill("4");
   await line.getByLabel("Remise (%)").fill("10");
   // 4 × 22.500 = 90.000, less 10 % = 81.000
@@ -72,7 +73,7 @@ test("a draft is saved, changed, sent, then refused with a reason", async ({ pag
   test.slow();
   await page.goto("/devis/nouveau");
   await choose(page, page, "Client", "Traiteur Les Saveurs · C-008");
-  const line = page.getByRole("group", { name: "Produit 1" });
+  const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Calamar · CA-005");
   await line.getByLabel("Poids (kg)").fill("3");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
@@ -81,7 +82,7 @@ test("a draft is saved, changed, sent, then refused with a reason", async ({ pag
   await expect(page.getByRole("note")).toContainText("le client ne l'a pas encore");
 
   await page.getByRole("button", { name: "Modifier" }).click();
-  await page.getByRole("group", { name: "Produit 1" }).getByLabel("Poids (kg)").fill("2,5");
+  await page.getByRole("row", { name: "Ligne 1", exact: true }).getByLabel("Poids (kg)").fill("2,5");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
   // 2.5 × 29.000
   await expect(page.getByRole("row", { name: /Calamar/ })).toContainText(/72,500\sDT/);
@@ -99,7 +100,7 @@ test("a draft is saved, changed, sent, then refused with a reason", async ({ pag
 test("a discount the server refuses shows under its own line", async ({ page }) => {
   await page.goto("/devis/nouveau");
   await choose(page, page, "Client", "Hôtel Thyna · C-002");
-  const line = page.getByRole("group", { name: "Produit 1" });
+  const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Calamar · CA-005");
   await line.getByLabel("Poids (kg)").fill("1");
   await line.getByLabel("Remise (%)").fill("150");
