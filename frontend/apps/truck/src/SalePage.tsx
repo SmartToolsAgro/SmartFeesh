@@ -95,7 +95,12 @@ export function SalePage() {
       client_uuid: uuid,
       amount_paid: paidValue,
       payment_method: "cash" as const,
-      lines: lines.map((line) => ({ product: line.product_id, quantity: kilos[line.product_id] ?? "" })),
+      // The price each line showed goes with the sale: the server checks it was a real price (P3-T02, D-148).
+      lines: lines.map((line) => ({
+        product: line.product_id,
+        quantity: kilos[line.product_id] ?? "",
+        unit_price: line.unit_price,
+      })),
       boxes: boxCounts,
     };
     const waiting = (): QueuedSale => ({
