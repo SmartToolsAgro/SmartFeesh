@@ -2301,3 +2301,10 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   made (the phone's time), else the day it was recorded, as on the truck's day (D-151).
 - Not done: the layout has not been checked by eye in a real PDF (no Pango on the dev machine). Open both PDFs on
   staging. Also not done: Arabic, sending by e-mail or WhatsApp.
+
+**D-157 · The browser tests (e2e) run on pull requests only, not on every push** · accepted · 2026-10-15
+- The e2e job takes about 6.5 minutes and ran twice for every PR (once for the push, once for the pull request).
+  It now runs only for the `pull_request` event: when a PR is opened and again for each new commit on it.
+- Backend, frontend and API-client checks still run on every push and every PR.
+- Deploy to staging no longer waits for e2e: it already passed on the PR before the merge. A direct push to
+  `main` (no PR) therefore deploys without e2e; run `make e2e` locally before doing that.
