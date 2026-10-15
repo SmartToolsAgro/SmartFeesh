@@ -4,6 +4,7 @@ import { Button, Card, EmptyState } from "@frutti/ui";
 import { Link } from "react-router";
 
 import { PricesAsOf } from "./PriceNotice";
+import { ProductPhoto } from "./ProductPhoto";
 import { pendingKilos, useQueue } from "./queue";
 import { useTruckStock } from "./myStock";
 
@@ -69,18 +70,21 @@ export function StockPage() {
         <ul className="divide-y divide-line">
           {lines.map((line) => (
             <li key={line.product_id} className="flex items-center justify-between gap-3 py-3">
-              <span className="min-w-0">
-                <span className="block text-lg font-semibold">{line.product_name}</span>
-                <span className="block text-sm text-ink-2">
-                  {line.unit_price === null
-                    ? t("truck.stock.noPrice")
-                    : t("truck.stock.perKg", { price: formatMoney(line.unit_price) })}
-                </span>
-                {line.waiting > 0 ? (
+              <span className="flex min-w-0 items-center gap-3">
+                <ProductPhoto url={line.photo_url} name={line.product_name} />
+                <span className="min-w-0">
+                  <span className="block text-lg font-semibold">{line.product_name}</span>
                   <span className="block text-sm text-ink-2">
-                    {t("truck.stock.waiting", { kg: formatQuantity(fromMillimes(line.waiting)) })}
+                    {line.unit_price === null
+                      ? t("truck.stock.noPrice")
+                      : t("truck.stock.perKg", { price: formatMoney(line.unit_price) })}
                   </span>
-                ) : null}
+                  {line.waiting > 0 ? (
+                    <span className="block text-sm text-ink-2">
+                      {t("truck.stock.waiting", { kg: formatQuantity(fromMillimes(line.waiting)) })}
+                    </span>
+                  ) : null}
+                </span>
               </span>
               <span className="text-xl font-bold">{formatQuantity(fromMillimes(line.left))}</span>
             </li>

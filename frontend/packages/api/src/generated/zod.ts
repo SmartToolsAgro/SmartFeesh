@@ -7222,6 +7222,38 @@ export const ListMyCustomersResponse = zod.array(ListMyCustomersResponseItem)
 
 
 /**
+ * A driver adds a customer they sell to, with a name and optionally a phone and a city. Its credit limit
+ * is zero, cash only, until the office sets one. A name an active customer already has is refused.
+ */
+export const createMyCustomerBodyNameMax = 150;
+
+export const createMyCustomerBodyPhoneDefault = ``;
+export const createMyCustomerBodyPhoneMax = 30;
+
+export const createMyCustomerBodyCityDefault = ``;
+export const createMyCustomerBodyCityMax = 100;
+
+
+
+export const CreateMyCustomerBody = zod.object({
+  "name": zod.string().max(createMyCustomerBodyNameMax),
+  "phone": zod.string().max(createMyCustomerBodyPhoneMax).default(createMyCustomerBodyPhoneDefault),
+  "city": zod.string().max(createMyCustomerBodyCityMax).default(createMyCustomerBodyCityDefault)
+}).describe('What a driver types to add a customer: a name, and a phone and a city when they know them.')
+
+export const createMyCustomerResponseOwesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateMyCustomerResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "city": zod.string(),
+  "is_walk_in": zod.boolean(),
+  "owes": zod.stringFormat('decimal', createMyCustomerResponseOwesRegExp)
+}).describe('The little a driver needs to pick a customer.')
+
+
+/**
  * The day the driver opened today. 404 when they have not started yet.
  */
 export const getMyDayResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7734,7 +7766,8 @@ export const ListMyStockResponseItem = zod.object({
   "product_id": zod.int(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', listMyStockResponseQuantityRegExp),
-  "unit_price": zod.stringFormat('decimal', listMyStockResponseUnitPriceRegExp).nullable()
+  "unit_price": zod.stringFormat('decimal', listMyStockResponseUnitPriceRegExp).nullable(),
+  "photo_url": zod.string().nullable()
 }).describe('What the driver\'s truck holds of one product, with today\'s price per kg.')
 export const ListMyStockResponse = zod.array(ListMyStockResponseItem)
 

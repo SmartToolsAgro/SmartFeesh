@@ -640,7 +640,14 @@ def test_a_driver_sees_the_stock_and_price_of_their_truck(organization, actor, c
     rows = client.get(reverse("my-stock")).json()
 
     assert rows == [
-        {"product_id": dorade.pk, "product_name": "Dorade royale", "quantity": "12.000", "unit_price": "28.000"}
+        {
+            "product_id": dorade.pk,
+            "product_name": "Dorade royale",
+            "quantity": "12.000",
+            "unit_price": "28.000",
+            # No photo yet: the driver app shows a plain mark.
+            "photo_url": None,
+        }
     ]
 
 

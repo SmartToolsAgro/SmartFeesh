@@ -4,6 +4,7 @@ from typing import Any
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
 from django.http import FileResponse, Http404
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -362,6 +363,14 @@ class MyTruckDayView(APIView):
         )
 
 
+def _photo_url(product: Any) -> str | None:
+    if not product.photo.name:
+        return None
+    # The file name changes with every upload, so the address can be cached for good.
+    version = product.photo.name.rsplit("/", 1)[-1].split(".", 1)[0]
+    return f"{reverse('product-photo', args=[product.pk])}?v={version}"
+
+
 class MyStockView(APIView):
     permission_classes = (IsDriver,)
 
@@ -376,13 +385,15 @@ class MyStockView(APIView):
         now = timezone.now()
         rows = []
         for row in selectors.location_stock(membership.organization, location_id=truck.location_id):
-            price = catalog.price_in_force(catalog.product_of(membership.organization, row["product_id"]), now)
+            product = catalog.product_of(membership.organization, row["product_id"])
+            price = catalog.price_in_force(product, now)
             rows.append(
                 {
                     "product_id": row["product_id"],
                     "product_name": row["product__name"],
                     "quantity": row["quantity"],
                     "unit_price": None if price is None else price.price,
+                    "photo_url": _photo_url(product),
                 }
             )
         return Response(MyStockLineSerializer(rows, many=True).data)

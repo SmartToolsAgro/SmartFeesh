@@ -3875,6 +3875,34 @@ paths:
                 items:
                   $ref: '#/components/schemas/CustomerChoice'
           description: ''
+    post:
+      operationId: createMyCustomer
+      description: |-
+        A driver adds a customer they sell to, with a name and optionally a phone and a city. Its credit limit
+        is zero, cash only, until the office sets one. A name an active customer already has is refused.
+      tags:
+      - my-customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyCustomerWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyCustomerWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyCustomerWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerChoice'
+          description: ''
   /api/v1/my-day:
     get:
       operationId: getMyDay
@@ -14535,6 +14563,24 @@ components:
           nullable: true
       required:
       - customer
+    MyCustomerWrite:
+      type: object
+      description: 'What a driver types to add a customer: a name, and a phone and
+        a city when they know them.'
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        city:
+          type: string
+          default: ''
+          maxLength: 100
+      required:
+      - name
     MyDayRow:
       type: object
       description: One of the driver's days in their history, with its closing when
@@ -14609,7 +14655,12 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
+        photo_url:
+          type: string
+          readOnly: true
+          nullable: true
       required:
+      - photo_url
       - product_id
       - product_name
       - quantity

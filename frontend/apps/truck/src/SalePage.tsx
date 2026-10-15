@@ -15,9 +15,12 @@ import { useState } from "react";
 import { BoxCountInputs } from "./BoxCountInputs";
 import { boxCountsOf, type BoxInputs, NO_BOXES } from "./boxes";
 import { messagesOf } from "./messages";
+import { NewCustomerForm } from "./NewCustomerForm";
+import { useOnline } from "./offline";
 import { useTruckStock } from "./myStock";
 import { PricesAsOf } from "./PriceNotice";
 import { enqueue, madeAtOf, pendingKilos, type QueuedSale, useQueue } from "./queue";
+import { ProductPhoto } from "./ProductPhoto";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
 
@@ -169,7 +172,10 @@ export function SalePage() {
                 {(stock.data ?? []).map((line) => (
                   <li key={line.product_id} className="space-y-2 py-3">
                     <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-lg font-semibold">{line.product_name}</span>
+                      <span className="flex min-w-0 items-center gap-3">
+                        <ProductPhoto url={line.photo_url} name={line.product_name} />
+                        <span className="text-lg font-semibold">{line.product_name}</span>
+                      </span>
                       <span className="text-sm text-ink-2">
                         {t("truck.sale.left", { kg: formatQuantity(available(line).toFixed(3)) })}
                       </span>
@@ -263,7 +269,10 @@ export function SalePage() {
 export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) => void }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
+  const [adding, setAdding] = useState(false);
+  const online = useOnline();
   const customers = useListMyCustomers({ search: search.trim() });
+  if (adding) return <NewCustomerForm onAdded={onPick} onCancel={() => setAdding(false)} />;
   return (
     <div className="space-y-3">
       <h2>{t("truck.sale.whoFor")}</h2>
@@ -287,6 +296,10 @@ export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) =>
           {customer.city === "" ? null : <span className="text-sm font-normal">{customer.city}</span>}
         </Button>
       ))}
+      <Button size="lg" className="py-4 text-lg" disabled={!online} onClick={() => setAdding(true)}>
+        {t("truck.newCustomer.button")}
+      </Button>
+      {online ? null : <p className="text-sm text-ink-2">{t("truck.newCustomer.needNetwork")}</p>}
     </div>
   );
 }

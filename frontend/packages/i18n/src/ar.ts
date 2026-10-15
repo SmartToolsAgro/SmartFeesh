@@ -271,6 +271,18 @@ export const ar: PartialTranslation = {
       giveBack: "إرجاع غير المباع",
     },
     // ---- تغيّر الأسعار وعمر المخزون (P3-T02) ----
+    // ---- عميل جديد من الهاتف (P3-T03) ----
+    newCustomer: {
+      button: "عميل جديد",
+      title: "عميل جديد",
+      name: "الاسم",
+      phone: "الهاتف",
+      city: "المدينة",
+      save: "حفظ واختيار",
+      cancel: "إلغاء",
+      needNetwork: "إضافة عميل تحتاج إلى الشبكة.",
+      failed: "تعذّرت إضافة العميل.",
+    },
     prices: {
       title: "تغيّرت الأسعار",
       changed: "{{product}} : من {{from}} إلى {{to}} للكغ",

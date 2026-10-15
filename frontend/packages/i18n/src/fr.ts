@@ -3674,6 +3674,18 @@ export const fr = {
       giveBack: "Rendre l'invendu",
     },
     // ---- Price changes and the stock's age (P3-T02) ----
+    // ---- Un nouveau client sur le téléphone (P3-T03, D-152) ----
+    newCustomer: {
+      button: "Nouveau client",
+      title: "Nouveau client",
+      name: "Nom",
+      phone: "Téléphone",
+      city: "Ville",
+      save: "Enregistrer et choisir",
+      cancel: "Annuler",
+      needNetwork: "Ajouter un client demande le réseau.",
+      failed: "Le client n'a pas pu être ajouté.",
+    },
     prices: {
       title: "Les prix ont changé",
       changed: "{{product}} : {{from}} → {{to}} par kg",

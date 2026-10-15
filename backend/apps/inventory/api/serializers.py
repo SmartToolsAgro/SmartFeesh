@@ -283,6 +283,8 @@ class MyStockLineSerializer(serializers.Serializer[Any]):
     product_name = serializers.CharField(read_only=True)
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     unit_price = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True, allow_null=True)
+    # The product's photo, empty when it has none; the driver app shows a plain mark then.
+    photo_url = serializers.CharField(read_only=True, allow_null=True)
 
 
 class TruckDayFilterSerializer(serializers.Serializer[Any]):
