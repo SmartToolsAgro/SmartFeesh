@@ -15,6 +15,8 @@ export interface SupplierPaymentWrite {
   method: PaymentMethodEnum;
   /** @maxLength 50 */
   reference?: string;
+  /** @nullable */
+  cash_on?: string | null;
   notes?: string;
   allocations?: AllocationWrite[];
 }

@@ -2,11 +2,12 @@ import { useTranslation } from "@frutti/i18n";
 import { cn } from "@frutti/ui";
 import { NavLink } from "react-router";
 
-/** Purchase orders, receipts, invoices and payments: the four lists of the "Achats" module. */
+/** Purchase orders, purchases at the port, receipts, invoices and payments: the lists of the "Achats" module. */
 export function PurchasingTabs() {
   const { t } = useTranslation();
   const tabs = [
     { to: "/achats/bons", label: t("admin.purchasing.orders"), end: false },
+    { to: "/achats/terrain", label: t("admin.purchasing.fieldPurchases"), end: false },
     { to: "/achats", label: t("admin.purchasing.receipts"), end: true },
     { to: "/achats/factures", label: t("admin.purchasing.invoices"), end: false },
     { to: "/achats/paiements", label: t("admin.purchasing.payments"), end: false },

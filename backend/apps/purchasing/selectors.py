@@ -27,6 +27,11 @@ from apps.core.models import Organization
 
 from .models import (
     RECEIVABLE_ORDER_STATUSES,
+    FieldPurchase,
+    FieldPurchaseLine,
+    FieldPurchasePayment,
+    FieldPurchaseRevision,
+    FieldPurchaseStatus,
     GoodsReceipt,
     GoodsReceiptLine,
     PurchaseOrder,
@@ -487,3 +492,148 @@ def supplier_statement(
     from . import statements
 
     return statements.supplier_statement(organization, supplier_id, date_from=date_from, date_to=date_to)
+
+
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+
+type FieldPurchaseStatusFilter = Literal["submitted", "validated", "refused"]
+
+# A purchase still to check this long after it was sent raises an alert (provisional, Q28).
+FIELD_PURCHASE_LATE_AFTER = dt.timedelta(hours=24)
+
+
+def field_purchases_of(
+    organization: Organization,
+    *,
+    status: FieldPurchaseStatusFilter | None = None,
+    buyer_id: int | None = None,
+    search: str = "",
+) -> QuerySet[FieldPurchase]:
+    """Purchases at the port newest first, with their lines, payments, revisions and the documents of a validated one.
+
+    `search` matches the number, the supplier's name (or the new name typed) and the supplier's paper number.
+    """
+    lines = FieldPurchaseLine.objects.select_related("product", "partner").order_by("id")
+    revisions = FieldPurchaseRevision.objects.select_related("created_by").order_by("number")
+    purchases = (
+        FieldPurchase.objects.for_organization(organization)
+        .select_related("supplier", "buyer", "location", "receipt", "invoice", "decided_by")
+        .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(Prefetch("payments", queryset=FieldPurchasePayment.objects.order_by("id")))
+        .prefetch_related(Prefetch("revisions", queryset=revisions))
+        .order_by("-bought_on", "-id")
+    )
+    if status is not None:
+        purchases = purchases.filter(status=status)
+    if buyer_id is not None:
+        purchases = purchases.filter(buyer_id=buyer_id)
+    if search := search.strip():
+        purchases = purchases.filter(
+            Q(number__icontains=search)
+            | Q(supplier__name__icontains=search)
+            | Q(proposed_supplier__icontains=search)
+            | Q(supplier_reference__icontains=search)
+        )
+    return purchases
+
+
+def field_purchase_of(organization: Organization, purchase_id: int) -> FieldPurchase:
+    """One purchase. Raises FieldPurchase.DoesNotExist outside the organization."""
+    return field_purchases_of(organization).get(pk=purchase_id)
+
+
+def field_purchase_is_late(purchase: FieldPurchase, *, now: dt.datetime | None = None) -> bool:
+    """Still to check, and sent more than FIELD_PURCHASE_LATE_AFTER ago."""
+    now = now or timezone.now()
+    return purchase.status == FieldPurchaseStatus.SUBMITTED and purchase.created_at < now - FIELD_PURCHASE_LATE_AFTER
+
+
+@dataclass(frozen=True)
+class FieldPurchasesWaiting:
+    waiting: int  # sent, not validated nor refused yet
+    late: int  # of which sent more than FIELD_PURCHASE_LATE_AFTER ago
+
+
+def field_purchases_waiting(organization: Organization, *, now: dt.datetime | None = None) -> FieldPurchasesWaiting:
+    """How many purchases at the port wait for the office, and how many of them for too long (the dashboard alert)."""
+    now = now or timezone.now()
+    waiting = FieldPurchase.objects.for_organization(organization).filter(status=FieldPurchaseStatus.SUBMITTED)
+    return FieldPurchasesWaiting(
+        waiting=waiting.count(), late=waiting.filter(created_at__lt=now - FIELD_PURCHASE_LATE_AFTER).count()
+    )
+
+
+@dataclass(frozen=True)
+class RevisionChange:
+    """One value that differs between a revision and the one before: `line` is the line's or payment's position
+    (from 0) for a field of a line (`lines.product`…) or of a payment (`payments.amount`…), else None."""
+
+    field: str
+    line: int | None
+    before: str | None
+    after: str | None
+
+
+def _shown(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, dict):
+        return str(value.get("name", ""))
+    return str(value)
+
+
+def _row_changes(prefix: str, before: list[dict[str, Any]], after: list[dict[str, Any]]) -> list[RevisionChange]:
+    changes: list[RevisionChange] = []
+    for index in range(max(len(before), len(after))):
+        old = before[index] if index < len(before) else None
+        new = after[index] if index < len(after) else None
+        if old is None or new is None:
+            # A row added or removed: named by its product (a line) or its amount (a payment).
+            row = new if old is None else old
+            assert row is not None
+            label = _shown(row.get("product")) or _shown(row.get("proposed_product")) or _shown(row.get("amount"))
+            changes.append(
+                RevisionChange(
+                    field=f"{prefix}.added" if old is None else f"{prefix}.removed",
+                    line=index,
+                    before=None if old is None else label,
+                    after=label if old is None else None,
+                )
+            )
+            continue
+        for key in new:
+            if old.get(key) != new[key]:
+                changes.append(
+                    RevisionChange(
+                        field=f"{prefix}.{key}", line=index, before=_shown(old.get(key)), after=_shown(new[key])
+                    )
+                )
+    return changes
+
+
+def revision_changes(before: dict[str, Any] | None, after: dict[str, Any]) -> list[RevisionChange]:
+    """What one revision changed against the one before (nothing for the first one, or when only a note was given)."""
+    if before is None:
+        return []
+    changes: list[RevisionChange] = []
+    for key, value in after.items():
+        if key in ("lines", "payments", "total", "paid"):
+            continue
+        if key == "boxes":
+            old_boxes = before.get("boxes", {})
+            for box_type in sorted(set(old_boxes) | set(value)):
+                if old_boxes.get(box_type) != value.get(box_type):
+                    changes.append(
+                        RevisionChange(
+                            field=f"boxes.{box_type}",
+                            line=None,
+                            before=_shown(old_boxes.get(box_type)),
+                            after=_shown(value.get(box_type)),
+                        )
+                    )
+            continue
+        if before.get(key) != value:
+            changes.append(RevisionChange(field=key, line=None, before=_shown(before.get(key)), after=_shown(value)))
+    changes += _row_changes("lines", before.get("lines", []), after.get("lines", []))
+    changes += _row_changes("payments", before.get("payments", []), after.get("payments", []))
+    return changes

@@ -77,6 +77,10 @@ import type {
   ExportPartnerReportParams,
   ExportSalesReportParams,
   ExportSlowMovingReportParams,
+  FieldPurchase,
+  FieldPurchaseCreate,
+  FieldPurchaseRefuse,
+  FieldPurchaseWrite,
   FinanceSettingsOverview,
   FinanceSettingsWrite,
   GeneralCost,
@@ -119,6 +123,7 @@ import type {
   ListEmployeesParams,
   ListExpenseCategoriesParams,
   ListExpensesParams,
+  ListFieldPurchasesParams,
   ListGeneralCostsParams,
   ListInvoicesParams,
   ListLastPurchaseCostsParams,
@@ -186,6 +191,7 @@ import type {
   PaginatedCustomerPaymentList,
   PaginatedDifferenceLineList,
   PaginatedExpenseList,
+  PaginatedFieldPurchaseListList,
   PaginatedInvoiceList,
   PaginatedLossList,
   PaginatedLotPartnershipList,
@@ -6746,6 +6752,470 @@ export function useGetExpenseTotals<TData = Awaited<ReturnType<typeof getExpense
 
 
 
+
+export const getListFieldPurchasesUrl = (params?: ListFieldPurchasesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/field-purchases?${stringifiedParams}` : `/api/v1/field-purchases`
+}
+
+/**
+ * What drivers bought at the port, newest first, paginated, with lines, money given and what is left to pay.
+ * Filter by status (`submitted` = to check) or `search` (number, supplier, the supplier's paper number).
+ */
+export const listFieldPurchases = async (params?: ListFieldPurchasesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedFieldPurchaseListList> => {
+
+  return apiFetch<PaginatedFieldPurchaseListList>(getListFieldPurchasesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFieldPurchasesQueryKey = (params?: ListFieldPurchasesParams,) => {
+    return [
+    `/api/v1/field-purchases`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFieldPurchasesQueryOptions = <TData = Awaited<ReturnType<typeof listFieldPurchases>>, TError = unknown>(params?: ListFieldPurchasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFieldPurchases>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFieldPurchasesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFieldPurchases>>> = ({ signal }) => listFieldPurchases(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFieldPurchases>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFieldPurchasesQueryResult = NonNullable<Awaited<ReturnType<typeof listFieldPurchases>>>
+export type ListFieldPurchasesQueryError = unknown
+
+
+export function useListFieldPurchases<TData = Awaited<ReturnType<typeof listFieldPurchases>>, TError = unknown>(
+ params: undefined |  ListFieldPurchasesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFieldPurchases>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFieldPurchases>>,
+          TError,
+          Awaited<ReturnType<typeof listFieldPurchases>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFieldPurchases<TData = Awaited<ReturnType<typeof listFieldPurchases>>, TError = unknown>(
+ params?: ListFieldPurchasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFieldPurchases>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFieldPurchases>>,
+          TError,
+          Awaited<ReturnType<typeof listFieldPurchases>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFieldPurchases<TData = Awaited<ReturnType<typeof listFieldPurchases>>, TError = unknown>(
+ params?: ListFieldPurchasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFieldPurchases>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListFieldPurchases<TData = Awaited<ReturnType<typeof listFieldPurchases>>, TError = unknown>(
+ params?: ListFieldPurchasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFieldPurchases>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFieldPurchasesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateFieldPurchaseUrl = () => {
+
+
+
+
+  return `/api/v1/field-purchases`
+}
+
+/**
+ * Type a purchase at the port for the office (a driver who phoned it in): it waits to be checked like one
+ * sent from the phone, and the person who types it is its buyer.
+ */
+export const createFieldPurchase = async (fieldPurchaseCreate: FieldPurchaseCreate, options?: Parameters<typeof apiFetch>[1]): Promise<FieldPurchase> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<FieldPurchase>(getCreateFieldPurchaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fieldPurchaseCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateFieldPurchaseMutationKey = () => ['createFieldPurchase'] as const;
+
+export const getCreateFieldPurchaseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFieldPurchase>>, TError,CreateFieldPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFieldPurchase>>, TError,CreateFieldPurchaseMutationVariables, TContext> => {
+
+const mutationKey = getCreateFieldPurchaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFieldPurchase>>, CreateFieldPurchaseMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createFieldPurchase(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFieldPurchaseMutationResult = NonNullable<Awaited<ReturnType<typeof createFieldPurchase>>>
+    export type CreateFieldPurchaseMutationBody = FieldPurchaseCreate
+    export type CreateFieldPurchaseMutationError = unknown
+    export type CreateFieldPurchaseMutationVariables = {data: FieldPurchaseCreate}
+
+    export const useCreateFieldPurchase = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFieldPurchase>>, TError,CreateFieldPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createFieldPurchase>>,
+        TError,
+        CreateFieldPurchaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateFieldPurchaseMutationOptions(options), queryClient);
+    }
+
+export const getGetFieldPurchaseUrl = (purchaseId: number,) => {
+
+
+
+
+  return `/api/v1/field-purchases/${purchaseId}`
+}
+
+/**
+ * One purchase with its revisions, each with what it changed.
+ */
+export const getFieldPurchase = async (purchaseId: number, options?: Parameters<typeof apiFetch>[1]): Promise<FieldPurchase> => {
+
+  return apiFetch<FieldPurchase>(getGetFieldPurchaseUrl(purchaseId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFieldPurchaseQueryKey = (purchaseId: number,) => {
+    return [
+    `/api/v1/field-purchases/${purchaseId}`
+    ] as const;
+    }
+
+
+export const getGetFieldPurchaseQueryOptions = <TData = Awaited<ReturnType<typeof getFieldPurchase>>, TError = unknown>(purchaseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldPurchase>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFieldPurchaseQueryKey(purchaseId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFieldPurchase>>> = ({ signal }) => getFieldPurchase(purchaseId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: purchaseId !== null && purchaseId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFieldPurchase>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFieldPurchaseQueryResult = NonNullable<Awaited<ReturnType<typeof getFieldPurchase>>>
+export type GetFieldPurchaseQueryError = unknown
+
+
+export function useGetFieldPurchase<TData = Awaited<ReturnType<typeof getFieldPurchase>>, TError = unknown>(
+ purchaseId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldPurchase>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFieldPurchase>>,
+          TError,
+          Awaited<ReturnType<typeof getFieldPurchase>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFieldPurchase<TData = Awaited<ReturnType<typeof getFieldPurchase>>, TError = unknown>(
+ purchaseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldPurchase>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFieldPurchase>>,
+          TError,
+          Awaited<ReturnType<typeof getFieldPurchase>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFieldPurchase<TData = Awaited<ReturnType<typeof getFieldPurchase>>, TError = unknown>(
+ purchaseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldPurchase>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetFieldPurchase<TData = Awaited<ReturnType<typeof getFieldPurchase>>, TError = unknown>(
+ purchaseId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldPurchase>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFieldPurchaseQueryOptions(purchaseId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFieldPurchaseUrl = (purchaseId: number,) => {
+
+
+
+
+  return `/api/v1/field-purchases/${purchaseId}`
+}
+
+/**
+ * Change a purchase still to check (a new revision when anything changed); `confirm` validates it after:
+ * the kg received enter stock (a BR), what is owed for them is a posted invoice due by the deal (FF), and each
+ * sum given at the port is a payment (RF). `revision` must be the current one, else 400 on `revision`.
+ */
+export const updateFieldPurchase = async (purchaseId: number,
+    fieldPurchaseWrite: FieldPurchaseWrite, options?: Parameters<typeof apiFetch>[1]): Promise<FieldPurchase> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<FieldPurchase>(getUpdateFieldPurchaseUrl(purchaseId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fieldPurchaseWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateFieldPurchaseMutationKey = () => ['updateFieldPurchase'] as const;
+
+export const getUpdateFieldPurchaseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFieldPurchase>>, TError,UpdateFieldPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFieldPurchase>>, TError,UpdateFieldPurchaseMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFieldPurchaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFieldPurchase>>, UpdateFieldPurchaseMutationVariables> = (props) => {
+          const {purchaseId,data} = props ?? {};
+
+          return  updateFieldPurchase(purchaseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFieldPurchaseMutationResult = NonNullable<Awaited<ReturnType<typeof updateFieldPurchase>>>
+    export type UpdateFieldPurchaseMutationBody = FieldPurchaseWrite
+    export type UpdateFieldPurchaseMutationError = unknown
+    export type UpdateFieldPurchaseMutationVariables = {purchaseId: number;data: FieldPurchaseWrite}
+
+    export const useUpdateFieldPurchase = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFieldPurchase>>, TError,UpdateFieldPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateFieldPurchase>>,
+        TError,
+        UpdateFieldPurchaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFieldPurchaseMutationOptions(options), queryClient);
+    }
+
+export const getRefuseFieldPurchaseUrl = (purchaseId: number,) => {
+
+
+
+
+  return `/api/v1/field-purchases/${purchaseId}/refuse`
+}
+
+/**
+ * Turn a purchase down with the reason for the driver: nothing enters stock and nothing is owed. Final.
+ */
+export const refuseFieldPurchase = async (purchaseId: number,
+    fieldPurchaseRefuse: FieldPurchaseRefuse, options?: Parameters<typeof apiFetch>[1]): Promise<FieldPurchase> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<FieldPurchase>(getRefuseFieldPurchaseUrl(purchaseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fieldPurchaseRefuse)
+  }
+);}
+
+
+
+
+
+export const getRefuseFieldPurchaseMutationKey = () => ['refuseFieldPurchase'] as const;
+
+export const getRefuseFieldPurchaseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refuseFieldPurchase>>, TError,RefuseFieldPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refuseFieldPurchase>>, TError,RefuseFieldPurchaseMutationVariables, TContext> => {
+
+const mutationKey = getRefuseFieldPurchaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refuseFieldPurchase>>, RefuseFieldPurchaseMutationVariables> = (props) => {
+          const {purchaseId,data} = props ?? {};
+
+          return  refuseFieldPurchase(purchaseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefuseFieldPurchaseMutationResult = NonNullable<Awaited<ReturnType<typeof refuseFieldPurchase>>>
+    export type RefuseFieldPurchaseMutationBody = FieldPurchaseRefuse
+    export type RefuseFieldPurchaseMutationError = unknown
+    export type RefuseFieldPurchaseMutationVariables = {purchaseId: number;data: FieldPurchaseRefuse}
+
+    export const useRefuseFieldPurchase = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refuseFieldPurchase>>, TError,RefuseFieldPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refuseFieldPurchase>>,
+        TError,
+        RefuseFieldPurchaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRefuseFieldPurchaseMutationOptions(options), queryClient);
+    }
 
 export const getGetFinanceSettingsUrl = () => {
 

@@ -1,3 +1,4 @@
+import itertools
 from decimal import Decimal
 from typing import Any
 
@@ -5,11 +6,18 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.purchasing import selectors
+from apps.core.money import line_total
+from apps.purchasing import selectors, services
 from apps.purchasing.models import (
+    FieldPurchase,
+    FieldPurchaseLine,
+    FieldPurchasePayment,
+    FieldPurchaseRevision,
+    FieldPurchaseStatus,
     GoodsReceipt,
     GoodsReceiptLine,
     PaymentMethod,
+    PaymentTerms,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
@@ -19,6 +27,7 @@ from apps.purchasing.models import (
 )
 
 AMOUNT = serializers.DecimalField(max_digits=14, decimal_places=3)
+ZERO = Decimal("0.000")
 
 
 class RefSerializer(serializers.Serializer[Any]):
@@ -448,6 +457,7 @@ class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
             "amount",
             "method",
             "reference",
+            "cash_on",
             "notes",
             "allocated_amount",
             "unallocated_amount",
@@ -474,6 +484,8 @@ class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
     amount = serializers.CharField(allow_blank=True)
     method = serializers.ChoiceField(choices=PaymentMethod.choices)
     reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    # The day a post-dated cheque or a traite may be cashed (D-157).
+    cash_on = serializers.DateField(required=False, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     allocations = AllocationWriteSerializer(many=True, required=False, default=list)
 
@@ -507,3 +519,240 @@ class SupplierBalanceSerializer(serializers.Serializer[Any]):
     # Received but on no invoice yet: not owed until the supplier's invoice is recorded.
     uninvoiced_receipts = serializers.IntegerField(read_only=True)
     uninvoiced_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+
+
+class NamedRefSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
+class NumberRefSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+
+
+class FieldPurchaseLineSerializer(serializers.ModelSerializer[FieldPurchaseLine]):
+    product = RefSerializer(read_only=True, allow_null=True)
+    partner = NamedRefSerializer(read_only=True, allow_null=True)
+    # The kg received once counted, else the kg typed at the port: what the supplier is paid for.
+    owed_quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+    class Meta:
+        model = FieldPurchaseLine
+        fields = (
+            "id",
+            "product",
+            "proposed_product",
+            "declared_quantity",
+            "received_quantity",
+            "owed_quantity",
+            "unit_cost",
+            "amount",
+            "partner",
+        )
+        read_only_fields = fields
+
+
+class FieldPurchasePaymentSerializer(serializers.ModelSerializer[FieldPurchasePayment]):
+    # The supplier payment it became at validation.
+    supplier_payment = NumberRefSerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = FieldPurchasePayment
+        fields = ("id", "method", "amount", "reference", "cash_on", "supplier_payment")
+        read_only_fields = fields
+
+
+class RevisionChangeSerializer(serializers.Serializer[Any]):
+    # supplier, bought_on, boxes.small, lines.received_quantity, lines.added, payments.amount...
+    field = serializers.CharField(read_only=True)
+    # The position (from 0) of the line or payment, for their fields.
+    line = serializers.IntegerField(read_only=True, allow_null=True)
+    before = serializers.CharField(read_only=True, allow_null=True)
+    after = serializers.CharField(read_only=True, allow_null=True)
+
+
+class FieldPurchaseRevisionSerializer(serializers.ModelSerializer[FieldPurchaseRevision]):
+    created_by = serializers.SerializerMethodField()
+    # What this revision changed against the one before.
+    changes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FieldPurchaseRevision
+        fields = ("number", "action", "created_at", "created_by", "note", "changes")
+        read_only_fields = fields
+
+    def get_created_by(self, revision: FieldPurchaseRevision) -> str:
+        return _name_of(revision.created_by)
+
+    @extend_schema_field(RevisionChangeSerializer(many=True))
+    def get_changes(self, revision: FieldPurchaseRevision) -> list[dict[str, Any]]:
+        previous = self.context.get("previous", {}).get(revision.number)
+        changes = selectors.revision_changes(previous, revision.snapshot)
+        return [dict(RevisionChangeSerializer(change).data) for change in changes]
+
+
+class FieldPurchaseSerializer(serializers.ModelSerializer[FieldPurchase]):
+    supplier = RefSerializer(read_only=True, allow_null=True)
+    buyer = serializers.SerializerMethodField()
+    location = NamedRefSerializer(read_only=True, allow_null=True)
+    due_date = serializers.SerializerMethodField()
+    # Returnable boxes per box type ("small", "big").
+    boxes = serializers.DictField(child=serializers.IntegerField(), read_only=True)
+    lines = FieldPurchaseLineSerializer(many=True, read_only=True)
+    payments = FieldPurchasePaymentSerializer(many=True, read_only=True)
+    # Kg typed at the port x price, owed kg x price, given at the port, and what is left to pay on this purchase.
+    declared_total = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+    paid = serializers.SerializerMethodField()
+    rest = serializers.SerializerMethodField()
+    is_late = serializers.SerializerMethodField()
+    receipt = NumberRefSerializer(read_only=True, allow_null=True)
+    invoice = NumberRefSerializer(read_only=True, allow_null=True)
+    decided_by = serializers.SerializerMethodField()
+    revisions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FieldPurchase
+        fields: tuple[str, ...] = (
+            "id",
+            "number",
+            "status",
+            "supplier",
+            "proposed_supplier",
+            "proposed_supplier_phone",
+            "bought_on",
+            "buyer",
+            "terms",
+            "due_days",
+            "due_date",
+            "supplier_reference",
+            "notes",
+            "office_note",
+            "location",
+            "boxes",
+            "revision",
+            "lines",
+            "payments",
+            "declared_total",
+            "total",
+            "paid",
+            "rest",
+            "is_late",
+            "receipt",
+            "invoice",
+            "decided_by",
+            "decided_at",
+            "created_at",
+            "revisions",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    def get_buyer(self, purchase: FieldPurchase) -> str:
+        return _name_of(purchase.buyer)
+
+    def get_decided_by(self, purchase: FieldPurchase) -> str:
+        return _name_of(purchase.decided_by)
+
+    @extend_schema_field(serializers.DateField())
+    def get_due_date(self, purchase: FieldPurchase) -> str:
+        return services.due_date_of(purchase.bought_on, purchase.terms, purchase.due_days).isoformat()
+
+    @extend_schema_field(AMOUNT)
+    def get_declared_total(self, purchase: FieldPurchase) -> str:
+        return str(sum((line_total(line.declared_quantity, line.unit_cost) for line in purchase.lines.all()), ZERO))
+
+    def _total(self, purchase: FieldPurchase) -> Decimal:
+        return sum((line.amount for line in purchase.lines.all()), ZERO)
+
+    def _paid(self, purchase: FieldPurchase) -> Decimal:
+        return sum((payment.amount for payment in purchase.payments.all()), ZERO)
+
+    @extend_schema_field(AMOUNT)
+    def get_total(self, purchase: FieldPurchase) -> str:
+        return str(self._total(purchase))
+
+    @extend_schema_field(AMOUNT)
+    def get_paid(self, purchase: FieldPurchase) -> str:
+        return str(self._paid(purchase))
+
+    @extend_schema_field(AMOUNT)
+    def get_rest(self, purchase: FieldPurchase) -> str:
+        """Owed minus given, never below zero (more given is an advance)."""
+        return str(max(self._total(purchase) - self._paid(purchase), ZERO))
+
+    def get_is_late(self, purchase: FieldPurchase) -> bool:
+        return selectors.field_purchase_is_late(purchase)
+
+    @extend_schema_field(FieldPurchaseRevisionSerializer(many=True))
+    def get_revisions(self, purchase: FieldPurchase) -> list[dict[str, Any]]:
+        revisions = list(purchase.revisions.all())
+        previous = {after.number: before.snapshot for before, after in itertools.pairwise(revisions)}
+        return list(FieldPurchaseRevisionSerializer(revisions, many=True, context={"previous": previous}).data)
+
+
+class FieldPurchaseListSerializer(FieldPurchaseSerializer):
+    """A purchase in a list: everything but its revisions."""
+
+    class Meta(FieldPurchaseSerializer.Meta):
+        fields = tuple(field for field in FieldPurchaseSerializer.Meta.fields if field != "revisions")
+        read_only_fields = fields
+
+
+class FieldPurchaseLineWriteSerializer(serializers.Serializer[Any]):
+    # A product of the list, or the name of a new one.
+    product = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    proposed_product = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    # Strings ("62.000"), checked by the service, which reports each problem on `lines.<index>.<field>`.
+    declared_quantity = serializers.CharField(allow_blank=True)
+    received_quantity = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    unit_cost = serializers.CharField(allow_blank=True)
+    # A partner lot (D-100): the owner's choice.
+    partner = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+
+
+class FieldPurchasePaymentWriteSerializer(serializers.Serializer[Any]):
+    method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    amount = serializers.CharField(allow_blank=True)
+    reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    cash_on = serializers.DateField(required=False, allow_null=True, default=None)
+
+
+class FieldPurchaseCreateSerializer(serializers.Serializer[Any]):
+    supplier = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    proposed_supplier = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    proposed_supplier_phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
+    bought_on = serializers.DateField()
+    terms = serializers.ChoiceField(choices=PaymentTerms.choices)
+    due_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=0)
+    supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    location = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
+    lines = FieldPurchaseLineWriteSerializer(many=True, allow_empty=True)
+    payments = FieldPurchasePaymentWriteSerializer(many=True, required=False, default=list)
+
+
+class FieldPurchaseWriteSerializer(FieldPurchaseCreateSerializer):
+    # The revision the person was looking at: a save on an older one is refused.
+    revision = serializers.IntegerField(min_value=1)
+    # The office's note to the driver; null keeps it.
+    office_note = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # Validate it in the same step: stock, invoice and payments are recorded, and it no longer changes. Not named
+    # `validate`, which is the serializer's own method.
+    confirm = serializers.BooleanField(required=False, default=False)
+
+
+class FieldPurchaseRefuseSerializer(serializers.Serializer[Any]):
+    revision = serializers.IntegerField(min_value=1)
+    # Why it is refused, for the driver.
+    office_note = serializers.CharField(allow_blank=True)
+
+
+class FieldPurchaseFilterSerializer(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=FieldPurchaseStatus.choices, required=False)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)

@@ -2142,6 +2142,173 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExpenseTotals'
           description: ''
+  /api/v1/field-purchases:
+    get:
+      operationId: listFieldPurchases
+      description: |-
+        What drivers bought at the port, newest first, paginated, with lines, money given and what is left to pay.
+        Filter by status (`submitted` = to check) or `search` (number, supplier, the supplier's paper number).
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - submitted
+          - validated
+          - refused
+          type: string
+          minLength: 1
+        description: |-
+          * `submitted` - À valider
+          * `validated` - Validé
+          * `refused` - Refusé
+      tags:
+      - field-purchases
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFieldPurchaseListList'
+          description: ''
+    post:
+      operationId: createFieldPurchase
+      description: |-
+        Type a purchase at the port for the office (a driver who phoned it in): it waits to be checked like one
+        sent from the phone, and the person who types it is its buyer.
+      tags:
+      - field-purchases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldPurchase'
+          description: ''
+  /api/v1/field-purchases/{purchase_id}:
+    get:
+      operationId: getFieldPurchase
+      description: One purchase with its revisions, each with what it changed.
+      parameters:
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - field-purchases
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldPurchase'
+          description: ''
+    put:
+      operationId: updateFieldPurchase
+      description: |-
+        Change a purchase still to check (a new revision when anything changed); `confirm` validates it after:
+        the kg received enter stock (a BR), what is owed for them is a posted invoice due by the deal (FF), and each
+        sum given at the port is a payment (RF). `revision` must be the current one, else 400 on `revision`.
+      parameters:
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - field-purchases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldPurchase'
+          description: ''
+  /api/v1/field-purchases/{purchase_id}/refuse:
+    post:
+      operationId: refuseFieldPurchase
+      description: 'Turn a purchase down with the reason for the driver: nothing enters
+        stock and nothing is owed. Final.'
+      parameters:
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - field-purchases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseRefuse'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseRefuse'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FieldPurchaseRefuse'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldPurchase'
+          description: ''
   /api/v1/finance-settings:
     get:
       operationId: getFinanceSettings
@@ -10240,6 +10407,12 @@ components:
         pending_terms_count:
           type: integer
           readOnly: true
+        field_purchases_waiting:
+          type: integer
+          readOnly: true
+        field_purchases_late:
+          type: integer
+          readOnly: true
       required:
       - cash_collected
       - cash_difference_count
@@ -10248,6 +10421,8 @@ components:
       - expenses_waiting
       - expiring
       - expiring_count
+      - field_purchases_late
+      - field_purchases_waiting
       - gross_margin
       - low_stock
       - low_stock_count
@@ -11681,6 +11856,625 @@ components:
       - product_name
       - quantity
       - use_by
+    FieldPurchase:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/FieldPurchaseStatusEnum'
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+          nullable: true
+        proposed_supplier:
+          type: string
+          readOnly: true
+        proposed_supplier_phone:
+          type: string
+          readOnly: true
+        bought_on:
+          type: string
+          format: date
+          readOnly: true
+        buyer:
+          type: string
+          readOnly: true
+        terms:
+          allOf:
+          - $ref: '#/components/schemas/PaymentTermsEnum'
+          readOnly: true
+        due_days:
+          type: integer
+          readOnly: true
+        due_date:
+          type: string
+          format: date
+          readOnly: true
+        supplier_reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        office_note:
+          type: string
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/NamedRef'
+          readOnly: true
+          nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        revision:
+          type: integer
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchaseLine'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchasePayment'
+          readOnly: true
+        declared_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        rest:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        is_late:
+          type: boolean
+          readOnly: true
+        receipt:
+          allOf:
+          - $ref: '#/components/schemas/NumberRef'
+          readOnly: true
+          nullable: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/NumberRef'
+          readOnly: true
+          nullable: true
+        decided_by:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        revisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchaseRevision'
+          readOnly: true
+      required:
+      - bought_on
+      - boxes
+      - buyer
+      - created_at
+      - decided_at
+      - decided_by
+      - declared_total
+      - due_date
+      - due_days
+      - id
+      - invoice
+      - is_late
+      - lines
+      - location
+      - notes
+      - number
+      - office_note
+      - paid
+      - payments
+      - proposed_supplier
+      - proposed_supplier_phone
+      - receipt
+      - rest
+      - revision
+      - revisions
+      - status
+      - supplier
+      - supplier_reference
+      - terms
+      - total
+    FieldPurchaseActionEnum:
+      enum:
+      - submitted
+      - edited
+      - validated
+      - refused
+      type: string
+      description: |-
+        * `submitted` - Envoyé
+        * `edited` - Modifié
+        * `validated` - Validé
+        * `refused` - Refusé
+    FieldPurchaseCreate:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+        proposed_supplier:
+          type: string
+          default: ''
+          maxLength: 150
+        proposed_supplier_phone:
+          type: string
+          default: ''
+          maxLength: 30
+        bought_on:
+          type: string
+          format: date
+        terms:
+          $ref: '#/components/schemas/PaymentTermsEnum'
+        due_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          default: 0
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+        location:
+          type: integer
+          minimum: 1
+          nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchaseLineWrite'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchasePaymentWrite'
+      required:
+      - bought_on
+      - lines
+      - terms
+    FieldPurchaseLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+          nullable: true
+        proposed_product:
+          type: string
+          readOnly: true
+        declared_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        received_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        owed_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        partner:
+          allOf:
+          - $ref: '#/components/schemas/NamedRef'
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - declared_quantity
+      - id
+      - owed_quantity
+      - partner
+      - product
+      - proposed_product
+      - received_quantity
+      - unit_cost
+    FieldPurchaseLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+          nullable: true
+        proposed_product:
+          type: string
+          default: ''
+          maxLength: 150
+        declared_quantity:
+          type: string
+        received_quantity:
+          type: string
+          nullable: true
+        unit_cost:
+          type: string
+        partner:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+      - declared_quantity
+      - unit_cost
+    FieldPurchaseList:
+      type: object
+      description: 'A purchase in a list: everything but its revisions.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/FieldPurchaseStatusEnum'
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+          nullable: true
+        proposed_supplier:
+          type: string
+          readOnly: true
+        proposed_supplier_phone:
+          type: string
+          readOnly: true
+        bought_on:
+          type: string
+          format: date
+          readOnly: true
+        buyer:
+          type: string
+          readOnly: true
+        terms:
+          allOf:
+          - $ref: '#/components/schemas/PaymentTermsEnum'
+          readOnly: true
+        due_days:
+          type: integer
+          readOnly: true
+        due_date:
+          type: string
+          format: date
+          readOnly: true
+        supplier_reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        office_note:
+          type: string
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/NamedRef'
+          readOnly: true
+          nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        revision:
+          type: integer
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchaseLine'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchasePayment'
+          readOnly: true
+        declared_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        rest:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        is_late:
+          type: boolean
+          readOnly: true
+        receipt:
+          allOf:
+          - $ref: '#/components/schemas/NumberRef'
+          readOnly: true
+          nullable: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/NumberRef'
+          readOnly: true
+          nullable: true
+        decided_by:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bought_on
+      - boxes
+      - buyer
+      - created_at
+      - decided_at
+      - decided_by
+      - declared_total
+      - due_date
+      - due_days
+      - id
+      - invoice
+      - is_late
+      - lines
+      - location
+      - notes
+      - number
+      - office_note
+      - paid
+      - payments
+      - proposed_supplier
+      - proposed_supplier_phone
+      - receipt
+      - rest
+      - revision
+      - status
+      - supplier
+      - supplier_reference
+      - terms
+      - total
+    FieldPurchasePayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        cash_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        supplier_payment:
+          allOf:
+          - $ref: '#/components/schemas/NumberRef'
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - cash_on
+      - id
+      - method
+      - reference
+      - supplier_payment
+    FieldPurchasePaymentWrite:
+      type: object
+      properties:
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        amount:
+          type: string
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        cash_on:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - amount
+      - method
+    FieldPurchaseRefuse:
+      type: object
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        office_note:
+          type: string
+      required:
+      - office_note
+      - revision
+    FieldPurchaseRevision:
+      type: object
+      properties:
+        number:
+          type: integer
+          readOnly: true
+        action:
+          allOf:
+          - $ref: '#/components/schemas/FieldPurchaseActionEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevisionChange'
+          readOnly: true
+      required:
+      - action
+      - changes
+      - created_at
+      - created_by
+      - note
+      - number
+    FieldPurchaseStatusEnum:
+      enum:
+      - submitted
+      - validated
+      - refused
+      type: string
+      description: |-
+        * `submitted` - À valider
+        * `validated` - Validé
+        * `refused` - Refusé
+    FieldPurchaseWrite:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+        proposed_supplier:
+          type: string
+          default: ''
+          maxLength: 150
+        proposed_supplier_phone:
+          type: string
+          default: ''
+          maxLength: 30
+        bought_on:
+          type: string
+          format: date
+        terms:
+          $ref: '#/components/schemas/PaymentTermsEnum'
+        due_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          default: 0
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+        location:
+          type: integer
+          minimum: 1
+          nullable: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchaseLineWrite'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchasePaymentWrite'
+        revision:
+          type: integer
+          minimum: 1
+        office_note:
+          type: string
+          nullable: true
+        confirm:
+          type: boolean
+          default: false
+      required:
+      - bought_on
+      - lines
+      - revision
+      - terms
     FigureEnum:
       enum:
       - sales_count
@@ -14746,6 +15540,30 @@ components:
       - product_name
       - quantity
       - unit_price
+    NamedRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    NumberRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
     OpenSale:
       type: object
       description: A confirmed sale with something left to collect.
@@ -15198,6 +16016,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Expense'
+    PaginatedFieldPurchaseListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchaseList'
     PaginatedInvoiceList:
       type: object
       required:
@@ -16116,6 +16957,16 @@ components:
       - number
       - paid_on
       - reference
+    PaymentTermsEnum:
+      enum:
+      - cash
+      - days
+      - month_end
+      type: string
+      description: |-
+        * `cash` - Comptant
+        * `days` - À N jours
+        * `month_end` - Fin de mois
     PayrollSummary:
       type: object
       properties:
@@ -18111,6 +18962,29 @@ components:
           type: string
           default: ''
           maxLength: 300
+    RevisionChange:
+      type: object
+      properties:
+        field:
+          type: string
+          readOnly: true
+        line:
+          type: integer
+          readOnly: true
+          nullable: true
+        before:
+          type: string
+          readOnly: true
+          nullable: true
+        after:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - after
+      - before
+      - field
+      - line
     RoadCategory:
       type: object
       properties:
@@ -20427,6 +21301,11 @@ components:
         reference:
           type: string
           readOnly: true
+        cash_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
         notes:
           type: string
           readOnly: true
@@ -20456,6 +21335,7 @@ components:
       - allocated_amount
       - allocations
       - amount
+      - cash_on
       - created_at
       - created_by
       - id
@@ -20483,6 +21363,10 @@ components:
           type: string
           default: ''
           maxLength: 50
+        cash_on:
+          type: string
+          format: date
+          nullable: true
         notes:
           type: string
           default: ''

@@ -13,6 +13,7 @@ from apps.demo.costing import seed_costing
 from apps.demo.customers import seed_customers
 from apps.demo.employees import seed_employees
 from apps.demo.expenses import seed_expenses
+from apps.demo.field_purchases import seed_field_purchases
 from apps.demo.locations import seed_locations
 from apps.demo.losses import seed_losses
 from apps.demo.partnerships import seed_partnership_costs, seed_partnerships
@@ -86,6 +87,7 @@ class Command(BaseCommand):
         movements = seed_stock(organization=organization, actor=owner)
         receipts = seed_receipts(organization=organization, actor=owner)
         invoices = seed_supplier_invoices(organization=organization, actor=owner)
+        field_purchases = seed_field_purchases(organization=organization, driver=driver)
         customers = seed_customers(organization=organization, actor=owner)
         transfers = seed_transfers(organization=organization, actor=owner)
         losses = seed_losses(organization=organization, actor=owner)
@@ -111,6 +113,7 @@ class Command(BaseCommand):
             )
         )
         self.stdout.write(self.style.SUCCESS(f"{boxes} new opening stocks of returnable boxes"))
+        self.stdout.write(self.style.SUCCESS(f"{field_purchases} new purchases at the port to check"))
         self.stdout.write(self.style.SUCCESS(f"{transfers} new transfers"))
         self.stdout.write(self.style.SUCCESS(f"{losses} new losses and stock counts"))
         self.stdout.write(self.style.SUCCESS(f"{prices} new minimum prices and price lists"))

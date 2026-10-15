@@ -115,3 +115,34 @@ Moved here from the Phase 8 backlog (Q13: printed and digital receipts, Android 
 - [x] Driver picks a customer (with what they owe), types the cash received, saves; offline-safe (D-111).
 - [x] The payment is allocated to the customer's oldest open sales (the P2-T06 service) and counted in the day's expected cash.
 
+### P3-T12 · Buying at the port (achat terrain) · L → split into T12a to T12c, in this order (added 2026-10-15, D-157, Q28)
+A driver buys from a fisherman or at the port, sends it from the phone; the owner or the manager checks it; only then
+do the stock, the supplier debt and the payment count.
+
+**P3-T12a · Office side: the purchase, its revisions and its validation · M**
+- [x] `FieldPurchase` (`AT-2026-0001`): supplier or a proposed new name, day, the deal (comptant, N days, end of month
+      + N days), supplier's paper number (optional), lines (product or a proposed new name, kg said, kg received, price),
+      money given at the port (cash, cheque, transfer, traite; reference, cashing day), boxes, notes both ways.
+- [x] Statuses: sent → validated or refused. Every save is a revision (full copy, who, when, what changed); a save on
+      an older revision is refused ("changed meanwhile").
+- [x] Validation (owner or manager): a BR (kg received, cost; the kg said kept as the line's "ordered" weight), a posted
+      FF for the kg received with the due date of the deal, an RF per payment given allocated to it (any rest is an
+      advance). Partner per line: owner only, as on a receipt.
+- [x] Admin: "À valider" tab in Achats (list, review page: map a new name to a product or supplier, fix kg and prices,
+      note to the driver, save, validate, refuse; revision history). Dashboard alert: purchases waiting, late after 24 h.
+
+**P3-T12b · Phone: the purchase screen · M**
+- [ ] A "can buy" switch per driver (owner sets it on the account; the server refuses the others).
+- [ ] The phone screen: supplier (list or new name), products (list with photo, or new name), kg, price (last price
+      paid as a hint), money given (cash or cheque), rest to pay; photo of the supplier's paper (optional). Works
+      offline like a sale; edits after sending need network. The driver sees his purchases, their status and the
+      office's note; not what the company owed the supplier before.
+- [ ] The purchase float: the office gives the driver a sum for purchases in the morning; the closing counts it and
+      the money given (expected cash = … + float − purchases paid in cash).
+
+**P3-T12c · Paying suppliers · M**
+- [ ] "Dettes fournisseurs": owed per supplier, overdue, due this week; cheques and traites to be cashed by day.
+- [ ] The office receipt form gets the deal too, so a delivery to the cold room is owed at once (a posted FF), like a
+      purchase at the port; the payment form gets the cashing day of a cheque or traite.
+- [ ] Monthly settlement: the supplier statement of the month (D-156) as the paper to agree on and pay.
+
