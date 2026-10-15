@@ -1,7 +1,16 @@
-import { createQueryClient, LanguageSwitch, LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
+import {
+  createQueryClient,
+  LanguageSwitch,
+  LoginPage,
+  RequireRole,
+  type Session,
+  useLogout,
+  useSession,
+} from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import { Sprite, Toaster, TruckShell, type TruckTab, useFavicon } from "@frutti/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { BackToDay } from "./BackToDay";
@@ -23,6 +32,37 @@ const queryClient = createQueryClient();
 // Without signal, ask anyway: the phone answers from what it saved (public/sw.js) instead of waiting forever.
 queryClient.setDefaultOptions({ queries: { networkMode: "offlineFirst" } });
 
+// The phone remembers the company logo it last saw, so the login screen's tab shows it too (D-125). Not a secret:
+// it is the logo every document already carries. Storage can be blocked: then the default icon stays.
+const LOGO_KEY = "frutti-truck-logo";
+
+function rememberedLogo(): string | null {
+  try {
+    return localStorage.getItem(LOGO_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function remember(logo: string): void {
+  try {
+    localStorage.setItem(LOGO_KEY, logo);
+  } catch {
+    // Not saved: the next login screen shows the default icon until a login works again.
+  }
+}
+
+/** The browser-tab icon: the company logo once known, else the logo remembered on this phone. */
+function TabIcon() {
+  const session = useSession();
+  const logo = session.data?.organization.logo_url ?? null;
+  useEffect(() => {
+    if (logo) remember(logo);
+  }, [logo]);
+  useFavicon(logo ?? rememberedLogo());
+  return null;
+}
+
 // Same four tabs as the approved prototype.
 function useTabs(): TruckTab[] {
   const { t } = useTranslation();
@@ -39,7 +79,6 @@ function Shell({ session }: { session: Session }) {
   const tabs = useTabs();
   const logout = useLogout();
   const location = useLocation();
-  useFavicon(session.organization.logo_url);
   return (
     <TruckShell
       tabs={tabs}
@@ -96,6 +135,7 @@ export function App() {
       <Sprite />
       <Toaster />
       <BrowserRouter>
+        <TabIcon />
         <AppRoutes />
       </BrowserRouter>
     </QueryClientProvider>

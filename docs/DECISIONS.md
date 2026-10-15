@@ -2173,3 +2173,13 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Not done by the command: media files of the deleted records (receipts, PDFs) stay on the volume, unreferenced. The
   opening stock of the company's boxes is not re-entered (zero, as asked); the screen for a box opening stock on a real
   database is still to build (STATUS).
+
+**D-147 · The company logo is the driver app's tab icon, also on the login screen (D-125 follow-up)** · accepted · 2026-10-15
+- Asked by the owner (2026-10-15): the driver's browser tab must show the company icon. Before, the logo was set only
+  after login, so the login screen and a phone that had logged out showed the Frutti icon of `index.html`.
+- The truck app remembers the logo URL it last saw in `localStorage` (`frutti-truck-logo`) and uses it while no session
+  is known. It is a per-phone convenience, not data: the logo is on every document. Blocked storage keeps the default icon.
+- `useFavicon` no longer forces `type="image/webp"` on the icon: the logo may be a PNG or JPEG, and a wrong type can make
+  the browser skip it. The admin app gets the same fix.
+- Not changed: the home-screen icon of the installed app (`public/icon-*.png` and the manifest) stays the Frutti icon; a
+  company icon there would need a build per company or a server-made manifest.

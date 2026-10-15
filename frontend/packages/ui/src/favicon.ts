@@ -8,9 +8,9 @@ export function useFavicon(logoUrl: string | null | undefined): void {
   useEffect(() => {
     if (!logoUrl) return;
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]') ?? document.createElement("link");
-    const previous = { href: link.getAttribute("href"), type: link.getAttribute("type"), attached: link.isConnected };
+    // No type is set: the logo may be a PNG, JPEG or WebP, and a wrong type can make the browser skip the icon.
+    const previous = { href: link.getAttribute("href"), attached: link.isConnected };
     link.rel = "icon";
-    link.type = "image/webp";
     link.href = logoUrl;
     if (!previous.attached) document.head.appendChild(link);
     return () => {
@@ -20,8 +20,6 @@ export function useFavicon(logoUrl: string | null | undefined): void {
       }
       if (previous.href === null) link.removeAttribute("href");
       else link.setAttribute("href", previous.href);
-      if (previous.type === null) link.removeAttribute("type");
-      else link.setAttribute("type", previous.type);
     };
   }, [logoUrl]);
 }
