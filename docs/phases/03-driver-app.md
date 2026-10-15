@@ -21,9 +21,12 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [x] (D-148) Prices are refreshed every minute while the phone is online, on reconnect and on focus. A price
       changed during the day raises a notice on every screen until the driver acknowledges it; the sale screen takes
       the new price at once. Offline, the stock and sale screens show when the prices were last received.
-- [ ] Open (D-148): the server still prices a phone sale at the price in force at its moment, not the price the phone
-      showed, so a sale made on a stale price is charged the new one. Sending the shown price needs the customer price
-      list on the phone first (the phone shows the daily price only).
+- [x] (D-150) The phone sends the price each line showed; the server accepts it only when it was a real price of the
+      product in the 24 hours before the sale (else "Ce prix n'est plus valable", refused). A customer's own price list
+      wins over the shown price (D-049).
+- [ ] Open (D-150): the phone shows the daily price, not the customer's list price, so a list customer sees a price
+      that the server then replaces with the list price. Show the list price on the phone (the stock read for the
+      selected customer).
 
 ### P3-T03 · Sale on the road · M
 - [x] (search only, D-091) Choose customer (search, recent first; create if allowed), products, weight, payment amount and
