@@ -293,6 +293,20 @@ def test_the_owner_and_manager_change_the_company_logo_but_the_accountant_only_r
     assert removed.json()["logo_url"] is None
 
 
+def test_the_driver_sees_the_company_logo_but_does_not_change_it():
+    # D-154: the driver's header and tab icon show the logo, so every member reads it.
+    owner, owner_membership = client_for(Role.OWNER)
+    org = owner_membership.organization
+    owner.put(reverse("organization-logo", args=[org.pk]), {"photo": _photo()}, format="multipart")
+
+    driver, _ = client_for(Role.DRIVER, organization=org)
+    assert driver.get(reverse("organization-logo", args=[org.pk])).status_code == 200
+    assert (
+        driver.put(reverse("organization-logo", args=[org.pk]), {"photo": _photo()}, format="multipart").status_code
+        == 403
+    )
+
+
 def test_the_company_logo_of_another_organization_is_not_served():
     owner, owner_membership = client_for(Role.OWNER)
     owner.put(

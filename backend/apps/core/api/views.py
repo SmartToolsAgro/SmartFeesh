@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 from apps.core import selectors, services
 from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle, PasswordChangeThrottle
 from apps.core.models import Job, Membership, Organization, User
-from apps.core.permissions import IsMember, IsOwner, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import IsMember, IsOwner, ReadMemberWriteOwnerOrManager, membership_of
 
 from .serializers import (
     ChangePasswordSerializer,
@@ -252,9 +252,10 @@ class UserAvatarView(APIView):
 
 
 class OrganizationLogoView(APIView):
-    """The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields)."""
+    """The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
+    the logo every document already carries; owners and managers may change it (same as the legal fields)."""
 
-    permission_classes = (ReadOfficeWriteOwnerOrManager,)
+    permission_classes = (ReadMemberWriteOwnerOrManager,)
     parser_classes = (MultiPartParser,)
 
     # Read by an <img> tag, not by the generated client: kept out of the API contract.

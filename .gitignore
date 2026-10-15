@@ -23,7 +23,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
-
+.claude/worktrees/
 # End-to-end tests (Playwright)
 test-results/
 playwright-report/

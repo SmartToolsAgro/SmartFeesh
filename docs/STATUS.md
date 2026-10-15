@@ -37,7 +37,7 @@ customers and photos, list prices; D-147 to D-153)_
    - Price rule (D-150): a sale on a stale price is refused after 24 hours. Owner to confirm the window.
    - Archived records (D-145): confirm they leave every dropdown except the one a saved record uses.
    - Approved electricity bills under the daily rule are not recalculated (D-142, owner to decide).
-2. **Check on staging with a real phone:** the tab icon after login; a price change during a sale (notice, new price,
+2. **Check on staging with a real phone:** the company logo in the driver header and on the login screen (after one login; D-154); a price change during a sale (notice, new price,
    sale refused on a stale price); a late expense and a payment (dated the day they were made); a customer added on the
    phone; product photos in the stock list; a sale to a customer with a price list (the price shown is the list price).
 3. **Phase 3, in this order:** P3-T10 printing spike (needs a real Android and iPhone and a printer, human), P3-T09
@@ -88,6 +88,8 @@ customers and photos, list prices; D-147 to D-153)_
 
 ## Recently done
 
+- 2026-10-15 · D-154 the driver sees the company logo: the logo endpoint lets every member read it (the driver got 403),
+  and the phone keeps a copy for the login screen and the tab icon (corrects D-147; on this branch, not yet merged).
 - 2026-10-15 · quote form: each product in the list shows its kilos in stock and the places holding them, fullest
   first (`LinesGrid` `places`, `placesOf`; not yet on the sale screens).
 - 2026-10-15 · D-153 the sale screen shows the price the selected customer pays (`my-stock?customer=`), closing D-150's
