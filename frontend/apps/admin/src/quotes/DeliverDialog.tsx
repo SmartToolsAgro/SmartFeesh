@@ -7,23 +7,18 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
-  Field,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Table,
   Td,
   Th,
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { choosePlace, type Need, usePlacesStock } from "../lib/placeStock";
 
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
 // The API writes "2.000"; people here write "2" or "2,5".
@@ -59,18 +54,25 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const placeId = useId();
   const open = quote.lines.filter((line) => !isZero(line.remaining_quantity));
-  const [place, setPlace] = useState(quote.location ? String(quote.location.id) : "");
   const [typed, setTyped] = useState<Record<number, string>>(() =>
     Object.fromEntries(open.map((line) => [line.id, asTyped(line.remaining_quantity)])),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const locations = useListLocations({ status: "active" });
+  // The sale leaves from the one place that holds all the kilos typed here (D-144).
+  const byPlace = usePlacesStock((locations.data ?? []).filter((option) => option.sells).map((option) => option.id));
 
   const convert = useMutation({
-    mutationFn: ({ confirmNow, lines }: { confirmNow: boolean; lines: { quote_line: number; quantity: string }[] }) =>
-      convertQuoteToSale(quote.id, { location: place ? Number(place) : null, confirm_now: confirmNow, lines }),
+    mutationFn: ({
+      confirmNow,
+      lines,
+      place,
+    }: {
+      confirmNow: boolean;
+      lines: { quote_line: number; quantity: string }[];
+      place: number;
+    }) => convertQuoteToSale(quote.id, { location: place, confirm_now: confirmNow, lines }),
     onSuccess: async (sale) => {
       toast.success(t("admin.sales.fromQuote.created", { number: sale.number }));
       onClose();
@@ -85,7 +87,6 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
         const match = /^lines\.(\d+)\./.exec(key);
         const line = match ? open[Number(match[1])] : undefined;
         if (line) found[`line.${line.id}`] = message;
-        else if (key === "location") found.location = message;
         else found.detail = message;
       }
       setErrors(Object.keys(found).length > 0 ? found : { detail: t("admin.quotes.detail.actionError") });
@@ -95,40 +96,32 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
   const submit = (confirmNow: boolean) => {
     const found: Record<string, string> = {};
     const lines: { quote_line: number; quantity: string }[] = [];
+    const needs: Need[] = [];
     for (const line of open) {
       const text = (typed[line.id] ?? "").trim();
       const quantity = text === "" ? "0" : parseDecimalInput(text, 3);
       if (quantity === null || quantity.startsWith("-")) found[`line.${line.id}`] = t("admin.sales.fromQuote.invalid");
-      else lines.push({ quote_line: line.id, quantity });
+      else {
+        lines.push({ quote_line: line.id, quantity });
+        if (!isZero(quantity)) needs.push({ product: String(line.product.id), kg: quantity });
+      }
     }
     if (Object.keys(found).length === 0 && lines.every((line) => isZero(line.quantity))) {
       found.detail = t("admin.sales.fromQuote.nothing");
     }
-    if (!place) found.location = t("admin.sales.fromQuote.placeRequired");
+    const place = choosePlace(needs, byPlace);
+    if (place === null && needs.length > 0) {
+      const names = needs.map((need) => open.find((line) => String(line.product.id) === need.product)?.product.name);
+      found.detail = t("admin.sales.form.noSinglePlace", { products: names.join(", ") });
+    }
     setErrors(found);
-    if (Object.keys(found).length === 0) convert.mutate({ confirmNow, lines });
+    if (Object.keys(found).length === 0 && place !== null) convert.mutate({ confirmNow, lines, place });
   };
 
   return (
     <>
       <DialogTitle>{t("admin.sales.fromQuote.title", { number: quote.number })}</DialogTitle>
       <DialogDescription>{t("admin.sales.fromQuote.body")}</DialogDescription>
-      <Field label={t("admin.sales.fromQuote.location")} htmlFor={placeId} error={errors.location}>
-        <Select value={place} onValueChange={setPlace}>
-          <SelectTrigger id={placeId} aria-invalid={errors.location ? true : undefined}>
-            <SelectValue placeholder={t("admin.sales.form.choose")} />
-          </SelectTrigger>
-          <SelectContent>
-            {(locations.data ?? [])
-              .filter((option) => option.sells)
-              .map((option) => (
-                <SelectItem key={option.id} value={String(option.id)}>
-                  {option.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-      </Field>
       <Table>
         <thead>
           <tr>

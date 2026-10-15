@@ -6,7 +6,6 @@ import {
   useListCustomers,
   useListLocationBatches,
   useListLocations,
-  useListLocationStock,
   useListPriceLists,
   useListProducts,
 } from "@frutti/api";
@@ -36,6 +35,7 @@ import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { amountsOf, filled, isShort, type Line, newLine, shownPrice } from "../lib/lines";
 import { LinesGrid } from "../lib/LinesGrid";
+import { choosePlace, needsOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import { type ReactNode } from "react";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
@@ -77,7 +77,6 @@ function LotCell({ room, line, onChange }: { room: string; line: Line; onChange:
               {t("admin.sales.counterSale.lotChoice", {
                 batch: option.batch_number,
                 supplier: option.supplier_name,
-                location: option.location_name,
                 quantity: formatQuantity(option.quantity),
               })}
             </SelectItem>
@@ -107,8 +106,6 @@ export function CounterSalePage() {
   const products = useListProducts({ status: "active" });
   const rooms = (locations.data ?? []).filter((location) => location.counter_sales);
 
-  const [roomChoice, setRoomChoice] = useState("");
-  const room = roomChoice || (rooms[0] ? String(rooms[0].id) : "");
   const [customer, setCustomer] = useState(WALK_IN);
   const [method, setMethod] = useState<SalePaymentMethodEnum>("cash");
   const [basket, setBasket] = useState<Line[]>(() => [newLine()]);
@@ -117,12 +114,12 @@ export function CounterSalePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lastSale, setLastSale] = useState<SaleDetail | null>(null);
 
-  const stock = useListLocationStock(Number(room), { query: { enabled: room !== "" } });
-  const available = useMemo(() => {
-    const byProduct = new Map<string, string>();
-    for (const row of stock.data ?? []) byProduct.set(String(row.product_id), row.quantity);
-    return byProduct;
-  }, [stock.data]);
+  // The counter sale leaves from one open cold room: the one that holds the whole basket (D-144).
+  const byRoom = usePlacesStock(rooms.map((option) => option.id));
+  const totals = useMemo(() => totalsOf(byRoom), [byRoom]);
+  const room = choosePlace(needsOf(filled(basket)), byRoom);
+  const roomName = rooms.find((option) => option.id === room)?.name;
+  const origin = roomName ? new Map(needsOf(filled(basket)).map((need) => [need.product, roomName])) : undefined;
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
@@ -196,11 +193,18 @@ export function CounterSalePage() {
         batch: line.batch ? Number(line.batch) : null,
       });
     });
+    if (room === null && rows.length > 0) {
+      found.basket = t("admin.sales.form.noSinglePlace", {
+        products: rows
+          .map((line) => products.data?.find((option) => String(option.id) === line.product)?.name ?? "")
+          .join(", "),
+      });
+    }
     setErrors(found);
-    if (rows.length === 0 || !room || Object.keys(found).length > 0) return;
+    if (rows.length === 0 || room === null || Object.keys(found).length > 0) return;
     collect.mutate({
       customer: realCustomer ? Number(customer) : null,
-      location: Number(room),
+      location: room,
       lines,
       paid_in_full: true,
       payment_method: method,
@@ -251,16 +255,6 @@ export function CounterSalePage() {
       ) : (
         <div className="flex flex-col gap-4">
           <Card className="grid grid-cols-2 gap-4 max-[600px]:grid-cols-1">
-            {choose(
-              "location",
-              t("admin.sales.counterSale.room"),
-              room,
-              (value) => {
-                setRoomChoice(value);
-                startBasket();
-              },
-              rooms.map((option) => ({ value: String(option.id), label: option.name })),
-            )}
             {choose("customer", t("admin.sales.counterSale.customer"), customer, setCustomer, [
               { value: WALK_IN, label: t("admin.sales.form.walkIn") },
               ...(customers.data ?? [])
@@ -280,12 +274,19 @@ export function CounterSalePage() {
               onChange={setBasket}
               products={products.data ?? []}
               proposedPrice={proposedPrice}
-              stock={stock.data ? available : undefined}
+              stock={rooms.length > 0 ? totals : undefined}
+              origin={origin}
               errors={errors}
               extra={{
                 header: t("admin.sales.counterSale.lot"),
                 field: "batch",
-                cell: (line, change) => <LotCell room={room} line={line} onChange={(batch) => change({ batch })} />,
+                cell: (line, change) => (
+                  <LotCell
+                    room={room === null ? "" : String(room)}
+                    line={line}
+                    onChange={(batch) => change({ batch })}
+                  />
+                ),
               }}
               hint={priceHint}
             />

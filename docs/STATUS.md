@@ -23,6 +23,10 @@ _Last updated: 2026-10-15 (D-143, users: edit and delete)_
   handed out in advance; check `main` before taking one. The client is not available: build with the stand-in
   data of `docs/spec/sample/`.
 
+- **Sales (D-144, P2-T12, PR open):** the seller picks the products; the place a sale leaves from is found from
+  the rows and no location field or column shows on the sales and quote screens. A sale with no single place that
+  holds all its kilos is refused, and the form names the products. Open: may one sale mix a cold room and a truck?
+
 ## Next step (do this first)
 
 1. **Owner decisions still open:**

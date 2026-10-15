@@ -6,7 +6,6 @@ import { OWNER_STATE } from "./owner";
 // cold room, in products the other tests leave alone (rouget, sardine, poulpe), so they can run in any order.
 test.use({ storageState: OWNER_STATE });
 
-const FRESH_ROOM = "Chambre froide 1 (frais)";
 // In the grid a sale is typed in, the cell after the price (and the discount, or the lot): the kilos in stock.
 const STOCK_CELL = 5;
 
@@ -23,7 +22,6 @@ test("the demo sales are listed with what is still owed", async ({ page }) => {
   await page.getByRole("searchbox").fill("Corail");
   const row = page.getByRole("row", { name: /Restaurant Le Corail/ });
   await expect(row).toContainText("Confirmée");
-  await expect(row).toContainText("Camion 1");
 
   await row.getByRole("link").click();
   await expect(page.getByRole("heading", { name: /^BL-\d{4}-\d+$/, level: 1 })).toBeVisible();
@@ -37,7 +35,6 @@ test("a counter sale to the walk-in customer is weighed, paid and confirmed at o
   await page.goto("/ventes");
   await page.getByRole("button", { name: "Vente comptoir" }).click();
   await expect(page.getByRole("heading", { name: "Vente comptoir", level: 1 })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Chambre froide" })).toHaveText(FRESH_ROOM);
   await expect(page.getByRole("combobox", { name: "Client" })).toHaveText("Client de passage");
 
   // The basket is a grid: its first row waits for a product, with the cursor in it.
@@ -71,7 +68,6 @@ test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a r
   test.slow();
   await page.goto("/ventes/nouvelle");
   await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
-  await choose(page, page, "Depuis", FRESH_ROOM);
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Sardine · SA-010");
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("7,500");
@@ -115,7 +111,6 @@ test("a sale's rows are typed from the keyboard like a spreadsheet, the product 
 }) => {
   await page.goto("/ventes/nouvelle");
   await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
-  await choose(page, page, "Depuis", FRESH_ROOM);
   const row = (number: number) => page.getByRole("row", { name: `Ligne ${number}`, exact: true });
   const product = (number: number) => row(number).getByRole("combobox", { name: "Produit" });
 
@@ -166,7 +161,6 @@ test("a sale's rows are typed from the keyboard like a spreadsheet, the product 
 test("a sale asking more than the cold room holds is refused under its line", async ({ page }) => {
   await page.goto("/ventes/nouvelle");
   await choose(page, page, "Client", "Client de passage");
-  await choose(page, page, "Depuis", FRESH_ROOM);
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Poulpe · PO-006");
   await line.getByLabel("Poids (kg)").fill("5000");
@@ -175,7 +169,8 @@ test("a sale asking more than the cold room holds is refused under its line", as
 
   await page.getByRole("button", { name: "Enregistrer et confirmer" }).click();
 
-  await expect(line.getByText(/Stock insuffisant/)).toBeVisible();
+  // No place holds 5 000 kg: the sale names the products and asks for two sales.
+  await expect(page.getByText(/Aucun lieu ne contient tout ce poids \(Poulpe\)/)).toBeVisible();
   await expect(page).toHaveURL(/\/ventes\/nouvelle$/);
 });
 
@@ -183,7 +178,6 @@ test("an accepted quote is converted into a sale and the two link to each other"
   test.slow();
   await page.goto("/devis/nouveau");
   await choose(page, page, "Client", "Traiteur Les Saveurs · C-008");
-  await choose(page, page, "Stock consulté", FRESH_ROOM);
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Poulpe · PO-006");
   await line.getByLabel("Poids (kg)").fill("2");
@@ -196,7 +190,7 @@ test("an accepted quote is converted into a sale and the two link to each other"
 
   await page.getByRole("button", { name: "Convertir en vente" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("combobox", { name: "Depuis" })).toHaveText(FRESH_ROOM);
+  await expect(dialog).not.toContainText("Depuis");
   await dialog.getByRole("button", { name: "Créer et confirmer" }).click();
 
   await expect(page.getByText(/Vente BL-\d{4}-\d+ créée depuis le devis/)).toBeVisible();
@@ -214,7 +208,6 @@ test("a quote is delivered in two BL: the first one takes part of it", async ({ 
   test.slow();
   await page.goto("/devis/nouveau");
   await choose(page, page, "Client", "Traiteur Les Saveurs · C-008");
-  await choose(page, page, "Stock consulté", FRESH_ROOM);
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Poulpe · PO-006");
   await line.getByLabel("Poids (kg)").fill("2");

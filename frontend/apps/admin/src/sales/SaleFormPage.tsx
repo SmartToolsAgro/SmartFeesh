@@ -8,7 +8,6 @@ import {
   useGetSale,
   useListCustomers,
   useListLocations,
-  useListLocationStock,
   useListPriceLists,
   useListProducts,
 } from "@frutti/api";
@@ -37,6 +36,7 @@ import { Link, Navigate, useOutletContext, useParams } from "react-router";
 import { subtract, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
+import { choosePlace, type Need, needsOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import {
   amountsOf,
   asTyped,
@@ -96,7 +96,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   const [customer, setCustomer] = useState(
     draft && !draft.customer.is_walk_in ? String(draft.customer.id) : draft ? WALK_IN : "",
   );
-  const [location, setLocation] = useState(draft ? String(draft.location.id) : "");
   const [soldAt, setSoldAt] = useState(draft ? localInputOf(draft.sold_at) : "");
   const [notes, setNotes] = useState(draft?.notes ?? "");
   const [paidInFull, setPaidInFull] = useState(false);
@@ -118,14 +117,15 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   );
   const [errors, setErrors] = useState<Errors>({});
 
+  // The sale leaves from one place: the seller picks products, and the place that holds them is found (D-144).
   const places = (locations.data ?? []).filter((option) => option.sells);
-  const place = places.find((option) => String(option.id) === location);
-  const stock = useListLocationStock(Number(location), { query: { enabled: place !== undefined } });
-  const availableOf = useMemo(() => {
-    const byProduct = new Map<string, string>();
-    for (const row of stock.data ?? []) byProduct.set(String(row.product_id), row.quantity);
-    return byProduct;
-  }, [stock.data]);
+  const byPlace = usePlacesStock(places.map((option) => option.id));
+  const totals = useMemo(() => totalsOf(byPlace), [byPlace]);
+  // Where the sale leaves from, as the rows are typed: shown under each product.
+  const shipFrom = choosePlace(needsOf(filled(lines)), byPlace);
+  const shipFromName = places.find((option) => option.id === shipFrom)?.name;
+  const origin = shipFromName ? new Map(needsOf(filled(lines)).map((need) => [need.product, shipFromName])) : undefined;
+  const nameOf = (product: string) => products.data?.find((option) => String(option.id) === product)?.name ?? product;
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
@@ -185,7 +185,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   function submit(confirmNow: boolean) {
     const found: Errors = {};
     if (!customer) found.customer = t("admin.sales.form.required");
-    if (!location) found.location = t("admin.sales.form.required");
     // The grid's blank rows are places to type in, not lines of the sale.
     const rows = filled(lines);
     if (rows.length === 0) found.lines = t("admin.sales.form.noLines");
@@ -220,11 +219,18 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
       paid = parseDecimalInput(amountPaid.trim(), 3);
       if (paid === null || paid.startsWith("-")) found.amount_paid = t("admin.sales.form.money");
     }
+    const needs: Need[] = needsOf(rows);
+    const place = choosePlace(needs, byPlace);
+    if (place === null && needs.length > 0) {
+      found.lines = t("admin.sales.form.noSinglePlace", {
+        products: needs.map((need) => nameOf(need.product)).join(", "),
+      });
+    }
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0 || place === null) return;
     save.mutate({
       customer: customer === WALK_IN ? null : Number(customer),
-      location: Number(location),
+      location: place,
       sold_at: momentOf(soldAt),
       notes: notes.trim(),
       lines: payloadLines,
@@ -294,13 +300,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             ],
             "col-span-2 max-[600px]:col-span-1",
           )}
-          {select(
-            "location",
-            t("admin.sales.form.location"),
-            location,
-            setLocation,
-            places.map((option) => ({ value: String(option.id), label: option.name })),
-          )}
           <Field label={t("admin.sales.form.soldAt")} htmlFor={id("sold_at")} error={errors.sold_at}>
             <Input
               id={id("sold_at")}
@@ -314,9 +313,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
               {t("admin.sales.form.soldAtHint")}
             </p>
           </Field>
-          <p className="col-span-4 text-[0.85rem] text-ink-2 max-[1000px]:col-span-2 max-[600px]:col-span-1">
-            {t("admin.sales.form.locationHint")}
-          </p>
         </Card>
 
         <Card className="flex flex-col gap-3">
@@ -327,7 +323,8 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             onChange={setLines}
             products={products.data ?? []}
             proposedPrice={proposedPrice}
-            stock={place && stock.data ? availableOf : undefined}
+            stock={places.length > 0 ? totals : undefined}
+            origin={origin}
             errors={errors}
             discount
             hint={priceHint}

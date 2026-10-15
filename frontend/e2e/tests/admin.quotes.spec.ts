@@ -6,8 +6,6 @@ import { OWNER_STATE } from "./owner";
 // These tests make their own quotes for Hôtel Thyna and Traiteur Les Saveurs, so the demo ones never change.
 test.use({ storageState: OWNER_STATE });
 
-const FRESH_ROOM = "Chambre froide 1 (frais)";
-
 async function choose(page: Page, scope: Page | Locator, label: string, option: string) {
   await scope.getByRole("combobox", { name: label }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
@@ -39,7 +37,6 @@ test("the owner quotes a hotel with a discount, sends it, and records the yes", 
   await expect(page.getByRole("heading", { name: "Nouveau devis", level: 1 })).toBeVisible();
 
   await choose(page, page, "Client", "Hôtel Thyna · C-002");
-  await choose(page, page, "Stock consulté", FRESH_ROOM);
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Dorade royale · DO-003");
   // The hotel's own price list is proposed (D-049), and the stock of the chosen cold room is shown for

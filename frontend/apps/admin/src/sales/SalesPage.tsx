@@ -165,7 +165,6 @@ export function SalesPage() {
                 <Th>{t("admin.sales.columns.number")}</Th>
                 <Th>{t("admin.sales.columns.date")}</Th>
                 <Th>{t("admin.sales.columns.customer")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.sales.columns.location")}</Th>
                 <Th numeric>{t("admin.sales.columns.total")}</Th>
                 <Th numeric className="max-[720px]:hidden">
                   {t("admin.sales.columns.due")}
@@ -212,7 +211,6 @@ export function SalesPage() {
                     <span className="font-semibold">{sale.customer.name}</span>
                     <div className="num text-[0.8rem] text-ink-2">{sale.customer.reference}</div>
                   </Td>
-                  <Td className="max-[720px]:hidden">{sale.location.name}</Td>
                   <Td numeric className="whitespace-nowrap">
                     {formatMoney(sale.total_excl_tax)}
                   </Td>

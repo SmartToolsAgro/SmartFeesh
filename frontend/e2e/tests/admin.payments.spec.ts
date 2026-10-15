@@ -6,8 +6,6 @@ import { OWNER_STATE } from "./owner";
 // Sardine (never Seiche: the partnership lot test counts its kilos) to Poissonnerie El Bahr (C-003).
 test.use({ storageState: OWNER_STATE });
 
-const FRESH_ROOM = "Chambre froide 1 (frais)";
-
 /** "1 234,500 DT" → 1234.5 */
 function amountOf(text: string | null): number {
   return Number((text ?? "").replace(/[^\d,-]/g, "").replace(",", "."));
@@ -22,7 +20,6 @@ test("a customer pays part of a credit sale and the balance shows the rest", asy
   test.slow();
   await page.goto("/ventes/nouvelle");
   await choose(page, page, "Client", "Poissonnerie El Bahr · C-003");
-  await choose(page, page, "Depuis", FRESH_ROOM);
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Sardine · SA-010");
   await line.getByLabel("Poids (kg)").fill("2");
