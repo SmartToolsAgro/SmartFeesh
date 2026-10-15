@@ -212,6 +212,7 @@ export * from './listMovementsParams';
 export * from './listMyCustomersKind';
 export * from './listMyCustomersParams';
 export * from './listMyCustomersStatus';
+export * from './listMyStockParams';
 export * from './listPartnershipsParams';
 export * from './listPartnershipsStatus';
 export * from './listPriceListsParams';

@@ -287,6 +287,11 @@ class MyStockLineSerializer(serializers.Serializer[Any]):
     photo_url = serializers.CharField(read_only=True, allow_null=True)
 
 
+class MyStockFilterSerializer(serializers.Serializer[Any]):
+    # The customer about to be sold to: their own price list is shown when it holds the product (D-049).
+    customer = serializers.IntegerField(required=False, min_value=1)
+
+
 class TruckDayFilterSerializer(serializers.Serializer[Any]):
     location = serializers.IntegerField(min_value=1)
     date = serializers.DateField()

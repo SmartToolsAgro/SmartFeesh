@@ -4213,8 +4213,15 @@ paths:
   /api/v1/my-stock:
     get:
       operationId: listMyStock
-      description: What the driver's truck holds now per product, with today's price
-        per kg. 404 without a truck.
+      description: |-
+        What the driver's truck holds now per product, with today's price per kg. With `customer`, the price that
+        customer pays (their own price list first). 404 without a truck.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
       tags:
       - my-stock
       security:

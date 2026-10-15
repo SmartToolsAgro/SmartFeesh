@@ -7756,8 +7756,16 @@ export const ReturnMyStockResponse = zod.object({
 
 
 /**
- * What the driver's truck holds now per product, with today's price per kg. 404 without a truck.
+ * What the driver's truck holds now per product, with today's price per kg. With `customer`, the price that
+ * customer pays (their own price list first). 404 without a truck.
  */
+
+
+
+export const ListMyStockQueryParams = zod.object({
+  "customer": zod.int().min(1).optional()
+})
+
 export const listMyStockResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listMyStockResponseUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
