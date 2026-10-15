@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.api.pagination import PagedList
+from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.dayclose import selectors as dayclose
@@ -478,7 +479,8 @@ class MyRoadExpensesView(APIView):
         serializer = RoadExpenseWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        dayclose.refuse_if_day_closed(membership)
+        made_at = moment_from_phone(data["made_at"], field="made_at")
+        dayclose.refuse_sale_outside_day(membership, made_at)
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise DjangoValidationError({"truck": _("Choisissez d'abord votre camion.")})
@@ -495,5 +497,6 @@ class MyRoadExpensesView(APIView):
             description=data["description"],
             upload=data.get("receipt"),
             client_uuid=data["client_uuid"],
+            made_at=made_at,
         )
         return Response(RoadExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)

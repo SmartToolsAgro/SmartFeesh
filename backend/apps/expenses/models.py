@@ -117,6 +117,8 @@ class Expense(OrganizationScopedModel, TimeStampedModel):
     number = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=ExpenseStatus.choices, default=ExpenseStatus.DRAFT)
     spent_on = models.DateField()
+    # When the driver's phone says it was spent (D-133); empty for an expense entered at the office.
+    made_at = models.DateTimeField(null=True, blank=True)
     category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, related_name="expenses")
     amount = MoneyField()
     payment_method = models.CharField(

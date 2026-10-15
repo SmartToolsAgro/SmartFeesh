@@ -414,6 +414,8 @@ class StockLoss(OrganizationScopedModel, TimeStampedModel):
     reason = models.CharField(max_length=20, choices=LossReason.choices)
     note = models.TextField(blank=True)
     lost_on = models.DateField()
+    # When the driver's phone says it was lost (D-133); the kilos leave the stock at that moment.
+    made_at = models.DateTimeField(null=True, blank=True)
     photo = models.ImageField(upload_to=loss_photo_path, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

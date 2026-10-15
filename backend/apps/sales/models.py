@@ -839,6 +839,8 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
     method = models.CharField(max_length=20, choices=SalePaymentMethod.choices)
     # The day the money was received (not in the future).
     received_on = models.DateField()
+    # When the driver's phone says it was received (D-133); empty for a payment entered at the office.
+    made_at = models.DateTimeField(null=True, blank=True)
     # Cheque number, transfer reference...
     reference = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True)

@@ -610,6 +610,8 @@ class RoadLossWriteSerializer(serializers.Serializer[Any]):
     photo = UploadedPhotoField(required=False)
     # Sent by the app that may retry: the same value never makes two losses.
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+    # When the driver's phone says it happened (D-133); the server checks it.
+    made_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
 
 
 class RoadLossSerializer(serializers.ModelSerializer[StockLoss]):

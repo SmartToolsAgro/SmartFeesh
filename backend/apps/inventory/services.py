@@ -965,7 +965,9 @@ def _post_loss(loss: StockLoss, actor: User | None) -> None:
             from_location=loss.location,
             reason=_loss_reason_text(loss),
             source=loss,
-            occurred_at=moment_of(loss.lost_on),
+            # A loss the phone dated keeps that moment, and the stock must have held the kilos then.
+            occurred_at=loss.made_at or moment_of(loss.lost_on),
+            held_since_then=loss.made_at is not None,
         )
     except ValidationError as error:
         fields = getattr(error, "message_dict", {"quantity": error.messages})
@@ -999,6 +1001,7 @@ def record_loss(
     note: str = "",
     may_approve: bool = False,
     client_uuid: uuid.UUID | None = None,
+    made_at: dt.datetime | None = None,
 ) -> StockLoss:
     """Record kilos lost at a location. Up to the threshold (or when `may_approve`: the owner), they leave
     the stock at once, oldest batch first; above it, the loss waits for the owner and nothing moves yet.
@@ -1049,6 +1052,7 @@ def record_loss(
         reason=reason,
         note=note.strip(),
         lost_on=lost_on,
+        made_at=made_at,
         created_by=actor,
         decided_by=actor if immediate else None,
         decided_at=timezone.now() if immediate else None,
@@ -1135,9 +1139,11 @@ def report_road_loss(
     note: str = "",
     upload: "UploadedFile[bytes] | None" = None,
     client_uuid: uuid.UUID | None = None,
+    made_at: dt.datetime | None = None,
 ) -> StockLoss:
-    """A driver reports kilos lost on their truck today, with a photo as proof. Up to the threshold they leave
-    the stock at once; above it the loss waits for the owner (P3-T05)."""
+    """A driver reports kilos lost on their truck, with a photo as proof: today, or at the moment the phone
+    says (`made_at`). Up to the threshold they leave the stock at once; above it the loss waits for the
+    owner (P3-T05)."""
     loss = record_loss(
         organization=organization,
         actor=actor,
@@ -1145,9 +1151,10 @@ def report_road_loss(
         product=product,
         quantity=quantity,
         reason=reason,
-        lost_on=timezone.localdate(),
+        lost_on=timezone.localtime(made_at or timezone.now()).date(),
         note=note,
         client_uuid=client_uuid,
+        made_at=made_at,
     )
     if upload is not None and not loss.photo:
         loss = add_loss_photo(loss=loss, actor=actor, upload=upload)

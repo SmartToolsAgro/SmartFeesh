@@ -18,6 +18,7 @@ from django.utils.translation import gettext as _
 from apps.boxes import services as box_services
 from apps.catalog import selectors as catalog
 from apps.core import audit
+from apps.core.clock import CLOCK_MARGIN
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity, line_total, money
@@ -526,35 +527,6 @@ def expire_quotes(*, organization: Organization, actor: User | None = None, toda
 SALE_SERIES = "VE"
 # A validated sale is a delivery note (bon de livraison): BL-2026-0001, restarting every year (D-095).
 DELIVERY_NOTE_PREFIX = "BL"
-# A sale may be dated slightly ahead of the server's clock (a phone or a till a little fast).
-CLOCK_MARGIN = dt.timedelta(minutes=5)
-
-
-def moment_from_phone(made_at: dt.datetime | None) -> dt.datetime | None:
-    """When a driver's sale is dated, from the time their phone says it was made (D-133). The phone is not
-    trusted: the time is checked here, and the day it falls on is checked by the caller (the driver's truck
-    that day, a day the office has not approved).
-
-    Nothing sent, or a time within `CLOCK_MARGIN` of the server's clock, before or after: None, the sale is
-    made now and the server's own clock dates it, so a phone a little fast or slow changes nothing. Further
-    in the future: refused (`sold_at`). Earlier: that time, for a sale kept on the phone without connection
-    and sent later.
-    """
-    if made_at is None:
-        return None
-    now = timezone.now()
-    if made_at > now + CLOCK_MARGIN:
-        raise ValidationError(
-            {
-                "sold_at": _(
-                    "Cette vente est datée dans le futur (%(when)s) : vérifiez la date et l'heure du téléphone."
-                )
-                % {"when": date_format(timezone.localtime(made_at), "d/m/Y H:i")}
-            }
-        )
-    if made_at >= now - CLOCK_MARGIN:
-        return None
-    return made_at
 
 
 class SaleLineFields(TypedDict, total=False):
@@ -2397,6 +2369,7 @@ def record_customer_payment(
     notes: str = "",
     allocations: Sequence[AllocationFields] | None = None,
     client_uuid: uuid.UUID | None = None,
+    made_at: dt.datetime | None = None,
 ) -> CustomerPayment:
     """Register money received from a customer and allocate it (D-062).
 
@@ -2416,7 +2389,8 @@ def record_customer_payment(
         errors["customer"] = _("Client inconnu.")
     elif customer.is_walk_in:
         errors["customer"] = _("Le client de passage paie sur place : pas de règlement ultérieur.")
-    received_on = received_on or timezone.localdate()
+    # Dated by the moment it was received (the phone's time, when there is one), else today.
+    received_on = received_on or timezone.localtime(made_at or timezone.now()).date()
     if received_on > timezone.localdate():
         errors["received_on"] = _("Un règlement ne peut pas être daté dans le futur.")
     try:
@@ -2437,6 +2411,7 @@ def record_customer_payment(
         amount=paid,
         method=method,
         received_on=received_on,
+        made_at=made_at,
         reference=reference.strip()[:50],
         notes=notes.strip(),
         created_by=actor,

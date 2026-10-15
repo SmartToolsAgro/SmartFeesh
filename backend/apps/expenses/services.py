@@ -242,6 +242,7 @@ def create_expense(
     truck: "Truck | None" = None,
     client_uuid: uuid.UUID | None = None,
     submit: bool = False,
+    made_at: dt.datetime | None = None,
     approve: bool = False,
     for_day_labour: bool = False,
 ) -> Expense:
@@ -271,6 +272,7 @@ def create_expense(
         number=_next_number(organization, EXPENSE_SERIES),
         status=ExpenseStatus.PENDING if submit else ExpenseStatus.DRAFT,
         spent_on=spent_on,
+        made_at=made_at,
         category=category,
         amount=values["amount"],
         payment_method=payment_method,
@@ -1295,6 +1297,7 @@ def submit_road_expense(
     description: str = "",
     upload: "UploadedFile[bytes] | None" = None,
     client_uuid: uuid.UUID | None = None,
+    made_at: dt.datetime | None = None,
 ) -> Expense:
     """A driver's expense from the road (P3-T04): cash, today, a cost of their truck that day, waiting for the
     office to approve it. The receipt photo, when given, is joined in the same transaction."""
@@ -1309,13 +1312,15 @@ def submit_road_expense(
     expense = create_expense(
         organization=organization,
         actor=actor,
-        spent_on=timezone.localdate(),
+        # Dated by the moment it was spent (the phone's time, when there is one), else today.
+        spent_on=timezone.localtime(made_at or timezone.now()).date(),
         category=category,
         amount=amount,
         description=description,
         truck=truck,
         client_uuid=client_uuid,
         submit=True,
+        made_at=made_at,
     )
     if upload is not None:
         expense = add_expense_receipt(expense=expense, actor=actor, upload=upload)

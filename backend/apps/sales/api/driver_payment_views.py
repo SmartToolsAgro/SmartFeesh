@@ -8,6 +8,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.clock import moment_from_phone
 from apps.core.permissions import IsDriver, membership_of
 from apps.dayclose import selectors as dayclose
 from apps.partners import selectors as partners
@@ -37,10 +38,11 @@ class MyPaymentsView(APIView):
         the day's cash when it is cash. The same `client_uuid` sent twice records it once."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
-        dayclose.refuse_if_day_closed(membership)
         serializer = RoadPaymentWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        made_at = moment_from_phone(data["made_at"], field="made_at")
+        dayclose.refuse_sale_outside_day(membership, made_at)
         try:
             customer = partners.customer_of(membership.organization, data["customer"])
         except ObjectDoesNotExist:
@@ -51,7 +53,7 @@ class MyPaymentsView(APIView):
             customer=customer,
             amount=data["amount"],
             method=data["method"],
-            received_on=timezone.localdate(),
             client_uuid=data["client_uuid"],
+            made_at=made_at,
         )
         return Response(RoadPaymentSerializer(payment).data, status=status.HTTP_201_CREATED)

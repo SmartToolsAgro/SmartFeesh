@@ -7159,7 +7159,8 @@ export const collectMyBoxesBodyBoxesMinOne = 0;
 export const CollectMyBoxesBody = zod.object({
   "customer": zod.int().min(1),
   "boxes": zod.record(zod.string(), zod.int().min(collectMyBoxesBodyBoxesMinOne)).optional(),
-  "client_uuid": zod.uuid().nullish()
+  "client_uuid": zod.uuid().nullish(),
+  "made_at": zod.iso.datetime({"offset":true}).nullish()
 })
 
 export const CollectMyBoxesResponse = zod.object({
@@ -7617,7 +7618,8 @@ export const AddMyExpenseBody = zod.object({
   "amount": zod.string(),
   "description": zod.string().max(addMyExpenseBodyDescriptionMax).default(addMyExpenseBodyDescriptionDefault),
   "receipt": zod.instanceof(Blob).optional(),
-  "client_uuid": zod.uuid().nullish()
+  "client_uuid": zod.uuid().nullish(),
+  "made_at": zod.iso.datetime({"offset":true}).nullish()
 })
 
 export const addMyExpenseResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7647,7 +7649,8 @@ export const ReportMyLossBody = zod.object({
   "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
   "note": zod.string().default(reportMyLossBodyNoteDefault),
   "photo": zod.instanceof(Blob).optional(),
-  "client_uuid": zod.uuid().nullish()
+  "client_uuid": zod.uuid().nullish(),
+  "made_at": zod.iso.datetime({"offset":true}).nullish()
 })
 
 export const reportMyLossResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -7691,7 +7694,8 @@ export const CollectMyPaymentBody = zod.object({
   "customer": zod.int().min(1),
   "amount": zod.string(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire').default(collectMyPaymentBodyMethodDefault),
-  "client_uuid": zod.uuid().nullish()
+  "client_uuid": zod.uuid().nullish(),
+  "made_at": zod.iso.datetime({"offset":true}).nullish()
 })
 
 export const collectMyPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');

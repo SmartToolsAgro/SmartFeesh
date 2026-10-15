@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from apps.boxes import selectors, services
 from apps.boxes.services import checked_box_counts
+from apps.core.clock import moment_from_phone
 from apps.core.models import Membership
 from apps.core.permissions import IsDriver, membership_of
 from apps.dayclose import selectors as dayclose
@@ -68,9 +69,10 @@ class MyBoxPickupView(APIView):
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise exceptions.ValidationError(_("Choisissez d'abord votre camion."))
-        dayclose.refuse_if_day_closed(membership)
         serializer = MyBoxPickupWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        made_at = moment_from_phone(serializer.validated_data["made_at"], field="made_at")
+        dayclose.refuse_sale_outside_day(membership, made_at)
         errors: dict[str, str] = {}
         counts = checked_box_counts(serializer.validated_data["boxes"], errors, prefix="boxes")
         if errors:
@@ -88,5 +90,6 @@ class MyBoxPickupView(APIView):
             location=truck.location,
             counts=counts,
             client_uuid=serializer.validated_data["client_uuid"],
+            made_at=made_at,
         )
         return Response(MyBoxDaySerializer(_day_answer(membership, truck)).data, status=status.HTTP_201_CREATED)

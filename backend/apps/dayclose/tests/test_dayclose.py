@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
 from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
@@ -492,3 +493,61 @@ def test_the_office_history_filters_by_driver_and_dates(day):
     assert rows(search="personne") == []
     assert len(rows(date_from=today.isoformat(), date_to=today.isoformat())) == 1
     assert rows(date_from=(today + dt.timedelta(days=1)).isoformat()) == []
+
+
+def phone_moment(minutes_ago):
+    """A time the driver's phone says, a few minutes before now: outside the clock margin (D-133)."""
+    return (timezone.now() - dt.timedelta(minutes=minutes_ago)).isoformat()
+
+
+def test_an_expense_entered_late_is_dated_when_it_was_spent(day):
+    from apps.expenses.models import Expense, ExpenseCategory
+
+    fuel = ExpenseCategory.objects.for_organization(day["organization"]).get(code="fuel")
+    spent = day["api"].post(
+        reverse("my-expenses"),
+        {"category": fuel.pk, "amount": "5", "made_at": phone_moment(10)},
+        format="multipart",
+    )
+
+    assert spent.status_code == 201
+    assert Expense.objects.get(pk=spent.json()["id"]).spent_on == timezone.localdate()
+    assert (
+        day["api"]
+        .post(
+            reverse("my-expenses"),
+            {"category": fuel.pk, "amount": "5", "made_at": (timezone.now() + dt.timedelta(hours=2)).isoformat()},
+            format="multipart",
+        )
+        .json()["made_at"][0]
+        .startswith("Cette saisie est datée dans le futur")
+    )
+
+
+def test_a_payment_collected_late_is_dated_when_it_was_received(day):
+    from apps.sales.models import CustomerPayment
+
+    sell(day, "5", "100.000")
+    body = {"customer": day["customer"].pk, "amount": "30.000", "method": "cash", "made_at": phone_moment(10)}
+
+    paid = day["api"].post(reverse("my-payments"), body, format="json")
+
+    assert paid.status_code == 201
+    assert CustomerPayment.objects.get(pk=paid.json()["id"]).received_on == timezone.localdate()
+    summary = day["api"].get(reverse("my-day-summary")).json()["summary"]
+    assert summary["payments_cash"] == "30.000"
+
+
+def test_a_loss_reported_late_leaves_the_stock_at_the_moment_it_was_made(day):
+    from apps.inventory.models import StockMovement
+
+    moment = phone_moment(10)
+    lost = day["api"].post(
+        reverse("my-losses"),
+        {"product": day["product"].pk, "quantity": "1", "reason": "spoiled", "made_at": moment},
+        format="multipart",
+    )
+
+    assert lost.status_code == 201
+    loss_movement = StockMovement.objects.filter(kind=MovementKind.LOSS).get()
+    assert loss_movement.occurred_at == parse_datetime(moment)
