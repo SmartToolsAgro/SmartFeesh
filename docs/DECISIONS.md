@@ -2167,9 +2167,9 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - `Organization.real_data_since` marks the reset. `seed_dev` adds nothing once it is set, so the deploy's demo seed
   (`remote-deploy.sh`) cannot refill the client's database. The logins' passwords are replaced by random ones that the
   command prints once; the owner changes them in Paramètres > Mon profil.
-- Import rule (found by CI after #137 landed, 2026-10-15): `prepare_client_start` imports other apps' models, which the
-  app-boundary contract forbids. It is the one module exempt (`ONE_TIME_RESET_MODULES` in `backend/tooling/import_contracts.py`),
-  because the reset is raw SQL on purpose. Owner to note: moving it onto the services later would remove the exception.
+- Import rule (found by CI after #137 landed, 2026-10-15): `prepare_client_start` reads other apps' models, which the
+  app-boundary contract forbids. It is the one exempt command (`RESET_COMMANDS` in `backend/tooling/import_contracts.py`,
+  PR #139), because the reset is raw SQL on purpose. Owner to note: moving it onto the services later would remove the exception.
 - Not done by the command: media files of the deleted records (receipts, PDFs) stay on the volume, unreferenced. The
   opening stock of the company's boxes is not re-entered (zero, as asked); the screen for a box opening stock on a real
   database is still to build (STATUS).
