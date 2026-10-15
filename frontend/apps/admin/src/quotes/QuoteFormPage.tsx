@@ -35,6 +35,7 @@ import { Link, Navigate, useOutletContext, useParams } from "react-router";
 import { subtract, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import {
   amountsOf,
   asTyped,
@@ -95,9 +96,10 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   const queryClient = useQueryClient();
   const formId = useId();
 
-  const customers = useListCustomers({ status: "active" });
-  const locations = useListLocations({ status: "active" });
-  const products = useListProducts({ status: "active" });
+  // All of them, archived ones left out of the pickers unless the quote already uses them (pickable).
+  const customers = useListCustomers({ status: "all" });
+  const locations = useListLocations({ status: "all" });
+  const products = useListProducts({ status: "all" });
 
   const [customer, setCustomer] = useState(draft ? String(draft.customer.id) : "");
   const [day, setDay] = useState(draft?.quoted_on ?? todayInTunis());
@@ -121,7 +123,9 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   const [errors, setErrors] = useState<Errors>({});
 
   // A quote has no place of its own: the kilos left are those in all the places (D-144).
-  const byPlace = usePlacesStock((locations.data ?? []).map((option) => option.id));
+  const byPlace = usePlacesStock(
+    (locations.data ?? []).filter((option) => option.is_active).map((option) => option.id),
+  );
   const availableOf = useMemo(() => totalsOf(byPlace), [byPlace]);
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
@@ -288,7 +292,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
             t("admin.quotes.form.customer"),
             customer,
             setCustomer,
-            (customers.data ?? []).map((option) => ({
+            pickable(customers.data ?? [], [customer]).map((option) => ({
               value: String(option.id),
               label: `${option.name} · ${option.reference}`,
             })),
@@ -310,7 +314,10 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
             label={t("admin.quotes.form.lines")}
             lines={lines}
             onChange={setLines}
-            products={products.data ?? []}
+            products={pickable(
+              products.data ?? [],
+              lines.map((line) => line.product),
+            )}
             proposedPrice={proposedPrice}
             stock={locations.data ? availableOf : undefined}
             errors={errors}

@@ -39,6 +39,7 @@ import { Link, useOutletContext, useSearchParams } from "react-router";
 
 import { sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { todayInTunis } from "../receipts/shared";
 import { addMonths, type Month, monthBounds, monthLabel, monthOf, weekdayLabels, weeksOf } from "./calendar";
 import { ExpensesTabs } from "./ExpensesTabs";
@@ -53,7 +54,8 @@ function AddDay({ day, initialLot }: { day: string; initialLot?: number }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
-  const labourers = useListDayLabourers({ status: "active" });
+  // Archived ones leave the pickers unless this entry already uses them (pickable).
+  const labourers = useListDayLabourers({ status: "all" });
   const lots = useListBatches({ limit: RECENT_LOTS });
   const given = useGetBatch(initialLot ?? 0, { query: { enabled: initialLot !== undefined } });
   const [labourer, setLabourer] = useState("");
@@ -65,6 +67,8 @@ function AddDay({ day, initialLot }: { day: string; initialLot?: number }) {
 
   const lotOptions = [...(lots.data?.results ?? [])].filter((one) => one.received_on <= day);
   if (given.data && !lotOptions.some((one) => one.id === given.data.id)) lotOptions.unshift(given.data);
+  // A lot of an archived product stays out of the picker unless this entry is on it.
+  const lotChoices = lotOptions.filter((one) => one.product.is_active || String(one.id) === lot);
 
   const add = useMutation({
     mutationFn: (payload: DayLabourWrite) => createDayLabour(payload),
@@ -127,7 +131,7 @@ function AddDay({ day, initialLot }: { day: string; initialLot?: number }) {
             <SelectValue placeholder={t("admin.expenses.form.choose")} />
           </SelectTrigger>
           <SelectContent>
-            {(labourers.data ?? []).map((one) => (
+            {pickable(labourers.data ?? [], [labourer]).map((one) => (
               <SelectItem key={one.id} value={String(one.id)}>
                 {one.name}
               </SelectItem>
@@ -154,7 +158,7 @@ function AddDay({ day, initialLot }: { day: string; initialLot?: number }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NO_LOT}>{t("admin.dayLabour.form.noLot")}</SelectItem>
-            {lotOptions.map((one) => (
+            {lotChoices.map((one) => (
               <SelectItem key={one.id} value={String(one.id)}>
                 {`${one.number} · ${one.product.name}`}
               </SelectItem>

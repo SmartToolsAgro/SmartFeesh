@@ -44,6 +44,7 @@ import { type BoxCountInputs, NO_BOX_INPUTS, boxCountsFromInputs } from "../boxe
 import { lineTotal, percentChange, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { useDebounced } from "../lib/useDebounced";
 import { canWriteResults } from "../partnerships/shared";
 import { idFrom } from "../purchasing/shared";
@@ -111,9 +112,10 @@ export function ReceiptFormPage() {
   const queryClient = useQueryClient();
   const formId = useId();
 
-  const suppliers = useListSuppliers({ status: "active" });
-  const locations = useListLocations({ status: "active" });
-  const products = useListProducts({ status: "active" });
+  // Archived ones leave the pickers unless this receipt already uses them (pickable).
+  const suppliers = useListSuppliers({ status: "all" });
+  const locations = useListLocations({ status: "all" });
+  const products = useListProducts({ status: "all" });
 
   const [params] = useSearchParams();
   // `?commande=4` (from the order page) starts a delivery against that purchase order.
@@ -162,7 +164,7 @@ export function ReceiptFormPage() {
   }, [lastCosts.data]);
 
   // Goods usually go to a cold room: the first one is chosen until the person picks another place.
-  const firstColdRoom = locations.data?.find((place) => place.kind === "cold_room")?.id;
+  const firstColdRoom = locations.data?.find((place) => place.is_active && place.kind === "cold_room")?.id;
   const chosenLocation = location || (firstColdRoom !== undefined ? String(firstColdRoom) : "");
 
   // Until a cost is typed, the line shows the last cost paid to this supplier for the product.
@@ -281,7 +283,10 @@ export function ReceiptFormPage() {
   }
   const orderLineOf = (productId: string) => order?.lines.find((line) => String(line.product.id) === productId);
   // Against an order, only its products can be received.
-  const productOptions = (products.data ?? [])
+  const productOptions = pickable(
+    products.data ?? [],
+    lines.map((line) => line.product),
+  )
     .filter((product) => !order || orderLineOf(String(product.id)) !== undefined)
     .map((product) => ({ value: String(product.id), label: `${product.name} · ${product.reference}` }));
 
@@ -325,7 +330,7 @@ export function ReceiptFormPage() {
               // An order belongs to one supplier: another supplier means no order.
               if (order && String(order.supplier.id) !== value) setOrderId(null);
             },
-            (suppliers.data ?? []).map((one) => ({ value: String(one.id), label: one.name })),
+            pickable(suppliers.data ?? [], [supplier]).map((one) => ({ value: String(one.id), label: one.name })),
           )}
           {supplier !== "" &&
             orderOptions.length > 1 &&
@@ -341,7 +346,10 @@ export function ReceiptFormPage() {
             t("admin.receipts.form.location"),
             chosenLocation,
             setLocation,
-            (locations.data ?? []).map((place) => ({ value: String(place.id), label: place.name })),
+            pickable(locations.data ?? [], [chosenLocation]).map((place) => ({
+              value: String(place.id),
+              label: place.name,
+            })),
           )}
           <Field label={t("admin.receipts.form.date")} htmlFor={id("received_on")} error={errors.received_on}>
             <Input
@@ -469,7 +477,7 @@ export function ReceiptFormPage() {
                     (value) => setLine(line.key, () => ({ partner: value })),
                     [
                       { value: NO_PARTNER, label: t("admin.receipts.form.noPartner") },
-                      ...(suppliers.data ?? []).map((one) => ({
+                      ...pickable(suppliers.data ?? [], [line.partner]).map((one) => ({
                         value: String(one.id),
                         label: String(one.id) === supplier ? t("admin.receipts.form.sameSupplier") : one.name,
                       })),

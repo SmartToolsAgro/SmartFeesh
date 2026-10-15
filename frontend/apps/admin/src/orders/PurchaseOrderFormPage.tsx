@@ -30,6 +30,7 @@ import { Navigate, useOutletContext, useSearchParams } from "react-router";
 import { lineTotal, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import { refreshOrders } from "./shared";
@@ -63,8 +64,9 @@ export function PurchaseOrderFormPage() {
   const formId = useId();
   const [params] = useSearchParams();
 
-  const suppliers = useListSuppliers({ status: "active" });
-  const products = useListProducts({ status: "active" });
+  // Archived ones leave the pickers unless this order already uses them (pickable).
+  const suppliers = useListSuppliers({ status: "all" });
+  const products = useListProducts({ status: "all" });
 
   const [supplier, setSupplier] = useState(() => String(idFrom(params.get("fournisseur")) ?? ""));
   const [orderedOn, setOrderedOn] = useState(todayInTunis);
@@ -193,7 +195,7 @@ export function PurchaseOrderFormPage() {
             t("admin.purchaseOrders.form.supplier"),
             supplier,
             setSupplier,
-            (suppliers.data ?? []).map((one) => ({ value: String(one.id), label: one.name })),
+            pickable(suppliers.data ?? [], [supplier]).map((one) => ({ value: String(one.id), label: one.name })),
           )}
           <Field label={t("admin.purchaseOrders.form.date")} htmlFor={id("ordered_on")} error={errors.ordered_on}>
             <Input
@@ -247,7 +249,10 @@ export function PurchaseOrderFormPage() {
                   t("admin.purchaseOrders.form.product"),
                   line.product,
                   (value) => setLine(line.key, () => ({ product: value })),
-                  (products.data ?? []).map((product) => ({
+                  pickable(
+                    products.data ?? [],
+                    lines.map((item) => item.product),
+                  ).map((product) => ({
                     value: String(product.id),
                     label: `${product.name} · ${product.reference}`,
                   })),

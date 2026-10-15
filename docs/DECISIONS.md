@@ -2136,3 +2136,17 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Still open for the owner: whether one sale may take kilos from a cold room and a truck at once. If yes, `SaleLine` gets
   its own location and the sale-level field goes (a model change, a new decision). The PDFs of the BL and invoice may
   still print the place: left as they are for now.
+
+**D-145 · Archived records leave every dropdown, except the one a saved record already uses (owner's request, 2026-10-15)** · accepted · 2026-10-15
+- Every picker lists only active places, products, trucks, customers, suppliers, categories, labourers and lots. An archived
+  entry stays in a picker only when the form's current value is that entry (`apps/admin/src/lib/pickable.ts`), so an old
+  quote, sale, receipt, order, loss, transfer, expense or cost never shows a blank field. D-137 covered the list filters
+  and the expense and counter-sale pickers; this extends it to the forms.
+- Forms that fetched only active records now fetch all of them and filter in the browser: quote, sale, receipt, purchase
+  order, loss, transfer, expense, general cost, day labour and an employee's work day. Places that hold stock still count
+  active places only.
+- A lot of an archived product leaves the lot pickers (expense, day labour, employee work day): the lot's product now says
+  `is_active` (`BatchProductSerializer`), and the generated client is regenerated.
+- Not changed, on purpose: the box "Holder" filter on Caisses still lists archived holders that have a box balance, because
+  boxes still out at a holder must stay findable until they come back; the driver phone's stock lines still show an archived
+  product the truck holds (a list of stock to count, not a picker; the server refuses the sale).

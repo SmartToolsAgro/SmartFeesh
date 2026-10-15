@@ -212,8 +212,24 @@ def test_the_office_lists_batches_newest_first_with_product_and_supplier():
     assert [row["id"] for row in body["results"]] == [new.pk, old.pk]
     row = body["results"][0]
     assert row["unit_cost"] == "18.500"  # amounts travel as strings
-    assert row["product"] == {"id": new.product.pk, "reference": new.product.reference, "name": new.product.name}
+    assert row["product"] == {
+        "id": new.product.pk,
+        "reference": new.product.reference,
+        "name": new.product.name,
+        "is_active": True,
+    }
     assert row["supplier"]["reference"] == new.supplier.reference
+
+
+def test_a_lot_says_when_its_product_is_archived():
+    # The lot pickers leave out the lots of an archived product (D-145).
+    client, owner = client_for(Role.OWNER)
+    product = ProductFactory.create(organization=owner.organization, is_active=False)
+    BatchFactory.create(organization=owner.organization, product=product)
+
+    row = client.get(reverse("batch-list")).json()["results"][0]
+
+    assert row["product"]["is_active"] is False
 
 
 def test_the_list_filters_by_product_supplier_and_search_and_is_paginated():

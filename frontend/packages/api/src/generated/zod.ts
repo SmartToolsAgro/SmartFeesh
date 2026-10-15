@@ -84,7 +84,8 @@ export const ListBatchesResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "supplier": zod.object({
   "id": zod.int(),
@@ -113,7 +114,8 @@ export const GetBatchResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "supplier": zod.object({
   "id": zod.int(),
@@ -404,7 +406,8 @@ export const ListCountsResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "batch": zod.object({
   "id": zod.int(),
@@ -458,7 +461,8 @@ export const StartCountResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "batch": zod.object({
   "id": zod.int(),
@@ -502,7 +506,8 @@ export const GetCountResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "batch": zod.object({
   "id": zod.int(),
@@ -549,7 +554,8 @@ export const ApproveCountResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "batch": zod.object({
   "id": zod.int(),
@@ -596,7 +602,8 @@ export const CancelCountResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "batch": zod.object({
   "id": zod.int(),
@@ -654,7 +661,8 @@ export const RecordCountedResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "batch": zod.object({
   "id": zod.int(),
@@ -4935,7 +4943,8 @@ export const ListLossesResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', listLossesResponseResultsItemQuantityRegExp),
   "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
@@ -4985,7 +4994,8 @@ export const RecordLossResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', recordLossResponseQuantityRegExp),
   "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
@@ -5030,7 +5040,8 @@ export const GetLossResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', getLossResponseQuantityRegExp),
   "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
@@ -5075,7 +5086,8 @@ export const ApproveLossResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', approveLossResponseQuantityRegExp),
   "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
@@ -5124,7 +5136,8 @@ export const AddLossPhotoResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', addLossPhotoResponseQuantityRegExp),
   "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
@@ -5173,7 +5186,8 @@ export const RejectLossResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', rejectLossResponseQuantityRegExp),
   "reason": zod.enum(['spoiled', 'damaged', 'expired', 'cold_chain', 'other']).describe('* `spoiled` - Avarié\n* `damaged` - Abîmé ou écrasé\n* `expired` - Date dépassée\n* `cold_chain` - Rupture du froid\n* `other` - Autre'),
@@ -12418,7 +12432,8 @@ export const ListMovementsResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "batch_id": zod.int(),
   "batch_number": zod.string(),
@@ -13589,7 +13604,8 @@ export const ListTransfersResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemUnitPriceRegExp).nullable(),
@@ -13664,7 +13680,8 @@ export const CreateTransferResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', createTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', createTransferResponseLinesItemUnitPriceRegExp).nullable(),
@@ -13724,7 +13741,8 @@ export const GetTransferResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', getTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', getTransferResponseLinesItemUnitPriceRegExp).nullable(),
@@ -13806,7 +13824,8 @@ export const UpdateTransferResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', updateTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', updateTransferResponseLinesItemUnitPriceRegExp).nullable(),
@@ -13866,7 +13885,8 @@ export const CancelTransferResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', cancelTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', cancelTransferResponseLinesItemUnitPriceRegExp).nullable(),
@@ -13928,7 +13948,8 @@ export const ValidateTransferResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', validateTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', validateTransferResponseLinesItemUnitPriceRegExp).nullable(),
