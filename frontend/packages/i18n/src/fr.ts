@@ -3681,6 +3681,18 @@ export const fr = {
       ok: "Compris",
       asOf: "Prix reçus le {{time}}. Ils se mettent à jour dès que le téléphone est en ligne.",
     },
+    // ---- Aujourd'hui, en un coup d'oeil (P3-T02 suite) ----
+    glance: {
+      title: "Aujourd'hui",
+      sales: "Ventes",
+      salesCount_one: "{{count}} vente",
+      salesCount_other: "{{count}} ventes",
+      cash: "Caisse attendue",
+      expenses: "Dépenses",
+      kilos: "Kilos restants",
+      waiting_one: "{{count}} vente pas encore envoyée (non comptée ici)",
+      waiting_other: "{{count}} ventes pas encore envoyées (non comptées ici)",
+    },
     // ---- Returnable boxes on the road (P1-T14d, D-122) ----
     boxes: {
       small: "Petites caisses",

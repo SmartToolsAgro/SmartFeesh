@@ -2200,3 +2200,10 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   line's `unit_price`, the API already accepts it), but `my-stock` shows the daily price only, not the customer's own
   price list (D-049) that the server would apply, so sending it now would charge those customers the daily price instead of their list price.
   Next step: show the customer price list on the phone, then send the shown price. Owner to confirm the rule first.
+
+**D-149 · Driver day: "Aujourd'hui" at a glance at the top (P3-T02 follow-up)** · accepted · 2026-10-15
+- Asked by the owner (2026-10-15): the driver sees the day's main figures at once: sales (count and total), cash to hold,
+  expenses, and kilos left on the truck.
+- Shown only while the day runs. Sales, cash and expenses come from the server's day summary (`getMyDaySummary`); the
+  kilos left are the truck's stock less what waits on the phone. Sales still waiting to be sent are not in the figures:
+  the card says how many there are (`TodayAtAGlance.tsx`).

@@ -17,6 +17,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 
 import { formatBoxCount } from "./boxes";
+import { TodayAtAGlance } from "./TodayAtAGlance";
 
 // "Ma journée", three steps and nothing else: pick the truck, check the load, start the day.
 export function DayPage() {
@@ -138,6 +139,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         <p className="text-2xl font-bold">{truck.name}</p>
         <p className="text-ink-2">{truck.plate}</p>
       </Card>
+      <TodayAtAGlance enabled={running} />
       {load.isLoading || stock.isLoading ? null : lines.length === 0 ? (
         <EmptyState illustration="fridge" title={t("truck.day.nothingLoaded")}>
           {t("truck.day.nothingLoadedBody")}
