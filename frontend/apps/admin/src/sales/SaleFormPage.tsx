@@ -36,6 +36,7 @@ import { Link, Navigate, useOutletContext, useParams } from "react-router";
 import { subtract, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { choosePlace, type Need, needsOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import {
   amountsOf,
@@ -89,9 +90,10 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   const queryClient = useQueryClient();
   const formId = useId();
 
-  const customers = useListCustomers({ status: "active" });
+  // Archived ones leave the pickers unless this sale already uses them (pickable).
+  const customers = useListCustomers({ status: "all" });
   const locations = useListLocations({ status: "active" });
-  const products = useListProducts({ status: "active" });
+  const products = useListProducts({ status: "all" });
 
   const [customer, setCustomer] = useState(
     draft && !draft.customer.is_walk_in ? String(draft.customer.id) : draft ? WALK_IN : "",
@@ -294,7 +296,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             setCustomer,
             [
               { value: WALK_IN, label: t("admin.sales.form.walkIn") },
-              ...(customers.data ?? [])
+              ...pickable(customers.data ?? [], [customer])
                 .filter((option) => !option.is_walk_in)
                 .map((option) => ({ value: String(option.id), label: `${option.name} · ${option.reference}` })),
             ],
@@ -321,7 +323,10 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             label={t("admin.sales.form.lines")}
             lines={lines}
             onChange={setLines}
-            products={products.data ?? []}
+            products={pickable(
+              products.data ?? [],
+              lines.map((line) => line.product),
+            )}
             proposedPrice={proposedPrice}
             stock={places.length > 0 ? totals : undefined}
             origin={origin}

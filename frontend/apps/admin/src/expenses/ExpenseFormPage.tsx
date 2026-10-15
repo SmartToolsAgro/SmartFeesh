@@ -34,6 +34,7 @@ import { type FormEvent, useId, useState } from "react";
 import { Link, Navigate, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { todayInTunis } from "../receipts/shared";
 import { canWriteExpenses, isOpen, PAYMENT_METHODS, refreshExpenses } from "./shared";
 
@@ -50,7 +51,8 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
   const queryClient = useQueryClient();
   const formId = useId();
 
-  const categories = useListExpenseCategories({ status: "active" });
+  // Archived ones leave the pickers unless this expense already uses them (pickable).
+  const categories = useListExpenseCategories({ status: "all" });
   const trucks = useListTrucks({ status: "all" });
   const lots = useListBatches({ limit: RECENT_LOTS });
 
@@ -72,6 +74,8 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
   const given = useGetBatch(startLot ?? 0, { query: { enabled: startLot !== undefined } });
   const lotOptions = [...(lots.data?.results ?? [])];
   if (given.data && !lotOptions.some((one) => one.id === given.data.id)) lotOptions.unshift(given.data);
+  // A lot of an archived product stays out of the picker unless this expense is on it.
+  const lotChoices = lotOptions.filter((one) => one.product.is_active || String(one.id) === lot);
 
   const save = useMutation({
     mutationFn: async (payload: ExpenseWrite) => {
@@ -187,7 +191,7 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
             t("admin.expenses.form.category"),
             category,
             setCategory,
-            (categories.data ?? [])
+            pickable(categories.data ?? [], [category])
               .filter((one) => one.code !== DAY_LABOUR)
               .map((one) => ({ value: String(one.id), label: one.name })),
           )}
@@ -240,7 +244,7 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
                 t("admin.expenses.form.lot"),
                 lot,
                 setLot,
-                lotOptions.map((one) => ({
+                lotChoices.map((one) => ({
                   value: String(one.id),
                   label: `${one.number} · ${one.product.name} · ${formatDate(one.received_on)}`,
                 })),
