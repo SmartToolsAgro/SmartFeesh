@@ -26,7 +26,7 @@ from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.sales import selectors, services
-from apps.sales.models import CreditNote, Invoice, Quote, Sale
+from apps.sales.models import CreditNote, Invoice, PriceSource, Quote, Sale
 
 from .serializers import (
     BatchSalesSerializer,
@@ -378,6 +378,8 @@ class SaleListView(SaleView, ListAPIView[Sale]):
             client_uuid=serializer.validated_data["client_uuid"],
             # A phone's time is checked against the ledger too: the truck must have held the kilos since.
             stock_held_since=self.is_driver,
+            # A phone sends the price it showed: the server checks it was a real price (P3-T02).
+            typed_source=PriceSource.SHOWN if self.is_driver else PriceSource.TYPED,
             **data,
         )
         return self.answer(sale.pk, status_code=status.HTTP_201_CREATED)

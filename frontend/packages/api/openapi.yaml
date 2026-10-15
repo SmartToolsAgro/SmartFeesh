@@ -19164,12 +19164,14 @@ components:
       - daily
       - quote
       - typed
+      - shown
       type: string
       description: |-
         * `price_list` - Liste du client
         * `daily` - Prix du jour
         * `quote` - Devis
         * `typed` - Saisi
+        * `shown` - Affiché au chauffeur
     SaleRef:
       type: object
       description: A sale named from another document (the quote it came from, a lot's

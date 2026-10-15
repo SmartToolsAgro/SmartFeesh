@@ -550,4 +550,4 @@ def test_a_loss_reported_late_leaves_the_stock_at_the_moment_it_was_made(day):
 
     assert lost.status_code == 201
     loss_movement = StockMovement.objects.filter(kind=MovementKind.LOSS).get()
-    assert loss_movement.occurred_at.isoformat() == parse_datetime(moment).isoformat()
+    assert loss_movement.occurred_at == parse_datetime(moment)

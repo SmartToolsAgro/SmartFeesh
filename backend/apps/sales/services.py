@@ -132,6 +132,41 @@ def _header_errors(
     return errors
 
 
+# A price the driver's phone showed stays valid for a sale made within this time of it: a sale kept on the phone
+# keeps the price that was in force then, even when the office has changed it since (P3-T02, D-148).
+PHONE_PRICE_WINDOW = dt.timedelta(hours=24)
+
+
+def shown_price_in_force(product: "Product", price: Decimal, at: dt.datetime) -> bool:
+    """Whether `price` was a daily price of the product at some moment in the `PHONE_PRICE_WINDOW` before `at`."""
+    since = at - PHONE_PRICE_WINDOW
+    if product.prices.filter(valid_from__gt=since, valid_from__lte=at, price=price).exists():
+        return True
+    # The price already in force when the window opens.
+    before = catalog.price_at(product, since)
+    return before is not None and before.price == price
+
+
+def _shown_price(
+    product: "Product | None", price: Any, at: dt.datetime, customer: "Customer"
+) -> tuple[Decimal, str] | str:
+    """The price of a line a driver's phone priced (`PriceSource.SHOWN`). The customer's own price list wins when it
+    holds the product (D-049), whatever the phone showed; otherwise the shown price must have been a real price."""
+    if product is not None:
+        in_force = catalog.price_in_force(product, at, customer_id=customer.pk)
+        if in_force is not None and in_force.source == "price_list":
+            return in_force.price, in_force.source
+    try:
+        amount = checked_amount(price)
+    except (ValueError, TypeError):
+        amount = None
+    if amount is None or amount <= 0:
+        return _("Indiquez un prix en DT par kg, supérieur à zéro, au millime près.")
+    if product is None or not shown_price_in_force(product, amount, at):
+        return _("Ce prix n'est plus valable : rafraîchissez les prix sur le téléphone et refaites la vente.")
+    return amount, PriceSource.SHOWN
+
+
 def _checked_price(
     product: "Product | None", price: Any, at: dt.datetime, customer: "Customer", typed_source: str = PriceSource.TYPED
 ) -> tuple[Decimal, str] | str:
@@ -140,13 +175,15 @@ def _checked_price(
 
     Empty takes what the customer is charged at `at` (`catalog.price_in_force`, D-049): their own price
     list when it holds the product, else the daily price. A typed price must be above zero; it is recorded
-    as `typed_source` (typed by hand, or copied from a quote).
+    as `typed_source` (typed by hand, or copied from a quote). A driver's shown price is checked (`_shown_price`).
     """
     if price in (None, ""):
         in_force = catalog.price_in_force(product, at, customer_id=customer.pk) if product is not None else None
         if in_force is None:
             return _("Aucun prix de vente en vigueur : indiquez un prix.")
         return in_force.price, in_force.source
+    if typed_source == PriceSource.SHOWN:
+        return _shown_price(product, price, at, customer)
     try:
         amount = checked_amount(price)
     except (ValueError, TypeError):

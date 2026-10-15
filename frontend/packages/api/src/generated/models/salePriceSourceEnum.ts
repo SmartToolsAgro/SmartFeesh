@@ -10,6 +10,7 @@
  * * `daily` - Prix du jour
  * * `quote` - Devis
  * * `typed` - Saisi
+ * * `shown` - Affiché au chauffeur
  */
 export type SalePriceSourceEnum = typeof SalePriceSourceEnum[keyof typeof SalePriceSourceEnum];
 
@@ -19,4 +20,5 @@ export const SalePriceSourceEnum = {
   daily: 'daily',
   quote: 'quote',
   typed: 'typed',
+  shown: 'shown',
 } as const;

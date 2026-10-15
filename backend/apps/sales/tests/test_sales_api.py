@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.catalog.models import PriceList, PriceListItem
 from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
 from apps.core.models import Role
 from apps.core.tests.factories import MembershipFactory
@@ -329,3 +330,81 @@ def test_sales_of_another_organization_are_not_found(api, crevette):
 
 def test_logged_out_is_401():
     assert APIClient().get(reverse("sale-list")).status_code == 401
+
+
+def set_price(product, price, since):
+    ProductPriceFactory.create(product=product, price=Decimal(price), valid_from=since)
+
+
+def test_a_driver_sale_keeps_the_price_the_phone_showed(organization, customer, counter, crevette, driver_with_truck):
+    driver, truck = driver_with_truck
+    receive(organization, crevette, truck, "10")
+    # The office changed the price an hour ago, the phone has not refreshed: 42 was a real price in the last day.
+    set_price(crevette, "50.000", timezone.now() - dt.timedelta(hours=1))
+
+    kept = create(
+        client_for(driver),
+        truck,
+        [{"product": crevette.pk, "quantity": "2", "unit_price": "42.000"}],
+        customer=customer.pk,
+    )
+
+    assert kept.status_code == 201
+    line = kept.json()["lines"][0]
+    assert (line["unit_price"], line["price_source"]) == ("42.000", "shown")
+
+
+def test_a_shown_price_that_was_never_in_force_is_refused(organization, customer, counter, crevette, driver_with_truck):
+    driver, truck = driver_with_truck
+    receive(organization, crevette, truck, "10")
+
+    refused = create(
+        client_for(driver),
+        truck,
+        [{"product": crevette.pk, "quantity": "2", "unit_price": "1.000"}],
+        customer=customer.pk,
+    )
+
+    assert refused.status_code == 400
+    assert "plus valable" in refused.json()["lines.0.unit_price"][0]
+
+
+def test_a_shown_price_is_valid_for_a_day_only(organization, customer, counter, crevette, driver_with_truck):
+    driver, truck = driver_with_truck
+    receive(organization, crevette, truck, "10")
+    # 42 stopped two days ago: the phone's 42 is older than the 24 hours the check allows.
+    set_price(crevette, "50.000", timezone.now() - dt.timedelta(days=2))
+
+    refused = create(
+        client_for(driver),
+        truck,
+        [{"product": crevette.pk, "quantity": "2", "unit_price": "42.000"}],
+        customer=customer.pk,
+    )
+
+    assert refused.status_code == 400
+    assert "plus valable" in refused.json()["lines.0.unit_price"][0]
+
+
+def test_a_customer_price_list_wins_over_the_price_the_phone_showed(
+    organization, customer, counter, crevette, driver_with_truck
+):
+    driver, truck = driver_with_truck
+    receive(organization, crevette, truck, "10")
+    price_list = PriceList.objects.create(
+        organization=organization, name="Le Corail", customer=customer, is_active=True
+    )
+    PriceListItem.objects.create(
+        organization=organization, price_list=price_list, product=crevette, price=Decimal("40.000")
+    )
+
+    charged = create(
+        client_for(driver),
+        truck,
+        [{"product": crevette.pk, "quantity": "2", "unit_price": "42.000"}],
+        customer=customer.pk,
+    )
+
+    assert charged.status_code == 201
+    line = charged.json()["lines"][0]
+    assert (line["unit_price"], line["price_source"]) == ("40.000", "price_list")

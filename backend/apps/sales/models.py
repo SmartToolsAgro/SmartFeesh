@@ -191,6 +191,8 @@ class PriceSource(models.TextChoices):
     QUOTE = "quote", _("Devis")
     # Typed by the seller.
     TYPED = "typed", _("Saisi")
+    # The price the driver's phone showed when the sale was made, checked by the server (P3-T02).
+    SHOWN = "shown", _("Affiché au chauffeur")
 
 
 class CreditStatus(models.TextChoices):

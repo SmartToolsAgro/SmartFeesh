@@ -2208,6 +2208,18 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   kilos left are the truck's stock less what waits on the phone. Sales still waiting to be sent are not in the figures:
   the card says how many there are (`TodayAtAGlance.tsx`).
 
+**D-150 · A driver's sale carries the price the phone showed, checked by the server (closes D-148's open point)** · accepted · 2026-10-15
+- The phone sends `unit_price` on each line of a sale: the price it showed. The server (`services._shown_price`) accepts
+  it only when it was a daily price of that product at some moment in the 24 hours before the sale's moment
+  (`PHONE_PRICE_WINDOW`, `shown_price_in_force`). Otherwise the line is refused: "Ce prix n'est plus valable".
+  The sale line's `price_source` is `shown` (new choice, migration `sales.0016`).
+- The customer's own price list wins over the shown price (D-049): such a line is priced at the list, `price_list`.
+- Why 24 hours: a sale kept on the phone keeps the price in force when it was made, so a change the phone had not
+  refreshed is allowed for a day. A driver offline for more than a day has the sale refused and sees why; the office
+  sees it on `/journees`.
+- A driver's price that was never a real price is refused: before, a driver's API call could charge any price.
+- Open (D-148 follow-up): the phone still shows the daily price to a list customer.
+
 **D-151 · Expenses, losses, customer payments and box pickups keep the moment the driver's phone says (P3-T07c, D-133)** · accepted · 2026-10-15
 - Asked by the owner (2026-10-15): a record entered on the phone without signal must count in the day it was made, not the
   day it was sent. Sales already did this (D-133); the same rule now covers the four other records.
