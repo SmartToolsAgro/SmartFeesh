@@ -92,6 +92,6 @@ def test_an_employee_name_must_match_exactly_one_employee(settings):
 
     with pytest.raises(CommandError, match="matches 0 employee"):
         call_command("prepare_client_start", "--keep-employee", "Dhaker", stdout=StringIO())
-    with pytest.raises(CommandError, match="matches 8 employee"):
+    with pytest.raises(CommandError, match="matches 7 employee"):
         call_command("prepare_client_start", "--keep-employee", "", stdout=StringIO())
-    assert Employee.objects.count() == 8
+    assert Employee.objects.count() == 7
