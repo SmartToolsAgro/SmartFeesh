@@ -7,10 +7,10 @@ RELEASE="$1"
 BASE="$HOME/frutti-staging"
 RELEASE_DIR="$BASE/releases/$RELEASE"
 ENV_FILE="$BASE/.env"
-PUBLIC_HOST="${PUBLIC_HOST:-217.182.205.137}"
-# One host name per app, so their login cookies stay apart (D-036). Must match nginx-host-staging.conf.
-ADMIN_HOST="admin.${PUBLIC_HOST//./-}.sslip.io"
-DRIVER_HOST="chauffeur.${PUBLIC_HOST//./-}.sslip.io"
+# One host name per app, so their login cookies stay apart (D-036, D-155). Must match nginx-host-staging.conf.
+ADMIN_HOST="app.fruttidelmar.com"
+DRIVER_HOST="ch.fruttidelmar.com"
+ACME_WEBROOT=/var/www/frutti-acme # Let's Encrypt challenge files, served by the host nginx (D-155)
 NGINX_SITE=/etc/nginx/sites-available/frutti-staging
 
 # 1. Secrets: created once on the server, never in the repository.
@@ -31,7 +31,7 @@ set_env() {
   if grep -q "^$1=" "$ENV_FILE"; then sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"; else echo "$1=$2" >> "$ENV_FILE"; fi
 }
 set_env DJANGO_ALLOWED_HOSTS "$ADMIN_HOST,$DRIVER_HOST"
-set_env DJANGO_CSRF_TRUSTED_ORIGINS "http://$ADMIN_HOST:8095,http://$DRIVER_HOST:8096"
+set_env DJANGO_CSRF_TRUSTED_ORIGINS "http://$ADMIN_HOST,http://$DRIVER_HOST"
 export RELEASE
 
 # 2. Build and start. Only Frutti's own containers are touched.
@@ -40,6 +40,7 @@ sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f c
 sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --remove-orphans
 
 # 3. Host nginx: install our site only if it changed, test, then reload. On a failed test, put back the old file.
+sudo install -d -m 755 "$ACME_WEBROOT"
 if ! sudo cmp -s "$RELEASE_DIR/deploy/nginx-host-staging.conf" "$NGINX_SITE" 2>/dev/null; then
   sudo cp -a "$NGINX_SITE" "$NGINX_SITE.previous" 2>/dev/null || true
   sudo install -m 644 "$RELEASE_DIR/deploy/nginx-host-staging.conf" "$NGINX_SITE"
@@ -54,14 +55,16 @@ if ! sudo cmp -s "$RELEASE_DIR/deploy/nginx-host-staging.conf" "$NGINX_SITE" 2>/
   fi
 fi
 
-# 4. Health, through the same path a browser uses.
-for site in "$ADMIN_HOST:8095" "$DRIVER_HOST:8096"; do
-  port="${site##*:}"
+# 4. Health: each app's web container, with the host name and the https scheme the host nginx sends for it
+#    (so Django does not redirect the check; the nginx sites above are checked by the uptime watch).
+for pair in "$ADMIN_HOST:18081" "$DRIVER_HOST:18082"; do
+  host="${pair%:*}"
+  port="${pair##*:}"
   for _ in $(seq 1 30); do
-    if curl -fsS -H "Host: $site" "http://127.0.0.1:$port/api/v1/health" > /dev/null 2>&1; then echo "$site healthy"; break; fi
+    if curl -fsS -H "Host: $host" -H "X-Forwarded-Proto: https" "http://127.0.0.1:$port/api/v1/health" > /dev/null 2>&1; then echo "$host healthy"; break; fi
     sleep 2
   done
-  curl -fsS -H "Host: $site" "http://127.0.0.1:$port/api/v1/health" > /dev/null || { echo "$site not healthy" >&2; exit 1; }
+  curl -fsS -H "Host: $host" -H "X-Forwarded-Proto: https" "http://127.0.0.1:$port/api/v1/health" > /dev/null || { echo "$host not healthy" >&2; exit 1; }
 done
 
 # 5. Nightly backup (D-139): the script the debian user's crontab calls, and the public key it encrypts to.
@@ -77,4 +80,4 @@ for old in $(ls -1t | tail -n +4); do
   sudo docker image rm "frutti-backend:$old" "frutti-web:$old" > /dev/null 2>&1 || true
 done
 
-echo "Deployed $RELEASE: admin http://$ADMIN_HOST:8095  driver http://$DRIVER_HOST:8096"
+echo "Deployed $RELEASE: admin http://$ADMIN_HOST  driver http://$DRIVER_HOST"
