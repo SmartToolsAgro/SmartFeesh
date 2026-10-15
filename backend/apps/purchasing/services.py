@@ -24,8 +24,15 @@ from .models import (
     RECEIVABLE_ORDER_STATUSES,
     DocumentCounter,
     DocumentKind,
+    FieldPurchase,
+    FieldPurchaseAction,
+    FieldPurchaseLine,
+    FieldPurchasePayment,
+    FieldPurchaseRevision,
+    FieldPurchaseStatus,
     GoodsReceipt,
     GoodsReceiptLine,
+    PaymentTerms,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
@@ -896,6 +903,7 @@ def _payment_snapshot(payment: SupplierPayment) -> dict[str, Any]:
         "amount": str(payment.amount),
         "method": payment.method,
         "reference": payment.reference,
+        "cash_on": payment.cash_on.isoformat() if payment.cash_on else None,
         "allocations": [{"invoice": line.invoice.number, "amount": str(line.amount)} for line in allocations],
     }
 
@@ -912,6 +920,7 @@ def record_payment(
     allocations: Sequence[AllocationFields] = (),
     reference: str = "",
     notes: str = "",
+    cash_on: dt.date | None = None,
 ) -> SupplierPayment:
     """Record money paid to a supplier and the posted invoices it settles.
 
@@ -926,6 +935,8 @@ def record_payment(
         errors["paid_on"] = _("La date du paiement ne peut pas être dans le futur.")
     if method not in PaymentMethod.values:
         errors["method"] = _("Mode de paiement inconnu.")
+    if cash_on is not None and cash_on < paid_on:
+        errors["cash_on"] = _("Le jour d'encaissement ne peut pas précéder le paiement.")
     checked: Decimal | None = None
     try:
         checked = checked_amount(amount)
@@ -948,6 +959,7 @@ def record_payment(
         amount=checked,
         method=method,
         reference=reference.strip(),
+        cash_on=cash_on,
         notes=notes.strip(),
         created_by=actor,
     )
@@ -987,3 +999,475 @@ def allocate_payment(
         after=_payment_snapshot(payment),
     )
     return payment
+
+
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+# A driver's purchase counts only once the owner or the manager validates it: then it becomes a receipt (stock),
+# a posted invoice (what is owed for the kg received, due by the deal) and payments (what was given at the port).
+
+FIELD_PURCHASE_NUMBER_PREFIX = "AT-"
+
+
+class FieldLineFields(TypedDict, total=False):
+    product: "Product | None"
+    # The name the driver typed for a product not in the catalogue yet.
+    proposed_product: str
+    declared_quantity: Number
+    received_quantity: Number | None
+    unit_cost: Number
+    partner: "Supplier | None"
+
+
+class FieldPaymentFields(TypedDict, total=False):
+    method: str
+    amount: Number
+    reference: str
+    cash_on: dt.date | None
+
+
+class FieldPurchaseFields(TypedDict, total=False):
+    """What a purchase says. The office alone sets `location`, `boxes`, the received kg and the partners."""
+
+    supplier: "Supplier | None"
+    proposed_supplier: str
+    proposed_supplier_phone: str
+    bought_on: dt.date
+    terms: str
+    due_days: int
+    supplier_reference: str
+    notes: str
+    lines: Sequence[FieldLineFields]
+    payments: Sequence[FieldPaymentFields]
+    location: "StockLocation | None"
+    boxes: Mapping[str, int]
+
+
+def payment_error_key(index: int, field: str) -> str:
+    """Errors of a sum given at the port are reported on `payments.<index>.<field>`, like lines."""
+    return f"payments.{index}.{field}"
+
+
+def due_date_of(bought_on: dt.date, terms: str, due_days: int) -> dt.date:
+    """When a purchase is due by its deal: the day itself (comptant), N days later, or the end of its month + N days."""
+    if terms == PaymentTerms.DAYS:
+        return bought_on + dt.timedelta(days=due_days)
+    if terms == PaymentTerms.MONTH_END:
+        next_month = (bought_on.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
+        return next_month - dt.timedelta(days=1) + dt.timedelta(days=due_days)
+    return bought_on
+
+
+def _checked_field_purchase(organization: Organization, fields: FieldPurchaseFields) -> dict[str, Any]:
+    """The purchase's values once checked. Every problem comes back at once, the header's on their field, a line's
+    on `lines.<index>.<field>`, a payment's on `payments.<index>.<field>`."""
+    errors: dict[str, str] = {}
+    supplier = fields.get("supplier")
+    proposed_supplier = fields.get("proposed_supplier", "").strip()
+    if supplier is not None:
+        if supplier.organization_id != organization.pk:
+            errors["supplier"] = _("Fournisseur inconnu.")
+        elif not supplier.is_active:
+            errors["supplier"] = _("Ce fournisseur est archivé.")
+        # A supplier picked from the list replaces a name typed earlier.
+        proposed_supplier = ""
+    elif not proposed_supplier:
+        errors["supplier"] = _("Choisissez le fournisseur, ou donnez le nom d'un nouveau.")
+    bought_on = fields["bought_on"]
+    if bought_on > timezone.localdate():
+        errors["bought_on"] = _("La date de l'achat ne peut pas être dans le futur.")
+    terms = fields.get("terms", PaymentTerms.CASH)
+    due_days = fields.get("due_days", 0)
+    if terms not in PaymentTerms.values:
+        errors["terms"] = _("Accord de paiement inconnu.")
+    elif not 0 <= due_days <= 365:
+        errors["due_days"] = _("Indiquez un nombre de jours entre 0 et 365.")
+    elif terms == PaymentTerms.DAYS and due_days == 0:
+        errors["due_days"] = _("Indiquez dans combien de jours l'achat est payé.")
+    if terms == PaymentTerms.CASH:
+        due_days = 0
+    location = fields.get("location")
+    if location is not None and (location.organization_id != organization.pk or not location.is_active):
+        errors["location"] = _("Cet emplacement est inconnu ou archivé.")
+
+    lines = fields.get("lines", ())
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un produit.")
+    checked_lines: list[dict[str, Any]] = []
+    for index, line in enumerate(lines):
+        product = line.get("product")
+        proposed_product = line.get("proposed_product", "").strip()
+        if product is not None:
+            proposed_product = ""
+            if product.organization_id != organization.pk:
+                errors[line_error_key(index, "product")] = _("Produit inconnu.")
+            elif not product.is_active:
+                errors[line_error_key(index, "product")] = _("Ce produit est archivé.")
+        elif not proposed_product:
+            errors[line_error_key(index, "product")] = _("Choisissez le produit, ou donnez le nom d'un nouveau.")
+        partner = line.get("partner")
+        if partner is not None and (partner.organization_id != organization.pk or not partner.is_active):
+            errors[line_error_key(index, "partner")] = _("Ce fournisseur est inconnu ou archivé.")
+        checked: dict[str, Any] = {
+            "product": product,
+            "proposed_product": proposed_product[:150],
+            "partner": partner,
+            "received_quantity": None,
+        }
+        try:
+            declared: Any = line.get("declared_quantity", "")
+            checked["declared_quantity"] = checked_quantity(declared)
+        except (ValueError, TypeError):
+            errors[line_error_key(index, "declared_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+        received = line.get("received_quantity")
+        if received not in (None, ""):
+            try:
+                checked["received_quantity"] = checked_quantity(received)
+            except (ValueError, TypeError):
+                errors[line_error_key(index, "received_quantity")] = _(
+                    "Indiquez un poids net en kg, supérieur à zéro, ou laissez vide."
+                )
+        try:
+            cost: Any = line.get("unit_cost", "")
+            checked["unit_cost"] = checked_amount(cost)
+        except (ValueError, TypeError):
+            errors[line_error_key(index, "unit_cost")] = _("Indiquez un prix en DT par kg, au millime près.")
+        biggest = max(checked.get("declared_quantity", ZERO), checked["received_quantity"] or ZERO)
+        if "unit_cost" in checked and line_total(biggest, checked["unit_cost"]) > MAX_AMOUNT:
+            errors[line_error_key(index, "unit_cost")] = _(
+                "Le montant de cette ligne est trop grand : vérifiez le prix au kg."
+            )
+        checked_lines.append(checked)
+
+    checked_payments: list[dict[str, Any]] = []
+    for index, payment in enumerate(fields.get("payments", ())):
+        method = payment.get("method", "")
+        if method not in PaymentMethod.values:
+            errors[payment_error_key(index, "method")] = _("Mode de paiement inconnu.")
+        values: dict[str, Any] = {
+            "method": method,
+            "reference": payment.get("reference", "").strip()[:50],
+            "cash_on": payment.get("cash_on"),
+        }
+        try:
+            amount: Any = payment.get("amount", "")
+            values["amount"] = checked_amount(amount)
+            if values["amount"] == 0:
+                errors[payment_error_key(index, "amount")] = _("Le montant doit être supérieur à zéro.")
+        except (ValueError, TypeError):
+            errors[payment_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
+        if values["cash_on"] is not None and values["cash_on"] < bought_on:
+            errors[payment_error_key(index, "cash_on")] = _("Le jour d'encaissement ne peut pas précéder l'achat.")
+        checked_payments.append(values)
+
+    boxes = box_services.checked_box_counts(fields.get("boxes"), errors, prefix="boxes")
+    if errors:
+        raise ValidationError(errors)
+    return {
+        "supplier": supplier,
+        "proposed_supplier": proposed_supplier[:150],
+        "proposed_supplier_phone": fields.get("proposed_supplier_phone", "").strip()[:30] if supplier is None else "",
+        "bought_on": bought_on,
+        "terms": terms,
+        "due_days": due_days,
+        "supplier_reference": fields.get("supplier_reference", "").strip()[:50],
+        "notes": fields.get("notes", "").strip(),
+        "location": location,
+        "boxes": boxes,
+        "lines": checked_lines,
+        "payments": checked_payments,
+    }
+
+
+def field_purchase_snapshot(purchase: FieldPurchase) -> dict[str, Any]:
+    """Everything a purchase says, as plain values: what a revision keeps, and what two revisions are compared on."""
+    lines = list(purchase.lines.select_related("product", "partner").order_by("id"))
+    payments = list(purchase.payments.order_by("id"))
+
+    def ref(row: Any) -> dict[str, Any] | None:
+        return None if row is None else {"id": row.pk, "name": row.name}
+
+    return {
+        "supplier": ref(purchase.supplier),
+        "proposed_supplier": purchase.proposed_supplier,
+        "proposed_supplier_phone": purchase.proposed_supplier_phone,
+        "bought_on": purchase.bought_on.isoformat(),
+        "terms": purchase.terms,
+        "due_days": purchase.due_days,
+        "supplier_reference": purchase.supplier_reference,
+        "notes": purchase.notes,
+        "location": ref(purchase.location),
+        "boxes": dict(purchase.boxes),
+        "lines": [
+            {
+                "product": ref(line.product),
+                "proposed_product": line.proposed_product,
+                "declared_quantity": str(line.declared_quantity),
+                "received_quantity": str(line.received_quantity) if line.received_quantity is not None else None,
+                "unit_cost": str(line.unit_cost),
+                "partner": ref(line.partner),
+            }
+            for line in lines
+        ],
+        "payments": [
+            {
+                "method": payment.method,
+                "amount": str(payment.amount),
+                "reference": payment.reference,
+                "cash_on": payment.cash_on.isoformat() if payment.cash_on else None,
+            }
+            for payment in payments
+        ],
+        "total": str(sum((line.amount for line in lines), ZERO)),
+        "paid": str(sum((payment.amount for payment in payments), ZERO)),
+    }
+
+
+def _write_field_purchase(purchase: FieldPurchase, values: dict[str, Any]) -> None:
+    """Put the checked values on the purchase, its lines and its payments (lines and payments are replaced)."""
+    for field in (
+        "supplier",
+        "proposed_supplier",
+        "proposed_supplier_phone",
+        "bought_on",
+        "terms",
+        "due_days",
+        "supplier_reference",
+        "notes",
+        "location",
+        "boxes",
+    ):
+        setattr(purchase, field, values[field])
+    purchase.save()
+    purchase.lines.all().delete()
+    purchase.payments.all().delete()
+    FieldPurchaseLine.objects.bulk_create(
+        [
+            FieldPurchaseLine(organization_id=purchase.organization_id, purchase=purchase, **line)
+            for line in values["lines"]
+        ]
+    )
+    FieldPurchasePayment.objects.bulk_create(
+        [
+            FieldPurchasePayment(organization_id=purchase.organization_id, purchase=purchase, **payment)
+            for payment in values["payments"]
+        ]
+    )
+
+
+def _add_revision(purchase: FieldPurchase, actor: User | None, action: str, note: str = "") -> FieldPurchaseRevision:
+    return FieldPurchaseRevision.objects.create(
+        organization_id=purchase.organization_id,
+        purchase=purchase,
+        number=purchase.revision,
+        action=action,
+        created_by=actor,
+        note=note,
+        snapshot=field_purchase_snapshot(purchase),
+    )
+
+
+@transaction.atomic
+def submit_field_purchase(*, organization: Organization, buyer: User, fields: FieldPurchaseFields) -> FieldPurchase:
+    """Record what a driver bought at the port, sent to be checked. Nothing enters stock and nothing is owed yet.
+
+    The supplier and each product are picked from the lists, or given as a new name for the office to create.
+    The first revision keeps it as the driver sent it.
+    """
+    values = _checked_field_purchase(organization, fields)
+    purchase = FieldPurchase(
+        organization=organization,
+        number=_next_document_number(
+            organization, DocumentKind.FIELD_PURCHASE, FIELD_PURCHASE_NUMBER_PREFIX, yearly=True
+        ),
+        buyer=buyer,
+    )
+    _write_field_purchase(purchase, values)
+    _add_revision(purchase, buyer, FieldPurchaseAction.SUBMITTED)
+    audit.record(
+        organization=organization,
+        actor=buyer,
+        action="field_purchase.submitted",
+        target=purchase,
+        after=field_purchase_snapshot(purchase),
+    )
+    return purchase
+
+
+def _locked_field_purchase(purchase: FieldPurchase, revision: int) -> FieldPurchase:
+    """The purchase re-read under a row lock; refused once decided, or when someone saved it since `revision`."""
+    locked = FieldPurchase.objects.select_for_update().select_related("organization").get(pk=purchase.pk)
+    if locked.status != FieldPurchaseStatus.SUBMITTED:
+        raise ValidationError(
+            _("L'achat %(number)s est %(status)s : il ne se modifie plus.")
+            % {"number": locked.number, "status": FieldPurchaseStatus(locked.status).label.lower()}
+        )
+    if revision != locked.revision:
+        raise ValidationError(
+            {
+                "revision": _("L'achat %(number)s a été modifié entre-temps (version %(revision)s) : rechargez-le.")
+                % {"number": locked.number, "revision": locked.revision}
+            }
+        )
+    return locked
+
+
+@transaction.atomic
+def update_field_purchase(
+    *,
+    purchase: FieldPurchase,
+    actor: User | None,
+    revision: int,
+    fields: FieldPurchaseFields,
+    office_note: str | None = None,
+    validate: bool = False,
+) -> FieldPurchase:
+    """Change a purchase not decided yet: a new revision when anything changed; with `validate`, validate it after.
+
+    `revision` is the one the person was looking at: a save on an older one is refused, so nobody overwrites a
+    change they have not seen. `office_note` is the office's note to the driver (None keeps it).
+    """
+    purchase = _locked_field_purchase(purchase, revision)
+    organization = purchase.organization
+    values = _checked_field_purchase(organization, fields)
+    before = field_purchase_snapshot(purchase)
+    note = purchase.office_note if office_note is None else office_note.strip()
+    note_changed = note != purchase.office_note
+    _write_field_purchase(purchase, values)
+    after = field_purchase_snapshot(purchase)
+    if after != before or note_changed:
+        purchase.office_note = note
+        purchase.revision += 1
+        purchase.save(update_fields=["office_note", "revision", "updated_at"])
+        _add_revision(purchase, actor, FieldPurchaseAction.EDITED, note if note_changed else "")
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="field_purchase.edited",
+            target=purchase,
+            before=before,
+            after=after,
+        )
+    if validate:
+        _validate_field_purchase(purchase, actor)
+    return purchase
+
+
+def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> None:
+    organization = purchase.organization
+    lines = list(purchase.lines.select_related("product", "partner").order_by("id"))
+    payments = list(purchase.payments.order_by("id"))
+    errors: dict[str, str] = {}
+    if purchase.supplier is None:
+        errors["supplier"] = _("Choisissez le fournisseur dans la liste (créez « %(name)s » s'il est nouveau).") % {
+            "name": purchase.proposed_supplier
+        }
+    if purchase.location is None:
+        errors["location"] = _("Choisissez où vont les marchandises.")
+    for index, line in enumerate(lines):
+        if line.product is None:
+            errors[line_error_key(index, "product")] = _(
+                "Choisissez le produit dans la liste (créez « %(name)s » s'il est nouveau)."
+            ) % {"name": line.proposed_product}
+    total = sum((line.amount for line in lines), ZERO)
+    if not errors and total <= 0:
+        errors["lines"] = _("Le montant de l'achat est nul : il n'y a rien à valider.")
+    if errors:
+        raise ValidationError(errors)
+    supplier = purchase.supplier
+    location = purchase.location
+    # Both checked above.
+    assert supplier is not None
+    assert location is not None
+
+    # The kg really received are what entered stock and what is owed (Q28); the kg typed at the port stay on
+    # the receipt as its "ordered" weight, so a difference shows on the receipt and in the differences report.
+    receipt = create_receipt(
+        organization=organization,
+        actor=actor,
+        supplier=supplier,
+        location=location,
+        received_on=purchase.bought_on,
+        lines=[
+            {
+                "product": line.product,
+                "ordered_quantity": line.declared_quantity,
+                "invoiced_quantity": line.owed_quantity,
+                "accepted_quantity": line.owed_quantity,
+                "unit_cost": line.unit_cost,
+                "partner": line.partner,
+            }
+            for line in lines
+            if line.product is not None
+        ],
+        supplier_reference=purchase.supplier_reference,
+        notes=_("Achat terrain %(number)s") % {"number": purchase.number},
+        boxes=purchase.boxes,
+    )
+    invoice = create_invoice(
+        organization=organization,
+        actor=actor,
+        supplier=supplier,
+        receipts=[receipt],
+        invoice_date=purchase.bought_on,
+        due_date=due_date_of(purchase.bought_on, purchase.terms, purchase.due_days),
+        supplier_reference=purchase.supplier_reference,
+        notes=_("Achat terrain %(number)s") % {"number": purchase.number},
+        post=True,
+    )
+    left = invoice.total
+    for payment in payments:
+        allocated = min(left, payment.amount)
+        left -= allocated
+        payment.supplier_payment = record_payment(
+            organization=organization,
+            actor=actor,
+            supplier=supplier,
+            paid_on=purchase.bought_on,
+            amount=payment.amount,
+            method=payment.method,
+            reference=payment.reference,
+            cash_on=payment.cash_on,
+            notes=_("Donné au port, achat terrain %(number)s") % {"number": purchase.number},
+            # What is given beyond the invoice stays an advance (D-043).
+            allocations=[{"invoice": invoice, "amount": allocated}] if allocated > 0 else [],
+        )
+        payment.save(update_fields=["supplier_payment"])
+    purchase.status = FieldPurchaseStatus.VALIDATED
+    purchase.receipt = receipt
+    purchase.invoice = invoice
+    purchase.decided_at = timezone.now()
+    purchase.decided_by = actor
+    purchase.revision += 1
+    purchase.save(update_fields=["status", "receipt", "invoice", "decided_at", "decided_by", "revision", "updated_at"])
+    _add_revision(purchase, actor, FieldPurchaseAction.VALIDATED)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="field_purchase.validated",
+        target=purchase,
+        after={"receipt": receipt.number, "invoice": invoice.number, "total": str(invoice.total)},
+    )
+
+
+@transaction.atomic
+def refuse_field_purchase(*, purchase: FieldPurchase, actor: User | None, revision: int, note: str) -> FieldPurchase:
+    """Turn a purchase down, with the reason for the driver: nothing enters stock and nothing is owed. Final."""
+    purchase = _locked_field_purchase(purchase, revision)
+    note = note.strip()
+    if not note:
+        raise ValidationError({"office_note": _("Dites au chauffeur pourquoi l'achat est refusé.")})
+    purchase.status = FieldPurchaseStatus.REFUSED
+    purchase.office_note = note
+    purchase.decided_at = timezone.now()
+    purchase.decided_by = actor
+    purchase.revision += 1
+    purchase.save(update_fields=["status", "office_note", "decided_at", "decided_by", "revision", "updated_at"])
+    _add_revision(purchase, actor, FieldPurchaseAction.REFUSED, note)
+    audit.record(
+        organization=purchase.organization,
+        actor=actor,
+        action="field_purchase.refused",
+        target=purchase,
+        after={"note": note},
+    )
+    return purchase

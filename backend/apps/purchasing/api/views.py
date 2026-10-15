@@ -18,11 +18,24 @@ from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.purchasing import selectors, services
-from apps.purchasing.models import GoodsReceipt, GoodsReceiptLine, PurchaseOrder, SupplierInvoice, SupplierPayment
+from apps.purchasing.models import (
+    FieldPurchase,
+    GoodsReceipt,
+    GoodsReceiptLine,
+    PurchaseOrder,
+    SupplierInvoice,
+    SupplierPayment,
+)
 
 from .serializers import (
     DifferenceFilterSerializer,
     DifferenceLineSerializer,
+    FieldPurchaseCreateSerializer,
+    FieldPurchaseFilterSerializer,
+    FieldPurchaseListSerializer,
+    FieldPurchaseRefuseSerializer,
+    FieldPurchaseSerializer,
+    FieldPurchaseWriteSerializer,
     LastCostFilterSerializer,
     LastCostSerializer,
     OrderFilterSerializer,
@@ -472,3 +485,173 @@ class SupplierBalanceView(PurchasingView):
         except ObjectDoesNotExist:
             raise Http404 from None
         return Response(SupplierBalanceSerializer(selectors.supplier_balance(self.organization, supplier.pk)).data)
+
+
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+# The office checks what a driver bought: owner and manager change, validate or refuse it; the accountant reads.
+
+
+def _field_purchase_fields(
+    organization: Organization, data: dict[str, Any], *, is_owner: bool, kept_partners: set[int]
+) -> services.FieldPurchaseFields:
+    """The ids of a purchase replaced by the rows they name in the organization; unknown ids are field errors.
+
+    A partner is the owner's choice (D-060): anyone else may only keep the partners the purchase already has.
+    """
+    errors: dict[str, str] = {}
+    supplier = location = None
+    if data.get("supplier") is not None:
+        try:
+            supplier = partners.supplier_of(organization, data["supplier"])
+        except ObjectDoesNotExist:
+            errors["supplier"] = _("Fournisseur inconnu.")
+    if data.get("location") is not None:
+        try:
+            location = inventory.location_of(organization, data["location"])
+        except ObjectDoesNotExist:
+            errors["location"] = _("Emplacement inconnu.")
+    lines: list[services.FieldLineFields] = []
+    for index, line in enumerate(data["lines"]):
+        product = partner = None
+        if line.get("product") is not None:
+            try:
+                product = catalog.product_of(organization, line["product"])
+            except ObjectDoesNotExist:
+                errors[services.line_error_key(index, "product")] = _("Produit inconnu.")
+        if line.get("partner") is not None:
+            if not is_owner and line["partner"] not in kept_partners:
+                errors[services.line_error_key(index, "partner")] = _("Seul le propriétaire choisit un partenaire.")
+            else:
+                try:
+                    partner = partners.supplier_of(organization, line["partner"])
+                except ObjectDoesNotExist:
+                    errors[services.line_error_key(index, "partner")] = _("Fournisseur inconnu.")
+        lines.append(
+            {
+                "product": product,
+                "proposed_product": line["proposed_product"],
+                "declared_quantity": line["declared_quantity"],
+                "received_quantity": line["received_quantity"],
+                "unit_cost": line["unit_cost"],
+                "partner": partner,
+            }
+        )
+    if errors:
+        raise ValidationError(errors)
+    return {
+        "supplier": supplier,
+        "proposed_supplier": data["proposed_supplier"],
+        "proposed_supplier_phone": data["proposed_supplier_phone"],
+        "bought_on": data["bought_on"],
+        "terms": data["terms"],
+        "due_days": data["due_days"],
+        "supplier_reference": data["supplier_reference"],
+        "notes": data["notes"],
+        "location": location,
+        "boxes": data["boxes"],
+        "lines": lines,
+        "payments": data["payments"],
+    }
+
+
+class FieldPurchaseListView(PurchasingView, ListAPIView[FieldPurchase]):
+    serializer_class = FieldPurchaseListSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[FieldPurchase]:
+        filters = FieldPurchaseFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.field_purchases_of(
+            self.organization, status=filters.validated_data.get("status"), search=filters.validated_data["search"]
+        )
+
+    @extend_schema(operation_id="listFieldPurchases", parameters=[FieldPurchaseFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """What drivers bought at the port, newest first, paginated, with lines, money given and what is left to pay.
+        Filter by status (`submitted` = to check) or `search` (number, supplier, the supplier's paper number)."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="createFieldPurchase",
+        request=FieldPurchaseCreateSerializer,
+        responses={201: FieldPurchaseSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Type a purchase at the port for the office (a driver who phoned it in): it waits to be checked like one
+        sent from the phone, and the person who types it is its buyer."""
+        serializer = FieldPurchaseCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        fields = _field_purchase_fields(
+            self.organization,
+            dict(serializer.validated_data),
+            is_owner=self.membership.role == Role.OWNER,
+            kept_partners=set(),
+        )
+        purchase = services.submit_field_purchase(
+            organization=self.organization, buyer=self.membership.user, fields=fields
+        )
+        return Response(
+            FieldPurchaseSerializer(selectors.field_purchase_of(self.organization, purchase.pk)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class FieldPurchaseView(PurchasingView):
+    def _purchase(self, purchase_id: int) -> FieldPurchase:
+        try:
+            return selectors.field_purchase_of(self.organization, purchase_id)
+        except FieldPurchase.DoesNotExist:
+            raise Http404 from None
+
+    def _response(self, purchase_id: int) -> Response:
+        return Response(FieldPurchaseSerializer(self._purchase(purchase_id)).data)
+
+
+class FieldPurchaseDetailView(FieldPurchaseView):
+    @extend_schema(operation_id="getFieldPurchase", responses=FieldPurchaseSerializer)
+    def get(self, request: Request, purchase_id: int) -> Response:
+        """One purchase with its revisions, each with what it changed."""
+        return self._response(purchase_id)
+
+    @extend_schema(
+        operation_id="updateFieldPurchase", request=FieldPurchaseWriteSerializer, responses=FieldPurchaseSerializer
+    )
+    def put(self, request: Request, purchase_id: int) -> Response:
+        """Change a purchase still to check (a new revision when anything changed); `confirm` validates it after:
+        the kg received enter stock (a BR), what is owed for them is a posted invoice due by the deal (FF), and each
+        sum given at the port is a payment (RF). `revision` must be the current one, else 400 on `revision`."""
+        purchase = self._purchase(purchase_id)
+        serializer = FieldPurchaseWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        kept = {line.partner_id for line in purchase.lines.all() if line.partner_id is not None}
+        fields = _field_purchase_fields(
+            self.organization, data, is_owner=self.membership.role == Role.OWNER, kept_partners=kept
+        )
+        services.update_field_purchase(
+            purchase=purchase,
+            actor=self.membership.user,
+            revision=data["revision"],
+            fields=fields,
+            office_note=data["office_note"],
+            validate=data["confirm"],
+        )
+        return self._response(purchase_id)
+
+
+class FieldPurchaseRefuseView(FieldPurchaseView):
+    @extend_schema(
+        operation_id="refuseFieldPurchase", request=FieldPurchaseRefuseSerializer, responses=FieldPurchaseSerializer
+    )
+    def post(self, request: Request, purchase_id: int) -> Response:
+        """Turn a purchase down with the reason for the driver: nothing enters stock and nothing is owed. Final."""
+        purchase = self._purchase(purchase_id)
+        serializer = FieldPurchaseRefuseSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.refuse_field_purchase(
+            purchase=purchase,
+            actor=self.membership.user,
+            revision=serializer.validated_data["revision"],
+            note=serializer.validated_data["office_note"],
+        )
+        return self._response(purchase_id)

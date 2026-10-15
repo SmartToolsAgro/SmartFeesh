@@ -2313,3 +2313,32 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   A PR that mixes docs and code runs everything.
 - Deploy to staging no longer waits for e2e: it already passed on the PR before the merge. A direct push to
   `main` (no PR) therefore deploys without e2e, so changes go through a PR.
+**D-157 · Buying at the port: a purchase is checked by the office before it counts (P3-T12a, Q28)** · accepted · 2026-10-15
+- **Owner request (Q28):** a driver buys from a fisherman or at the port, sends it from the phone, and the owner or the
+  manager checks it. Only then do the stock, the supplier debt and the payment count. Split in three PRs: T12a office
+  side (this one), T12b the phone screen, the "can buy" switch and the purchase float, T12c paying suppliers.
+- **A document of its own, not a draft receipt:** `FieldPurchase` (`AT-2026-0001`, yearly) with lines, the sums given
+  at the port and revisions, in `purchasing`. A receipt stays what it was (saved = in stock, never edited): a receipt
+  line needs its batch, and every receipt selector would otherwise have to skip drafts.
+- **Statuses:** `submitted` → `validated` or `refused`, both final. A supplier or a product may be a typed name
+  (`proposed_supplier`, `proposed_product`) until the office picks or creates the real one; validation needs real
+  ones and a place (`location`, chosen by the office).
+- **Revisions:** each save that changes something adds a `FieldPurchaseRevision` (full copy, who, when, the office's
+  note given then). The first one is the purchase as sent. A save must name the revision it was based on; an older
+  one is refused on `revision` ("modifié entre-temps"). The API lists each revision's changes against the one before
+  (`field`, `line`, `before`, `after`); lines and payments are compared by position.
+- **What is owed is the kg received (Q28).** The office types the kg received per line; empty means the driver's kg.
+  At validation, in one transaction: a BR with the kg received as invoiced and accepted weight and the driver's kg as
+  its "ordered" weight (so the difference shows on the BR and in the differences report); a posted FF for that BR,
+  due by the deal; an RF per sum given at the port, allocated to that FF, the part beyond it an advance. So the
+  supplier balance, the statement (D-156) and the overdue list need no change.
+- **The deal is set per purchase:** comptant (due that day), N days, or end of month + N days.
+- **Cheques and traites:** `SupplierPayment.cash_on` keeps the day a post-dated cheque or a traite may be cashed (T12c
+  will list them by day).
+- **Permissions:** owner and manager change, validate and refuse; the accountant reads; drivers 403 here (their own
+  endpoints come in T12b). A partner per line is the owner's choice (D-100); a manager may keep one already chosen.
+  The office may also type a purchase phoned in (`POST /field-purchases`); its buyer is then the person typing it.
+- **Alert:** the dashboard counts purchases to check and those sent more than 24 hours ago (provisional window).
+- Screens: Achats › "Achats terrain" (list, to check first), the check page (create the typed supplier or product,
+  kg received, prices, place, deal, boxes, note to the driver; save, validate with a summary, refuse with a reason) and
+  the history. Demo: `KRK-0917` from Pêcherie Kerkennah with a product named "Pageot", waiting.

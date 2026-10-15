@@ -85,13 +85,22 @@ function valuesOf(product: Product): FormValues {
   };
 }
 
-/** Create a product (`product` absent) or change one. Owners and managers only; the server checks it too. */
-export function ProductDialog({ product, onDone }: { product?: Product; onDone: () => void }) {
+/** Create a product (`product` absent) or change one. Owners and managers only; the server checks it too.
+ * `startName` fills a new product's name, e.g. the one a driver typed at the port (D-157). */
+export function ProductDialog({
+  product,
+  startName,
+  onDone,
+}: {
+  product?: Product;
+  startName?: string;
+  onDone: () => void;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
   const categories = useListCategories();
-  const [values, setValues] = useState<FormValues>(product ? valuesOf(product) : EMPTY);
+  const [values, setValues] = useState<FormValues>(product ? valuesOf(product) : { ...EMPTY, name: startName ?? "" });
   const [errors, setErrors] = useState<Errors>({});
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);

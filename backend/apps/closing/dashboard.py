@@ -15,6 +15,7 @@ from apps.expenses import selectors as expenses
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.partnerships import selectors as partnerships
+from apps.purchasing import selectors as purchasing
 from apps.sales import selectors as sales
 
 from . import monthly
@@ -97,6 +98,9 @@ class Dashboard:
     # Lots whose partner was named at the receipt and whose capital and rates are not filled in (D-100).
     pending_terms: tuple[PendingTermsRow, ...]
     pending_terms_count: int
+    # Purchases at the port waiting for the office, and those of them sent more than 24 hours ago (D-157).
+    field_purchases_waiting: int
+    field_purchases_late: int
 
 
 def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
@@ -114,6 +118,7 @@ def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
     expiring = inventory.expiring_batches(organization, today=today, within_days=EXPIRY_ALERT_DAYS)
     differences = dayclose.unexplained_cash_differences(organization)
     pending = list(partnerships.pending_terms(organization))
+    field_purchases = purchasing.field_purchases_waiting(organization)
     return Dashboard(
         month=month,
         sales=report.revenue,
@@ -167,4 +172,6 @@ def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
             for row in pending[:ALERT_ITEMS_SHOWN]
         ),
         pending_terms_count=len(pending),
+        field_purchases_waiting=field_purchases.waiting,
+        field_purchases_late=field_purchases.late,
     )

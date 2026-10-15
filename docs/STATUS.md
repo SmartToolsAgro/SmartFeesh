@@ -1,13 +1,17 @@
 # Project status
 
-_Last updated: 2026-10-15 (customer and supplier statement PDF, D-156; before that the driver app wave: tab logo, price refresh and notice, shown-price check, made-at records,
-customers and photos, list prices; D-147 to D-153)_
+_Last updated: 2026-10-15 (buying at the port, office side, P3-T12a, D-157; before that the statement PDF, D-156, and the
+driver app wave D-147 to D-153)_
 
 ## Where we are
 
 - **Phase:** Phase 1 is done except P1-T14 (returnable boxes, owner decisions 2 to 4 open). Phase 2 (sales) is mostly
-  done, Phase 5 (costs) is done, Phase 6 has T01 to T03 done. **Phase 3 (driver app) has T01 to T07d and T11 done, and
-  the price and offline items of T02 and T03 done**; open: T08 field test, T09 Arabic review, T10 printing.
+  done, Phase 5 (costs) is done, Phase 6 has T01 to T03 done. **Phase 3 (driver app) has T01 to T07d, T11 and T12a done, and
+  the price and offline items of T02 and T03 done**; open: T12b and T12c (buying at the port), T08 field test, T09 Arabic
+  review, T10 printing.
+- **New owner request (2026-10-15, Q28, D-157): buying at the port.** A driver buys from a fisherman, sends it from the
+  phone; the owner or the manager checks it (kg received, prices, revisions with notes) and validates it, which makes
+  the BR, the FF due by the deal and the RF of what was given. T12a (office side) is on branch `purchase-validation`.
 - **On `main` since the last update:** the company logo as the driver's tab icon, also on the login screen (D-147,
   #138); prices refreshed every minute with a notice on every screen when a price changes (D-148, #140); a driver's
   sale carries the price the phone showed, checked by the server (D-150, #142); expenses, losses, payments and box
@@ -24,6 +28,10 @@ customers and photos, list prices; D-147 to D-153)_
 
 ## Next step (do this first)
 
+- **P3-T12b, the phone screen** (`docs/phases/03-driver-app.md`): a "can buy" switch per driver, `POST/PUT
+  /my-field-purchases` for the driver (his own, while `submitted`; keep the office's kg received and partners when the
+  driver saves), the purchase screen on the phone (offline like a sale), and the purchase float in the day closing.
+  Then P3-T12c (supplier debts screen, the deal on the office receipt form, cheques by cashing day).
 0. **Domain and HTTPS (D-155, `docs/runbook.md` "Domain and HTTPS"):** the owner adds the two DNS `A` records
    (`app` and `ch` → 217.182.205.137); merge phase 1 and check the names answer; on the server run the
    certbot webroot command; then phase 2 (443, HTTPS settings, https origins) in a new PR.
@@ -89,6 +97,8 @@ customers and photos, list prices; D-147 to D-153)_
 
 ## Recently done
 
+- 2026-10-15 · D-157 buying at the port, office side (P3-T12a): `FieldPurchase` with revisions, check page, validation
+  into BR + FF + RF, refusal, dashboard alert, demo purchase `KRK-0917`. Check it on staging (Achats › Achats terrain).
 - 2026-10-15 · D-156 statement PDF of a customer or a supplier ("Relevé (PDF)" on their page): up to a day or between
   two days; products, kg and prices of each BL/BR, payments, running balance, boxes, summary. Check the layout on staging.
 - 2026-10-15 · D-154 the driver sees the company logo: the logo endpoint lets every member read it (the driver got 403),
@@ -97,18 +107,4 @@ customers and photos, list prices; D-147 to D-153)_
   first (`LinesGrid` `places`, `placesOf`; not yet on the sale screens).
 - 2026-10-15 · D-153 the sale screen shows the price the selected customer pays (`my-stock?customer=`), closing D-150's
   display gap (#145).
-- 2026-10-15 · D-152 a driver adds a customer on the phone (`POST /my-customers`, cash only, online only); the stock
-  lists show each product's photo (#144).
-- 2026-10-15 · D-151 expenses, losses, customer payments and box pickups carry the moment the phone says (`made_at`),
-  checked like a sale; the closing counts them by that moment (#143).
-- 2026-10-15 · D-150 a driver's sale carries the price the phone showed; the server accepts it only when it was a real
-  price in the last 24 hours; a customer's own list wins (#142).
-- 2026-10-15 · D-149 "Aujourd'hui" at the top of the day: sales, cash to hold, expenses, kilos left (#141).
-- 2026-10-15 · D-148 prices refreshed every minute while online; a notice on every screen when a price changes (#140).
-- 2026-10-15 · D-147 the company logo is the driver's tab icon, also on the login screen (#138).
-- 2026-10-15 · D-146 client start: demo data emptied, real master data kept (`prepare_client_start`, #137).
-- 2026-10-15 · D-145 archived records leave every dropdown except the one a saved record uses (`lib/pickable.ts`).
-- 2026-10-14 · D-134 sending the closing closes the driver's day; a load of that date reopens it (#114).
-- 2026-10-14 · D-142 cold-room and general costs charged by the hour; D-141 security review; D-140 monitoring;
-  D-139 nightly backups on staging (restore drill done).
-- Earlier waves (boxes D-124 to D-127, closing D-128 to D-131, invoice PDF D-125, documents D-131 and D-138): see git log.
+- Earlier: the driver app wave D-145 to D-152, closing D-134, costs D-142, ops D-139 to D-141; boxes D-124 to D-127, closing D-128 to D-131, invoice PDF D-125, documents D-131 and D-138: see git log.

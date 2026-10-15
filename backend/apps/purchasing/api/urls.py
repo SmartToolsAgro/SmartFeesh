@@ -28,4 +28,11 @@ urlpatterns = [
         name="supplier-payment-allocate",
     ),
     path("supplier-balances/<int:supplier_id>", views.SupplierBalanceView.as_view(), name="supplier-balance"),
+    path("field-purchases", views.FieldPurchaseListView.as_view(), name="field-purchase-list"),
+    path("field-purchases/<int:purchase_id>", views.FieldPurchaseDetailView.as_view(), name="field-purchase-detail"),
+    path(
+        "field-purchases/<int:purchase_id>/refuse",
+        views.FieldPurchaseRefuseView.as_view(),
+        name="field-purchase-refuse",
+    ),
 ]

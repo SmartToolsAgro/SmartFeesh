@@ -40,4 +40,6 @@ export interface Dashboard {
   readonly cash_difference_count: number;
   readonly pending_terms: readonly PendingTerms[];
   readonly pending_terms_count: number;
+  readonly field_purchases_waiting: number;
+  readonly field_purchases_late: number;
 }

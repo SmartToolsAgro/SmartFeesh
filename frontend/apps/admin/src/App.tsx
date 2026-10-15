@@ -58,6 +58,8 @@ import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
 import { ReceiptFormPage } from "./receipts/ReceiptFormPage";
 import { ReceiptsPage } from "./receipts/ReceiptsPage";
+import { FieldPurchaseNewPage, FieldPurchasePage } from "./fieldpurchases/FieldPurchasePage";
+import { FieldPurchasesPage } from "./fieldpurchases/FieldPurchasesPage";
 import { CounterSalePage } from "./sales/CounterSalePage";
 import { SaleDetailPage } from "./sales/SaleDetailPage";
 import { SaleEditPage, SaleFormPage } from "./sales/SaleFormPage";
@@ -247,6 +249,10 @@ function AppRoutes() {
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
         <Route path="/achats/bons/nouveau" element={<PurchaseOrderFormPage />} />
         <Route path="/achats/bons/:orderId" element={<PurchaseOrderDetailPage />} />
+        {/* Buying at the port (P3-T12a, D-157) */}
+        <Route path="/achats/terrain" element={<FieldPurchasesPage />} />
+        <Route path="/achats/terrain/nouveau" element={<FieldPurchaseNewPage />} />
+        <Route path="/achats/terrain/:purchaseId" element={<FieldPurchasePage />} />
         <Route path="/achats/nouvelle" element={<ReceiptFormPage />} />
         <Route path="/achats/:receiptId" element={<ReceiptDetailPage />} />
         <Route path="/achats/factures" element={<SupplierInvoicesPage />} />
