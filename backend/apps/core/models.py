@@ -30,6 +30,8 @@ class Organization(TimeStampedModel):
     is_active = models.BooleanField(default=True)
     # Shown in the app header, as the browser-tab icon and on every PDF (D-123, D-125).
     logo = models.ImageField(upload_to=organization_logo_path, blank=True)
+    # Set when the client's real data is entered (prepare_client_start, D-146). The demo seed then adds nothing.
+    real_data_since = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
