@@ -127,6 +127,25 @@ export const fr = {
       passwordError: "Le mot de passe n'a pas pu être changé. Vérifiez le mot de passe actuel.",
       error: "Le profil n'a pas pu être enregistré.",
     },
+    // D-156 · the statement PDF of a customer or a supplier over chosen dates
+    partyStatement: {
+      button: "Relevé (PDF)",
+      title: "Relevé de {{name}}",
+      description:
+        "Toutes les ventes ou réceptions avec les produits, les kilos et les prix, les règlements, le solde et les caisses, avec un résumé.",
+      mode: "Période",
+      untilDay: "Jusqu'à une date",
+      between: "Entre deux dates",
+      dateFrom: "Du",
+      dateTo: "Au",
+      until: "Jusqu'au",
+      required: "Choisissez une date.",
+      order: "La date de fin précède la date de début.",
+      open: "Ouvrir le PDF",
+      making: "Préparation…",
+      failed: "Le relevé n'a pas pu être préparé. Réessayez dans un instant.",
+      cancel: "Annuler",
+    },
     documents: {
       pdf: "PDF",
       statement: "Relevé du partenaire (PDF)",

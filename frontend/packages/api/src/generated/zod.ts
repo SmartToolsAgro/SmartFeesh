@@ -10662,6 +10662,22 @@ export const ExportCustomerBalancesReportResponse = zod.unknown()
 
 
 /**
+ * The customer's statement as a PDF: every sale with its products, kilos and prices, the payments, the
+ * account with its running balance, the boxes they hold, and a summary. Office roles; drivers get 403.
+ */
+export const GetCustomerStatementPdfParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const GetCustomerStatementPdfQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day; empty: from the beginning.'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const GetCustomerStatementPdfResponse = zod.unknown()
+
+
+/**
  * Per product: kilos written off as losses, and the net weight differences found by counts and
  * adjustments, at the lot's cost per kg.
  */
@@ -10993,6 +11009,22 @@ export const GetSupplierBalancesReportResponse = zod.object({
  * What is owed to suppliers, as an Excel file.
  */
 export const ExportSupplierBalancesReportResponse = zod.unknown()
+
+
+/**
+ * The supplier's statement as a PDF: every receipt with its products, kilos and prices, the invoices and
+ * payments as an account with its running balance, the boxes we owe them, and a summary. Office roles.
+ */
+export const GetSupplierStatementPdfParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const GetSupplierStatementPdfQueryParams = zod.object({
+  "date_from": zod.iso.date().optional().describe('First day; empty: from the beginning.'),
+  "date_to": zod.iso.date().optional().describe('Last day, inclusive (default: today).')
+})
+
+export const GetSupplierStatementPdfResponse = zod.unknown()
 
 
 /**

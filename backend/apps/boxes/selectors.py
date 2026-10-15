@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from django.db.models import Q, QuerySet, Sum
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from apps.core.models import Organization
 
@@ -140,3 +141,96 @@ def movements_of(
     if holder is not None:
         movements = movements.filter(Q(from_holder=holder) | Q(to_holder=holder))
     return movements
+
+
+@dataclass(frozen=True)
+class PartyBoxMove:
+    day: dt.date
+    box_type: str
+    kind: str
+    kind_label: str
+    # Positive: the party's balance grows (boxes left with a client, boxes a supplier lent us); negative: it shrinks.
+    count: int
+
+
+@dataclass(frozen=True)
+class PartyBoxType:
+    box_type: str
+    label: str
+    opening: int
+    added: int
+    removed: int
+    closing: int
+
+
+@dataclass(frozen=True)
+class PartyBoxes:
+    """The boxes of one client (boxes they hold) or one supplier (boxes we owe it) over a period (D-156)."""
+
+    types: tuple[PartyBoxType, ...]
+    moves: tuple[PartyBoxMove, ...]
+
+
+def party_boxes(
+    organization: Organization,
+    *,
+    customer_id: int | None = None,
+    supplier_id: int | None = None,
+    date_from: dt.date | None,
+    date_to: dt.date,
+) -> PartyBoxes:
+    """Per box type: the balance before `date_from`, what was added and removed up to `date_to`, the balance then;
+    and the movements of the period, oldest first. A movement's day is when it was made (the driver's phone), else
+    when it was recorded, in local time, as on the truck's day."""
+    if (customer_id is None) == (supplier_id is None):
+        raise ValueError("party_boxes takes one customer or one supplier")
+    party = Q(customer_id=customer_id) if customer_id is not None else Q(supplier_id=supplier_id)
+    holder = BoxHolder.objects.for_organization(organization).filter(party).first()
+    opening = dict.fromkeys(BoxType.values, 0)
+    added = dict.fromkeys(BoxType.values, 0)
+    removed = dict.fromkeys(BoxType.values, 0)
+    moves: list[PartyBoxMove] = []
+    if holder is not None:
+        rows = (
+            movements_of(organization, holder=holder)
+            .annotate(moved=Coalesce("made_at", "created_at"))
+            .order_by("moved", "id")
+        )
+        for movement in rows:
+            day = timezone.localtime(movement.moved).date()
+            if day > date_to:
+                break
+            arrived = movement.to_holder_id == holder.pk
+            # A supplier's balance is what we owe it: boxes leaving it raise it (D-122).
+            grows = arrived != (holder.target_kind == "supplier")
+            count = movement.count if grows else -movement.count
+            if date_from is not None and day < date_from:
+                opening[movement.box_type] += count
+                continue
+            if count > 0:
+                added[movement.box_type] += count
+            else:
+                removed[movement.box_type] -= count
+            moves.append(
+                PartyBoxMove(
+                    day=day,
+                    box_type=movement.box_type,
+                    kind=movement.kind,
+                    kind_label=str(BoxMovementKind(movement.kind).label),
+                    count=count,
+                )
+            )
+    return PartyBoxes(
+        types=tuple(
+            PartyBoxType(
+                box_type=box_type,
+                label=str(BoxType(box_type).label),
+                opening=opening[box_type],
+                added=added[box_type],
+                removed=removed[box_type],
+                closing=opening[box_type] + added[box_type] - removed[box_type],
+            )
+            for box_type in BoxType.values
+        ),
+        moves=tuple(moves),
+    )
