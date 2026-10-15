@@ -1376,6 +1376,7 @@ export const fr = {
         daily: "Prix du jour",
         quote: "Devis",
         typed: "Saisi",
+        shown: "Affiché au chauffeur",
       },
       columns: {
         number: "N°",
