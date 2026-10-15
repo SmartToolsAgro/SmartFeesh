@@ -227,7 +227,8 @@ def test_a_driver_only_changes_their_own_purchase(setup):
 def summary(setup) -> dict[str, Any]:
     response = setup["api"].get(reverse("my-day-summary"))
     assert response.status_code == 200, response.json()
-    return response.json()["summary"]
+    figures: dict[str, Any] = response.json()["summary"]
+    return figures
 
 
 def test_cash_given_at_the_port_comes_out_of_the_purchase_money(setup):
