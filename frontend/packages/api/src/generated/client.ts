@@ -13167,6 +13167,9 @@ if(roadExpenseWrite.receipt !== undefined) {
 if(roadExpenseWrite.client_uuid !== undefined && roadExpenseWrite.client_uuid !== null) {
  formData.append(`client_uuid`, roadExpenseWrite.client_uuid);
  }
+if(roadExpenseWrite.made_at !== undefined && roadExpenseWrite.made_at !== null) {
+ formData.append(`made_at`, roadExpenseWrite.made_at);
+ }
 
   return apiFetch<RoadExpense>(getAddMyExpenseUrl(),
   {
@@ -13251,6 +13254,9 @@ if(roadLossWrite.photo !== undefined) {
  }
 if(roadLossWrite.client_uuid !== undefined && roadLossWrite.client_uuid !== null) {
  formData.append(`client_uuid`, roadLossWrite.client_uuid);
+ }
+if(roadLossWrite.made_at !== undefined && roadLossWrite.made_at !== null) {
+ formData.append(`made_at`, roadLossWrite.made_at);
  }
 
   return apiFetch<RoadLoss>(getReportMyLossUrl(),

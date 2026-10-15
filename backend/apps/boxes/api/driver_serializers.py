@@ -30,3 +30,5 @@ class MyBoxPickupWriteSerializer(serializers.Serializer[Any]):
     # Sent by the driver app, which keeps a pickup it could not send and retries it: the same value never
     # makes two pickups.
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+    # When the driver's phone says the boxes were collected (D-133); the server checks it.
+    made_at = serializers.DateTimeField(required=False, allow_null=True, default=None)

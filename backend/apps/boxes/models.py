@@ -137,6 +137,8 @@ class BoxMovement(OrganizationScopedModel):
     # The document that caused it (delivery, receipt...), when there is one.
     source_type = models.ForeignKey(ContentType, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     source_id = models.PositiveBigIntegerField(null=True, blank=True)
+    # When the driver's phone says the boxes moved (D-133); empty for a movement made at the office.
+    made_at = models.DateTimeField(null=True, blank=True)
     source = GenericForeignKey("source_type", "source_id")
     # Null when the system acts on its own.
     created_by = models.ForeignKey(

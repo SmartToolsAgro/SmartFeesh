@@ -74,10 +74,13 @@ async function tellOffice(item: QueuedItem): Promise<void> {
 function sendItem(item: QueuedItem, options: RequestInit): Promise<unknown> {
   // A sale goes with the time it was made, not the time it is sent (D-133): the server dates it from that.
   if (item.kind === "sale") return createSale({ ...item.data, sold_at: madeAtOf(item) }, options);
-  if (item.kind === "expense") return addMyExpense(item.data, options);
-  if (item.kind === "payment") return collectMyPayment(item.data, options);
-  if (item.kind === "pickup") return collectMyBoxes(item.data, options);
-  return reportMyLoss(item.data, options);
+  // An expense, a payment, boxes or a loss keep the time they were entered on the phone too, so the day they
+  // belong to is the day they happened (P3-T07c, D-133).
+  const madeAt = item.createdAt;
+  if (item.kind === "expense") return addMyExpense({ ...item.data, made_at: madeAt }, options);
+  if (item.kind === "payment") return collectMyPayment({ ...item.data, made_at: madeAt }, options);
+  if (item.kind === "pickup") return collectMyBoxes({ ...item.data, made_at: madeAt }, options);
+  return reportMyLoss({ ...item.data, made_at: madeAt }, options);
 }
 
 /** One send, given up after SEND_TIMEOUT_MS: the request is aborted and the timeout reads as "no connection". */

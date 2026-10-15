@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
+from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.dayclose import selectors as dayclose
@@ -402,13 +403,14 @@ class MyLossesView(APIView):
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
-        dayclose.refuse_if_day_closed(membership)
-        truck = fleet.truck_of_driver(membership)
-        if truck is None:
-            raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})
         serializer = RoadLossWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        made_at = moment_from_phone(data["made_at"], field="made_at")
+        dayclose.refuse_sale_outside_day(membership, made_at)
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise ValidationError({"truck": _("Choisissez d'abord votre camion.")})
         try:
             product = catalog.product_of(organization, data["product"])
         except ObjectDoesNotExist:
@@ -423,6 +425,7 @@ class MyLossesView(APIView):
             note=data["note"],
             upload=data.get("photo"),
             client_uuid=data["client_uuid"],
+            made_at=made_at,
         )
         return Response(RoadLossSerializer(loss).data, status=status.HTTP_201_CREATED)
 

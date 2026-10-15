@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
+from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import HasRole, IsOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.dayclose import selectors as dayclose
@@ -270,7 +271,7 @@ class SaleView(OfficeView):
             # The sale is dated when it was made, as the phone says, once checked: not in the future, on a day
             # the driver had this truck and the office has not approved. Without a time, or for a draft being
             # changed, the moment stays the server's.
-            sold_at = services.moment_from_phone(sold_at) if new else None
+            sold_at = moment_from_phone(sold_at) if new else None
             made_on = timezone.localtime(sold_at).date() if sold_at is not None else None
         self.check_location(data["location"], made_on, made_at=sold_at if self.is_driver else None)
         fields: dict[str, Any] = {

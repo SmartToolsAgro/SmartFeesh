@@ -12,6 +12,8 @@ class RoadPaymentWriteSerializer(serializers.Serializer[Any]):
     method = serializers.ChoiceField(choices=SalePaymentMethod.choices, default=SalePaymentMethod.CASH)
     # Sent by the app that may retry: the same value never records two payments.
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+    # When the driver's phone says it happened (D-133); the server checks it.
+    made_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
 
 
 class RoadPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):

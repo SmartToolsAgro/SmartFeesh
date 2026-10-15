@@ -2207,3 +2207,16 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Shown only while the day runs. Sales, cash and expenses come from the server's day summary (`getMyDaySummary`); the
   kilos left are the truck's stock less what waits on the phone. Sales still waiting to be sent are not in the figures:
   the card says how many there are (`TodayAtAGlance.tsx`).
+
+**D-151 · Expenses, losses, customer payments and box pickups keep the moment the driver's phone says (P3-T07c, D-133)** · accepted · 2026-10-15
+- Asked by the owner (2026-10-15): a record entered on the phone without signal must count in the day it was made, not the
+  day it was sent. Sales already did this (D-133); the same rule now covers the four other records.
+- The phone sends `made_at` (the time it was entered, `createdAt` of the queued item). The server checks it with the
+  same rule as a sale (`apps/core/clock.py`: not in the future, a few minutes of clock margin ignored) and refuses the
+  record on a day already sent before that moment or approved (`refuse_sale_outside_day`, D-134, D-094). A record
+  entered on a day the office approved is now refused, as D-094 intends.
+- Expenses: `spent_on` is the day of `made_at`; the closing counts them by `made_at`. Payments: `received_on` is the day
+  of `made_at`; the closing counts them by `made_at`. Boxes: the day of a movement is `made_at`, else its creation.
+- Losses: the kilos leave the stock at `made_at` (the movement's `occurred_at`), and the server checks the truck held
+  them then (`held_since_then`), as for a late sale.
+- Records without `made_at` (the office's, and phones that send none) keep the old rule: the day they are recorded.

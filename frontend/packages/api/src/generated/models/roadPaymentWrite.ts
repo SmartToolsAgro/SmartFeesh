@@ -13,4 +13,6 @@ export interface RoadPaymentWrite {
   method?: SalePaymentMethodEnum;
   /** @nullable */
   client_uuid?: string | null;
+  /** @nullable */
+  made_at?: string | null;
 }

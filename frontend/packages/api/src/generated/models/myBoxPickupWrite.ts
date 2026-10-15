@@ -12,4 +12,6 @@ export interface MyBoxPickupWrite {
   boxes?: MyBoxPickupWriteBoxes;
   /** @nullable */
   client_uuid?: string | null;
+  /** @nullable */
+  made_at?: string | null;
 }

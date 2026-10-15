@@ -14,4 +14,6 @@ export interface RoadExpenseWrite {
   receipt?: Blob | File;
   /** @nullable */
   client_uuid?: string | null;
+  /** @nullable */
+  made_at?: string | null;
 }

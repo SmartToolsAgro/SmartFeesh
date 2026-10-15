@@ -61,7 +61,7 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
     payments = [
         p
         for p in sales.payments_received_by(organization, user_id=driver_day.driver_id, day=day)
-        if inside(p.created_at)
+        if inside(p.made_at or p.created_at)
     ]
     payments_cash = sum((p.amount for p in payments if p.method == "cash"), ZERO)
     payments_other = sum((p.amount for p in payments if p.method != "cash"), ZERO)
@@ -69,7 +69,7 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         (
             e.amount
             for e in expenses.road_expenses(organization, user_id=driver_day.driver_id, day=day)
-            if e.status != "rejected" and inside(e.created_at)
+            if e.status != "rejected" and inside(e.made_at or e.created_at)
         ),
         ZERO,
     )

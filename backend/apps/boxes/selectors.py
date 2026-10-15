@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.db.models import Q, QuerySet, Sum
+from django.db.models.functions import Coalesce
 
 from apps.core.models import Organization
 
@@ -107,7 +108,9 @@ def truck_day(organization: Organization, location: "StockLocation", day: dt.dat
         rows = movements.order_by().values("box_type").annotate(total=Sum("count"))
         return {row["box_type"]: row["total"] for row in rows}
 
-    today = BoxMovement.objects.for_organization(organization).filter(created_at__date=day)
+    # The day a movement belongs to: when it was made (the driver's phone's time), else when it was recorded.
+    today = BoxMovement.objects.for_organization(organization).annotate(moved=Coalesce("made_at", "created_at"))
+    today = today.filter(moved__date=day)
     loaded = totals(today.filter(kind=BoxMovementKind.LOAD, to_holder__location=location))
     left = totals(today.filter(kind=BoxMovementKind.LEAVE, from_holder__location=location))
     collected = totals(today.filter(kind=BoxMovementKind.COLLECT, to_holder__location=location))

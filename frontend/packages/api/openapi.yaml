@@ -14529,6 +14529,10 @@ components:
           type: string
           format: uuid
           nullable: true
+        made_at:
+          type: string
+          format: date-time
+          nullable: true
       required:
       - customer
     MyDayRow:
@@ -18041,6 +18045,10 @@ components:
           type: string
           format: uuid
           nullable: true
+        made_at:
+          type: string
+          format: date-time
+          nullable: true
       required:
       - amount
       - category
@@ -18100,6 +18108,10 @@ components:
           type: string
           format: uuid
           nullable: true
+        made_at:
+          type: string
+          format: date-time
+          nullable: true
       required:
       - product
       - quantity
@@ -18146,6 +18158,10 @@ components:
         client_uuid:
           type: string
           format: uuid
+          nullable: true
+        made_at:
+          type: string
+          format: date-time
           nullable: true
       required:
       - amount

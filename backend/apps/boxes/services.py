@@ -1,5 +1,6 @@
 """Every write on returnable boxes goes through these functions, inside `transaction.atomic` (ARCHITECTURE §3)."""
 
+import datetime as dt
 import uuid
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
@@ -82,6 +83,7 @@ def post_box_movement(
     to_holder: BoxHolder | None = None,
     reason: str = "",
     source: models.Model | None = None,
+    made_at: dt.datetime | None = None,
 ) -> BoxMovement:
     """Post one box movement. Refuses an unknown kind or box type, holders that do not fit the kind,
     holders of another organization, and any movement that would make a holder's balance negative."""
@@ -134,6 +136,7 @@ def post_box_movement(
         source_type=ContentType.objects.get_for_model(source) if source is not None else None,
         source_id=source.pk if source is not None else None,
         created_by=actor,
+        made_at=made_at,
     )
     audit.record(
         organization=organization,
@@ -194,6 +197,7 @@ def post_pickup(
     location: "StockLocation",
     counts: Mapping[str, int],
     client_uuid: uuid.UUID | None = None,
+    made_at: dt.datetime | None = None,
 ) -> list[BoxMovement]:
     """Boxes a driver collects back from a client into the truck (`collect`, D-122). All or nothing: refused
     when the client holds fewer boxes of one type than asked (the ledger refuses a negative balance).
@@ -221,6 +225,7 @@ def post_pickup(
         from_holder=holder_for(organization=organization, customer=customer),
         to_holder=holder_for(organization=organization, location=location),
         source=pickup,
+        made_at=made_at,
     )
 
 
@@ -234,6 +239,7 @@ def post_box_counts(
     from_holder: BoxHolder | None = None,
     to_holder: BoxHolder | None = None,
     source: models.Model | None = None,
+    made_at: dt.datetime | None = None,
 ) -> list[BoxMovement]:
     """One movement per box type with a non-zero count, all or nothing (the caller's transaction)."""
     return [
@@ -246,6 +252,7 @@ def post_box_counts(
             from_holder=from_holder,
             to_holder=to_holder,
             source=source,
+            made_at=made_at,
         )
         for box_type, count in counts.items()
         if count
