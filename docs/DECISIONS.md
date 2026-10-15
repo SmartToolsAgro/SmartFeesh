@@ -2265,9 +2265,9 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Not solved: a phone that has never logged in on a logo-bearing company still shows the default mark on the login
   screen. Showing the logo there too would need a public endpoint (which company's logo, when several share a server?).
 
-**D-155 · The company domain fruttidelmar.com: one name per app, HTTPS in two steps** · accepted · 2026-10-15
-- The owner's domain is fruttidelmar.com. The admin app is `app.fruttidelmar.com`, the driver app
-  `ch.fruttidelmar.com` (chosen by the owner; D-036 planned one name per app on the real domain). The sslip.io names
+**D-155 · The company domain fruttidelmare.com: one name per app, HTTPS in two steps** · accepted · 2026-10-15
+- The owner's domain is fruttidelmare.com. The admin app is `app.fruttidelmare.com`, the driver app
+  `ch.fruttidelmare.com` (chosen by the owner; D-036 planned one name per app on the real domain). The sslip.io names
   redirect to them.
 - Staging stays on the shared OVH VPS (217.182.205.137). The host nginx serves the two names; the certificate is one
   Let's Encrypt certificate for both names, issued with the webroot method (`/var/www/frutti-acme`), so the nginx site
@@ -2277,5 +2277,5 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   HTTPS settings (`DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SECURE_COOKIES`, `DJANGO_SECURE_HSTS_SECONDS`) and https origins.
   Supersedes D-027's "no domain" and the sslip.io names of D-036.
 - The backend health check sends `X-Forwarded-Proto: https` so Django does not redirect it once HTTPS is on.
-- The bare domain `fruttidelmar.com` gets no page and no redirect: the apps live only on their two names (owner, 2026-10-15).
+- The bare domain `fruttidelmare.com` gets no page and no redirect: the apps live only on their two names (owner, 2026-10-15).
 - Not done here: the production server (P4-T02).

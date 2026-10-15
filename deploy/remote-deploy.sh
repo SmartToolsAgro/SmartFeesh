@@ -8,8 +8,8 @@ BASE="$HOME/frutti-staging"
 RELEASE_DIR="$BASE/releases/$RELEASE"
 ENV_FILE="$BASE/.env"
 # One host name per app, so their login cookies stay apart (D-036, D-155). Must match nginx-host-staging.conf.
-ADMIN_HOST="app.fruttidelmar.com"
-DRIVER_HOST="ch.fruttidelmar.com"
+ADMIN_HOST="app.fruttidelmare.com"
+DRIVER_HOST="ch.fruttidelmare.com"
 ACME_WEBROOT=/var/www/frutti-acme # Let's Encrypt challenge files, served by the host nginx (D-155)
 NGINX_SITE=/etc/nginx/sites-available/frutti-staging
 

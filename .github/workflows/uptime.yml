@@ -24,8 +24,8 @@ jobs:
     env:
       # Repository variables (Settings → Secrets and variables → Actions → Variables) override these, for
       # example once production has its own addresses.
-      ADMIN_URL: ${{ vars.UPTIME_ADMIN_URL || 'http://app.fruttidelmar.com' }}
-      DRIVER_URL: ${{ vars.UPTIME_DRIVER_URL || 'http://ch.fruttidelmar.com' }}
+      ADMIN_URL: ${{ vars.UPTIME_ADMIN_URL || 'http://app.fruttidelmare.com' }}
+      DRIVER_URL: ${{ vars.UPTIME_DRIVER_URL || 'http://ch.fruttidelmare.com' }}
     steps:
       - name: Check the apps, the API and the nightly stock check
         run: |

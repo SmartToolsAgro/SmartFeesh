@@ -14,8 +14,8 @@ customers and photos, list prices; D-147 to D-153)_
   pickups keep the moment the phone says, so they count in the day they were made (D-151, #143); a driver adds a
   customer on the phone and the stock shows product photos (D-152, #144); the sale screen shows the price the chosen
   customer pays (D-153, #145); "Aujourd'hui" at the top of the day (D-149, #141).
-- **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmar.com, driver
-  http://ch.fruttidelmar.com (phase 1 of the domain; HTTPS is phase 2, after the certificate). Demo logins `owner` / `driver` (password in `~/frutti-staging/.env`
+- **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmare.com, driver
+  http://ch.fruttidelmare.com (phase 1 of the domain; HTTPS is phase 2, after the certificate). Demo logins `owner` / `driver` (password in `~/frutti-staging/.env`
   on the server). Every merge to `main` deploys staging; check `gh run list`.
 - **The plan (2026-10-11, `docs/spec/client-meeting-2026-10-11.md`):** profit per lot, shared with partners (D-040);
   a driver's truck is chosen per day (D-042). Q21 confirmed; Q24 (truck-cost split) still provisional.
@@ -50,7 +50,7 @@ customers and photos, list prices; D-147 to D-153)_
 
 - **P0-T02** (worked example): now **one real lot** worked out by hand with the owner. Phase 6 has no target without it.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
-- **P0-T11 human items:** DNS for `app.` and `ch.fruttidelmar.com` and the certificate (D-155; the domain is
+- **P0-T11 human items:** DNS for `app.` and `ch.fruttidelmare.com` and the certificate (D-155; the domain is
   chosen, the records are not yet there); the owner creates a Sentry project and puts
   its DSN in `.env` (runbook "Monitoring", D-140).
 - **TTN / El Fatoora is on hold** (D-016) although Q5 says it is required now.
