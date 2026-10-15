@@ -84,6 +84,8 @@ customers and photos, list prices; D-147 to D-153)_
 
 ## Recently done
 
+- 2026-10-15 · quote form: each product in the list shows its kilos in stock and the places holding them, fullest
+  first (`LinesGrid` `places`, `placesOf`; not yet on the sale screens).
 - 2026-10-15 · D-153 the sale screen shows the price the selected customer pays (`my-stock?customer=`), closing D-150's
   display gap (#145).
 - 2026-10-15 · D-152 a driver adds a customer on the phone (`POST /my-customers`, cash only, online only); the stock
