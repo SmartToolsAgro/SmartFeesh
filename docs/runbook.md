@@ -6,8 +6,8 @@ How to operate the running system. Keep it short and true; update it when a proc
 
 | What | Where |
 |---|---|
-| Admin app | http://app.fruttidelmare.com (https once the certificate is in, D-155) |
-| Driver app | http://ch.fruttidelmare.com (https once the certificate is in, D-155) |
+| Admin app | https://app.fruttidelmare.com (D-155) |
+| Driver app | https://ch.fruttidelmare.com (D-155) |
 | Logins | `owner`, `driver`. Created by hand, never by a deploy: a deploy does not seed data. After the client start below, new passwords and no demo data |
 | Server login | `ssh debian@217.182.205.137` (key `~/.ssh/id_ed25519_erp_prod` on Mahmoud's machine) |
 
@@ -43,6 +43,8 @@ fix is a separate server, or a server that pulls only code already on `main` fro
 
 The names are `app.fruttidelmare.com` (admin app) and `ch.fruttidelmare.com` (driver app), both pointing at 217.182.205.137.
 Phase 1 (plain HTTP, the names, the challenge webroot) and phase 2 (certificates, HTTPS) are separate deploys.
+Phase 2 is merged only after the certificate exists: the deploy stops before it changes anything when the
+certificate is missing.
 
 **Owner, at the domain registrar (DNS for fruttidelmare.com):**
 
@@ -70,9 +72,11 @@ Phase 1 (plain HTTP, the names, the challenge webroot) and phase 2 (certificates
    ```
    One certificate with both names, under `/etc/letsencrypt/live/frutti-staging/`. The deploy hook is stored with the
    renewal, so the automatic renewal reloads nginx. Check: `sudo certbot renew --dry-run`.
-3. Then the phase 2 change is made in the repo (nginx 443 blocks with these certificate files, port 80 redirects to
-   https, HTTPS settings on in `compose.staging.yml`, https origins in `remote-deploy.sh`). Merge; CI deploys.
+3. Then the phase 2 PR is merged (nginx 443 blocks with these certificate files, port 80 redirects to https,
+   HTTPS settings on in `compose.staging.yml` with HSTS at 300 seconds, https origins in `remote-deploy.sh`). CI deploys.
 4. Check: `curl -sS https://app.fruttidelmare.com/api/v1/health` and the same for `ch.`; log in on a phone.
+5. After a week on https without trouble, raise `DJANGO_SECURE_HSTS_SECONDS` in `compose.staging.yml` to 2592000
+   (30 days) in a small PR.
 
 Do not run `certbot --nginx`: it rewrites the Frutti site file, which the next deploy replaces.
 
@@ -127,7 +131,7 @@ any time: Actions → Uptime → "Run workflow", or `gh workflow run uptime.yml`
 
 **When the alert fires.** Open the failed run (Actions → Uptime): each failed check is an error line.
 
-- *Admin app / Driver app / API is down:* `curl -sS http://app.fruttidelmare.com/api/v1/health` from
+- *Admin app / Driver app / API is down:* `curl -sS https://app.fruttidelmare.com/api/v1/health` from
   any machine. If it does not answer, log in (see "Look at it"): `sudo docker ps --filter name=frutti-staging`
   (a container restarting?), `sudo docker logs --tail 100 frutti-staging-backend-1`, then
   `sudo systemctl status nginx` (read only: nginx is shared, never restart it for us; `sudo nginx -t` before any

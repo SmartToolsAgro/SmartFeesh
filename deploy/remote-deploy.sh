@@ -13,6 +13,14 @@ DRIVER_HOST="ch.fruttidelmare.com"
 ACME_WEBROOT=/var/www/frutti-acme # Let's Encrypt challenge files, served by the host nginx (D-155)
 NGINX_SITE=/etc/nginx/sites-available/frutti-staging
 
+# 0. Phase 2 (D-155): the certificate must exist before the HTTPS settings change, or nginx would fail after them
+#    and leave the apps refusing plain HTTP. Nothing is changed when it is missing.
+CERT_DIR=/etc/letsencrypt/live/frutti-staging
+if ! sudo test -f "$CERT_DIR/fullchain.pem" || ! sudo test -f "$CERT_DIR/privkey.pem"; then
+  echo "No certificate in $CERT_DIR: issue it first (docs/runbook.md, Domain and HTTPS). Nothing was changed." >&2
+  exit 1
+fi
+
 # 1. Secrets: created once on the server, never in the repository.
 if [ ! -f "$ENV_FILE" ]; then
   echo "Creating $ENV_FILE with new random secrets"
@@ -31,7 +39,7 @@ set_env() {
   if grep -q "^$1=" "$ENV_FILE"; then sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"; else echo "$1=$2" >> "$ENV_FILE"; fi
 }
 set_env DJANGO_ALLOWED_HOSTS "$ADMIN_HOST,$DRIVER_HOST"
-set_env DJANGO_CSRF_TRUSTED_ORIGINS "http://$ADMIN_HOST,http://$DRIVER_HOST"
+set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$ADMIN_HOST,https://$DRIVER_HOST"
 export RELEASE
 
 # 2. Build and start. Only Frutti's own containers are touched.
@@ -80,4 +88,4 @@ for old in $(ls -1t | tail -n +4); do
   sudo docker image rm "frutti-backend:$old" "frutti-web:$old" > /dev/null 2>&1 || true
 done
 
-echo "Deployed $RELEASE: admin http://$ADMIN_HOST  driver http://$DRIVER_HOST"
+echo "Deployed $RELEASE: admin https://$ADMIN_HOST  driver https://$DRIVER_HOST"

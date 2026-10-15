@@ -38,10 +38,11 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set in .env}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?set in .env}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:?set in .env}
-      # Plain HTTP until staging has a domain and a certificate (D-027).
-      DJANGO_SECURE_SSL_REDIRECT: "false"
-      DJANGO_SECURE_COOKIES: "false"
-      DJANGO_SECURE_HSTS_SECONDS: "0"
+      # HTTPS on the company domain (D-155, phase 2). HSTS starts at 5 minutes; raise it to 30 days once the
+      # phones have been checked (docs/runbook.md, Domain and HTTPS).
+      DJANGO_SECURE_SSL_REDIRECT: "true"
+      DJANGO_SECURE_COOKIES: "true"
+      DJANGO_SECURE_HSTS_SECONDS: "300"
       # Host nginx, then the web container.
       DJANGO_NUM_PROXIES: "2"
       # Shared by the three server processes, so the login limits (D-023) count across all of them.
