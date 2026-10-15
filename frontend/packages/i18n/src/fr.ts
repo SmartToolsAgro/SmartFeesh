@@ -1009,6 +1009,10 @@ export const fr = {
       stock: "En stock",
       remaining: "Reste (kg)",
       origin: "Depuis {{place}}",
+      // The places a product is kept in, listed under it in the product list (quote form)
+      stockOf: "En stock : {{kg}}",
+      placeKilos: "{{place}} : {{kg}}",
+      noStock: "Plus de stock",
       amount: "Montant",
       remove: "Retirer la ligne {{number}}",
       keys: "Entrée : case suivante · ↑ ↓ : changer de ligne · Ctrl + Suppr : retirer la ligne",

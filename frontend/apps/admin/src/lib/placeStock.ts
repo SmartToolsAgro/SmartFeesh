@@ -21,14 +21,18 @@ export function needsOf(rows: readonly Line[]): Need[] {
   });
 }
 
+/** The kilos one product holds in one place, by the place's name. */
+export type PlaceKilos = { place: string; kg: string };
+
+const stockQueries = (placeIds: number[]) =>
+  placeIds.map((id) => ({
+    queryKey: getListLocationStockQueryKey(id),
+    queryFn: () => listLocationStock(id),
+  }));
+
 /** The stock of every place given, loaded together. */
 export function usePlacesStock(placeIds: number[]): StockByPlace {
-  const results = useQueries({
-    queries: placeIds.map((id) => ({
-      queryKey: getListLocationStockQueryKey(id),
-      queryFn: () => listLocationStock(id),
-    })),
-  });
+  const results = useQueries({ queries: stockQueries(placeIds) });
   const byPlace: StockByPlace = new Map();
   placeIds.forEach((id, index) => {
     const byProduct = new Map<string, string>();
@@ -36,6 +40,25 @@ export function usePlacesStock(placeIds: number[]): StockByPlace {
     byPlace.set(id, byProduct);
   });
   return byPlace;
+}
+
+/** True once the stock of every place given has loaded; until then no product shows where it is kept. */
+export function usePlacesStockLoaded(placeIds: number[]): boolean {
+  const results = useQueries({ queries: stockQueries(placeIds) });
+  return results.every((result) => result.isSuccess);
+}
+
+/** Where each product is kept: the places holding it, fullest first, each named as the office names it. */
+export function placesOf(byPlace: StockByPlace, names: Map<number, string>): Map<string, PlaceKilos[]> {
+  const byProduct = new Map<string, PlaceKilos[]>();
+  for (const [id, places] of byPlace) {
+    for (const [product, kg] of places) {
+      if (toThousandths(kg) <= 0n) continue;
+      byProduct.set(product, [...(byProduct.get(product) ?? []), { place: names.get(id) ?? "", kg }]);
+    }
+  }
+  for (const list of byProduct.values()) list.sort((a, b) => Number(toThousandths(b.kg) - toThousandths(a.kg)));
+  return byProduct;
 }
 
 /** Kilos per product over all the places: what the seller sees next to the product. */

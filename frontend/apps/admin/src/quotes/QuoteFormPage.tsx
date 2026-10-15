@@ -48,7 +48,7 @@ import {
   withSpare,
 } from "../lib/lines";
 import { LinesGrid } from "../lib/LinesGrid";
-import { totalsOf, usePlacesStock } from "../lib/placeStock";
+import { placesOf, totalsOf, usePlacesStock, usePlacesStockLoaded } from "../lib/placeStock";
 import { todayInTunis } from "../receipts/shared";
 import { canWriteQuotes, refreshAfterQuote } from "./shared";
 
@@ -123,10 +123,18 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   const [errors, setErrors] = useState<Errors>({});
 
   // A quote has no place of its own: the kilos left are those in all the places (D-144).
-  const byPlace = usePlacesStock(
-    (locations.data ?? []).filter((option) => option.is_active).map((option) => option.id),
-  );
+  const activePlaces = (locations.data ?? []).filter((option) => option.is_active).map((option) => option.id);
+  const byPlace = usePlacesStock(activePlaces);
+  const stockLoaded = usePlacesStockLoaded(activePlaces);
+  // No places are known until the list of places has loaded: the grid then shows no stock line yet.
+  const placesLoaded = locations.data !== undefined && stockLoaded;
   const availableOf = useMemo(() => totalsOf(byPlace), [byPlace]);
+  // Where each product is kept, by the place's name: listed under the product in the grid (D-144).
+  const placeNames = useMemo(
+    () => new Map((locations.data ?? []).map((place) => [place.id, place.name])),
+    [locations.data],
+  );
+  const placesOfProduct = useMemo(() => placesOf(byPlace, placeNames), [byPlace, placeNames]);
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
@@ -320,6 +328,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
             )}
             proposedPrice={proposedPrice}
             stock={locations.data ? availableOf : undefined}
+            places={placesLoaded ? placesOfProduct : undefined}
             errors={errors}
             discount
             hint={priceHint}

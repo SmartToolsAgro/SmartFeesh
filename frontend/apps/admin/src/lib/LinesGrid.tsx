@@ -3,8 +3,9 @@ import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "
 import { Button, cn, Combobox, type ComboboxOption, Icon, Table, Th } from "@frutti/ui";
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { subtract } from "./decimal";
+import { subtract, sum } from "./decimal";
 import { amountsOf, filled, isBlank, isShort, type Line, shownPrice, withSpare } from "./lines";
+import type { PlaceKilos } from "./placeStock";
 
 type Column = "product" | "quantity" | "unit_price" | "discount_rate";
 
@@ -21,6 +22,8 @@ type LinesGridProps = {
   stock?: Map<string, string>;
   /** The place each product leaves from, once the sale has one (D-144); shown under the product. */
   origin?: Map<string, string>;
+  /** The places holding each product, fullest first, with the kilos in each: listed under the product. Missing while the stock is not loaded. */
+  places?: Map<string, PlaceKilos[]>;
   /** Messages keyed "lines.<n>.<field>", where n counts the filled rows only, as they are sent. */
   errors: Record<string, string>;
   /** The discount column: a quote and a sale have one, the counter sale does not. */
@@ -56,6 +59,7 @@ export function LinesGrid({
   proposedPrice,
   stock,
   origin,
+  places,
   errors,
   discount = false,
   extra,
@@ -73,18 +77,34 @@ export function LinesGrid({
     : ["product", "quantity", "unit_price"];
   const options = useMemo<ComboboxOption[]>(
     () =>
-      products.map((product) => ({
-        value: String(product.id),
-        label: `${product.name} · ${product.reference}`,
-        keywords: [product.name_ar, product.category.name],
-        detail: (
-          <span className="flex items-baseline justify-between gap-4">
-            <span>{product.name}</span>
-            <span className="num text-[0.8rem] text-ink-2">{product.reference}</span>
-          </span>
-        ),
-      })),
-    [products],
+      products.map((product) => {
+        // "En stock : 123,000 kg · Frigo 1 : 100,000 kg · Frigo 2 : 23,000 kg", or "Plus de stock" when none is kept.
+        const kept = places?.get(String(product.id));
+        const stockText =
+          kept && kept.length > 0
+            ? [
+                t("admin.lines.stockOf", { kg: formatQuantity(sum(kept.map((place) => place.kg))) }),
+                ...kept.map((place) =>
+                  t("admin.lines.placeKilos", { place: place.place, kg: formatQuantity(place.kg) }),
+                ),
+              ].join(" · ")
+            : t("admin.lines.noStock");
+        return {
+          value: String(product.id),
+          label: `${product.name} · ${product.reference}`,
+          keywords: [product.name_ar, product.category.name],
+          detail: (
+            <span className="flex flex-col gap-0.5">
+              <span className="flex items-baseline justify-between gap-4">
+                <span>{product.name}</span>
+                <span className="num text-[0.8rem] text-ink-2">{product.reference}</span>
+              </span>
+              {places && <span className="num text-[0.78rem] text-ink-2">{stockText}</span>}
+            </span>
+          ),
+        };
+      }),
+    [products, places, t],
   );
 
   function focusCell(row: number, column: Column) {
