@@ -7853,7 +7853,8 @@ export const GetMyTruckDayResponse = zod.object({
 
 
 /**
- * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ * The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
+ * the logo every document already carries; owners and managers may change it (same as the legal fields).
  */
 export const UploadOrganizationLogoParams = zod.object({
   "organization_id": zod.int()
@@ -7871,7 +7872,8 @@ export const UploadOrganizationLogoResponse = zod.object({
 
 
 /**
- * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ * The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
+ * the logo every document already carries; owners and managers may change it (same as the legal fields).
  */
 export const RemoveOrganizationLogoParams = zod.object({
   "organization_id": zod.int()
