@@ -10,6 +10,9 @@ from importlinter import Contract, ContractCheck, output
 APPS_PACKAGE = "apps"
 SHARED_APP = "core"
 PUBLIC_MODULES = frozenset({"services", "selectors"})
+# One-time operations command that empties every app's data before go-live (D-146). It reads the models of all apps
+# on purpose; nothing else may do so.
+RESET_COMMANDS = frozenset({"apps.demo.management.commands.prepare_client_start"})
 
 
 def boundary_violation(importer: str, imported: str) -> str | None:
@@ -26,6 +29,8 @@ def boundary_violation(importer: str, imported: str) -> str | None:
         return None
     # Tests may build data with another app's factories.
     if len(importer_parts) > 2 and importer_parts[2] == "tests":
+        return None
+    if importer in RESET_COMMANDS:
         return None
     if importer_app == SHARED_APP:
         return f"`{SHARED_APP}` must not depend on another app"
