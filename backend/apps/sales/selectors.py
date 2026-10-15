@@ -5,7 +5,7 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import (
     Case,
@@ -49,6 +49,9 @@ from .models import (
     SaleLineBatch,
     SaleStatus,
 )
+
+if TYPE_CHECKING:
+    from .statements import CustomerStatement
 
 # ---- Quotes (P2-T03, D-050) ----
 
@@ -1015,3 +1018,13 @@ def receivable_balances(organization: Organization) -> dict[int, Any]:
     from . import receivables
 
     return dict(receivables.customer_balances(organization))
+
+
+def customer_statement(
+    organization: Organization, customer_id: int, *, date_from: dt.date | None, date_to: dt.date
+) -> "CustomerStatement":
+    """One customer's sales (line by line), payments and account from `date_from` (the beginning when None) to
+    `date_to` (`statements.CustomerStatement`, D-156)."""
+    from . import statements
+
+    return statements.customer_statement(organization, customer_id, date_from=date_from, date_to=date_to)

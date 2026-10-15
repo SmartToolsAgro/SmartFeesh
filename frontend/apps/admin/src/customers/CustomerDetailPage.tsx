@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { StatementButton } from "../lib/StatementButton";
 import { CustomerBoxesCard } from "../boxes/CustomerBoxesCard";
 import { canCollect } from "../payments/shared";
 import { BalanceCard } from "./BalanceCard";
@@ -70,6 +71,7 @@ export function CustomerDetailPage() {
       {back}
       <PageHeader eyebrow={data.reference} title={data.name}>
         {!data.is_active && <Pill tone="neutral">{t("admin.customers.archived")}</Pill>}
+        <StatementButton side="customer" id={data.id} name={data.name} />
         {canEdit && (
           <>
             {!data.is_walk_in && (

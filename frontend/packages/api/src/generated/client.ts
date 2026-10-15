@@ -85,6 +85,7 @@ import type {
   GeneratedMonth,
   GetCashFlowReportParams,
   GetColdRoomMonthParams,
+  GetCustomerStatementPdfParams,
   GetDocumentPdfParams,
   GetExpenseTotalsParams,
   GetLossesReportParams,
@@ -94,6 +95,7 @@ import type {
   GetPayrollSummaryParams,
   GetSalesReportParams,
   GetSlowMovingReportParams,
+  GetSupplierStatementPdfParams,
   GetTruckDayParams,
   GetWithholdingSummaryParams,
   Health,
@@ -18746,6 +18748,120 @@ export function useExportCustomerBalancesReport<TData = Awaited<ReturnType<typeo
 
 
 
+export const getGetCustomerStatementPdfUrl = (customerId: number,
+    params?: GetCustomerStatementPdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/reports/customer-statement/${customerId}/pdf?${stringifiedParams}` : `/api/v1/reports/customer-statement/${customerId}/pdf`
+}
+
+/**
+ * The customer's statement as a PDF: every sale with its products, kilos and prices, the payments, the
+ * account with its running balance, the boxes they hold, and a summary. Office roles; drivers get 403.
+ */
+export const getCustomerStatementPdf = async (customerId: number,
+    params?: GetCustomerStatementPdfParams, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetCustomerStatementPdfUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerStatementPdfQueryKey = (customerId: number,
+    params?: GetCustomerStatementPdfParams,) => {
+    return [
+    `/api/v1/reports/customer-statement/${customerId}/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCustomerStatementPdfQueryOptions = <TData = Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError = unknown>(customerId: number,
+    params?: GetCustomerStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerStatementPdfQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomerStatementPdf>>> = ({ signal }) => getCustomerStatementPdf(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCustomerStatementPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomerStatementPdf>>>
+export type GetCustomerStatementPdfQueryError = unknown
+
+
+export function useGetCustomerStatementPdf<TData = Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError = unknown>(
+ customerId: number,
+    params: undefined |  GetCustomerStatementPdfParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomerStatementPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomerStatementPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCustomerStatementPdf<TData = Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError = unknown>(
+ customerId: number,
+    params?: GetCustomerStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomerStatementPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomerStatementPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCustomerStatementPdf<TData = Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError = unknown>(
+ customerId: number,
+    params?: GetCustomerStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetCustomerStatementPdf<TData = Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError = unknown>(
+ customerId: number,
+    params?: GetCustomerStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomerStatementPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCustomerStatementPdfQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetLossesReportUrl = (params?: GetLossesReportParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -20184,6 +20300,120 @@ export function useExportSupplierBalancesReport<TData = Awaited<ReturnType<typeo
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExportSupplierBalancesReportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSupplierStatementPdfUrl = (supplierId: number,
+    params?: GetSupplierStatementPdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/reports/supplier-statement/${supplierId}/pdf?${stringifiedParams}` : `/api/v1/reports/supplier-statement/${supplierId}/pdf`
+}
+
+/**
+ * The supplier's statement as a PDF: every receipt with its products, kilos and prices, the invoices and
+ * payments as an account with its running balance, the boxes we owe them, and a summary. Office roles.
+ */
+export const getSupplierStatementPdf = async (supplierId: number,
+    params?: GetSupplierStatementPdfParams, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetSupplierStatementPdfUrl(supplierId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierStatementPdfQueryKey = (supplierId: number,
+    params?: GetSupplierStatementPdfParams,) => {
+    return [
+    `/api/v1/reports/supplier-statement/${supplierId}/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSupplierStatementPdfQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError = unknown>(supplierId: number,
+    params?: GetSupplierStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierStatementPdfQueryKey(supplierId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierStatementPdf>>> = ({ signal }) => getSupplierStatementPdf(supplierId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: supplierId !== null && supplierId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSupplierStatementPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierStatementPdf>>>
+export type GetSupplierStatementPdfQueryError = unknown
+
+
+export function useGetSupplierStatementPdf<TData = Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError = unknown>(
+ supplierId: number,
+    params: undefined |  GetSupplierStatementPdfParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplierStatementPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplierStatementPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplierStatementPdf<TData = Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError = unknown>(
+ supplierId: number,
+    params?: GetSupplierStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplierStatementPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplierStatementPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplierStatementPdf<TData = Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError = unknown>(
+ supplierId: number,
+    params?: GetSupplierStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSupplierStatementPdf<TData = Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError = unknown>(
+ supplierId: number,
+    params?: GetSupplierStatementPdfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierStatementPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSupplierStatementPdfQueryOptions(supplierId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

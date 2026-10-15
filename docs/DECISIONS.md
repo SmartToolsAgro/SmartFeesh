@@ -2279,3 +2279,25 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - The backend health check sends `X-Forwarded-Proto: https` so Django does not redirect it once HTTPS is on.
 - The bare domain `fruttidelmare.com` gets no page and no redirect: the apps live only on their two names (owner, 2026-10-15).
 - Not done here: the production server (P4-T02).
+
+**D-156 · The statement PDF of a customer or a supplier, for a period or up to a day (owner request)** · accepted · 2026-10-15
+- The customer and supplier pages have a "Relevé (PDF)" button. It asks for one day ("jusqu'au", from the beginning)
+  or two days ("du … au …"), then opens a PDF. The PDF has a summary first: balance before, sales or invoices of the
+  period, payments, balance at the end, kilos, boxes. Then come the products (kilos, average price, amount), every BL
+  or BR with its lines (product, kg, price), the payments, the account with a running balance, and the boxes (at the
+  start, added, removed, at the end, with each movement).
+- `GET /reports/customer-statement/<id>/pdf` and `/reports/supplier-statement/<id>/pdf` with `date_from` (optional)
+  and `date_to` (default today). Office roles (owner, manager, accountant); a driver gets 403. The data comes from
+  `sales.selectors.customer_statement`, `purchasing.selectors.supplier_statement` and `boxes.selectors.party_boxes`.
+- **Made on the spot, not by the background job of D-071:** the file depends on the dates the person picks, so it is
+  not stored (`documents.services.render_pdf`). The API image already has WeasyPrint (the worker uses the same image).
+- The customer account is the one of D-062 (`receivables.customer_history`). A sale counts at what it owes **now**
+  (its invoice's VAT and stamp, credit notes and withholding taken off), on the sale's day. A statement up to a past
+  day therefore already shows a credit note issued after that day. The lines show the BL's prices as charged.
+- The supplier account is the trade payable of D-043: posted invoices minus payments. Receipts are listed with
+  their kilos and prices but do not move the balance until they are on a posted invoice. The summary shows what is
+  received and not yet invoiced. A partner's capital and profit share stay out (three separate balances).
+- Boxes: for a client, the boxes they hold; for a supplier, the boxes we owe it. A movement counts on the day it was
+  made (the phone's time), else the day it was recorded, as on the truck's day (D-151).
+- Not done: the layout has not been checked by eye in a real PDF (no Pango on the dev machine). Open both PDFs on
+  staging. Also not done: Arabic, sending by e-mail or WhatsApp.

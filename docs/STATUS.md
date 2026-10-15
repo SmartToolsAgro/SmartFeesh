@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-15 (driver app wave: tab logo, price refresh and notice, shown-price check, made-at records,
+_Last updated: 2026-10-15 (customer and supplier statement PDF, D-156; before that the driver app wave: tab logo, price refresh and notice, shown-price check, made-at records,
 customers and photos, list prices; D-147 to D-153)_
 
 ## Where we are
@@ -37,14 +37,15 @@ customers and photos, list prices; D-147 to D-153)_
    - Price rule (D-150): a sale on a stale price is refused after 24 hours. Owner to confirm the window.
    - Archived records (D-145): confirm they leave every dropdown except the one a saved record uses.
    - Approved electricity bills under the daily rule are not recalculated (D-142, owner to decide).
-2. **Check on staging with a real phone:** the company logo in the driver header and on the login screen (after one login; D-154); a price change during a sale (notice, new price,
+2. **Check on staging (D-156):** open a customer's and a supplier's "Relevé (PDF)" and check the layout by eye.
+3. **Check on staging with a real phone:** the company logo in the driver header and on the login screen (after one login; D-154); a price change during a sale (notice, new price,
    sale refused on a stale price); a late expense and a payment (dated the day they were made); a customer added on the
    phone; product photos in the stock list; a sale to a customer with a price list (the price shown is the list price).
-3. **Phase 3, in this order:** P3-T10 printing spike (needs a real Android and iPhone and a printer, human), P3-T09
+4. **Phase 3, in this order:** P3-T10 printing spike (needs a real Android and iPhone and a printer, human), P3-T09
    Arabic review and right-to-left check (human reviewer), P3-T08 one-week field test.
-4. **Phase 3 gaps (not yet tasks):** a truck sale should use the load's price (D-051); a customer added on the phone is
+5. **Phase 3 gaps (not yet tasks):** a truck sale should use the load's price (D-051); a customer added on the phone is
    not marked in the office; the office closing table does not show the opening stock or the gap yet (D-130).
-5. **Other waves:** P2-T07/T08/T09, P6-T04 to T07 (check `gh pr list` and `docs/phases/` for what landed).
+6. **Other waves:** P2-T07/T08/T09, P6-T04 to T07 (check `gh pr list` and `docs/phases/` for what landed).
 
 ## Blockers / waiting on client
 
@@ -88,6 +89,8 @@ customers and photos, list prices; D-147 to D-153)_
 
 ## Recently done
 
+- 2026-10-15 · D-156 statement PDF of a customer or a supplier ("Relevé (PDF)" on their page): up to a day or between
+  two days; products, kg and prices of each BL/BR, payments, running balance, boxes, summary. Check the layout on staging.
 - 2026-10-15 · D-154 the driver sees the company logo: the logo endpoint lets every member read it (the driver got 403),
   and the phone keeps a copy for the login screen and the tab icon (corrects D-147; on this branch, not yet merged).
 - 2026-10-15 · quote form: each product in the list shows its kilos in stock and the places holding them, fullest

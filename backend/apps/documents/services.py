@@ -95,6 +95,12 @@ def render_html(document: Printable, organization: Organization | None = None) -
     return render_to_string(document.template, {"logo": logo_data_uri(organization), **document.context})
 
 
+def render_pdf(document: Printable, organization: Organization) -> bytes:
+    """The PDF of a document made on the spot and not stored: for one that depends on what the person asks, like a
+    statement over chosen dates (D-156). Every other document goes through `request_pdf`."""
+    return rendering.html_to_pdf(render_html(document, organization))
+
+
 def file_version(organization: Organization, document: Printable) -> str:
     """The document's version plus the logo's: a new logo makes the stored files stale (D-125)."""
     if not organization.logo:

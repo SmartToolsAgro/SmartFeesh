@@ -1,7 +1,7 @@
 from django.urls import path
 
 from . import financial_views as fin
-from . import views
+from . import statement_views, views
 
 urlpatterns = [
     path("reports/sales", views.SalesReportView.as_view(), name="report-sales"),
@@ -37,4 +37,15 @@ urlpatterns = [
     ),
     path("reports/partners", fin.PartnerReportView.as_view(), name="report-partners"),
     path("reports/partners/export", fin.PartnerReportExportView.as_view(), name="report-partners-export"),
+    # Statements of one customer or supplier over chosen dates (D-156)
+    path(
+        "reports/customer-statement/<int:customer_id>/pdf",
+        statement_views.CustomerStatementPdfView.as_view(),
+        name="report-customer-statement",
+    ),
+    path(
+        "reports/supplier-statement/<int:supplier_id>/pdf",
+        statement_views.SupplierStatementPdfView.as_view(),
+        name="report-supplier-statement",
+    ),
 ]

@@ -3,7 +3,7 @@
 import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from django.db.models import (
     DecimalField,
@@ -38,6 +38,9 @@ from .models import (
     SupplierPayment,
     SupplierPaymentAllocation,
 )
+
+if TYPE_CHECKING:
+    from .statements import SupplierStatement
 
 # A line differs when the accepted weight is not the invoiced one, or not the ordered one when there was an order.
 DIFFERENT = ~Q(accepted_quantity=F("invoiced_quantity")) | (
@@ -474,3 +477,13 @@ def payments_by_day(organization: Organization, *, date_from: dt.date, date_to: 
         .annotate(total=Sum("amount"))
     )
     return {row["paid_on"]: row["total"] for row in rows}
+
+
+def supplier_statement(
+    organization: Organization, supplier_id: int, *, date_from: dt.date | None, date_to: dt.date
+) -> "SupplierStatement":
+    """One supplier's receipts (line by line), invoices, payments and trade account from `date_from` (the beginning
+    when None) to `date_to` (`statements.SupplierStatement`, D-156)."""
+    from . import statements
+
+    return statements.supplier_statement(organization, supplier_id, date_from=date_from, date_to=date_to)

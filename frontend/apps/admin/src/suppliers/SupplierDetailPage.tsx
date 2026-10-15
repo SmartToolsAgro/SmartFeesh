@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { StatementButton } from "../lib/StatementButton";
 import { usePartnerSuppliers } from "../partnerships/usePartnerSuppliers";
 import { SupplierBalanceCard } from "../purchasing/SupplierBalanceCard";
 import { canEditSuppliers, refreshSuppliers } from "./shared";
@@ -76,6 +77,7 @@ export function SupplierDetailPage() {
         )}
         {partnerLots && !partnerLots.has(data.id) && <Pill tone="neutral">{t("admin.suppliers.notPartnerShort")}</Pill>}
         {!data.is_active && <Pill tone="neutral">{t("admin.suppliers.archived")}</Pill>}
+        <StatementButton side="supplier" id={data.id} name={data.name} />
         {canEdit && (
           <>
             <Button variant="ghost" disabled={toggleActive.isPending} onClick={() => toggleActive.mutate(data)}>

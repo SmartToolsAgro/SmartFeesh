@@ -1,0 +1,141 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% block title %}Relevé fournisseur {{ party.name }}{% endblock %}
+{% block style %}{% include "reports/pdf/_statement_style.html" %}{% endblock %}
+{% block heading %}Relevé fournisseur{% endblock %}
+{% block head_meta %}
+<p class="fa-meta"><b>{{ period }}</b><br>Imprimé le {{ printed_at|date:"d/m/Y à H:i" }}</p>
+{% endblock %}
+{% block body %}
+<div class="section">
+  <h2>Résumé</h2>
+  <div class="facts">
+    <div>{% if statement.date_from %}Solde avant le {{ statement.date_from|day }}{% else %}Solde reporté{% endif %}<b class="num">{{ summary.opening|money }} DT</b></div>
+    <div>Factures de la période<b class="num">{{ summary.invoiced|money }} DT</b></div>
+    <div>Paiements de la période<b class="num">{{ summary.paid|money }} DT</b></div>
+    <div>Solde au {{ statement.date_to|day }}<b class="num">{{ summary.closing|money }} DT</b></div>
+  </div>
+  <div class="facts">
+    <div>Bons de réception<b class="num">{{ summary.receipts_count }}</b></div>
+    <div>Kilos reçus (facturés)<b class="num">{{ summary.quantity|kilos }}</b></div>
+    <div>Valeur des réceptions<b class="num">{{ summary.received_total|money }} DT</b></div>
+    {% for row in boxes.types %}
+    <div>{{ row.label }}s dues au {{ statement.date_to|day }}<b class="num">{{ row.closing }}</b></div>
+    {% endfor %}
+  </div>
+  {% if summary.closing > 0 %}
+  <p class="verdict owing">Au {{ statement.date_to|day }}, nous devons <b class="num">{{ summary.closing_abs|money }} DT</b> au fournisseur.</p>
+  {% elif summary.closing < 0 %}
+  <p class="verdict">Au {{ statement.date_to|day }}, le fournisseur garde une avance de <b class="num">{{ summary.closing_abs|money }} DT</b> payée par nous.</p>
+  {% else %}
+  <p class="verdict">Au {{ statement.date_to|day }}, le compte du fournisseur est soldé.</p>
+  {% endif %}
+  {% if summary.uninvoiced %}
+  <p class="small muted">Réceptions pas encore facturées au {{ statement.date_to|day }} : <b class="num">{{ summary.uninvoiced|money }} DT</b>. Elles ne sont dues qu'une fois sur une facture validée et ne comptent pas dans le solde.</p>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h2>Produits reçus</h2>
+  {% if products %}
+  <table class="lines">
+    <thead><tr><th>Réf.</th><th>Produit</th><th class="r">Kg facturés</th><th class="r">Prix moyen/kg</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+      {% for row in products %}
+      <tr><td class="num">{{ row.reference }}</td><td>{{ row.name }}</td><td class="r num">{{ row.quantity|kilos }}</td><td class="r num">{{ row.average_price|money }}</td><td class="r num">{{ row.amount|money }}</td></tr>
+      {% endfor %}
+      <tr class="sum"><td colspan="2">Total</td><td class="r num">{{ summary.quantity|kilos }}</td><td></td><td class="r num">{{ summary.received_total|money }}</td></tr>
+    </tbody>
+  </table>
+  {% else %}<p class="empty">Aucune réception sur la période.</p>{% endif %}
+</div>
+
+<div class="section">
+  <h2>Réceptions (bons de réception)</h2>
+  {% if statement.receipts %}
+  <table class="lines">
+    <thead><tr><th>Produit</th><th class="r">Kg facturés</th><th class="r">Kg acceptés</th><th class="r">Prix/kg</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+      {% for receipt in statement.receipts %}
+      <tr class="group"><td colspan="5"><span class="num">{{ receipt.day|day }}</span> · {{ receipt.number }}{% if receipt.supplier_reference %} · Réf. fournisseur {{ receipt.supplier_reference }}{% endif %}{% if receipt.invoice_number %} · Facture {{ receipt.invoice_number }}{% else %} · Non facturé{% endif %}</td></tr>
+      {% for line in receipt.lines %}
+      <tr>
+        <td>{{ line.product_name }} <span class="muted small">{{ line.product_reference }}</span></td>
+        <td class="r num">{{ line.invoiced_quantity|kilos }}</td>
+        <td class="r num">{{ line.accepted_quantity|kilos }}</td>
+        <td class="r num">{{ line.unit_cost|money }}</td>
+        <td class="r num">{{ line.amount|money }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="sub"><td>Total du bon</td><td class="r num">{{ receipt.quantity|kilos }}</td><td></td><td></td><td class="r num">{{ receipt.total|money }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty">Aucune réception sur la période.</p>{% endif %}
+</div>
+
+<div class="section">
+  <h2>Paiements</h2>
+  {% if statement.payments %}
+  <table class="lines">
+    <thead><tr><th>Date</th><th>N°</th><th>Mode</th><th>Référence</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+      {% for payment in statement.payments %}
+      <tr>
+        <td class="num">{{ payment.day|day }}</td>
+        <td class="num">{{ payment.number }}</td>
+        <td>{{ payment.method }}</td>
+        <td>{{ payment.reference }}</td>
+        <td class="r num">{{ payment.amount|money }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="sum"><td colspan="4">Total des paiements</td><td class="r num">{{ summary.paid|money }}</td></tr>
+    </tbody>
+  </table>
+  {% else %}<p class="empty">Aucun paiement sur la période.</p>{% endif %}
+</div>
+
+<div class="section">
+  <h2>Relevé de compte</h2>
+  <table class="lines">
+    <thead><tr><th>Date</th><th>Opération</th><th>N°</th><th class="r">Facturé</th><th class="r">Payé</th><th class="r">Solde</th></tr></thead>
+    <tbody>
+      <tr class="sub"><td></td><td colspan="4">Solde reporté</td><td class="r num">{{ summary.opening|money }}</td></tr>
+      {% for row in ledger %}
+      <tr>
+        <td class="num">{{ row.entry.day|day }}</td>
+        <td>{% if row.entry.kind == "invoice" %}Facture{% else %}Paiement{% endif %}{% if row.entry.reference %} · {{ row.entry.reference }}{% endif %}</td>
+        <td class="num">{{ row.entry.number }}</td>
+        <td class="r num">{{ row.debit|money }}</td>
+        <td class="r num">{{ row.credit|money }}</td>
+        <td class="r num">{{ row.entry.balance|money }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="sum"><td colspan="3">Solde au {{ statement.date_to|day }}</td><td class="r num">{{ summary.invoiced|money }}</td><td class="r num">{{ summary.paid|money }}</td><td class="r num">{{ summary.closing|money }}</td></tr>
+    </tbody>
+  </table>
+  <p class="small muted">Solde positif : nous devons au fournisseur. Négatif : il garde une avance payée par nous. Seules les factures
+    validées et les paiements comptent ; la mise et la part de bénéfice d'un partenaire sont des comptes à part.</p>
+</div>
+
+<div class="section">
+  <h2>Caisses</h2>
+  <table class="lines">
+    <thead><tr><th>Caisse</th><th class="r">Dues au début</th><th class="r">Prêtées par le fournisseur</th><th class="r">Rendues</th><th class="r">Dues au {{ statement.date_to|day }}</th></tr></thead>
+    <tbody>
+      {% for row in boxes.types %}
+      <tr><td>{{ row.label }}</td><td class="r num">{{ row.opening }}</td><td class="r num">{{ row.added }}</td><td class="r num">{{ row.removed }}</td><td class="r num"><b>{{ row.closing }}</b></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if boxes.moves %}
+  <table class="lines">
+    <thead><tr><th>Date</th><th>Caisse</th><th>Mouvement</th><th class="r">Nombre</th></tr></thead>
+    <tbody>
+      {% for move in boxes.moves %}
+      <tr><td class="num">{{ move.day|day }}</td><td>{% for row in boxes.types %}{% if row.box_type == move.box_type %}{{ row.label }}{% endif %}{% endfor %}</td><td>{{ move.kind_label }}</td><td class="r num">{% if move.count > 0 %}+{% endif %}{{ move.count }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

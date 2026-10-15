@@ -5836,6 +5836,42 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/reports/customer-statement/{customer_id}/pdf:
+    get:
+      operationId: getCustomerStatementPdf
+      description: |-
+        The customer's statement as a PDF: every sale with its products, kilos and prices, the payments, the
+        account with its running balance, the boxes they hold, and a summary. Office roles; drivers get 403.
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day; empty: from the beginning.'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/reports/losses:
     get:
       operationId: getLossesReport
@@ -6192,6 +6228,42 @@ paths:
         '200':
           content:
             application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/supplier-statement/{supplier_id}/pdf:
+    get:
+      operationId: getSupplierStatementPdf
+      description: |-
+        The supplier's statement as a PDF: every receipt with its products, kilos and prices, the invoices and
+        payments as an account with its running balance, the boxes we owe them, and a summary. Office roles.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: 'First day; empty: from the beginning.'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: 'Last day, inclusive (default: today).'
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
               schema:
                 type: string
                 format: binary
