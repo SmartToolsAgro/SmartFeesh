@@ -60,9 +60,7 @@ async function choose(page: Page, scope: Page | Locator, label: string, option: 
 async function openNewExpense(page: Page) {
   const categoriesLoaded = page.waitForResponse((response) => {
     const url = new URL(response.url());
-    return (
-      url.pathname === "/api/v1/expense-categories" && url.searchParams.get("status") === "all" && response.ok()
-    );
+    return url.pathname === "/api/v1/expense-categories" && url.searchParams.get("status") === "all" && response.ok();
   });
   await page.getByRole("button", { name: "Nouvelle dépense" }).click();
   await expect(page.getByRole("heading", { name: "Nouvelle dépense", level: 1 })).toBeVisible();
