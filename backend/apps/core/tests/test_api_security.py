@@ -85,6 +85,9 @@ def _is_driver_area(path: str, method: str) -> bool:
     # Any logged-in person's own profile and avatar, and reading a colleague's avatar picture (D-123).
     if path == "/api/v1/users/<int:user_id>/avatar" and method == "get":
         return True
+    # The company logo: every member reads it (D-154); only owners and managers change it.
+    if path == "/api/v1/organizations/<int:organization_id>/logo" and method == "get":
+        return True
     reading = method == "get"
     if path.startswith(("/api/v1/categories", "/api/v1/products", "/api/v1/price-lists")):
         return reading
