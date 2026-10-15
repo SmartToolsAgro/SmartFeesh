@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -279,6 +280,8 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     method = models.CharField(max_length=20, choices=PaymentMethod.choices)
     # Cheque or bill number, transfer reference.
     reference = models.CharField(max_length=50, blank=True)
+    # The day a cheque or a traite may be cashed (post-dated); empty when it is paid at once (D-157).
+    cash_on = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
@@ -317,6 +320,7 @@ class DocumentKind(models.TextChoices):
     SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
     SUPPLIER_PAYMENT = "supplier_payment", _("Paiement fournisseur")
     PURCHASE_ORDER = "purchase_order", _("Bon d'achat")
+    FIELD_PURCHASE = "field_purchase", _("Achat terrain")
 
 
 class DocumentCounter(OrganizationScopedModel):
@@ -334,3 +338,196 @@ class DocumentCounter(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.organization} · {self.kind} · {self.year} · {self.last_number}"
+
+
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+
+
+class FieldPurchaseStatus(models.TextChoices):
+    # Sent by the driver: the driver and the office may still change it (each save is a revision).
+    SUBMITTED = "submitted", _("À valider")
+    # Checked by the owner or the manager: its receipt, invoice and payments exist. Final.
+    VALIDATED = "validated", _("Validé")
+    # Not taken: nothing entered stock and nothing is owed. Final.
+    REFUSED = "refused", _("Refusé")
+
+
+class PaymentTerms(models.TextChoices):
+    """The deal made with the supplier for one purchase (Q28): it gives the due date of what is owed."""
+
+    # Due the day of the purchase.
+    CASH = "cash", _("Comptant")
+    # Due `due_days` days after the purchase.
+    DAYS = "days", _("À N jours")
+    # Due at the end of the purchase's month, plus `due_days` days (0 = the last day of the month).
+    MONTH_END = "month_end", _("Fin de mois")
+
+
+class FieldPurchase(OrganizationScopedModel, TimeStampedModel):
+    """Goods a driver bought from a fisherman or at the port, sent from the phone to be checked (D-157).
+
+    Nothing counts until the owner or the manager validates it: then a goods receipt puts the kg really received
+    in stock, a posted supplier invoice records what is owed for them, and each sum given at the port becomes a
+    supplier payment. Until then the driver and the office may change it; every save keeps a revision.
+    """
+
+    # "AT-2026-0001"... per organization and year ("achat terrain").
+    number = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, choices=FieldPurchaseStatus.choices, default=FieldPurchaseStatus.SUBMITTED)
+    # Empty while the driver bought from someone not in the list yet: then `proposed_supplier` holds the name.
+    supplier = models.ForeignKey(
+        "partners.Supplier", null=True, blank=True, on_delete=models.PROTECT, related_name="field_purchases"
+    )
+    proposed_supplier = models.CharField(max_length=150, blank=True)
+    proposed_supplier_phone = models.CharField(max_length=30, blank=True)
+    bought_on = models.DateField()
+    # Who bought it (the driver).
+    buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    # The deal made with the supplier for this purchase.
+    terms = models.CharField(max_length=20, choices=PaymentTerms.choices, default=PaymentTerms.CASH)
+    due_days = models.PositiveSmallIntegerField(default=0)
+    # The number printed on the supplier's paper, when there is one.
+    supplier_reference = models.CharField(max_length=50, blank=True)
+    # The driver's note, and the office's note to the driver.
+    notes = models.TextField(blank=True)
+    office_note = models.TextField(blank=True)
+    # Where the goods go: chosen by the office before validating.
+    location = models.ForeignKey(
+        "inventory.StockLocation", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # Returnable boxes that came with the goods, per box type ("small", "big"), as on a receipt (D-122).
+    boxes = models.JSONField(default=dict, blank=True)
+    # The number of the last revision: a save must name it, so two people never overwrite each other.
+    revision = models.PositiveIntegerField(default=1)
+    receipt = models.OneToOneField(
+        GoodsReceipt, null=True, blank=True, on_delete=models.PROTECT, related_name="field_purchase"
+    )
+    invoice = models.OneToOneField(
+        SupplierInvoice, null=True, blank=True, on_delete=models.PROTECT, related_name="field_purchase"
+    )
+    # Who validated or refused it, and when.
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-bought_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="field_purchase_number_unique_per_org"),
+            models.CheckConstraint(
+                condition=models.Q(supplier__isnull=False) | ~models.Q(proposed_supplier=""),
+                name="field_purchase_has_a_supplier",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(status="validated")
+                | (models.Q(receipt__isnull=False) & models.Q(invoice__isnull=False)),
+                name="field_purchase_validated_has_documents",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class FieldPurchaseLine(OrganizationScopedModel):
+    """One product bought: the kg the driver typed at the port, the kg really received, the price per kg."""
+
+    purchase = models.ForeignKey(FieldPurchase, on_delete=models.CASCADE, related_name="lines")
+    # Empty while the product is not in the catalogue yet: then `proposed_product` holds the name.
+    product = models.ForeignKey("catalog.Product", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    proposed_product = models.CharField(max_length=150, blank=True)
+    # What the driver typed at the port (the supplier's weight).
+    declared_quantity = QuantityField()
+    # What the office counted, empty until then. This is what is owed (Q28).
+    received_quantity = models.DecimalField[Decimal | None, Decimal | None](
+        max_digits=12, decimal_places=3, null=True, blank=True
+    )
+    # DT per kg, without VAT (D-020).
+    unit_cost = MoneyField()
+    # A lot bought together with this partner (D-100): the owner's choice, made before validating.
+    partner = models.ForeignKey("partners.Supplier", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        ordering = ["purchase", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(product__isnull=False) | ~models.Q(proposed_product=""),
+                name="field_purchase_line_has_a_product",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(declared_quantity__gt=0), name="field_purchase_line_declared_positive"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(received_quantity__isnull=True) | models.Q(received_quantity__gt=0),
+                name="field_purchase_line_received_positive",
+            ),
+            models.CheckConstraint(condition=models.Q(unit_cost__gte=0), name="field_purchase_line_cost_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.purchase} · {self.product or self.proposed_product}"
+
+    @property
+    def owed_quantity(self) -> Decimal:
+        """The kg received once counted, else the kg typed at the port: what the supplier is paid for."""
+        return self.received_quantity if self.received_quantity is not None else self.declared_quantity
+
+    @property
+    def amount(self) -> Decimal:
+        """Owed kg × price per kg."""
+        return line_total(self.owed_quantity, self.unit_cost)
+
+
+class FieldPurchasePayment(OrganizationScopedModel):
+    """A sum given to the supplier at the port. It becomes a supplier payment at validation."""
+
+    purchase = models.ForeignKey(FieldPurchase, on_delete=models.CASCADE, related_name="payments")
+    method = models.CharField(max_length=20, choices=PaymentMethod.choices)
+    amount = MoneyField()
+    # Cheque or traite number.
+    reference = models.CharField(max_length=50, blank=True)
+    # The day a post-dated cheque or a traite may be cashed.
+    cash_on = models.DateField(null=True, blank=True)
+    supplier_payment = models.OneToOneField(
+        SupplierPayment, null=True, blank=True, on_delete=models.PROTECT, related_name="field_purchase_payment"
+    )
+
+    class Meta:
+        ordering = ["purchase", "id"]
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="field_purchase_payment_positive")]
+
+    def __str__(self) -> str:
+        return f"{self.purchase} · {self.amount}"
+
+
+class FieldPurchaseAction(models.TextChoices):
+    SUBMITTED = "submitted", _("Envoyé")
+    EDITED = "edited", _("Modifié")
+    VALIDATED = "validated", _("Validé")
+    REFUSED = "refused", _("Refusé")
+
+
+class FieldPurchaseRevision(OrganizationScopedModel):
+    """One saved state of a purchase: who saved it, when, why, and a full copy of what it said then.
+
+    Never changed nor deleted: the history of a purchase is its revisions, the first one as the driver sent it.
+    """
+
+    purchase = models.ForeignKey(FieldPurchase, on_delete=models.CASCADE, related_name="revisions")
+    number = models.PositiveIntegerField()
+    action = models.CharField(max_length=20, choices=FieldPurchaseAction.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # The office's note to the driver given with that save, if any.
+    note = models.TextField(blank=True)
+    snapshot = models.JSONField(encoder=DjangoJSONEncoder)
+
+    class Meta:
+        ordering = ["purchase", "number"]
+        constraints = [models.UniqueConstraint(fields=["purchase", "number"], name="field_purchase_revision_unique")]
+
+    def __str__(self) -> str:
+        return f"{self.purchase} · v{self.number}"

@@ -68,8 +68,17 @@ function contactRow(contact?: SupplierContact): ContactRow {
   };
 }
 
-/** Create a supplier (`supplier` absent) or change one. Owners and managers only; the server checks it too. */
-export function SupplierDialog({ supplier, onDone }: { supplier?: Supplier; onDone: (saved?: Supplier) => void }) {
+/** Create a supplier (`supplier` absent) or change one. Owners and managers only; the server checks it too.
+ * `start` fills a new supplier's name and phone, e.g. the ones a driver typed at the port (D-157). */
+export function SupplierDialog({
+  supplier,
+  start,
+  onDone,
+}: {
+  supplier?: Supplier;
+  start?: { name: string; phone?: string };
+  onDone: (saved?: Supplier) => void;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
@@ -85,7 +94,7 @@ export function SupplierDialog({ supplier, onDone }: { supplier?: Supplier; onDo
           city: supplier.city,
           notes: supplier.notes,
         }
-      : EMPTY,
+      : { ...EMPTY, name: start?.name ?? "", phone: start?.phone ?? "" },
   );
   const [contacts, setContacts] = useState<ContactRow[]>(() => supplier?.contacts.map(contactRow) ?? []);
   const [errors, setErrors] = useState<Errors>({});

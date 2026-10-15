@@ -1677,7 +1677,9 @@ export const GetDashboardResponse = zod.object({
   "batch_number": zod.string(),
   "partner_name": zod.string()
 })),
-  "pending_terms_count": zod.int()
+  "pending_terms_count": zod.int(),
+  "field_purchases_waiting": zod.int(),
+  "field_purchases_late": zod.int()
 })
 
 
@@ -3323,6 +3325,651 @@ export const GetExpenseTotalsResponse = zod.object({
   "count": zod.int(),
   "approved": zod.stringFormat('decimal', getExpenseTotalsResponseApprovedRegExp),
   "waiting": zod.stringFormat('decimal', getExpenseTotalsResponseWaitingRegExp)
+})
+
+
+/**
+ * What drivers bought at the port, newest first, paginated, with lines, money given and what is left to pay.
+ * Filter by status (`submitted` = to check) or `search` (number, supplier, the supplier's paper number).
+ */
+export const listFieldPurchasesQuerySearchDefault = ``;
+export const listFieldPurchasesQuerySearchMax = 100;
+
+
+
+export const ListFieldPurchasesQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listFieldPurchasesQuerySearchMax).default(listFieldPurchasesQuerySearchDefault),
+  "status": zod.enum(['submitted', 'validated', 'refused']).optional().describe('* `submitted` - À valider\n* `validated` - Validé\n* `refused` - Refusé')
+})
+
+export const listFieldPurchasesResponseResultsItemLinesItemDeclaredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemLinesItemOwedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemPaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemDeclaredTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listFieldPurchasesResponseResultsItemRestRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListFieldPurchasesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - À valider\n* `validated` - Validé\n* `refused` - Refusé'),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_supplier": zod.string(),
+  "proposed_supplier_phone": zod.string(),
+  "bought_on": zod.iso.date(),
+  "buyer": zod.string(),
+  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois'),
+  "due_days": zod.int(),
+  "due_date": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "notes": zod.string(),
+  "office_note": zod.string(),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revision": zod.int(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_product": zod.string(),
+  "declared_quantity": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemLinesItemDeclaredQuantityRegExp),
+  "received_quantity": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemLinesItemReceivedQuantityRegExp).nullable(),
+  "owed_quantity": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemLinesItemOwedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemLinesItemUnitCostRegExp),
+  "amount": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemLinesItemAmountRegExp),
+  "partner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemPaymentsItemAmountRegExp),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "supplier_payment": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()])
+})),
+  "declared_total": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemDeclaredTotalRegExp),
+  "total": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemTotalRegExp),
+  "paid": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemPaidRegExp),
+  "rest": zod.stringFormat('decimal', listFieldPurchasesResponseResultsItemRestRegExp),
+  "is_late": zod.boolean(),
+  "receipt": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('A purchase in a list: everything but its revisions.'))
+})
+
+
+/**
+ * Type a purchase at the port for the office (a driver who phoned it in): it waits to be checked like one
+ * sent from the phone, and the person who types it is its buyer.
+ */
+
+export const createFieldPurchaseBodyProposedSupplierDefault = ``;
+export const createFieldPurchaseBodyProposedSupplierMax = 150;
+
+export const createFieldPurchaseBodyProposedSupplierPhoneDefault = ``;
+export const createFieldPurchaseBodyProposedSupplierPhoneMax = 30;
+
+export const createFieldPurchaseBodyDueDaysDefault = 0;
+export const createFieldPurchaseBodyDueDaysMin = 0;
+export const createFieldPurchaseBodyDueDaysMax = 365;
+
+export const createFieldPurchaseBodySupplierReferenceDefault = ``;
+export const createFieldPurchaseBodySupplierReferenceMax = 50;
+
+export const createFieldPurchaseBodyNotesDefault = ``;
+export const createFieldPurchaseBodyBoxesMinOne = 0;
+
+
+export const createFieldPurchaseBodyLinesItemProposedProductDefault = ``;
+export const createFieldPurchaseBodyLinesItemProposedProductMax = 150;
+
+
+export const createFieldPurchaseBodyPaymentsItemReferenceDefault = ``;
+export const createFieldPurchaseBodyPaymentsItemReferenceMax = 50;
+
+
+
+export const CreateFieldPurchaseBody = zod.object({
+  "supplier": zod.int().min(1).nullish(),
+  "proposed_supplier": zod.string().max(createFieldPurchaseBodyProposedSupplierMax).default(createFieldPurchaseBodyProposedSupplierDefault),
+  "proposed_supplier_phone": zod.string().max(createFieldPurchaseBodyProposedSupplierPhoneMax).default(createFieldPurchaseBodyProposedSupplierPhoneDefault),
+  "bought_on": zod.iso.date(),
+  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois'),
+  "due_days": zod.int().min(createFieldPurchaseBodyDueDaysMin).max(createFieldPurchaseBodyDueDaysMax).default(createFieldPurchaseBodyDueDaysDefault),
+  "supplier_reference": zod.string().max(createFieldPurchaseBodySupplierReferenceMax).default(createFieldPurchaseBodySupplierReferenceDefault),
+  "notes": zod.string().default(createFieldPurchaseBodyNotesDefault),
+  "location": zod.int().min(1).nullish(),
+  "boxes": zod.record(zod.string(), zod.int().min(createFieldPurchaseBodyBoxesMinOne)).optional(),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1).nullish(),
+  "proposed_product": zod.string().max(createFieldPurchaseBodyLinesItemProposedProductMax).default(createFieldPurchaseBodyLinesItemProposedProductDefault),
+  "declared_quantity": zod.string(),
+  "received_quantity": zod.string().nullish(),
+  "unit_cost": zod.string(),
+  "partner": zod.int().min(1).nullish()
+})),
+  "payments": zod.array(zod.object({
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.string(),
+  "reference": zod.string().max(createFieldPurchaseBodyPaymentsItemReferenceMax).default(createFieldPurchaseBodyPaymentsItemReferenceDefault),
+  "cash_on": zod.iso.date().nullish()
+})).optional()
+})
+
+export const createFieldPurchaseResponseLinesItemDeclaredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponseLinesItemOwedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponseDeclaredTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createFieldPurchaseResponseRestRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateFieldPurchaseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - À valider\n* `validated` - Validé\n* `refused` - Refusé'),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_supplier": zod.string(),
+  "proposed_supplier_phone": zod.string(),
+  "bought_on": zod.iso.date(),
+  "buyer": zod.string(),
+  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois'),
+  "due_days": zod.int(),
+  "due_date": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "notes": zod.string(),
+  "office_note": zod.string(),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revision": zod.int(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_product": zod.string(),
+  "declared_quantity": zod.stringFormat('decimal', createFieldPurchaseResponseLinesItemDeclaredQuantityRegExp),
+  "received_quantity": zod.stringFormat('decimal', createFieldPurchaseResponseLinesItemReceivedQuantityRegExp).nullable(),
+  "owed_quantity": zod.stringFormat('decimal', createFieldPurchaseResponseLinesItemOwedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', createFieldPurchaseResponseLinesItemUnitCostRegExp),
+  "amount": zod.stringFormat('decimal', createFieldPurchaseResponseLinesItemAmountRegExp),
+  "partner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.stringFormat('decimal', createFieldPurchaseResponsePaymentsItemAmountRegExp),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "supplier_payment": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()])
+})),
+  "declared_total": zod.stringFormat('decimal', createFieldPurchaseResponseDeclaredTotalRegExp),
+  "total": zod.stringFormat('decimal', createFieldPurchaseResponseTotalRegExp),
+  "paid": zod.stringFormat('decimal', createFieldPurchaseResponsePaidRegExp),
+  "rest": zod.stringFormat('decimal', createFieldPurchaseResponseRestRegExp),
+  "is_late": zod.boolean(),
+  "receipt": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "action": zod.enum(['submitted', 'edited', 'validated', 'refused']).describe('* `submitted` - Envoyé\n* `edited` - Modifié\n* `validated` - Validé\n* `refused` - Refusé'),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "note": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * One purchase with its revisions, each with what it changed.
+ */
+export const GetFieldPurchaseParams = zod.object({
+  "purchase_id": zod.int()
+})
+
+export const getFieldPurchaseResponseLinesItemDeclaredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponseLinesItemOwedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponseDeclaredTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getFieldPurchaseResponseRestRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetFieldPurchaseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - À valider\n* `validated` - Validé\n* `refused` - Refusé'),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_supplier": zod.string(),
+  "proposed_supplier_phone": zod.string(),
+  "bought_on": zod.iso.date(),
+  "buyer": zod.string(),
+  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois'),
+  "due_days": zod.int(),
+  "due_date": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "notes": zod.string(),
+  "office_note": zod.string(),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revision": zod.int(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_product": zod.string(),
+  "declared_quantity": zod.stringFormat('decimal', getFieldPurchaseResponseLinesItemDeclaredQuantityRegExp),
+  "received_quantity": zod.stringFormat('decimal', getFieldPurchaseResponseLinesItemReceivedQuantityRegExp).nullable(),
+  "owed_quantity": zod.stringFormat('decimal', getFieldPurchaseResponseLinesItemOwedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', getFieldPurchaseResponseLinesItemUnitCostRegExp),
+  "amount": zod.stringFormat('decimal', getFieldPurchaseResponseLinesItemAmountRegExp),
+  "partner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.stringFormat('decimal', getFieldPurchaseResponsePaymentsItemAmountRegExp),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "supplier_payment": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()])
+})),
+  "declared_total": zod.stringFormat('decimal', getFieldPurchaseResponseDeclaredTotalRegExp),
+  "total": zod.stringFormat('decimal', getFieldPurchaseResponseTotalRegExp),
+  "paid": zod.stringFormat('decimal', getFieldPurchaseResponsePaidRegExp),
+  "rest": zod.stringFormat('decimal', getFieldPurchaseResponseRestRegExp),
+  "is_late": zod.boolean(),
+  "receipt": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "action": zod.enum(['submitted', 'edited', 'validated', 'refused']).describe('* `submitted` - Envoyé\n* `edited` - Modifié\n* `validated` - Validé\n* `refused` - Refusé'),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "note": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * Change a purchase still to check (a new revision when anything changed); `confirm` validates it after:
+ * the kg received enter stock (a BR), what is owed for them is a posted invoice due by the deal (FF), and each
+ * sum given at the port is a payment (RF). `revision` must be the current one, else 400 on `revision`.
+ */
+export const UpdateFieldPurchaseParams = zod.object({
+  "purchase_id": zod.int()
+})
+
+
+export const updateFieldPurchaseBodyProposedSupplierDefault = ``;
+export const updateFieldPurchaseBodyProposedSupplierMax = 150;
+
+export const updateFieldPurchaseBodyProposedSupplierPhoneDefault = ``;
+export const updateFieldPurchaseBodyProposedSupplierPhoneMax = 30;
+
+export const updateFieldPurchaseBodyDueDaysDefault = 0;
+export const updateFieldPurchaseBodyDueDaysMin = 0;
+export const updateFieldPurchaseBodyDueDaysMax = 365;
+
+export const updateFieldPurchaseBodySupplierReferenceDefault = ``;
+export const updateFieldPurchaseBodySupplierReferenceMax = 50;
+
+export const updateFieldPurchaseBodyNotesDefault = ``;
+export const updateFieldPurchaseBodyBoxesMinOne = 0;
+
+
+export const updateFieldPurchaseBodyLinesItemProposedProductDefault = ``;
+export const updateFieldPurchaseBodyLinesItemProposedProductMax = 150;
+
+
+export const updateFieldPurchaseBodyPaymentsItemReferenceDefault = ``;
+export const updateFieldPurchaseBodyPaymentsItemReferenceMax = 50;
+
+
+export const updateFieldPurchaseBodyConfirmDefault = false;
+
+export const UpdateFieldPurchaseBody = zod.object({
+  "supplier": zod.int().min(1).nullish(),
+  "proposed_supplier": zod.string().max(updateFieldPurchaseBodyProposedSupplierMax).default(updateFieldPurchaseBodyProposedSupplierDefault),
+  "proposed_supplier_phone": zod.string().max(updateFieldPurchaseBodyProposedSupplierPhoneMax).default(updateFieldPurchaseBodyProposedSupplierPhoneDefault),
+  "bought_on": zod.iso.date(),
+  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois'),
+  "due_days": zod.int().min(updateFieldPurchaseBodyDueDaysMin).max(updateFieldPurchaseBodyDueDaysMax).default(updateFieldPurchaseBodyDueDaysDefault),
+  "supplier_reference": zod.string().max(updateFieldPurchaseBodySupplierReferenceMax).default(updateFieldPurchaseBodySupplierReferenceDefault),
+  "notes": zod.string().default(updateFieldPurchaseBodyNotesDefault),
+  "location": zod.int().min(1).nullish(),
+  "boxes": zod.record(zod.string(), zod.int().min(updateFieldPurchaseBodyBoxesMinOne)).optional(),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1).nullish(),
+  "proposed_product": zod.string().max(updateFieldPurchaseBodyLinesItemProposedProductMax).default(updateFieldPurchaseBodyLinesItemProposedProductDefault),
+  "declared_quantity": zod.string(),
+  "received_quantity": zod.string().nullish(),
+  "unit_cost": zod.string(),
+  "partner": zod.int().min(1).nullish()
+})),
+  "payments": zod.array(zod.object({
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.string(),
+  "reference": zod.string().max(updateFieldPurchaseBodyPaymentsItemReferenceMax).default(updateFieldPurchaseBodyPaymentsItemReferenceDefault),
+  "cash_on": zod.iso.date().nullish()
+})).optional(),
+  "revision": zod.int().min(1),
+  "office_note": zod.string().nullish(),
+  "confirm": zod.boolean().default(updateFieldPurchaseBodyConfirmDefault)
+})
+
+export const updateFieldPurchaseResponseLinesItemDeclaredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponseLinesItemOwedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponseDeclaredTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateFieldPurchaseResponseRestRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateFieldPurchaseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - À valider\n* `validated` - Validé\n* `refused` - Refusé'),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_supplier": zod.string(),
+  "proposed_supplier_phone": zod.string(),
+  "bought_on": zod.iso.date(),
+  "buyer": zod.string(),
+  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois'),
+  "due_days": zod.int(),
+  "due_date": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "notes": zod.string(),
+  "office_note": zod.string(),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revision": zod.int(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_product": zod.string(),
+  "declared_quantity": zod.stringFormat('decimal', updateFieldPurchaseResponseLinesItemDeclaredQuantityRegExp),
+  "received_quantity": zod.stringFormat('decimal', updateFieldPurchaseResponseLinesItemReceivedQuantityRegExp).nullable(),
+  "owed_quantity": zod.stringFormat('decimal', updateFieldPurchaseResponseLinesItemOwedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', updateFieldPurchaseResponseLinesItemUnitCostRegExp),
+  "amount": zod.stringFormat('decimal', updateFieldPurchaseResponseLinesItemAmountRegExp),
+  "partner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.stringFormat('decimal', updateFieldPurchaseResponsePaymentsItemAmountRegExp),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "supplier_payment": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()])
+})),
+  "declared_total": zod.stringFormat('decimal', updateFieldPurchaseResponseDeclaredTotalRegExp),
+  "total": zod.stringFormat('decimal', updateFieldPurchaseResponseTotalRegExp),
+  "paid": zod.stringFormat('decimal', updateFieldPurchaseResponsePaidRegExp),
+  "rest": zod.stringFormat('decimal', updateFieldPurchaseResponseRestRegExp),
+  "is_late": zod.boolean(),
+  "receipt": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "action": zod.enum(['submitted', 'edited', 'validated', 'refused']).describe('* `submitted` - Envoyé\n* `edited` - Modifié\n* `validated` - Validé\n* `refused` - Refusé'),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "note": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * Turn a purchase down with the reason for the driver: nothing enters stock and nothing is owed. Final.
+ */
+export const RefuseFieldPurchaseParams = zod.object({
+  "purchase_id": zod.int()
+})
+
+
+
+
+export const RefuseFieldPurchaseBody = zod.object({
+  "revision": zod.int().min(1),
+  "office_note": zod.string()
+})
+
+export const refuseFieldPurchaseResponseLinesItemDeclaredQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponseLinesItemReceivedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponseLinesItemOwedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponseDeclaredTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const refuseFieldPurchaseResponseRestRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RefuseFieldPurchaseResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - À valider\n* `validated` - Validé\n* `refused` - Refusé'),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_supplier": zod.string(),
+  "proposed_supplier_phone": zod.string(),
+  "bought_on": zod.iso.date(),
+  "buyer": zod.string(),
+  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois'),
+  "due_days": zod.int(),
+  "due_date": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "notes": zod.string(),
+  "office_note": zod.string(),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revision": zod.int(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),zod.null()]),
+  "proposed_product": zod.string(),
+  "declared_quantity": zod.stringFormat('decimal', refuseFieldPurchaseResponseLinesItemDeclaredQuantityRegExp),
+  "received_quantity": zod.stringFormat('decimal', refuseFieldPurchaseResponseLinesItemReceivedQuantityRegExp).nullable(),
+  "owed_quantity": zod.stringFormat('decimal', refuseFieldPurchaseResponseLinesItemOwedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', refuseFieldPurchaseResponseLinesItemUnitCostRegExp),
+  "amount": zod.stringFormat('decimal', refuseFieldPurchaseResponseLinesItemAmountRegExp),
+  "partner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.stringFormat('decimal', refuseFieldPurchaseResponsePaymentsItemAmountRegExp),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "supplier_payment": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()])
+})),
+  "declared_total": zod.stringFormat('decimal', refuseFieldPurchaseResponseDeclaredTotalRegExp),
+  "total": zod.stringFormat('decimal', refuseFieldPurchaseResponseTotalRegExp),
+  "paid": zod.stringFormat('decimal', refuseFieldPurchaseResponsePaidRegExp),
+  "rest": zod.stringFormat('decimal', refuseFieldPurchaseResponseRestRegExp),
+  "is_late": zod.boolean(),
+  "receipt": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "decided_by": zod.string(),
+  "decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "action": zod.enum(['submitted', 'edited', 'validated', 'refused']).describe('* `submitted` - Envoyé\n* `edited` - Modifié\n* `validated` - Validé\n* `refused` - Refusé'),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "note": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+}))
 })
 
 
@@ -13053,6 +13700,7 @@ export const ListSupplierPaymentsResponse = zod.object({
   "amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
   "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
   "allocated_amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemAllocatedAmountRegExp),
   "unallocated_amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemUnallocatedAmountRegExp),
@@ -13090,6 +13738,7 @@ export const RecordSupplierPaymentBody = zod.object({
   "amount": zod.string(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
   "reference": zod.string().max(recordSupplierPaymentBodyReferenceMax).default(recordSupplierPaymentBodyReferenceDefault),
+  "cash_on": zod.iso.date().nullish(),
   "notes": zod.string().default(recordSupplierPaymentBodyNotesDefault),
   "allocations": zod.array(zod.object({
   "invoice": zod.int().min(1),
@@ -13115,6 +13764,7 @@ export const RecordSupplierPaymentResponse = zod.object({
   "amount": zod.stringFormat('decimal', recordSupplierPaymentResponseAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
   "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
   "allocated_amount": zod.stringFormat('decimal', recordSupplierPaymentResponseAllocatedAmountRegExp),
   "unallocated_amount": zod.stringFormat('decimal', recordSupplierPaymentResponseUnallocatedAmountRegExp),
@@ -13156,6 +13806,7 @@ export const GetSupplierPaymentResponse = zod.object({
   "amount": zod.stringFormat('decimal', getSupplierPaymentResponseAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
   "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
   "allocated_amount": zod.stringFormat('decimal', getSupplierPaymentResponseAllocatedAmountRegExp),
   "unallocated_amount": zod.stringFormat('decimal', getSupplierPaymentResponseUnallocatedAmountRegExp),
@@ -13210,6 +13861,7 @@ export const AllocateSupplierPaymentResponse = zod.object({
   "amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseAmountRegExp),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
   "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
   "allocated_amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseAllocatedAmountRegExp),
   "unallocated_amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseUnallocatedAmountRegExp),

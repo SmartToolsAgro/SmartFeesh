@@ -60,6 +60,7 @@ export function DashboardPage() {
     data.overdue_customer_count +
     data.days_waiting +
     data.expenses_waiting +
+    data.field_purchases_waiting +
     data.low_stock_count +
     data.expiring_count +
     data.cash_difference_count +
@@ -211,6 +212,19 @@ export function DashboardPage() {
                     count: data.pending_terms_count - data.pending_terms.length,
                   })}
                 </Link>
+              </li>
+            )}
+            {data.field_purchases_waiting > 0 && (
+              <li className="flex items-center justify-between gap-3">
+                <Link to="/achats/terrain" className="hover:underline">
+                  {t("admin.dashboard.alerts.fieldPurchases", { count: data.field_purchases_waiting })}
+                  {data.field_purchases_late > 0 && (
+                    <span className="ms-2 font-semibold text-bad">
+                      {t("admin.dashboard.alerts.fieldPurchasesLate", { count: data.field_purchases_late })}
+                    </span>
+                  )}
+                </Link>
+                <Pill tone={data.field_purchases_late > 0 ? "bad" : "warn"}>{data.field_purchases_waiting}</Pill>
               </li>
             )}
             {data.expenses_waiting > 0 && (

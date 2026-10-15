@@ -17,6 +17,8 @@ export interface SupplierPayment {
   readonly amount: string;
   readonly method: PaymentMethodEnum;
   readonly reference: string;
+  /** @nullable */
+  readonly cash_on: string | null;
   readonly notes: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly allocated_amount: string;
