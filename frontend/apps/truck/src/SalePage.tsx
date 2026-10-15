@@ -33,8 +33,9 @@ export function SalePage() {
   const session = useSession();
   const queryClient = useQueryClient();
   const truck = session.data?.truck ?? null;
-  const stock = useTruckStock(truck !== null);
   const [customer, setCustomer] = useState<CustomerChoice | null>(null);
+  // The prices the customer pays: their own list shows here, as the server will charge them (D-150, D-049).
+  const stock = useTruckStock(truck !== null, customer?.id);
   const [kilos, setKilos] = useState<Record<number, string>>({});
   const [paid, setPaid] = useState<string | null>(null);
   const [step, setStep] = useState<"goods" | "pay">("goods");

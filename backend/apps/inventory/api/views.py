@@ -25,6 +25,7 @@ from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
 from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, Transfer
+from apps.partners import selectors as partners
 
 from .serializers import (
     BatchFilterSerializer,
@@ -41,6 +42,7 @@ from .serializers import (
     LossRejectSerializer,
     LossSerializer,
     LossWriteSerializer,
+    MyStockFilterSerializer,
     MyStockLineSerializer,
     ProductStockDetailSerializer,
     RoadLossSerializer,
@@ -374,11 +376,23 @@ def _photo_url(product: Any) -> str | None:
 class MyStockView(APIView):
     permission_classes = (IsDriver,)
 
-    @extend_schema(operation_id="listMyStock", responses=MyStockLineSerializer(many=True))
+    @extend_schema(
+        operation_id="listMyStock", parameters=[MyStockFilterSerializer], responses=MyStockLineSerializer(many=True)
+    )
     def get(self, request: Request) -> Response:
-        """What the driver's truck holds now per product, with today's price per kg. 404 without a truck."""
+        """What the driver's truck holds now per product, with today's price per kg. With `customer`, the price that
+        customer pays (their own price list first). 404 without a truck."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
+        filters = MyStockFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        customer_id = filters.validated_data.get("customer")
+        customer = None
+        if customer_id is not None:
+            try:
+                customer = partners.customer_of(membership.organization, customer_id)
+            except ObjectDoesNotExist:
+                raise ValidationError({"customer": _("Client inconnu.")}) from None
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise Http404
@@ -386,7 +400,7 @@ class MyStockView(APIView):
         rows = []
         for row in selectors.location_stock(membership.organization, location_id=truck.location_id):
             product = catalog.product_of(membership.organization, row["product_id"])
-            price = catalog.price_in_force(product, now)
+            price = catalog.price_in_force(product, now, customer_id=customer.pk if customer else None)
             rows.append(
                 {
                     "product_id": row["product_id"],

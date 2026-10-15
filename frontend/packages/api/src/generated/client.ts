@@ -126,6 +126,7 @@ import type {
   ListLotWorkDaysParams,
   ListMovementsParams,
   ListMyCustomersParams,
+  ListMyStockParams,
   ListPartnershipsParams,
   ListPriceListsParams,
   ListProductsParams,
@@ -13659,20 +13660,28 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getReturnMyStockMutationOptions(options), queryClient);
     }
 
-export const getListMyStockUrl = () => {
+export const getListMyStockUrl = (params?: ListMyStockParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/my-stock`
+  return stringifiedParams.length > 0 ? `/api/v1/my-stock?${stringifiedParams}` : `/api/v1/my-stock`
 }
 
 /**
- * What the driver's truck holds now per product, with today's price per kg. 404 without a truck.
+ * What the driver's truck holds now per product, with today's price per kg. With `customer`, the price that
+ * customer pays (their own price list first). 404 without a truck.
  */
-export const listMyStock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyStockLine[]> => {
+export const listMyStock = async (params?: ListMyStockParams, options?: Parameters<typeof apiFetch>[1]): Promise<MyStockLine[]> => {
 
-  return apiFetch<MyStockLine[]>(getListMyStockUrl(),
+  return apiFetch<MyStockLine[]>(getListMyStockUrl(params),
   {
     ...options,
     method: 'GET'
@@ -13685,23 +13694,23 @@ export const listMyStock = async ( options?: Parameters<typeof apiFetch>[1]): Pr
 
 
 
-export const getListMyStockQueryKey = () => {
+export const getListMyStockQueryKey = (params?: ListMyStockParams,) => {
     return [
-    `/api/v1/my-stock`
+    `/api/v1/my-stock`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListMyStockQueryOptions = <TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+export const getListMyStockQueryOptions = <TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(params?: ListMyStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListMyStockQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListMyStockQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyStock>>> = ({ signal }) => listMyStock({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyStock>>> = ({ signal }) => listMyStock(params, { signal, ...requestOptions });
 
 
 
@@ -13715,7 +13724,7 @@ export type ListMyStockQueryError = unknown
 
 
 export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
+ params: undefined |  ListMyStockParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listMyStock>>,
           TError,
@@ -13725,7 +13734,7 @@ export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, 
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
+ params?: ListMyStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listMyStock>>,
           TError,
@@ -13735,16 +13744,16 @@ export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, 
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ params?: ListMyStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useListMyStock<TData = Awaited<ReturnType<typeof listMyStock>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ params?: ListMyStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListMyStockQueryOptions(options)
+  const queryOptions = getListMyStockQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

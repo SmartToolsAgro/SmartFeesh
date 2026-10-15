@@ -24,9 +24,8 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 - [x] (D-150) The phone sends the price each line showed; the server accepts it only when it was a real price of the
       product in the 24 hours before the sale (else "Ce prix n'est plus valable", refused). A customer's own price list
       wins over the shown price (D-049).
-- [ ] Open (D-150): the phone shows the daily price, not the customer's list price, so a list customer sees a price
-      that the server then replaces with the list price. Show the list price on the phone (the stock read for the
-      selected customer).
+- [x] (D-153) The sale screen shows the price the selected customer pays: their own price list first, else the daily
+      price. The stock is read for that customer (`my-stock?customer=`); the daily prices stay while it loads.
 
 ### P3-T03 · Sale on the road · M
 - [x] (search, D-091; a new customer on the phone, online only, D-152) Choose customer (search, recent first; create if

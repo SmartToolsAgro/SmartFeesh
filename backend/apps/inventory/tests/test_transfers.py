@@ -695,3 +695,36 @@ def test_a_driver_reports_a_loss_with_a_photo_and_returns_the_rest_to_the_cold_r
     assert (returned.json()["to_location"], returned.json()["total_quantity"]) == ("Chambre froide 1", "11.000")
     assert client.get(reverse("my-stock")).json() == []
     assert client.post(reverse("my-return")).status_code == 400  # nothing left
+
+
+def test_my_stock_shows_the_price_a_customer_pays_when_the_driver_asks_for_them(organization, actor, cold_room, dorade):
+    from apps.catalog.models import PriceList, PriceListItem
+    from apps.fleet import services as fleet
+    from apps.partners import services as partners
+
+    client, driver = client_for(Role.DRIVER, organization)
+    truck = fleet.create_truck(
+        organization=organization, actor=actor, name="Camion 9", plate="109 TU 2009", driver=driver.user
+    )
+    receive(organization, dorade, cold_room, "20")
+    services.create_transfer(
+        organization=organization,
+        actor=actor,
+        from_location=cold_room,
+        to_location=truck.location,
+        transferred_on=timezone.localdate(),
+        lines=[{"product": dorade, "quantity": Decimal("12")}],
+        validate=True,
+    )
+    corail = partners.create_customer(organization=organization, actor=actor, name="Le Corail")
+    price_list = PriceList.objects.create(organization=organization, name="Le Corail", customer=corail, is_active=True)
+    PriceListItem.objects.create(
+        organization=organization, price_list=price_list, product=dorade, price=Decimal("25.000")
+    )
+
+    daily = client.get(reverse("my-stock")).json()
+    for_corail = client.get(reverse("my-stock"), {"customer": corail.pk}).json()
+    unknown = client.get(reverse("my-stock"), {"customer": 999999})
+
+    assert (daily[0]["unit_price"], for_corail[0]["unit_price"]) == ("28.000", "25.000")
+    assert unknown.status_code == 400

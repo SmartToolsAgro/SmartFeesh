@@ -2244,3 +2244,11 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - `my-stock` gives each line the product's photo address (`photo_url`, empty when there is none). The driver app shows
   the photo, or a plain mark with the first letter when there is none or it does not load.
 - Not done: the office's list of customers shows what the driver added the same way as any other customer (no mark).
+
+**D-153 · The sale screen shows the price the selected customer pays (closes D-150's open point)** · accepted · 2026-10-15
+- `my-stock` takes an optional `customer`: each line's price is then the one that customer pays (their own price list
+  first, else the daily price), the same rule the server uses for a sale (`catalog.price_in_force`, D-049).
+- The sale screen reads the stock for the customer chosen; the total on the phone is the total the server will charge.
+  The server already charged a list customer their list price (D-150); this only makes the phone show it too.
+- Offline, a customer never asked for before has no price of its own yet: the daily prices stay on screen until the
+  phone is online (the server still applies the list price).
