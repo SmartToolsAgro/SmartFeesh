@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SessionStart hook (P0-T10). Cloud sessions start from a fresh clone: install dependencies and start
-# PostgreSQL so `make test`, `make lint` and `make e2e` work at once. Local sessions are left alone.
+# PostgreSQL so `make test` and `make lint` work at once (e2e runs in CI only, D-157). Local sessions are left alone.
 set -uo pipefail
 
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
@@ -29,5 +29,5 @@ if command -v pg_ctlcluster > /dev/null 2>&1; then
     || as_postgres "create database frutti owner frutti" || step "WARNING: could not create the frutti database"
 fi
 
-step "ready: make test, make lint, make e2e"
+step "ready: make test, make lint"
 exit 0

@@ -2302,6 +2302,17 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Not done: the layout has not been checked by eye in a real PDF (no Pango on the dev machine). Open both PDFs on
   staging. Also not done: Arabic, sending by e-mail or WhatsApp.
 
+**D-157 · The browser tests (e2e) run on pull requests only, not on every push** · accepted · 2026-10-15
+- The e2e job takes about 6.5 minutes and ran twice for every PR (once for the push, once for the pull request).
+  It now runs only for the `pull_request` event: when a PR is opened and again for each new commit on it, so it
+  gates the merge.
+- Sessions do not run the e2e tests on the machine (owner, 2026-10-15): they take minutes and CI runs them before
+  the merge. A session reads the CI result and fixes a failure there. `make e2e` stays for when the owner asks.
+- Backend, frontend and API-client checks still run on every push and every PR, except when a push or PR
+  changes only docs (`docs/**` and Markdown files): then CI does not run at all and the PR can be merged at once.
+  A PR that mixes docs and code runs everything.
+- Deploy to staging no longer waits for e2e: it already passed on the PR before the merge. A direct push to
+  `main` (no PR) therefore deploys without e2e, so changes go through a PR.
 **D-157 · Buying at the port: a purchase is checked by the office before it counts (P3-T12a, Q28)** · accepted · 2026-10-15
 - **Owner request (Q28):** a driver buys from a fisherman or at the port, sends it from the phone, and the owner or the
   manager checks it. Only then do the stock, the supplier debt and the payment count. Split in three PRs: T12a office
