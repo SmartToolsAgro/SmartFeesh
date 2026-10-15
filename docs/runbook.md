@@ -6,8 +6,8 @@ How to operate the running system. Keep it short and true; update it when a proc
 
 | What | Where |
 |---|---|
-| Admin app | http://app.fruttidelmar.com (https once the certificate is in, D-155) |
-| Driver app | http://ch.fruttidelmar.com (https once the certificate is in, D-155) |
+| Admin app | http://app.fruttidelmare.com (https once the certificate is in, D-155) |
+| Driver app | http://ch.fruttidelmare.com (https once the certificate is in, D-155) |
 | Logins | `owner`, `driver`. Created by hand, never by a deploy: a deploy does not seed data. After the client start below, new passwords and no demo data |
 | Server login | `ssh debian@217.182.205.137` (key `~/.ssh/id_ed25519_erp_prod` on Mahmoud's machine) |
 
@@ -41,21 +41,21 @@ fix is a separate server, or a server that pulls only code already on `main` fro
 
 ### Domain and HTTPS (D-155)
 
-The names are `app.fruttidelmar.com` (admin app) and `ch.fruttidelmar.com` (driver app), both pointing at 217.182.205.137.
+The names are `app.fruttidelmare.com` (admin app) and `ch.fruttidelmare.com` (driver app), both pointing at 217.182.205.137.
 Phase 1 (plain HTTP, the names, the challenge webroot) and phase 2 (certificates, HTTPS) are separate deploys.
 
-**Owner, at the domain registrar (DNS for fruttidelmar.com):**
+**Owner, at the domain registrar (DNS for fruttidelmare.com):**
 
 1. Add an `A` record: name `app`, value `217.182.205.137`, TTL 3600 (or the default).
 2. Add an `A` record: name `ch`, value `217.182.205.137`, TTL 3600.
 3. Do not change existing `MX` or `TXT` records (e-mail); only add these two.
-4. Wait until both names answer: `nslookup app.fruttidelmar.com` and `nslookup ch.fruttidelmar.com` show
+4. Wait until both names answer: `nslookup app.fruttidelmare.com` and `nslookup ch.fruttidelmare.com` show
    217.182.205.137 (can take up to a few hours).
 
 **Phase 1, from the repo (after the DNS answers):**
 
 1. Commit and merge the phase 1 change to `main`; CI deploys it. Check `gh run list` for the deploy, then
-   `curl -sS http://app.fruttidelmar.com/api/v1/health` and the same for `ch.`.
+   `curl -sS http://app.fruttidelmare.com/api/v1/health` and the same for `ch.`.
 2. Still on the server: `sudo nginx -t`.
 
 **Phase 2, on the server (one time, as `debian`; only Frutti's names are touched):**
@@ -64,7 +64,7 @@ Phase 1 (plain HTTP, the names, the challenge webroot) and phase 2 (certificates
 2. Issue both certificates through the webroot (nginx itself is not changed by certbot):
    ```bash
    sudo certbot certonly --webroot -w /var/www/frutti-acme \
-     -d app.fruttidelmar.com -d ch.fruttidelmar.com \
+     -d app.fruttidelmare.com -d ch.fruttidelmare.com \
      --cert-name frutti-staging --deploy-hook "/usr/sbin/nginx -t && /bin/systemctl reload nginx" \
      -m <owner e-mail> --agree-tos --non-interactive
    ```
@@ -72,7 +72,7 @@ Phase 1 (plain HTTP, the names, the challenge webroot) and phase 2 (certificates
    renewal, so the automatic renewal reloads nginx. Check: `sudo certbot renew --dry-run`.
 3. Then the phase 2 change is made in the repo (nginx 443 blocks with these certificate files, port 80 redirects to
    https, HTTPS settings on in `compose.staging.yml`, https origins in `remote-deploy.sh`). Merge; CI deploys.
-4. Check: `curl -sS https://app.fruttidelmar.com/api/v1/health` and the same for `ch.`; log in on a phone.
+4. Check: `curl -sS https://app.fruttidelmare.com/api/v1/health` and the same for `ch.`; log in on a phone.
 
 Do not run `certbot --nginx`: it rewrites the Frutti site file, which the next deploy replaces.
 
@@ -127,7 +127,7 @@ any time: Actions → Uptime → "Run workflow", or `gh workflow run uptime.yml`
 
 **When the alert fires.** Open the failed run (Actions → Uptime): each failed check is an error line.
 
-- *Admin app / Driver app / API is down:* `curl -sS http://app.fruttidelmar.com/api/v1/health` from
+- *Admin app / Driver app / API is down:* `curl -sS http://app.fruttidelmare.com/api/v1/health` from
   any machine. If it does not answer, log in (see "Look at it"): `sudo docker ps --filter name=frutti-staging`
   (a container restarting?), `sudo docker logs --tail 100 frutti-staging-backend-1`, then
   `sudo systemctl status nginx` (read only: nginx is shared, never restart it for us; `sudo nginx -t` before any

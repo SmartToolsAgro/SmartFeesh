@@ -14057,7 +14057,8 @@ export const getUploadOrganizationLogoUrl = (organizationId: number,) => {
 }
 
 /**
- * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ * The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
+ * the logo every document already carries; owners and managers may change it (same as the legal fields).
  */
 export const uploadOrganizationLogo = async (organizationId: number,
     profilePhotoUpload: ProfilePhotoUpload, options?: Parameters<typeof apiFetch>[1]): Promise<Organization> => {
@@ -14131,7 +14132,8 @@ export const getRemoveOrganizationLogoUrl = (organizationId: number,) => {
 }
 
 /**
- * The company logo on the Paramètres page. Owners and managers may change it (same as the legal fields).
+ * The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
+ * the logo every document already carries; owners and managers may change it (same as the legal fields).
  */
 export const removeOrganizationLogo = async (organizationId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
 
