@@ -2304,7 +2304,10 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 
 **D-157 · The browser tests (e2e) run on pull requests only, not on every push** · accepted · 2026-10-15
 - The e2e job takes about 6.5 minutes and ran twice for every PR (once for the push, once for the pull request).
-  It now runs only for the `pull_request` event: when a PR is opened and again for each new commit on it.
+  It now runs only for the `pull_request` event: when a PR is opened and again for each new commit on it, so it
+  gates the merge.
+- Sessions do not run the e2e tests on the machine (owner, 2026-10-15): they take minutes and CI runs them before
+  the merge. A session reads the CI result and fixes a failure there. `make e2e` stays for when the owner asks.
 - Backend, frontend and API-client checks still run on every push and every PR.
 - Deploy to staging no longer waits for e2e: it already passed on the PR before the merge. A direct push to
-  `main` (no PR) therefore deploys without e2e; run `make e2e` locally before doing that.
+  `main` (no PR) therefore deploys without e2e, so changes go through a PR.
