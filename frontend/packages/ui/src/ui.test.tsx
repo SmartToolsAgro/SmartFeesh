@@ -110,6 +110,8 @@ test("the uploaded logo replaces the default mark and the tab icon, and the defa
   expect(container.querySelector("img")?.getAttribute("src")).toBe("/api/organizations/1/logo?v=ab12");
   const icon = document.head.querySelector('link[rel="icon"]');
   expect(icon?.getAttribute("href")).toBe("/api/organizations/1/logo?v=ab12");
+  // The logo's own type is left to the browser: a forced one could hide a PNG logo.
+  expect(icon?.getAttribute("type")).toBe("image/svg+xml");
 
   rerender(<Branded logoUrl={null} />);
 
