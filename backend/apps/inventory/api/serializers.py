@@ -61,6 +61,8 @@ class BatchProductSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+    # Lot pickers leave out the lots of an archived product (D-145).
+    is_active = serializers.BooleanField(read_only=True)
 
 
 class BatchSupplierSerializer(serializers.Serializer[Any]):

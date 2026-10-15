@@ -8272,8 +8272,12 @@ components:
         name:
           type: string
           readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
       required:
       - id
+      - is_active
       - name
       - reference
     BatchRef:

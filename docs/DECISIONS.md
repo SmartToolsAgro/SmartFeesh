@@ -2137,6 +2137,20 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   its own location and the sale-level field goes (a model change, a new decision). The PDFs of the BL and invoice may
   still print the place: left as they are for now.
 
+**D-145 · Archived records leave every dropdown, except the one a saved record already uses (owner's request, 2026-10-15)** · accepted · 2026-10-15
+- Every picker lists only active places, products, trucks, customers, suppliers, categories, labourers and lots. An archived
+  entry stays in a picker only when the form's current value is that entry (`apps/admin/src/lib/pickable.ts`), so an old
+  quote, sale, receipt, order, loss, transfer, expense or cost never shows a blank field. D-137 covered the list filters
+  and the expense and counter-sale pickers; this extends it to the forms.
+- Forms that fetched only active records now fetch all of them and filter in the browser: quote, sale, receipt, purchase
+  order, loss, transfer, expense, general cost, day labour and an employee's work day. Places that hold stock still count
+  active places only.
+- A lot of an archived product leaves the lot pickers (expense, day labour, employee work day): the lot's product now says
+  `is_active` (`BatchProductSerializer`), and the generated client is regenerated.
+- Not changed, on purpose: the box "Holder" filter on Caisses still lists archived holders that have a box balance, because
+  boxes still out at a holder must stay findable until they come back; the driver phone's stock lines still show an archived
+  product the truck holds (a list of stock to count, not a picker; the server refuses the sale).
+
 **D-146 · Client start: empty the demo data, keep the real master data (`prepare_client_start`)** · accepted · 2026-10-15
 - Asked by Mahmoud (2026-10-15) before the delivery: the staging database goes to the client as it is, with no demo rows. Kept: the organization and its settings, the logins (passwords replaced), the cold rooms and trucks
   (`StockLocation`, `Truck`, trucks without a driver), the expense categories, the products whose code starts with
@@ -2153,6 +2167,9 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - `Organization.real_data_since` marks the reset. `seed_dev` adds nothing once it is set, so the deploy's demo seed
   (`remote-deploy.sh`) cannot refill the client's database. The logins' passwords are replaced by random ones that the
   command prints once; the owner changes them in Paramètres > Mon profil.
+- Import rule (found by CI after #137 landed, 2026-10-15): `prepare_client_start` reads other apps' models, which the
+  app-boundary contract forbids. It is the one exempt command (`RESET_COMMANDS` in `backend/tooling/import_contracts.py`,
+  PR #139), because the reset is raw SQL on purpose. Owner to note: moving it onto the services later would remove the exception.
 - Not done by the command: media files of the deleted records (receipts, PDFs) stay on the volume, unreferenced. The
   opening stock of the company's boxes is not re-entered (zero, as asked); the screen for a box opening stock on a real
   database is still to build (STATUS).

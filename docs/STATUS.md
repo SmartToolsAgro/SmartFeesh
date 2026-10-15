@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-15 (D-146, client start: demo data emptied, real master data kept)_
+_Last updated: 2026-10-15 (D-145 archived records out of the dropdowns; D-146 client start: demo data emptied)_
 
 ## Where we are
 
@@ -134,6 +134,9 @@ D-137: "Nouveau document" in a window is D-138, and D-135 to D-138 are back in n
 
 ## Recently done
 
+- 2026-10-15 · D-145 archived records leave every dropdown (places, products, trucks, customers, suppliers, categories,
+  labourers, lots of an archived product), except the one a saved record already uses (`lib/pickable.ts`). Branch
+  `archived-pickers`; PR open, CI to check.
 - 2026-10-15 · D-143 Paramètres > Utilisateurs: the owner can change a user's login and name, and delete an account with no
   history (accounts with history are still deactivated, D-123). Browser check on staging still to do.
 - 2026-10-14 · D-142 cold-room and general costs charged **by the hour**: a lot pays the time it spent in the room

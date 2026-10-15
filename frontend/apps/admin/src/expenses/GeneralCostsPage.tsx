@@ -39,6 +39,7 @@ import { useOutletContext } from "react-router";
 
 import { currentMonth, monthLabel, shiftMonth } from "../hr/shared";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { todayInTunis } from "../receipts/shared";
 import { CostSelect } from "./CostSelect";
 import { ExpensesTabs } from "./ExpensesTabs";
@@ -61,7 +62,8 @@ function RecurringDialog({ cost, onDone }: { cost?: RecurringCost; onDone: () =>
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
-  const categories = useListExpenseCategories({ status: "active" });
+  // Archived ones leave the pickers unless this cost already uses them (pickable).
+  const categories = useListExpenseCategories({ status: "all" });
   const [name, setName] = useState(cost?.name ?? "");
   const [category, setCategory] = useState(cost ? String(cost.category.id) : "");
   const [amount, setAmount] = useState(cost?.monthly_amount.replace(".", ",") ?? "");
@@ -123,7 +125,7 @@ function RecurringDialog({ cost, onDone }: { cost?: RecurringCost; onDone: () =>
           label={t("admin.generalCosts.dialog.category")}
           value={category}
           onChange={setCategory}
-          options={(categories.data ?? [])
+          options={pickable(categories.data ?? [], [category])
             .filter((one) => one.code !== "day_labour")
             .map((one) => ({ value: String(one.id), label: one.name }))}
           placeholder={t("admin.generalCosts.dialog.choose")}
@@ -186,7 +188,8 @@ function MultiMonthDialog({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
-  const categories = useListExpenseCategories({ status: "active" });
+  // Archived ones leave the pickers unless this cost already uses them (pickable).
+  const categories = useListExpenseCategories({ status: "all" });
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
@@ -253,7 +256,7 @@ function MultiMonthDialog({ onDone }: { onDone: () => void }) {
           label={t("admin.generalCosts.multi.category")}
           value={category}
           onChange={setCategory}
-          options={(categories.data ?? [])
+          options={pickable(categories.data ?? [], [category])
             .filter((one) => one.code !== "day_labour")
             .map((one) => ({ value: String(one.id), label: one.name }))}
           placeholder={t("admin.generalCosts.dialog.choose")}

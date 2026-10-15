@@ -37,6 +37,7 @@ import { BoxCountsFields } from "../boxes/BoxCountsFields";
 import { type BoxCountInputs, NO_BOX_INPUTS, boxCountsFromInputs, boxInputsFromCounts } from "../boxes/shared";
 import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { todayInTunis } from "../receipts/shared";
 import { canRecordTransfers, refreshAfterTransfer } from "./shared";
 
@@ -106,7 +107,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
 
   // Archived places too: a draft may name one archived since (it shows, and the server refuses it on save).
   const locations = useListLocations({ status: "all" });
-  const products = useListProducts({ status: "active" });
+  // Archived ones leave the pickers unless this transfer already uses them (pickable).
+  const products = useListProducts({ status: "all" });
 
   const [from, setFrom] = useState(draft ? String(draft.from_location.id) : "");
   const [to, setTo] = useState(draft ? String(draft.to_location.id) : "");
@@ -359,7 +361,10 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
                   t("admin.transfers.form.product"),
                   line.product,
                   (value) => setLine(line.key, { product: value }),
-                  (products.data ?? []).map((product) => ({
+                  pickable(
+                    products.data ?? [],
+                    lines.map((item) => item.product),
+                  ).map((product) => ({
                     value: String(product.id),
                     label: `${product.name} · ${product.reference}`,
                   })),

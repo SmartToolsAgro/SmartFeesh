@@ -150,11 +150,13 @@ function WorkDays({ employee, canEdit }: { employee: Employee; canEdit: boolean 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NO_LOT}>{t("admin.hr.workDays.noLot")}</SelectItem>
-                {(batches.data?.results ?? []).map((one) => (
-                  <SelectItem key={one.id} value={String(one.id)}>
-                    {`${one.number} · ${one.product.name}`}
-                  </SelectItem>
-                ))}
+                {(batches.data?.results ?? [])
+                  .filter((one) => one.product.is_active || String(one.id) === batch)
+                  .map((one) => (
+                    <SelectItem key={one.id} value={String(one.id)}>
+                      {`${one.number} · ${one.product.name}`}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </Field>

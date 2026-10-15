@@ -29,6 +29,7 @@ import { Link, Navigate, useNavigate, useOutletContext } from "react-router";
 
 import { toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { pickable } from "../lib/pickable";
 import { todayInTunis } from "../receipts/shared";
 import { canRecordStockChecks, isOwner, LOSS_REASONS, refreshAfterStockCheck } from "./shared";
 
@@ -42,8 +43,9 @@ export function LossFormPage() {
   const queryClient = useQueryClient();
   const formId = useId();
 
-  const locations = useListLocations({ status: "active" });
-  const products = useListProducts({ status: "active" });
+  // Archived ones leave the pickers unless this loss already uses them (pickable).
+  const locations = useListLocations({ status: "all" });
+  const products = useListProducts({ status: "all" });
   const settings = useGetStockSettings();
 
   const [location, setLocation] = useState("");
@@ -155,14 +157,17 @@ export function LossFormPage() {
             t("admin.losses.form.location"),
             location,
             setLocation,
-            (locations.data ?? []).map((place) => ({ value: String(place.id), label: place.name })),
+            pickable(locations.data ?? [], [location]).map((place) => ({ value: String(place.id), label: place.name })),
           )}
           {select(
             "product",
             t("admin.losses.form.product"),
             product,
             setProduct,
-            (products.data ?? []).map((one) => ({ value: String(one.id), label: `${one.name} · ${one.reference}` })),
+            pickable(products.data ?? [], [product]).map((one) => ({
+              value: String(one.id),
+              label: `${one.name} · ${one.reference}`,
+            })),
           )}
           <Field label={t("admin.losses.form.quantity")} htmlFor={id("quantity")} error={errors.quantity}>
             <Input
