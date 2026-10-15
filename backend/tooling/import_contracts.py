@@ -10,6 +10,9 @@ from importlinter import Contract, ContractCheck, output
 APPS_PACKAGE = "apps"
 SHARED_APP = "core"
 PUBLIC_MODULES = frozenset({"services", "selectors"})
+# A one-time reset before go-live: it deletes one organization's rows with SQL in one transaction, which needs
+# the other apps' models on purpose (D-146). Nothing else may take this exception.
+ONE_TIME_RESET_MODULES = frozenset({"apps.demo.management.commands.prepare_client_start"})
 
 
 def boundary_violation(importer: str, imported: str) -> str | None:
@@ -23,6 +26,8 @@ def boundary_violation(importer: str, imported: str) -> str | None:
 
     importer_app, imported_app = importer_parts[1], imported_parts[1]
     if importer_app == imported_app:
+        return None
+    if importer in ONE_TIME_RESET_MODULES:
         return None
     # Tests may build data with another app's factories.
     if len(importer_parts) > 2 and importer_parts[2] == "tests":
