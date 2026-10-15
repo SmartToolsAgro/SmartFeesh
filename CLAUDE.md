@@ -18,7 +18,12 @@ dinars (DT) with 3 decimals.
      depends on one, stop and say so.
    - `docs/spec/project-brief.md`: full business brief. Search it (grep) instead of reading it whole.
    - `prototype/index.html`: the approved look and feel (clickable mockup).
-4. Do **one task per session / per PR** (task IDs look like `P1-T06`).
+4. **Read code in slices, not whole files.** Many files are large (`services.py`, `selectors.py`,
+   `api/views.py`, `api/serializers.py`, big `*Page.tsx` forms run 500 to 1000+ lines). Find what you
+   need first (`grep -n "def \|^class "`, or grep for the symbol), then read only that range (Read with
+   offset/limit, or `sed -n A,Bp`). Read a whole file only when it is short (~300 lines or less) or you
+   are rewriting most of it. Batch independent reads in one step instead of one small read per turn.
+5. Do **one task per session / per PR** (task IDs look like `P1-T06`).
 
 ## At the end of every session (required)
 
