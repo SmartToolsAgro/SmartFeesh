@@ -29,7 +29,8 @@ Look and feel: the "Camion" view of `prototype/index.html`.
       selected customer).
 
 ### P3-T03 · Sale on the road · M
-- [x] (search only, D-091) Choose customer (search, recent first; create if allowed), products, weight, payment amount and
+- [x] (search, D-091; a new customer on the phone, online only, D-152) Choose customer (search, recent first; create if
+      allowed), products, weight, payment amount and
       method → calls the same `confirm_sale` service as the admin app.
 - [x] (online only) Partial payment → remainder on customer credit, up to the customer's credit limit (Q16). Offline,
       the limit is checked against the last synced balance and checked again by the server at sync.

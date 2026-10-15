@@ -1,8 +1,10 @@
 from decimal import Decimal
 
 from django.http import Http404
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +20,7 @@ from .serializers import (
     CustomerFilterSerializer,
     CustomerSerializer,
     CustomerWriteSerializer,
+    MyCustomerWriteSerializer,
     SupplierFilterSerializer,
     SupplierSerializer,
     SupplierWriteSerializer,
@@ -219,3 +222,31 @@ class MyCustomersView(APIView):
             for customer in found[:30]
         ]
         return Response(CustomerChoiceSerializer(rows, many=True).data)
+
+    @extend_schema(
+        operation_id="createMyCustomer",
+        request=MyCustomerWriteSerializer,
+        responses={201: CustomerChoiceSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """A driver adds a customer they sell to, with a name and optionally a phone and a city. Its credit limit
+        is zero, cash only, until the office sets one. A name an active customer already has is refused."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = MyCustomerWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        name = data["name"].strip()
+        if not name:
+            raise ValidationError({"name": _("Indiquez le nom du client.")})
+        if selectors.customers_of(membership.organization).filter(name__iexact=name).exists():
+            raise ValidationError({"name": _("Un client porte déjà ce nom : choisissez-le dans la liste.")})
+        customer = services.create_customer(
+            organization=membership.organization,
+            actor=membership.user,
+            name=name,
+            phone=data["phone"].strip(),
+            city=data["city"].strip(),
+        )
+        row = {"id": customer.pk, "name": customer.name, "city": customer.city, "is_walk_in": False, "owes": 0}
+        return Response(CustomerChoiceSerializer(row).data, status=status.HTTP_201_CREATED)

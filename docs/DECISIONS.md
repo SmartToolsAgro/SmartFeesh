@@ -2232,3 +2232,15 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Losses: the kilos leave the stock at `made_at` (the movement's `occurred_at`), and the server checks the truck held
   them then (`held_since_then`), as for a late sale.
 - Records without `made_at` (the office's, and phones that send none) keep the old rule: the day they are recorded.
+
+**D-152 · A driver adds a customer on the phone; the stock list shows product photos (P3-T03, P3-T02)** · accepted · 2026-10-15
+- Asked by the owner's list (2026-10-15): a driver can add a customer they sell to, and sees each product's photo on the
+  stock and sale lists.
+- `POST /my-customers` (`createMyCustomer`): a name, and optionally a phone and a city. The customer is a restaurant
+  (the default kind), with a credit limit of zero (cash only) and no credit terms until the office sets them. A name an
+  active customer already has is refused (case not counted): the driver picks that customer instead.
+- Adding a customer needs the network: the button is off offline, with a short line saying so. It is not queued, so a
+  customer never has to be merged later (a queued one would need a sync rule of its own).
+- `my-stock` gives each line the product's photo address (`photo_url`, empty when there is none). The driver app shows
+  the photo, or a plain mark with the first letter when there is none or it does not load.
+- Not done: the office's list of customers shows what the driver added the same way as any other customer (no mark).

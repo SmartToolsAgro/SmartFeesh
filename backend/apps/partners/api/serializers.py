@@ -125,6 +125,14 @@ class CustomerFilterSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=CustomerKind.choices, required=False)
 
 
+class MyCustomerWriteSerializer(serializers.Serializer[Any]):
+    """What a driver types to add a customer: a name, and a phone and a city when they know them."""
+
+    name = serializers.CharField(max_length=150)
+    phone = serializers.CharField(required=False, allow_blank=True, default="", max_length=30)
+    city = serializers.CharField(required=False, allow_blank=True, default="", max_length=100)
+
+
 class CustomerChoiceSerializer(serializers.Serializer[Any]):
     """The little a driver needs to pick a customer."""
 

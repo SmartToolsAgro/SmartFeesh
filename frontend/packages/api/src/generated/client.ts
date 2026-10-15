@@ -169,6 +169,7 @@ import type {
   MonthView,
   MyBoxDay,
   MyBoxPickupWrite,
+  MyCustomerWrite,
   MyDayRow,
   MyDaySummary,
   MyStockLine,
@@ -12292,6 +12293,92 @@ export function useListMyCustomers<TData = Awaited<ReturnType<typeof listMyCusto
 
 
 
+
+export const getCreateMyCustomerUrl = () => {
+
+
+
+
+  return `/api/v1/my-customers`
+}
+
+/**
+ * A driver adds a customer they sell to, with a name and optionally a phone and a city. Its credit limit
+ * is zero, cash only, until the office sets one. A name an active customer already has is refused.
+ */
+export const createMyCustomer = async (myCustomerWrite: MyCustomerWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerChoice> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerChoice>(getCreateMyCustomerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(myCustomerWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateMyCustomerMutationKey = () => ['createMyCustomer'] as const;
+
+export const getCreateMyCustomerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyCustomer>>, TError,CreateMyCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMyCustomer>>, TError,CreateMyCustomerMutationVariables, TContext> => {
+
+const mutationKey = getCreateMyCustomerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMyCustomer>>, CreateMyCustomerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMyCustomer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMyCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof createMyCustomer>>>
+    export type CreateMyCustomerMutationBody = MyCustomerWrite
+    export type CreateMyCustomerMutationError = unknown
+    export type CreateMyCustomerMutationVariables = {data: MyCustomerWrite}
+
+    export const useCreateMyCustomer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyCustomer>>, TError,CreateMyCustomerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createMyCustomer>>,
+        TError,
+        CreateMyCustomerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMyCustomerMutationOptions(options), queryClient);
+    }
 
 export const getGetMyDayUrl = () => {
 

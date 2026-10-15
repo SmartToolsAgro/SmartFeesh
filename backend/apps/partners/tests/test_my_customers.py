@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -5,6 +7,7 @@ from rest_framework.test import APIClient
 from apps.core.models import Role
 from apps.core.tests.factories import MembershipFactory
 from apps.partners import services
+from apps.partners.models import Customer
 
 pytestmark = pytest.mark.django_db
 
@@ -25,3 +28,32 @@ def test_a_driver_finds_customers_by_name_and_only_a_driver_does():
     manager = APIClient()
     manager.force_authenticate(MembershipFactory.create(role=Role.MANAGER).user)
     assert manager.get(reverse("my-customers")).status_code == 403
+
+
+def test_a_driver_adds_a_customer_on_the_phone_with_no_credit_and_no_duplicate_name():
+    driver = MembershipFactory.create(role=Role.DRIVER)
+    services.create_customer(organization=driver.organization, actor=driver.user, name="Restaurant Le Port")
+    client = APIClient()
+    client.force_authenticate(driver.user)
+
+    created = client.post(
+        reverse("my-customers"),
+        {"name": "  Poissonnerie Ben Ali ", "phone": "98 000 000", "city": "Sfax"},
+        format="json",
+    )
+    again = client.post(reverse("my-customers"), {"name": "restaurant le port"}, format="json")
+    blank = client.post(reverse("my-customers"), {"name": "   "}, format="json")
+
+    assert created.status_code == 201
+    assert (created.json()["name"], created.json()["city"], created.json()["owes"]) == (
+        "Poissonnerie Ben Ali",
+        "Sfax",
+        "0.000",
+    )
+    customer = Customer.objects.get(pk=created.json()["id"])
+    assert (customer.phone, customer.credit_limit) == ("98 000 000", Decimal("0"))
+    assert again.status_code == 400
+    assert "déjà ce nom" in again.json()["name"]
+    assert blank.status_code == 400
+    names = [c["name"] for c in client.get(reverse("my-customers")).json()]
+    assert "Poissonnerie Ben Ali" in names

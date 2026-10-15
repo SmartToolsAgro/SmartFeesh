@@ -18,4 +18,6 @@ export interface MyStockLine {
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
      */
   readonly unit_price: string | null;
+  /** @nullable */
+  readonly photo_url: string | null;
 }

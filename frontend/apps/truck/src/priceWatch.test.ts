@@ -4,7 +4,13 @@ import { describe, expect, test } from "vitest";
 import { priceChanges } from "./priceWatch";
 
 function line(productId: number, unitPrice: string | null): MyStockLine {
-  return { product_id: productId, product_name: `Produit ${productId}`, quantity: "10.000", unit_price: unitPrice };
+  return {
+    product_id: productId,
+    product_name: `Produit ${productId}`,
+    quantity: "10.000",
+    unit_price: unitPrice,
+    photo_url: null,
+  };
 }
 
 describe("priceChanges (P3-T02)", () => {
