@@ -12,6 +12,7 @@ from tooling.import_contracts import boundary_violation
         ("apps.sales.models", "apps.core.models"),
         ("apps.sales.tests.test_sales", "apps.inventory.tests.factories"),
         ("apps.sales.services", "django.db"),
+        ("apps.demo.management.commands.prepare_client_start", "apps.sales.models"),
     ],
 )
 def test_allowed_imports(importer, imported):
@@ -25,6 +26,7 @@ def test_allowed_imports(importer, imported):
         ("apps.sales.api.views", "apps.inventory.api.serializers"),
         ("apps.sales.services", "apps.inventory"),
         ("apps.core.services", "apps.sales.services"),
+        ("apps.demo.management.commands.seed_dev", "apps.sales.models"),
     ],
 )
 def test_forbidden_imports(importer, imported):
