@@ -2252,3 +2252,18 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   The server already charged a list customer their list price (D-150); this only makes the phone show it too.
 - Offline, a customer never asked for before has no price of its own yet: the daily prices stay on screen until the
   phone is online (the server still applies the list price).
+
+**D-155 · The company domain fruttidelmar.com: one name per app, HTTPS in two steps** · accepted · 2026-10-15
+- The owner's domain is fruttidelmar.com. The admin app is `app.fruttidelmar.com`, the driver app
+  `ch.fruttidelmar.com` (chosen by the owner; D-036 planned one name per app on the real domain). The sslip.io names
+  redirect to them.
+- Staging stays on the shared OVH VPS (217.182.205.137). The host nginx serves the two names; the certificate is one
+  Let's Encrypt certificate for both names, issued with the webroot method (`/var/www/frutti-acme`), so the nginx site
+  does not change for certbot. Its renewal reloads nginx (`--deploy-hook`).
+- Two steps, because nginx refuses a site that points at certificate files which do not exist yet: phase 1 serves the
+  names on plain HTTP (port 80) and the challenge; phase 2, once the certificate exists, adds port 443 and turns on the
+  HTTPS settings (`DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SECURE_COOKIES`, `DJANGO_SECURE_HSTS_SECONDS`) and https origins.
+  Supersedes D-027's "no domain" and the sslip.io names of D-036.
+- The backend health check sends `X-Forwarded-Proto: https` so Django does not redirect it once HTTPS is on.
+- The bare domain `fruttidelmar.com` gets no page and no redirect: the apps live only on their two names (owner, 2026-10-15).
+- Not done here: the production server (P4-T02).
