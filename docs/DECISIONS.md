@@ -2150,3 +2150,23 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Not changed, on purpose: the box "Holder" filter on Caisses still lists archived holders that have a box balance, because
   boxes still out at a holder must stay findable until they come back; the driver phone's stock lines still show an archived
   product the truck holds (a list of stock to count, not a picker; the server refuses the sale).
+
+**D-146 · Client start: empty the demo data, keep the real master data (`prepare_client_start`)** · accepted · 2026-10-15
+- Asked by Mahmoud (2026-10-15) before the delivery: the staging database goes to the client as it is, with no demo rows. Kept: the organization and its settings, the logins (passwords replaced), the cold rooms and trucks
+  (`StockLocation`, `Truck`, trucks without a driver), the expense categories, the products whose code starts with
+  `ART` (the owner's article list, D-126), and the five employees named at the run. Emptied: everything else of the
+  organization (stock, boxes, purchases, sales, invoices, customers, suppliers, costs, payroll, closings, documents,
+  prices, counters, audit log). Stock and debts start at zero.
+- Kept products have their price, their minimum price and their minimum stock cleared, as the 36 products of the owner's
+  list already are: the owner sets the prices on the price board.
+- **Why SQL and not the ORM.** The ledgers refuse deletion in Python on purpose (stock, boxes, prices, audit, closings,
+  capital entries). The command deletes one organization's rows with SQL inside one transaction; Django's foreign keys
+  are deferred, and `SET CONSTRAINTS ALL IMMEDIATE` checks them before the end, so a dangling reference rolls the whole
+  reset back. Without `--apply` the same steps run and are rolled back. This is a one-time reset before go-live, not a
+  feature of the running app.
+- `Organization.real_data_since` marks the reset. `seed_dev` adds nothing once it is set, so the deploy's demo seed
+  (`remote-deploy.sh`) cannot refill the client's database. The logins' passwords are replaced by random ones that the
+  command prints once; the owner changes them in Paramètres > Mon profil.
+- Not done by the command: media files of the deleted records (receipts, PDFs) stay on the volume, unreferenced. The
+  opening stock of the company's boxes is not re-entered (zero, as asked); the screen for a box opening stock on a real
+  database is still to build (STATUS).

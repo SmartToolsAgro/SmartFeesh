@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-15 (D-145, archived records out of the dropdowns)_
+_Last updated: 2026-10-15 (D-145 archived records out of the dropdowns; D-146 client start: demo data emptied)_
 
 ## Where we are
 
@@ -27,8 +27,15 @@ _Last updated: 2026-10-15 (D-145, archived records out of the dropdowns)_
   the rows and no location field or column shows on the sales and quote screens. A sale with no single place that
   holds all its kilos is refused, and the form names the products. Open: may one sale mix a cold room and a truck?
 
+- **Client start (D-146, branch `client-clean-up`, PR open):** `prepare_client_start` empties the demo data of the
+  staging database and keeps the ART products, the five named employees, the cold rooms, trucks, settings and logins.
+  `seed_dev` adds nothing once `Organization.real_data_since` is set. **Not yet run on the VPS:** runbook "Client start".
+
 ## Next step (do this first)
 
+0. **Client start on staging (D-146):** after the PR is merged and deployed, follow runbook "Client start": backup,
+   dry run, check the counts, then `--apply`, then `rebuild_on_hand --check`. Then log in with the new passwords and
+   check the Paramètres and the products screens.
 1. **Owner decisions still open:**
    - Backups (D-139, runbook "Backups"): **create the off-site storage and put its credentials in `.env`**
      (`BACKUP_S3_*` in `~/frutti-staging/.env`, lines already there), and move the backup private key

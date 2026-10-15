@@ -8,7 +8,7 @@ How to operate the running system. Keep it short and true; update it when a proc
 |---|---|
 | Admin app | http://admin.217-182-205-137.sslip.io:8095 |
 | Driver app | http://chauffeur.217-182-205-137.sslip.io:8096 |
-| Demo logins | `owner`, `driver`; password in `DEMO_PASSWORD` of `~/frutti-staging/.env` on the server |
+| Logins | `owner`, `driver`. Demo logins (`DEMO_PASSWORD` in `~/frutti-staging/.env`) until the client start below; after it, new passwords and no demo data |
 | Server login | `ssh debian@217.182.205.137` (key `~/.ssh/id_ed25519_erp_prod` on Mahmoud's machine) |
 
 **Shared server.** The VPS also runs other clients' production sites (Sonalim, TRT, dossipv, smartgreen)
@@ -212,6 +212,30 @@ volume were removed. Do this again every few months and after a large change to 
 4. Start again (`... compose.staging.yml up -d`, same folder and `RELEASE`), check both health URLs, run
    `... exec backend python manage.py rebuild_on_hand --check`, and log in. A new `.env` means a new secret key: everyone
    logs in again.
+
+### Client start: empty the demo data (D-146)
+
+Run once, before the client uses the staging database, after the backup. The command keeps the organization and
+its settings, the logins, the cold rooms and trucks, the expense categories, the products whose code starts with
+`ART`, and the employees named with `--keep-employee`; everything else of the organization is deleted (stock,
+boxes, purchases, sales, invoices, customers, suppliers, costs, payroll, closings, documents, prices, counters, audit log).
+
+```bash
+cd ~/frutti-staging/releases/$(ls -1t ~/frutti-staging/releases | head -1)/deploy
+# 1. A backup first (the nightly one is not enough right before this):
+~/frutti-staging/bin/backup.sh
+# 2. Dry run: prints what would go and what stays, then rolls back (nothing changes):
+sudo docker compose --project-name frutti-staging --env-file ~/frutti-staging/.env -f compose.staging.yml \
+  exec backend python manage.py prepare_client_start --keep-employee "Dhaker" --keep-employee "Manel" \
+  --keep-employee "Sabra" --keep-employee "Ghassen" --keep-employee "Wajdi"
+# 3. The same command with --apply: deletes, sets the marker, prints the new passwords once.
+# 4. Check: `... exec backend python manage.py rebuild_on_hand --check` ("0 difference(s) found").
+```
+
+Each `--keep-employee` is a part of a name and must match exactly one employee, or the command stops. The
+deletion runs in one transaction and checks every foreign key before it commits: a problem rolls everything back.
+Once `real_data_since` is set, `seed_dev` (run by every deploy) adds nothing. To undo, restore the backup
+(Emergency restore above).
 
 ## Production
 
