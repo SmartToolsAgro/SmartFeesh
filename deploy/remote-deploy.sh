@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs ON the staging server, from an unpacked release: deploy/remote-deploy.sh <release-id>
-# Called by deploy/deploy.sh. Starts the stack, installs the nginx site, checks health, seeds demo logins.
+# Called by deploy/deploy.sh. Starts the stack, installs the nginx site, checks health. Never seeds data.
 set -euo pipefail
 
 RELEASE="$1"
@@ -20,7 +20,6 @@ if [ ! -f "$ENV_FILE" ]; then
   cat > "$ENV_FILE" <<EOF
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 DJANGO_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')
-DEMO_PASSWORD=$(openssl rand -hex 12)
 SENTRY_DSN=
 SENTRY_DSN_FRONTEND=
 EOF
@@ -65,18 +64,13 @@ for site in "$ADMIN_HOST:8095" "$DRIVER_HOST:8096"; do
   curl -fsS -H "Host: $site" "http://127.0.0.1:$port/api/v1/health" > /dev/null || { echo "$site not healthy" >&2; exit 1; }
 done
 
-# 5. Demo logins (owner, driver) with the password from .env. Existing accounts are left as they are.
-DEMO_PASSWORD="$(grep '^DEMO_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)"
-sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml \
-  exec -T backend python manage.py seed_dev --password "$DEMO_PASSWORD"
-
-# 6. Nightly backup (D-139): the script the debian user's crontab calls, and the public key it encrypts to.
+# 5. Nightly backup (D-139): the script the debian user's crontab calls, and the public key it encrypts to.
 #    The cron entry itself is installed once by hand (docs/runbook.md, "Backups").
 install -d -m 700 "$BASE/bin"
 install -m 755 "$RELEASE_DIR/deploy/backup.sh" "$BASE/bin/backup.sh"
 install -m 644 "$RELEASE_DIR/deploy/backup-public-key.asc" "$BASE/backup-public-key.asc"
 
-# 7. Keep the last 3 releases and their images; remove only Frutti's older ones.
+# 6. Keep the last 3 releases and their images; remove only Frutti's older ones.
 cd "$BASE/releases"
 for old in $(ls -1t | tail -n +4); do
   rm -rf "$old"

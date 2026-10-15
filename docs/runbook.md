@@ -8,7 +8,7 @@ How to operate the running system. Keep it short and true; update it when a proc
 |---|---|
 | Admin app | http://admin.217-182-205-137.sslip.io:8095 |
 | Driver app | http://chauffeur.217-182-205-137.sslip.io:8096 |
-| Logins | `owner`, `driver`. Demo logins (`DEMO_PASSWORD` in `~/frutti-staging/.env`) until the client start below; after it, new passwords and no demo data |
+| Logins | `owner`, `driver`. Created by hand, never by a deploy: a deploy does not seed data. After the client start below, new passwords and no demo data |
 | Server login | `ssh debian@217.182.205.137` (key `~/.ssh/id_ed25519_erp_prod` on Mahmoud's machine) |
 
 **Shared server.** The VPS also runs other clients' production sites (Sonalim, TRT, dossipv, smartgreen)
@@ -23,7 +23,7 @@ else there. Always run `sudo nginx -t` before reloading nginx.
 From a clone with SSH access: commit, then `make deploy-staging` (or `bash deploy/deploy.sh`). It sends
 the committed code (never uncommitted changes) to `~/frutti-staging/releases/<time>-<commit>`, builds the
 images on the server, starts the stack (migrations run at backend start), installs the nginx site if it
-changed (test, reload, roll back on failure), checks health on both ports and seeds the demo logins.
+changed (test, reload, roll back on failure), checks health on both ports. A deploy never seeds or changes data.
 The last 3 releases and their images are kept.
 
 CI deploys automatically after every green push to `main`, once these GitHub secrets exist
@@ -65,7 +65,7 @@ Migrations are not reversed automatically.
 ### Secrets
 
 `~/frutti-staging/.env` (mode 600) is created on the first deploy with random values: database password,
-Django secret key, demo password, allowed host and CSRF origins, and an empty `SENTRY_DSN`. Edit it on the
+Django secret key, allowed host and CSRF origins, and an empty `SENTRY_DSN`. Edit it on the
 server, then redeploy. It is never in the repository. Deleting it would change the database password and
 break the existing database.
 
@@ -234,7 +234,7 @@ sudo docker compose --project-name frutti-staging --env-file ~/frutti-staging/.e
 
 Each `--keep-employee` is a part of a name and must match exactly one employee, or the command stops. The
 deletion runs in one transaction and checks every foreign key before it commits: a problem rolls everything back.
-Once `real_data_since` is set, `seed_dev` (run by every deploy) adds nothing. To undo, restore the backup
+Once `real_data_since` is set, `seed_dev` adds nothing. To undo, restore the backup
 (Emergency restore above).
 
 ## Production
