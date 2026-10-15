@@ -3698,6 +3698,39 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/members/{member_id}/can-buy:
+    patch:
+      operationId: setMemberCanBuy
+      description: Let a driver buy at the port and send the purchase from the phone,
+        or stop it (D-158).
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberCanBuy'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberCanBuy'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberCanBuy'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
   /api/v1/members/{member_id}/deactivate:
     post:
       operationId: deactivateMember
@@ -4161,6 +4194,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
           description: ''
+  /api/v1/my-day/purchase-float:
+    put:
+      operationId: setMyPurchaseFloat
+      description: |-
+        The money the office gave for purchases at the port today, typed again when it gives more (D-158).
+        404 before the day is started; refused once its closing is sent.
+      tags:
+      - my-day
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseFloat'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PurchaseFloat'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PurchaseFloat'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
   /api/v1/my-days:
     get:
       operationId: listMyDays
@@ -4293,6 +4355,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/RoadExpense'
           description: ''
+  /api/v1/my-field-purchases:
+    get:
+      operationId: listMyFieldPurchases
+      description: The driver's own purchases of the last 30 days, newest first, with
+        what the office decided and its note.
+      tags:
+      - my-field-purchases
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyFieldPurchase'
+          description: ''
+    post:
+      operationId: sendMyFieldPurchase
+      description: |-
+        Send what was bought at the port: the supplier (or a new name), the products (or new names), kg, price,
+        the deal and the money given. It waits for the office; nothing enters stock and nothing is owed before.
+        `client_uuid` makes a retry answer with the purchase already saved; `made_at` is the phone's time.
+      tags:
+      - my-field-purchases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyFieldPurchaseCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyFieldPurchaseCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyFieldPurchaseCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyFieldPurchase'
+          description: ''
+  /api/v1/my-field-purchases/{purchase_id}:
+    put:
+      operationId: changeMyFieldPurchase
+      description: |-
+        Change a purchase the office has not decided yet (a new revision). What the office set stays: the kg
+        received, the place, the boxes, its note. `revision` must be the current one, else 400 on `revision`.
+      parameters:
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - my-field-purchases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyFieldPurchaseUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyFieldPurchaseUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyFieldPurchaseUpdate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyFieldPurchase'
+          description: ''
   /api/v1/my-losses:
     post:
       operationId: reportMyLoss
@@ -4361,6 +4505,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/RoadPayment'
           description: ''
+  /api/v1/my-purchase-costs:
+    get:
+      operationId: listMyPurchaseCosts
+      description: 'What was last paid one supplier for each product: the hint next
+        to the price the driver types.'
+      parameters:
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - my-purchase-costs
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LastCost'
+          description: ''
   /api/v1/my-return:
     post:
       operationId: returnMyStock
@@ -4401,6 +4570,24 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MyStockLine'
+          description: ''
+  /api/v1/my-suppliers:
+    get:
+      operationId: listMySuppliers
+      description: The suppliers a driver who buys may pick, by name (no balances,
+        no partnership terms).
+      tags:
+      - my-suppliers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MySupplier'
           description: ''
   /api/v1/my-sync-problems:
     post:
@@ -10472,6 +10659,21 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         driver_note:
           type: string
           readOnly: true
@@ -10511,12 +10713,15 @@ components:
       - changed_since_sent
       - changes_since_sent
       - counted_cash
+      - counted_purchase_cash
       - date
       - difference
       - driver_name
       - driver_note
       - expected_cash
+      - expected_purchase_cash
       - id
+      - purchase_difference
       - reopenings
       - review_note
       - reviewed_at
@@ -10560,13 +10765,31 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - counted_cash
+      - counted_purchase_cash
       - date
       - difference
       - driver_name
       - expected_cash
+      - expected_purchase_cash
       - id
+      - purchase_difference
       - status
       - truck_name
     DayClosingState:
@@ -10595,6 +10818,21 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         driver_note:
           type: string
           readOnly: true
@@ -10611,10 +10849,13 @@ components:
       required:
       - changed_since_sent
       - counted_cash
+      - counted_purchase_cash
       - difference
       - driver_note
       - expected_cash
+      - expected_purchase_cash
       - id
+      - purchase_difference
       - review_note
       - status
       - submitted_at
@@ -10635,6 +10876,9 @@ components:
       properties:
         counted_cash:
           type: string
+        counted_purchase_cash:
+          type: string
+          default: '0'
         note:
           type: string
           default: ''
@@ -10881,6 +11125,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         driver_note:
           type: string
           readOnly: true
@@ -10905,6 +11154,7 @@ components:
           readOnly: true
       required:
       - counted_cash
+      - counted_purchase_cash
       - difference
       - driver_note
       - expected_cash
@@ -10975,6 +11225,46 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_count:
+          type: integer
+          readOnly: true
+          default: 0
+        purchases_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_other:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_from_sales:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
         products:
           type: array
           items:
@@ -10985,6 +11275,7 @@ components:
       - date
       - driver_name
       - expected_cash
+      - expected_purchase_cash
       - expenses_total
       - handed_over
       - on_credit
@@ -10992,6 +11283,12 @@ components:
       - other_payments
       - payments_cash
       - products
+      - purchase_float
+      - purchases_cash
+      - purchases_count
+      - purchases_from_sales
+      - purchases_other
+      - purchases_total
       - sales_count
       - sales_total
       - truck_name
@@ -11178,6 +11475,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         ended_at:
           type: string
           format: date-time
@@ -11188,6 +11490,7 @@ components:
       - ended_at
       - id
       - opening_cash
+      - purchase_float
       - truck_name
     DriverDayOpen:
       type: object
@@ -11196,6 +11499,11 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          default: '0.000'
       required:
       - opening_cash
     DriverRef:
@@ -12485,6 +12793,9 @@ components:
       - on_credit
       - expenses_total
       - expected_cash
+      - purchases_cash
+      - purchases_other
+      - expected_purchase_cash
       - opening
       - loaded
       - sold
@@ -12501,6 +12812,9 @@ components:
         * `on_credit` - on_credit
         * `expenses_total` - expenses_total
         * `expected_cash` - expected_cash
+        * `purchases_cash` - purchases_cash
+        * `purchases_other` - purchases_other
+        * `expected_purchase_cash` - expected_purchase_cash
         * `opening` - opening
         * `loaded` - loaded
         * `sold` - sold
@@ -14857,7 +15171,11 @@ components:
         is_active:
           type: boolean
           readOnly: true
+        can_buy:
+          type: boolean
+          readOnly: true
       required:
+      - can_buy
       - id
       - is_active
       - role
@@ -15508,6 +15826,311 @@ components:
       required:
       - closing
       - summary
+    MyFieldPurchase:
+      type: object
+      description: 'A purchase as its driver sees it: what they sent, what the office
+        changed and decided, its note.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/FieldPurchaseStatusEnum'
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+          nullable: true
+        proposed_supplier:
+          type: string
+          readOnly: true
+        proposed_supplier_phone:
+          type: string
+          readOnly: true
+        bought_on:
+          type: string
+          format: date
+          readOnly: true
+        terms:
+          allOf:
+          - $ref: '#/components/schemas/PaymentTermsEnum'
+          readOnly: true
+        due_days:
+          type: integer
+          readOnly: true
+        due_date:
+          type: string
+          format: date
+          readOnly: true
+        supplier_reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        office_note:
+          type: string
+          readOnly: true
+        revision:
+          type: integer
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyFieldPurchaseLine'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyFieldPurchasePayment'
+          readOnly: true
+        declared_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        rest:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bought_on
+      - created_at
+      - decided_at
+      - declared_total
+      - due_date
+      - due_days
+      - id
+      - lines
+      - notes
+      - number
+      - office_note
+      - paid
+      - payments
+      - proposed_supplier
+      - proposed_supplier_phone
+      - rest
+      - revision
+      - status
+      - supplier
+      - supplier_reference
+      - terms
+      - total
+    MyFieldPurchaseCreate:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+        proposed_supplier:
+          type: string
+          default: ''
+          maxLength: 150
+        proposed_supplier_phone:
+          type: string
+          default: ''
+          maxLength: 30
+        terms:
+          $ref: '#/components/schemas/PaymentTermsEnum'
+        due_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          default: 0
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyFieldPurchaseLineWrite'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchasePaymentWrite'
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+        made_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - lines
+      - terms
+    MyFieldPurchaseLine:
+      type: object
+      description: 'A line as the driver sees it: no partner (the owner''s business,
+        D-060).'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+          nullable: true
+        proposed_product:
+          type: string
+          readOnly: true
+        declared_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        received_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        owed_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - declared_quantity
+      - id
+      - owed_quantity
+      - product
+      - proposed_product
+      - received_quantity
+      - unit_cost
+    MyFieldPurchaseLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+          nullable: true
+        proposed_product:
+          type: string
+          default: ''
+          maxLength: 150
+        declared_quantity:
+          type: string
+        unit_cost:
+          type: string
+      required:
+      - declared_quantity
+      - unit_cost
+    MyFieldPurchasePayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        cash_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - cash_on
+      - id
+      - method
+      - reference
+    MyFieldPurchaseUpdate:
+      type: object
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+        proposed_supplier:
+          type: string
+          default: ''
+          maxLength: 150
+        proposed_supplier_phone:
+          type: string
+          default: ''
+          maxLength: 30
+        terms:
+          $ref: '#/components/schemas/PaymentTermsEnum'
+        due_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          default: 0
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyFieldPurchaseLineWrite'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchasePaymentWrite'
+      required:
+      - lines
+      - revision
+      - terms
     MyStockLine:
       type: object
       description: What the driver's truck holds of one product, with today's price
@@ -15540,6 +16163,22 @@ components:
       - product_name
       - quantity
       - unit_price
+    MySupplier:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
     NamedRef:
       type: object
       properties:
@@ -16705,6 +17344,11 @@ components:
           type: string
         notes:
           type: string
+    PatchedMemberCanBuy:
+      type: object
+      properties:
+        can_buy:
+          type: boolean
     PatchedMemberProfile:
       type: object
       properties:
@@ -17682,6 +18326,15 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
+    PurchaseFloat:
+      type: object
+      properties:
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+      required:
+      - purchase_float
     PurchaseOrderStatusEnum:
       enum:
       - open
@@ -20356,12 +21009,16 @@ components:
           allOf:
           - $ref: '#/components/schemas/RoleEnum'
           readOnly: true
+        can_buy:
+          type: boolean
+          readOnly: true
         truck:
           allOf:
           - $ref: '#/components/schemas/TruckRef'
           nullable: true
           readOnly: true
       required:
+      - can_buy
       - organization
       - role
       - truck
@@ -21483,6 +22140,7 @@ components:
       - loss
       - payment
       - pickup
+      - purchase
       type: string
       description: |-
         * `sale` - sale
@@ -21490,6 +22148,7 @@ components:
         * `loss` - loss
         * `payment` - payment
         * `pickup` - pickup
+        * `purchase` - purchase
     Transfer:
       type: object
       properties:

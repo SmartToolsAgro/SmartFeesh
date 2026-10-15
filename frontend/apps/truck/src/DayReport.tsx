@@ -34,6 +34,43 @@ function handedOverOf(summary: DaySummary): string | null {
   return kept.handed_over !== undefined && Number(kept.handed_over) !== 0 ? kept.handed_over : null;
 }
 
+/** The purchases at the port of the day and their money, kept apart from the sales cash (D-158); null for a day
+ * without purchase money nor purchases (and for a day kept on the phone before these figures existed). */
+function purchasesOf(summary: DaySummary) {
+  const kept: Partial<DaySummary> = summary;
+  const count = kept.purchases_count ?? 0;
+  const float = kept.purchase_float ?? "0.000";
+  if (count === 0 && Number(float) === 0) return null;
+  return {
+    count,
+    float,
+    total: kept.purchases_total ?? "0.000",
+    cash: kept.purchases_cash ?? "0.000",
+    other: kept.purchases_other ?? "0.000",
+    fromSales: kept.purchases_from_sales ?? "0.000",
+    expected: kept.expected_purchase_cash ?? "0.000",
+  };
+}
+
+function PurchaseFigures({ summary }: { summary: DaySummary }) {
+  const { t } = useTranslation();
+  const purchases = purchasesOf(summary);
+  if (purchases === null) return null;
+  return (
+    <Card className="space-y-2">
+      <h2>{t("truck.purchase.closingTitle")}</h2>
+      <p>{t("truck.purchase.closingCount", { count: purchases.count, amount: formatMoney(purchases.total) })}</p>
+      <Row label={t("truck.purchase.closingFloat")} value={formatMoney(purchases.float)} />
+      <Row label={t("truck.purchase.closingCash")} value={formatMoney(purchases.cash)} />
+      <Row label={t("truck.purchase.closingOther")} value={formatMoney(purchases.other)} />
+      {Number(purchases.fromSales) === 0 ? null : (
+        <Row label={t("truck.purchase.closingFromSales")} value={formatMoney(purchases.fromSales)} />
+      )}
+      <Row label={t("truck.purchase.closingExpected")} value={formatMoney(purchases.expected)} strong />
+    </Card>
+  );
+}
+
 function Figures({ summary }: { summary: DaySummary }) {
   const { t } = useTranslation();
   const handedOver = handedOverOf(summary);
@@ -55,6 +92,7 @@ function Figures({ summary }: { summary: DaySummary }) {
         {handedOver === null ? null : <Row label={t("truck.closing.handedOver")} value={formatMoney(handedOver)} />}
         <Row label={t("truck.closing.expected")} value={formatMoney(summary.expected_cash)} strong />
       </Card>
+      <PurchaseFigures summary={summary} />
       {summary.products.length === 0 ? null : (
         <Card>
           <h2 className="mb-3">{t("truck.closing.stock")}</h2>
@@ -101,7 +139,8 @@ export function DayReport({
   data: MyDaySummary;
   sending: boolean;
   error: string;
-  onSend: (counted: string, note: string) => void;
+  /** `countedPurchase`: the purchase money left, counted apart (D-158); "0" for a day without purchases. */
+  onSend: (counted: string, note: string, countedPurchase: string) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -110,6 +149,7 @@ export function DayReport({
   const problem = useSyncProblem();
   const [retrying, setRetrying] = useState(false);
   const [counted, setCounted] = useState("");
+  const [countedPurchase, setCountedPurchase] = useState("");
   const [note, setNote] = useState("");
   // Waiting sales are sent as soon as the day's figures open, not only on the half-minute timer (D-090).
   useEffect(() => {
@@ -129,7 +169,19 @@ export function DayReport({
   const handedOver = handedOverOf(summary);
   const countedValue = parseDecimalInput(counted.trim(), 3);
   const gap = countedValue === null ? null : (millimes(countedValue) - millimes(summary.expected_cash)) / 1000;
-  const gate = closingGate({ queue, online, countedReady: countedValue !== null, busy: sending });
+  // The purchase money is counted apart, only on a day with purchase money or purchases (D-158).
+  const purchases = purchasesOf(summary);
+  const countedPurchaseValue = purchases === null ? "0" : parseDecimalInput(countedPurchase.trim(), 3);
+  const purchaseGap =
+    purchases === null || countedPurchaseValue === null
+      ? null
+      : (millimes(countedPurchaseValue) - millimes(purchases.expected)) / 1000;
+  const gate = closingGate({
+    queue,
+    online,
+    countedReady: countedValue !== null && countedPurchaseValue !== null,
+    busy: sending,
+  });
   const waiting = gate.waiting;
   // Why the sale has not gone yet: the phone's own connection first, then what the last send ran into.
   const waitReason = !online
@@ -149,11 +201,21 @@ export function DayReport({
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.approved")}</p>
           <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
+          {purchases === null ? null : (
+            <p className="text-ink-2">
+              {t("truck.purchase.countedWas", { amount: formatMoney(closing.counted_purchase_cash ?? "0.000") })}
+            </p>
+          )}
         </Card>
       ) : closing?.status === "submitted" && !changed ? (
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.sent")}</p>
           <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
+          {purchases === null ? null : (
+            <p className="text-ink-2">
+              {t("truck.purchase.countedWas", { amount: formatMoney(closing.counted_purchase_cash ?? "0.000") })}
+            </p>
+          )}
         </Card>
       ) : null}
       {locked ? null : (
@@ -186,6 +248,28 @@ export function DayReport({
               {t("truck.closing.gap", { amount: `${gap > 0 ? "+" : ""}${formatMoney(gap.toFixed(3))}` })}
             </p>
           )}
+          {purchases === null ? null : (
+            <div className="space-y-1">
+              <label htmlFor="counted-purchase-cash" className="font-semibold">
+                {t("truck.purchase.counted")}
+              </label>
+              <Input
+                id="counted-purchase-cash"
+                inputMode="decimal"
+                placeholder="0"
+                className="text-2xl"
+                value={countedPurchase}
+                onChange={(event) => setCountedPurchase(event.target.value)}
+              />
+              {purchaseGap === null ? null : (
+                <p className="text-lg font-semibold">
+                  {t("truck.purchase.gap", {
+                    amount: `${purchaseGap > 0 ? "+" : ""}${formatMoney(purchaseGap.toFixed(3))}`,
+                  })}
+                </p>
+              )}
+            </div>
+          )}
           <div className="space-y-1">
             <label htmlFor="closing-note" className="font-semibold">
               {t("truck.closing.note")}
@@ -209,7 +293,9 @@ export function DayReport({
             variant="primary"
             className="py-4 text-lg"
             disabled={!gate.canSend}
-            onClick={() => countedValue !== null && onSend(countedValue, note)}
+            onClick={() =>
+              countedValue !== null && countedPurchaseValue !== null && onSend(countedValue, note, countedPurchaseValue)
+            }
           >
             {t("truck.closing.send")}
           </Button>

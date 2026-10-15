@@ -14,6 +14,7 @@ from apps.core.models import Membership, Organization
 from apps.expenses import selectors as expenses
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
+from apps.purchasing import selectors as purchasing
 from apps.sales import selectors as sales
 
 from .models import DayClosing, DayClosingStatus, DayReopening, SyncProblem
@@ -119,6 +120,11 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         # sale, loss or transfer of this driver (another seller, a hand adjustment, a cancelled sale...).
         left = figures["opening"] + figures["loaded"] - figures["returned"] - figures["sold"] - figures["lost"]
         products.append({**figures, "unexplained": figures["remaining"] - left})
+    # Purchases at the port (D-158): the cash given comes out of the purchase money first, kept apart; what goes
+    # beyond it was paid with the sales cash. Cheques and traites are not cash.
+    bought = purchasing.purchases_paid_between(organization, buyer_id=driver_day.driver_id, start=start, end=end)
+    purchase_money = driver_day.purchase_float - handed_over_purchase_of(driver_day)
+    from_sales = max(bought.cash - purchase_money, ZERO)
     driver = driver_day.driver
     handed_over = handed_over_of(driver_day)
     return {
@@ -134,7 +140,14 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         "on_credit": sum((s.amount_due for s in day_sales), ZERO),
         "expenses_total": spent,
         "handed_over": handed_over,
-        "expected_cash": driver_day.opening_cash + cash + payments_cash - spent - handed_over,
+        "expected_cash": driver_day.opening_cash + cash + payments_cash - spent - handed_over - from_sales,
+        "purchase_float": driver_day.purchase_float,
+        "purchases_count": bought.count,
+        "purchases_total": bought.total,
+        "purchases_cash": bought.cash,
+        "purchases_other": bought.other,
+        "purchases_from_sales": from_sales,
+        "expected_purchase_cash": max(purchase_money - bought.cash, ZERO),
         "products": products,
     }
 
@@ -144,6 +157,15 @@ def handed_over_of(driver_day: "DriverDay") -> Decimal:
     undid (D-134)."""
     total: Decimal | None = DayReopening.objects.filter(closing__driver_day=driver_day).aggregate(
         total=Sum("counted_cash")
+    )["total"]
+    return total if total is not None else ZERO
+
+
+def handed_over_purchase_of(driver_day: "DriverDay") -> Decimal:
+    """The purchase money the driver already gave back to the office that day: what was counted of it at each
+    send a new load undid (D-158, as `handed_over_of` for the sales cash)."""
+    total: Decimal | None = DayReopening.objects.filter(closing__driver_day=driver_day).aggregate(
+        total=Sum("counted_purchase_cash")
     )["total"]
     return total if total is not None else ZERO
 
@@ -176,6 +198,9 @@ DAY_FIGURES = (
     "on_credit",
     "expenses_total",
     "expected_cash",
+    "purchases_cash",
+    "purchases_other",
+    "expected_purchase_cash",
 )
 PRODUCT_FIGURES = ("opening", "loaded", "sold", "lost", "returned", "remaining")
 CHANGED_FIGURES = (*DAY_FIGURES, *PRODUCT_FIGURES)
@@ -350,7 +375,7 @@ def unexplained_cash_differences(organization: Organization) -> list[CashDiffere
     rows = (
         closings_of(organization)
         .exclude(status__in=_NOT_WITH_THE_OFFICE)
-        .exclude(difference=0)
+        .exclude(difference=0, purchase_difference=0)
         .filter(Q(driver_note="") | Q(status=DayClosingStatus.JUSTIFICATION))
         .order_by("-driver_day__date", "-id")
     )
@@ -362,7 +387,8 @@ def unexplained_cash_differences(organization: Organization) -> list[CashDiffere
                 f"{row.driver_day.driver.first_name} {row.driver_day.driver.last_name}".strip()
                 or row.driver_day.driver.username
             ),
-            difference=row.difference,
+            # Both boxes: the sales cash and the purchase money (D-158).
+            difference=row.difference + row.purchase_difference,
         )
         for row in rows
     ]

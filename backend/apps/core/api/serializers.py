@@ -55,6 +55,8 @@ class SessionSerializer(serializers.Serializer[Membership]):
     user = UserSerializer(read_only=True)
     organization = OrganizationSerializer(read_only=True)
     role = serializers.ChoiceField(choices=Role.choices, read_only=True)
+    # The owner lets this driver buy at the port from the phone (D-158).
+    can_buy = serializers.BooleanField(read_only=True)
     # The driver's own truck; null for other roles and for a driver without a truck.
     truck = serializers.SerializerMethodField()
 
@@ -79,7 +81,8 @@ class MemberSerializer(serializers.ModelSerializer[Membership]):
 
     class Meta:
         model = Membership
-        fields = ("id", "user", "role", "is_active")
+        # `can_buy`: the driver may buy at the port from the phone (D-158).
+        fields = ("id", "user", "role", "is_active", "can_buy")
         read_only_fields = fields
 
 
@@ -112,6 +115,10 @@ class MemberProfileSerializer(serializers.Serializer[Any]):
 
 class MemberRoleSerializer(serializers.Serializer[Any]):
     role = serializers.ChoiceField(choices=Role.choices)
+
+
+class MemberCanBuySerializer(serializers.Serializer[Any]):
+    can_buy = serializers.BooleanField()
 
 
 class MemberPasswordResetSerializer(serializers.Serializer[Any]):

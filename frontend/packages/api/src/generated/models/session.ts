@@ -16,5 +16,6 @@ export interface Session {
   readonly user: User;
   readonly organization: Organization;
   readonly role: RoleEnum;
+  readonly can_buy: boolean;
   readonly truck: TruckRef | null;
 }

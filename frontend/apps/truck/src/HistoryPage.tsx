@@ -110,7 +110,9 @@ export function HistoryDayPage() {
           data={day.data}
           sending={send.isPending}
           error={error}
-          onSend={(counted, note) => send.mutate({ dayId: id, data: { counted_cash: counted, note } })}
+          onSend={(counted, note, countedPurchase) =>
+            send.mutate({ dayId: id, data: { counted_cash: counted, note, counted_purchase_cash: countedPurchase } })
+          }
         />
       )}
     </div>

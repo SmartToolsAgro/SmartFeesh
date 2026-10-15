@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import driver_views, views
 
 urlpatterns = [
     path("receipts", views.ReceiptListView.as_view(), name="receipt-list"),
@@ -30,6 +30,14 @@ urlpatterns = [
     path("supplier-balances/<int:supplier_id>", views.SupplierBalanceView.as_view(), name="supplier-balance"),
     path("field-purchases", views.FieldPurchaseListView.as_view(), name="field-purchase-list"),
     path("field-purchases/<int:purchase_id>", views.FieldPurchaseDetailView.as_view(), name="field-purchase-detail"),
+    path("my-field-purchases", driver_views.MyFieldPurchasesView.as_view(), name="my-field-purchases"),
+    path(
+        "my-field-purchases/<int:purchase_id>",
+        driver_views.MyFieldPurchaseView.as_view(),
+        name="my-field-purchase",
+    ),
+    path("my-suppliers", driver_views.MySuppliersView.as_view(), name="my-suppliers"),
+    path("my-purchase-costs", driver_views.MyPurchaseCostsView.as_view(), name="my-purchase-costs"),
     path(
         "field-purchases/<int:purchase_id>/refuse",
         views.FieldPurchaseRefuseView.as_view(),

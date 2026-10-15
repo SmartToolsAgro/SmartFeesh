@@ -18,6 +18,7 @@ from .permissions import AssignmentsOfficeOrOwnDriver, OwnTruckOrOffice
 from .serializers import (
     DriverDayOpenSerializer,
     DriverDaySerializer,
+    PurchaseFloatSerializer,
     TruckAssignmentFilterSerializer,
     TruckAssignmentSerializer,
     TruckAssignmentWriteSerializer,
@@ -272,6 +273,27 @@ class MyDayView(APIView):
             actor=membership.user,
             truck=truck,
             opening_cash=serializer.validated_data["opening_cash"],
+            purchase_float=serializer.validated_data["purchase_float"],
             date=timezone.localdate(),
         )
         return Response(DriverDaySerializer(day).data, status=status.HTTP_201_CREATED)
+
+
+class MyPurchaseFloatView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="setMyPurchaseFloat", request=PurchaseFloatSerializer, responses=DriverDaySerializer)
+    def put(self, request: Request) -> Response:
+        """The money the office gave for purchases at the port today, typed again when it gives more (D-158).
+        404 before the day is started; refused once its closing is sent."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        day = selectors.driver_day_of(membership)
+        if day is None:
+            raise Http404
+        serializer = PurchaseFloatSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        day = services.set_purchase_float(
+            driver_day=day, actor=membership.user, purchase_float=serializer.validated_data["purchase_float"]
+        )
+        return Response(DriverDaySerializer(day).data)

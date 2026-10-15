@@ -543,7 +543,7 @@ class FieldPurchaseLineSerializer(serializers.ModelSerializer[FieldPurchaseLine]
 
     class Meta:
         model = FieldPurchaseLine
-        fields = (
+        fields: tuple[str, ...] = (
             "id",
             "product",
             "proposed_product",
@@ -554,7 +554,7 @@ class FieldPurchaseLineSerializer(serializers.ModelSerializer[FieldPurchaseLine]
             "amount",
             "partner",
         )
-        read_only_fields = fields
+        read_only_fields: tuple[str, ...] = fields
 
 
 class FieldPurchasePaymentSerializer(serializers.ModelSerializer[FieldPurchasePayment]):
@@ -563,8 +563,8 @@ class FieldPurchasePaymentSerializer(serializers.ModelSerializer[FieldPurchasePa
 
     class Meta:
         model = FieldPurchasePayment
-        fields = ("id", "method", "amount", "reference", "cash_on", "supplier_payment")
-        read_only_fields = fields
+        fields: tuple[str, ...] = ("id", "method", "amount", "reference", "cash_on", "supplier_payment")
+        read_only_fields: tuple[str, ...] = fields
 
 
 class RevisionChangeSerializer(serializers.Serializer[Any]):
@@ -756,3 +756,89 @@ class FieldPurchaseRefuseSerializer(serializers.Serializer[Any]):
 class FieldPurchaseFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=FieldPurchaseStatus.choices, required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+# ---- The driver's own purchases (P3-T12b, D-158) ----
+
+
+class MyFieldPurchaseLineSerializer(FieldPurchaseLineSerializer):
+    """A line as the driver sees it: no partner (the owner's business, D-060)."""
+
+    class Meta(FieldPurchaseLineSerializer.Meta):
+        fields = tuple(field for field in FieldPurchaseLineSerializer.Meta.fields if field != "partner")
+        read_only_fields = fields
+
+
+class MyFieldPurchasePaymentSerializer(FieldPurchasePaymentSerializer):
+    class Meta(FieldPurchasePaymentSerializer.Meta):
+        fields = ("id", "method", "amount", "reference", "cash_on")
+        read_only_fields = fields
+
+
+class MyFieldPurchaseSerializer(FieldPurchaseSerializer):
+    """A purchase as its driver sees it: what they sent, what the office changed and decided, its note."""
+
+    lines = MyFieldPurchaseLineSerializer(many=True, read_only=True)
+    payments = MyFieldPurchasePaymentSerializer(many=True, read_only=True)
+
+    class Meta(FieldPurchaseSerializer.Meta):
+        fields = (
+            "id",
+            "number",
+            "status",
+            "supplier",
+            "proposed_supplier",
+            "proposed_supplier_phone",
+            "bought_on",
+            "terms",
+            "due_days",
+            "due_date",
+            "supplier_reference",
+            "notes",
+            "office_note",
+            "revision",
+            "lines",
+            "payments",
+            "declared_total",
+            "total",
+            "paid",
+            "rest",
+            "decided_at",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class MyFieldPurchaseLineWriteSerializer(serializers.Serializer[Any]):
+    product = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    proposed_product = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    declared_quantity = serializers.CharField(allow_blank=True)
+    unit_cost = serializers.CharField(allow_blank=True)
+
+
+class MyFieldPurchaseUpdateSerializer(serializers.Serializer[Any]):
+    # The revision the driver was looking at: a save on an older one is refused.
+    revision = serializers.IntegerField(min_value=1)
+    supplier = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    proposed_supplier = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    proposed_supplier_phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
+    terms = serializers.ChoiceField(choices=PaymentTerms.choices)
+    due_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=0)
+    supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    lines = MyFieldPurchaseLineWriteSerializer(many=True, allow_empty=True)
+    payments = FieldPurchasePaymentWriteSerializer(many=True, required=False, default=list)
+
+
+class MyFieldPurchaseCreateSerializer(MyFieldPurchaseUpdateSerializer):
+    revision = None  # type: ignore[assignment]
+    # Sent by the phone, which may retry: the same value never makes two purchases.
+    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+    # When the phone says it was bought (D-133); the server checks it.
+    made_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+
+
+class MySupplierSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    reference = serializers.CharField(read_only=True)
+    name = serializers.CharField(read_only=True)

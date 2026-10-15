@@ -77,6 +77,7 @@ class MyDayClosingView(APIView):
             driver_day=driver_day,
             actor=membership.user,
             counted_cash=serializer.validated_data["counted_cash"],
+            counted_purchase_cash=serializer.validated_data["counted_purchase_cash"] or "0",
             note=serializer.validated_data["note"],
         )
         return Response(MyDaySummarySerializer(_my_day_answer(membership)).data, status=status.HTTP_201_CREATED)
@@ -124,6 +125,7 @@ class MyPastDayClosingView(APIView):
             driver_day=driver_day,
             actor=membership.user,
             counted_cash=serializer.validated_data["counted_cash"],
+            counted_purchase_cash=serializer.validated_data["counted_purchase_cash"] or "0",
             note=serializer.validated_data["note"],
         )
         driver_day = _my_past_day(membership, day_id)

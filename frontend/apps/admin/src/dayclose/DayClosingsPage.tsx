@@ -220,6 +220,31 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             <Line label={t("admin.dayClosings.counted")} value={formatMoney(data.counted_cash)} />
             <Line label={t("admin.dayClosings.difference")} value={signed(data.difference)} />
           </div>
+          {/* Purchases at the port and their money, counted apart (D-158); a day without them shows nothing. */}
+          {(data.summary.purchases_count > 0 || Number(data.summary.purchase_float) !== 0) && (
+            <div className="space-y-1">
+              <p className="font-semibold">{t("admin.dayClosings.purchases.title")}</p>
+              <Line
+                label={t("admin.dayClosings.purchases.count", { count: data.summary.purchases_count })}
+                value={formatMoney(data.summary.purchases_total)}
+              />
+              <Line label={t("admin.dayClosings.purchases.float")} value={formatMoney(data.summary.purchase_float)} />
+              <Line label={t("admin.dayClosings.purchases.cash")} value={formatMoney(data.summary.purchases_cash)} />
+              <Line label={t("admin.dayClosings.purchases.other")} value={formatMoney(data.summary.purchases_other)} />
+              {Number(data.summary.purchases_from_sales) !== 0 && (
+                <Line
+                  label={t("admin.dayClosings.purchases.fromSales")}
+                  value={formatMoney(data.summary.purchases_from_sales)}
+                />
+              )}
+              <Line
+                label={t("admin.dayClosings.purchases.expected")}
+                value={formatMoney(data.expected_purchase_cash)}
+              />
+              <Line label={t("admin.dayClosings.purchases.counted")} value={formatMoney(data.counted_purchase_cash)} />
+              <Line label={t("admin.dayClosings.purchases.difference")} value={signed(data.purchase_difference)} />
+            </div>
+          )}
           <ChangesSinceSent changes={data.changes_since_sent} />
           <Table>
             <thead>
@@ -340,7 +365,10 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
               <Td>{formatDate(problem.created_at)}</Td>
               <Td>{problem.driver_name}</Td>
               <Td>
-                {t(`admin.dayClosings.problems.kinds.${problem.kind as "sale" | "expense" | "loss"}`)} · {problem.label}
+                {t(
+                  `admin.dayClosings.problems.kinds.${problem.kind as "sale" | "expense" | "loss" | "payment" | "pickup" | "purchase"}`,
+                )}{" "}
+                · {problem.label}
               </Td>
               <Td>{problem.reason}</Td>
               {canDecide && (

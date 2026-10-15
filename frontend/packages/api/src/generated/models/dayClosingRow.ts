@@ -18,4 +18,10 @@ export interface DayClosingRow {
   readonly counted_cash: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly difference: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly expected_purchase_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly counted_purchase_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly purchase_difference: string;
 }

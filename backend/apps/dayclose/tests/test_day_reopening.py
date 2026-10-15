@@ -308,6 +308,7 @@ def test_an_approved_day_is_reopened_by_a_load_and_its_approval_stays_on_record(
         "expected_cash": "150.000",
         "counted_cash": "140.000",
         "difference": "-10.000",
+        "counted_purchase_cash": "0.000",
         "driver_note": "",
         "submitted_at": timezone.localtime(at(12)).isoformat(),
         "reviewed_by_name": f"{office.first_name} {office.last_name}".strip() or office.username,

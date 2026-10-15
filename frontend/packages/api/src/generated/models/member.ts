@@ -12,4 +12,5 @@ export interface Member {
   readonly user: User;
   readonly role: RoleEnum;
   readonly is_active: boolean;
+  readonly can_buy: boolean;
 }

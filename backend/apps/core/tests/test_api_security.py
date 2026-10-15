@@ -80,6 +80,12 @@ def client_for(role: Role, organization: Any = None) -> APIClient:
 def _is_driver_area(path: str, method: str) -> bool:
     """What a driver may reach (D-023, D-042, D-091): their own screens, the catalogue to sell, their truck and
     their assignments, and sales from the truck of the day. The views narrow these to the driver's own rows."""
+    # Buying at the port (D-158): only a driver the owner lets buy; the one of this test may not. Any driver reads
+    # their own purchases.
+    if path.startswith(("/api/v1/my-suppliers", "/api/v1/my-purchase-costs")):
+        return False
+    if path.startswith("/api/v1/my-field-purchases") and method != "get":
+        return False
     if path.startswith(("/api/v1/my-", "/api/v1/me/")) or path in {"/api/v1/me"}:
         return True
     # Any logged-in person's own profile and avatar, and reading a colleague's avatar picture (D-123).

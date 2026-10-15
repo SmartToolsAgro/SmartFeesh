@@ -8,6 +8,7 @@ import {
   useListMyStock,
   useListMyTruckChoices,
   useOpenMyDay,
+  useSetMyPurchaseFloat,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
@@ -94,10 +95,68 @@ function BoxDayCard({ day }: { day: MyBoxDay }) {
   );
 }
 
+/** The money the office gave for purchases at the port, kept apart from the sales cash (D-158): shown while the
+ * day runs, typed again when the office gives more. */
+function PurchaseFloat({ amount }: { amount: string }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const save = useSetMyPurchaseFloat({
+    mutation: {
+      onSuccess: () => {
+        setEditing(false);
+        toast.success(t("truck.purchase.floatSaved"));
+        void queryClient.invalidateQueries();
+      },
+      onError: () => toast.error(t("truck.purchase.floatFailed")),
+    },
+  });
+  const parsed = parseDecimalInput(value.trim(), 3);
+  if (!editing) {
+    return (
+      <p className="flex items-center justify-between gap-3 text-ink-2">
+        <span>{t("truck.purchase.floatIs", { amount: formatMoney(amount) })}</span>
+        <Button
+          onClick={() => {
+            setValue(amount.replace(".", ","));
+            setEditing(true);
+          }}
+        >
+          {t("truck.purchase.floatChange")}
+        </Button>
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <Field label={t("truck.purchase.float")} htmlFor="purchase-float-change">
+        <Input
+          id="purchase-float-change"
+          inputMode="decimal"
+          className="text-xl"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
+      </Field>
+      <Button
+        variant="primary"
+        disabled={parsed === null || parsed.startsWith("-") || save.isPending}
+        onClick={() => parsed !== null && save.mutate({ data: { purchase_float: parsed } })}
+      >
+        {t("truck.purchase.floatSave")}
+      </Button>
+    </div>
+  );
+}
+
 function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const session = useSession();
+  const canBuy = session.data?.can_buy === true;
   const [cash, setCash] = useState("0");
+  const [purchaseFloat, setPurchaseFloat] = useState("0");
   const day = useGetMyDay({ query: { retry: false } });
   const load = useGetMyTruckDay({ query: { retry: false } });
   const open = useOpenMyDay({
@@ -119,6 +178,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
   // The day's closing was sent: it is closed until the office loads the truck again (D-134).
   const ended = day.data !== undefined && day.data.ended_at !== null;
   const cashValue = parseDecimalInput(cash.trim(), 3);
+  const floatValue = canBuy ? parseDecimalInput(purchaseFloat.trim(), 3) : "0";
   // A day the office asked about waits in the history for the driver's answer.
   const days = useListMyDays({ query: { retry: false } });
   const asked = days.data?.find((row) => row.closing?.status === "justification");
@@ -163,6 +223,16 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         </Card>
       )}
       {boxes.data === undefined ? null : <BoxDayCard day={boxes.data} />}
+      {canBuy ? (
+        <>
+          <Button asChild size="lg" variant="primary" className="py-4 text-lg">
+            <Link to="/achat">{t("truck.purchase.add")}</Link>
+          </Button>
+          <Button asChild size="lg" className="py-4 text-lg">
+            <Link to="/achats">{t("truck.purchase.mine")}</Link>
+          </Button>
+        </>
+      ) : null}
       <Button asChild size="lg" className="py-4 text-lg">
         <Link to="/reprise">{t("truck.boxes.pickupAdd")}</Link>
       </Button>
@@ -179,6 +249,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         <Card>
           <p className="text-lg font-semibold">{t(reopened ? "truck.history.reopened" : "truck.day.started")}</p>
           <p className="text-ink-2">{t("truck.day.cashAtStart", { amount: formatMoney(day.data.opening_cash) })}</p>
+          {canBuy ? <PurchaseFloat amount={day.data.purchase_float} /> : null}
         </Card>
       ) : ended ? (
         <Card className="space-y-3">
@@ -201,12 +272,28 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
               onChange={(event) => setCash(event.target.value)}
             />
           </Field>
+          {canBuy ? (
+            <Field label={t("truck.purchase.float")} htmlFor="purchase-float">
+              <Input
+                id="purchase-float"
+                inputMode="decimal"
+                className="text-xl"
+                value={purchaseFloat}
+                onChange={(event) => setPurchaseFloat(event.target.value)}
+              />
+              <p className="mt-1 text-sm text-ink-2">{t("truck.purchase.floatHint")}</p>
+            </Field>
+          ) : null}
           <Button
             size="lg"
             variant="primary"
             className="py-4 text-lg"
-            disabled={cashValue === null || open.isPending}
-            onClick={() => cashValue !== null && open.mutate({ data: { opening_cash: cashValue } })}
+            disabled={cashValue === null || floatValue === null || open.isPending}
+            onClick={() =>
+              cashValue !== null &&
+              floatValue !== null &&
+              open.mutate({ data: { opening_cash: cashValue, purchase_float: floatValue } })
+            }
           >
             {t("truck.day.start")}
           </Button>

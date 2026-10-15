@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from drf_spectacular.utils import extend_schema_field
@@ -21,6 +22,12 @@ class DayProductSerializer(serializers.Serializer[Any]):
     unexplained = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
 
+def _purchase_figure() -> Any:
+    return serializers.DecimalField(
+        max_digits=14, decimal_places=3, read_only=True, required=False, default=Decimal("0.000")
+    )
+
+
 class DaySummarySerializer(serializers.Serializer[Any]):
     date = serializers.DateField(read_only=True)
     truck_name = serializers.CharField(read_only=True)
@@ -36,8 +43,18 @@ class DaySummarySerializer(serializers.Serializer[Any]):
     expenses_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # Cash already given to the office that day: counted at the sends a new load undid (D-134).
     handed_over = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
-    # What the driver should hold now: the day's cash less `handed_over`.
+    # What the driver should hold now: the day's cash less `handed_over`, less what purchases took from it.
     expected_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Purchases at the port, counted apart (D-158); zero in a closing sent before them. The money the office gave
+    # for them, the purchases (count, what they owe), what was given in cash and otherwise (cheques, traites), the
+    # cash paid beyond the purchase money (taken from the sales cash), and the purchase money that should be left.
+    purchase_float = _purchase_figure()
+    purchases_count = serializers.IntegerField(read_only=True, required=False, default=0)
+    purchases_total = _purchase_figure()
+    purchases_cash = _purchase_figure()
+    purchases_other = _purchase_figure()
+    purchases_from_sales = _purchase_figure()
+    expected_purchase_cash = _purchase_figure()
     products = DayProductSerializer(many=True, read_only=True)
 
 
@@ -55,6 +72,9 @@ class DayClosingStateSerializer(serializers.ModelSerializer[DayClosing]):
             "expected_cash",
             "counted_cash",
             "difference",
+            "expected_purchase_cash",
+            "counted_purchase_cash",
+            "purchase_difference",
             "driver_note",
             "review_note",
             "submitted_at",
@@ -74,6 +94,8 @@ class MyDaySummarySerializer(serializers.Serializer[Any]):
 class DayClosingWriteSerializer(serializers.Serializer[Any]):
     # The cash in the driver's hands, in DT as a string ("250.500").
     counted_cash = serializers.CharField(allow_blank=True)
+    # The purchase money left, counted apart (D-158); "0" for a driver who did not buy.
+    counted_purchase_cash = serializers.CharField(required=False, allow_blank=True, default="0")
     note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
@@ -107,6 +129,9 @@ class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
             "expected_cash",
             "counted_cash",
             "difference",
+            "expected_purchase_cash",
+            "counted_purchase_cash",
+            "purchase_difference",
         )
         read_only_fields = fields
 
@@ -148,6 +173,7 @@ class DayReopeningSerializer(serializers.ModelSerializer[DayReopening]):
             "expected_cash",
             "counted_cash",
             "difference",
+            "counted_purchase_cash",
             "driver_note",
             "submitted_at",
             "reviewed_by_name",
@@ -218,6 +244,7 @@ class SyncProblemWriteSerializer(serializers.Serializer[Any]):
             ("loss", "loss"),
             ("payment", "payment"),
             ("pickup", "pickup"),
+            ("purchase", "purchase"),
         ]
     )
     # What the driver would call it: the customer, the category, the product.

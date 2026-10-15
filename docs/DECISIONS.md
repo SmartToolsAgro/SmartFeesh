@@ -2342,3 +2342,26 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Screens: Achats › "Achats terrain" (list, to check first), the check page (create the typed supplier or product,
   kg received, prices, place, deal, boxes, note to the driver; save, validate with a summary, refuse with a reason) and
   the history. Demo: `KRK-0917` from Pêcherie Kerkennah with a product named "Pageot", waiting.
+
+**D-158 · Buying at the port from the phone, and the purchase money counted apart (P3-T12b, Q28)** · accepted · 2026-10-16
+- **The switch:** `Membership.can_buy`, set by the owner on Paramètres › Utilisateurs (`PATCH /members/<id>/can-buy`),
+  sent in the session. Only such a driver sends or changes a purchase, lists suppliers (`/my-suppliers`) or reads the
+  last cost paid (`/my-purchase-costs`); any driver reads their own purchases. The server refuses the others (403).
+- **From the phone:** `POST /my-field-purchases` with `client_uuid` (a retry answers with the same purchase) and
+  `made_at` (checked as a sale's time; its day is the purchase's day). Kept on the phone without network and sent
+  later, like an expense. Refused after the day's closing was sent or on an approved day, as an expense. The driver
+  sees the last 30 days, the status, the office's note and the kg received; never a supplier's balance nor partners.
+- **Changes by the driver** (`PUT /my-field-purchases/<id>`, network needed, with the revision): a new revision; the
+  day does not change; what the office set stays (place, boxes, note, and the kg received and partner of a line still
+  buying the same product at the same position).
+- **Notice (owner, 2026-10-16):** each validated or refused purchase is announced on every screen of the phone until
+  the driver taps "J'ai vu" (decisions of the last 3 days; what was read is kept on the phone). Asked every minute.
+- **The purchase money is a second cash box (owner, 2026-10-16):** `DriverDay.purchase_float`, typed by the driver at
+  the start of the day and again while it runs when the office gives more (`PUT /my-day/purchase-float`). Cash given at
+  the port comes out of it first; beyond it, out of the sales cash (owner: allowed). The day's summary gives the
+  purchases (count, total, cash, cheques/traites), `purchases_from_sales` and `expected_purchase_cash`; the sales cash
+  expected is lowered by `purchases_from_sales`. A refused purchase counts for nothing. At closing the driver counts the
+  purchase money left apart (`counted_purchase_cash`, asked only on a day with purchase money or purchases);
+  `purchase_difference` is kept, shown to the office, and counts in the cash-difference alert. A send a new load
+  undoes keeps its counted purchase money, handed to the office like the sales cash (D-134).
+- Not done: the photo of the supplier's paper (moved to T12c); the office cannot type the purchase money for a driver.

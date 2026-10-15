@@ -240,26 +240,68 @@ def unassign_truck(*, assignment: TruckAssignment, actor: User | None) -> None:
 
 @transaction.atomic
 def open_driver_day(
-    *, organization: Organization, actor: User, truck: Truck, opening_cash: Decimal, date: date_type
+    *,
+    organization: Organization,
+    actor: User,
+    truck: Truck,
+    opening_cash: Decimal,
+    date: date_type,
+    purchase_float: Decimal = Decimal("0.000"),
 ) -> DriverDay:
-    """Open the driver's day on their truck with the cash they start with. One day per driver and date: asking
-    again changes nothing, also once its closing is sent (only a new load opens a sent day again, D-134)."""
+    """Open the driver's day on their truck with the cash they start with, and the money given for purchases at
+    the port (D-158). One day per driver and date: asking again changes nothing, also once its closing is sent
+    (only a new load opens a sent day again, D-134)."""
     if opening_cash < 0:
         raise ValidationError({"opening_cash": _("Le fonds de caisse ne peut pas être négatif.")})
+    if purchase_float < 0:
+        raise ValidationError({"purchase_float": _("L'argent pour les achats ne peut pas être négatif.")})
     existing = DriverDay.objects.for_organization(organization).filter(driver=actor, date=date).first()
     if existing is not None:
         return existing
     day = DriverDay.objects.create(
-        organization=organization, truck=truck, driver=actor, date=date, opening_cash=opening_cash
+        organization=organization,
+        truck=truck,
+        driver=actor,
+        date=date,
+        opening_cash=opening_cash,
+        purchase_float=purchase_float,
     )
     audit.record(
         organization=organization,
         actor=actor,
         action="driver_day.opened",
         target=day,
-        after={"truck": truck.location.name, "date": str(date), "opening_cash": str(opening_cash)},
+        after={
+            "truck": truck.location.name,
+            "date": str(date),
+            "opening_cash": str(opening_cash),
+            "purchase_float": str(purchase_float),
+        },
     )
     return day
+
+
+@transaction.atomic
+def set_purchase_float(*, driver_day: DriverDay, actor: User, purchase_float: Decimal) -> DriverDay:
+    """The money the office gave the driver for purchases at the port that day (D-158): typed again when the office
+    gives more. Refused once the closing is sent: the day's figures are kept as sent."""
+    if purchase_float < 0:
+        raise ValidationError({"purchase_float": _("L'argent pour les achats ne peut pas être négatif.")})
+    driver_day = DriverDay.objects.select_for_update().get(pk=driver_day.pk)
+    if driver_day.ended_at is not None:
+        raise ValidationError({"purchase_float": _("Votre journée est clôturée : elle ne change plus.")})
+    before = {"purchase_float": str(driver_day.purchase_float)}
+    driver_day.purchase_float = purchase_float
+    driver_day.save(update_fields=["purchase_float", "updated_at"])
+    audit.record(
+        organization=driver_day.organization,
+        actor=actor,
+        action="driver_day.purchase_float_set",
+        target=driver_day,
+        before=before,
+        after={"purchase_float": str(purchase_float)},
+    )
+    return driver_day
 
 
 def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:

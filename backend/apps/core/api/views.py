@@ -25,6 +25,7 @@ from .serializers import (
     ChangePasswordSerializer,
     LanguageSerializer,
     LoginSerializer,
+    MemberCanBuySerializer,
     MemberCreateSerializer,
     MemberPasswordResetSerializer,
     MemberProfileSerializer,
@@ -401,6 +402,26 @@ class MemberReactivateView(APIView):
         target = _member_or_404(membership.organization, member_id)
         updated = services.set_member_active(
             organization=membership.organization, membership=target, actor=membership.user, is_active=True
+        )
+        return Response(MemberSerializer(updated).data)
+
+
+class MemberCanBuyView(APIView):
+    permission_classes = (IsOwner,)
+
+    @extend_schema(operation_id="setMemberCanBuy", request=MemberCanBuySerializer, responses=MemberSerializer)
+    def patch(self, request: Request, member_id: int) -> Response:
+        """Let a driver buy at the port and send the purchase from the phone, or stop it (D-158)."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        target = _member_or_404(membership.organization, member_id)
+        serializer = MemberCanBuySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = services.set_member_can_buy(
+            organization=membership.organization,
+            membership=target,
+            actor=membership.user,
+            can_buy=serializer.validated_data["can_buy"],
         )
         return Response(MemberSerializer(updated).data)
 

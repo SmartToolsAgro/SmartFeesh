@@ -31,15 +31,28 @@ def _plain(value: Any) -> Any:
 
 
 @transaction.atomic
-def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Number, note: str = "") -> DayClosing:
-    """The driver sends the end of their day with the cash they counted. Allowed once, and again after the office
-    asked for a justification, after a new load reopened the day (D-134), or when the day's records no longer
-    say what was sent (D-132). An approved day does not change. The figures are kept as they are at this moment
-    (`DayClosing.summary`); nothing recorded later rewrites them."""
+def submit_day_closing(
+    *,
+    driver_day: "DriverDay",
+    actor: User,
+    counted_cash: Number,
+    note: str = "",
+    counted_purchase_cash: Number = "0",
+) -> DayClosing:
+    """The driver sends the end of their day with the cash they counted, and the purchase money left, counted apart
+    (D-158). Allowed once, and again after the office asked for a justification, after a new load reopened the day
+    (D-134), or when the day's records no longer say what was sent (D-132). An approved day does not change. The
+    figures are kept as they are at this moment (`DayClosing.summary`); nothing recorded later rewrites them."""
     try:
         counted = checked_amount(counted_cash)
     except (ValueError, TypeError):
         raise ValidationError({"counted_cash": _("Indiquez l'argent compté, en DT, au millime près.")}) from None
+    try:
+        counted_purchase = checked_amount(counted_purchase_cash)
+    except (ValueError, TypeError):
+        raise ValidationError(
+            {"counted_purchase_cash": _("Indiquez l'argent des achats qui reste, en DT, au millime près.")}
+        ) from None
     driver_day = fleet.locked_driver_day(driver_day)
     existing = selectors.closing_of(driver_day)
     if (
@@ -58,11 +71,15 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Nu
     driver_day = fleet_services.end_driver_day(driver_day=driver_day, ended_at=now)
     summary = selectors.day_summary(driver_day.organization, driver_day)
     expected: Decimal = summary["expected_cash"]
+    expected_purchase: Decimal = summary["expected_purchase_cash"]
     fields: dict[str, Any] = {
         "status": DayClosingStatus.SUBMITTED,
         "expected_cash": expected,
         "counted_cash": counted,
         "difference": counted - expected,
+        "expected_purchase_cash": expected_purchase,
+        "counted_purchase_cash": counted_purchase,
+        "purchase_difference": counted_purchase - expected_purchase,
         "driver_note": note.strip(),
         "summary": _plain(summary),
         "submitted_at": now,
@@ -80,7 +97,13 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, counted_cash: Nu
         actor=actor,
         action=action,
         target=closing,
-        after={"expected": str(expected), "counted": str(counted), "difference": str(counted - expected)},
+        after={
+            "expected": str(expected),
+            "counted": str(counted),
+            "difference": str(counted - expected),
+            "expected_purchase": str(expected_purchase),
+            "counted_purchase": str(counted_purchase),
+        },
     )
     return closing
 
@@ -157,6 +180,7 @@ def reopen_days_after_load(*, load: "Transfer", actor: User | None) -> list[DayC
             expected_cash=closing.expected_cash,
             counted_cash=closing.counted_cash,
             difference=closing.difference,
+            counted_purchase_cash=closing.counted_purchase_cash,
             driver_note=closing.driver_note,
             summary=closing.summary,
             submitted_at=closing.submitted_at,

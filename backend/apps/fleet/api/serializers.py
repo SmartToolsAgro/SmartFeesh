@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from django.db.models import QuerySet
@@ -91,9 +92,17 @@ class DriverDaySerializer(serializers.ModelSerializer[DriverDay]):
 
     class Meta:
         model = DriverDay
-        fields = ("id", "date", "truck_name", "opening_cash", "ended_at")
+        fields = ("id", "date", "truck_name", "opening_cash", "purchase_float", "ended_at")
         read_only_fields = fields
 
 
 class DriverDayOpenSerializer(serializers.Serializer[Any]):
     opening_cash = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)
+    # Money the office gave for purchases at the port (D-158); 0 for a driver who does not buy.
+    purchase_float = serializers.DecimalField(
+        max_digits=14, decimal_places=3, min_value=0, required=False, default=Decimal("0.000")
+    )
+
+
+class PurchaseFloatSerializer(serializers.Serializer[Any]):
+    purchase_float = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)
