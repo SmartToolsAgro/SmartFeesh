@@ -4301,8 +4301,9 @@ paths:
   /api/v1/organizations/{organization_id}/logo:
     put:
       operationId: uploadOrganizationLogo
-      description: The company logo on the Paramètres page. Owners and managers may
-        change it (same as the legal fields).
+      description: |-
+        The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
+        the logo every document already carries; owners and managers may change it (same as the legal fields).
       parameters:
       - in: path
         name: organization_id
@@ -4330,8 +4331,9 @@ paths:
           description: Not a readable JPEG, PNG or WebP
     delete:
       operationId: removeOrganizationLogo
-      description: The company logo on the Paramètres page. Owners and managers may
-        change it (same as the legal fields).
+      description: |-
+        The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
+        the logo every document already carries; owners and managers may change it (same as the legal fields).
       parameters:
       - in: path
         name: organization_id
