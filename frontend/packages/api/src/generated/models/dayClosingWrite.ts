@@ -7,5 +7,6 @@
 
 export interface DayClosingWrite {
   counted_cash: string;
+  counted_purchase_cash?: string;
   note?: string;
 }

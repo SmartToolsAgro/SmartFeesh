@@ -18,6 +18,7 @@ urlpatterns = [
     path("members/<int:member_id>", views.MemberDetailView.as_view(), name="member-detail"),
     path("members/<int:member_id>/role", views.MemberRoleView.as_view(), name="member-role"),
     path("members/<int:member_id>/deactivate", views.MemberDeactivateView.as_view(), name="member-deactivate"),
+    path("members/<int:member_id>/can-buy", views.MemberCanBuyView.as_view(), name="member-can-buy"),
     path("members/<int:member_id>/reactivate", views.MemberReactivateView.as_view(), name="member-reactivate"),
     path(
         "members/<int:member_id>/reset-password",

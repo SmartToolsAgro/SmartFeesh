@@ -132,12 +132,12 @@ do the stock, the supplier debt and the payment count.
       note to the driver, save, validate, refuse; revision history). Dashboard alert: purchases waiting, late after 24 h.
 
 **P3-T12b · Phone: the purchase screen · M**
-- [ ] A "can buy" switch per driver (owner sets it on the account; the server refuses the others).
-- [ ] The phone screen: supplier (list or new name), products (list with photo, or new name), kg, price (last price
+- [x] A "can buy" switch per driver (owner sets it on the account; the server refuses the others).
+- [x] The phone screen: supplier (list or new name), products (list with photo, or new name), kg, price (last price
       paid as a hint), money given (cash or cheque), rest to pay; photo of the supplier's paper (optional). Works
       offline like a sale; edits after sending need network. The driver sees his purchases, their status and the
-      office's note; not what the company owed the supplier before.
-- [ ] The purchase float: the office gives the driver a sum for purchases in the morning; the closing counts it and
+      office's note; not what the company owed the supplier before. _(The product list shows names, no photos; the photo of the supplier's paper moved to T12c.)_
+- [x] The purchase float: the office gives the driver a sum for purchases in the morning; the closing counts it and
       the money given (expected cash = … + float − purchases paid in cash).
 
 **P3-T12c · Paying suppliers · M**
@@ -145,4 +145,5 @@ do the stock, the supplier debt and the payment count.
 - [ ] The office receipt form gets the deal too, so a delivery to the cold room is owed at once (a posted FF), like a
       purchase at the port; the payment form gets the cashing day of a cheque or traite.
 - [ ] Monthly settlement: the supplier statement of the month (D-156) as the paper to agree on and pay.
+- [ ] The photo of the supplier's paper on a purchase at the port (from the phone, optional; seen by the office).
 

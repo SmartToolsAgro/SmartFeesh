@@ -265,6 +265,26 @@ def set_member_active(
 
 
 @transaction.atomic
+def set_member_can_buy(
+    *, organization: Organization, membership: Membership, actor: User | None, can_buy: bool
+) -> Membership:
+    """Let a member buy at the port from the phone, or stop it (D-158). What they already sent stays."""
+    membership = Membership.objects.select_for_update().get(pk=membership.pk, organization=organization)
+    before = {"can_buy": membership.can_buy}
+    membership.can_buy = can_buy
+    membership.save(update_fields=["can_buy", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="membership.can_buy_set",
+        target=membership,
+        before=before,
+        after={"can_buy": can_buy},
+    )
+    return membership
+
+
+@transaction.atomic
 def update_member_profile(
     *,
     organization: Organization,

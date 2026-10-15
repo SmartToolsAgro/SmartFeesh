@@ -64,6 +64,8 @@ class DriverDay(OrganizationScopedModel, TimeStampedModel):
     date = models.DateField()
     # Cash the driver starts the day with (millimes).
     opening_cash = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    # Money the office gave for buying at the port, kept apart from the sales cash (D-158).
+    purchase_float = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     # When the driver sent the closing; null while the day is running, and again once a new load reopened it.
     ended_at = models.DateTimeField(null=True, blank=True)
 
@@ -74,6 +76,9 @@ class DriverDay(OrganizationScopedModel, TimeStampedModel):
                 fields=["organization", "driver", "date"], name="one_driver_day_per_driver_per_day"
             ),
             models.CheckConstraint(condition=models.Q(opening_cash__gte=0), name="driver_day_cash_not_negative"),
+            models.CheckConstraint(
+                condition=models.Q(purchase_float__gte=0), name="driver_day_purchase_float_not_negative"
+            ),
         ]
 
     def __str__(self) -> str:

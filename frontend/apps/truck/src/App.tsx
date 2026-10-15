@@ -19,12 +19,15 @@ import { DayPage } from "./DayPage";
 import { ExpensePage } from "./ExpensePage";
 import { HistoryDayPage, HistoryPage } from "./HistoryPage";
 import { LossPage } from "./LossPage";
+import { MyPurchasesPage } from "./MyPurchasesPage";
 import { forgetSavedData } from "./offline";
 import { useTruckStock } from "./myStock";
 import { OfflineBanner } from "./OfflineBanner";
 import { PaymentPage } from "./PaymentPage";
 import { PickupPage } from "./PickupPage";
 import { PriceNotice } from "./PriceNotice";
+import { PurchaseNotice } from "./PurchaseNotice";
+import { PurchasePage } from "./PurchasePage";
 import { usePriceWatch } from "./priceWatch";
 import { SalePage } from "./SalePage";
 import { ScreenError } from "./ScreenError";
@@ -135,6 +138,8 @@ function Shell({ session }: { session: Session }) {
       <LanguageSwitch className="mb-3 self-end" />
       <OfflineBanner />
       <PriceNotice />
+      {/* The office's decisions on the driver's purchases at the port, for a driver who buys (D-158). */}
+      <PurchaseNotice enabled={session.can_buy} />
       <SyncStatus />
       <ScreenError resetKey={location.pathname}>
         <Outlet />
@@ -168,6 +173,9 @@ function AppRoutes() {
         <Route path="/encaissement" element={<PaymentPage />} />
         <Route path="/perte" element={<LossPage />} />
         <Route path="/reprise" element={<PickupPage />} />
+        <Route path="/achat" element={<PurchasePage />} />
+        <Route path="/achats" element={<MyPurchasesPage />} />
+        <Route path="/achats/:purchaseId" element={<PurchasePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

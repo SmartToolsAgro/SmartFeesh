@@ -6,6 +6,7 @@ import {
   createSale,
   reportMyLoss,
   reportSyncProblem,
+  sendMyFieldPurchase,
 } from "@frutti/api";
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -80,6 +81,7 @@ function sendItem(item: QueuedItem, options: RequestInit): Promise<unknown> {
   if (item.kind === "expense") return addMyExpense({ ...item.data, made_at: madeAt }, options);
   if (item.kind === "payment") return collectMyPayment({ ...item.data, made_at: madeAt }, options);
   if (item.kind === "pickup") return collectMyBoxes({ ...item.data, made_at: madeAt }, options);
+  if (item.kind === "purchase") return sendMyFieldPurchase({ ...item.data, made_at: madeAt }, options);
   return reportMyLoss({ ...item.data, made_at: madeAt }, options);
 }
 

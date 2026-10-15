@@ -34,6 +34,7 @@ from .models import (
     FieldPurchaseStatus,
     GoodsReceipt,
     GoodsReceiptLine,
+    PaymentMethod,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
@@ -637,3 +638,48 @@ def revision_changes(before: dict[str, Any] | None, after: dict[str, Any]) -> li
     changes += _row_changes("lines", before.get("lines", []), after.get("lines", []))
     changes += _row_changes("payments", before.get("payments", []), after.get("payments", []))
     return changes
+
+
+# ---- A driver's own purchases (P3-T12b, D-158) ----
+
+# The phone lists the purchases of this many days back.
+MY_FIELD_PURCHASE_DAYS = 30
+
+
+def field_purchases_of_buyer(organization: Organization, *, buyer_id: int) -> QuerySet[FieldPurchase]:
+    """A driver's own purchases of the last MY_FIELD_PURCHASE_DAYS days, newest first."""
+    since = timezone.localdate() - dt.timedelta(days=MY_FIELD_PURCHASE_DAYS)
+    return field_purchases_of(organization, buyer_id=buyer_id).filter(bought_on__gte=since)
+
+
+@dataclass(frozen=True)
+class DayPurchases:
+    """What a driver gave at the port over a span of time: cash (out of the purchase money, D-158) and the rest
+    (cheques, traites…), over the purchases the office has not refused."""
+
+    count: int
+    total: Decimal  # what the purchases owe
+    cash: Decimal
+    other: Decimal
+
+
+def purchases_paid_between(
+    organization: Organization, *, buyer_id: int, start: dt.datetime, end: dt.datetime
+) -> DayPurchases:
+    """A driver's purchases made in [start, end) (by the phone's time, else when they were recorded) and the money
+    given at the port for them. A refused purchase counts for nothing: no money was owed for it."""
+    purchases = [
+        purchase
+        for purchase in field_purchases_of(organization, buyer_id=buyer_id)
+        .exclude(status=FieldPurchaseStatus.REFUSED)
+        # Recorded at or after the moment it was made: nothing recorded before `start` can fall in the span.
+        .filter(created_at__gte=start)
+        if start <= (purchase.made_at or purchase.created_at) < end
+    ]
+    payments = [payment for purchase in purchases for payment in purchase.payments.all()]
+    return DayPurchases(
+        count=len(purchases),
+        total=sum((line.amount for purchase in purchases for line in purchase.lines.all()), ZERO),
+        cash=sum((p.amount for p in payments if p.method == PaymentMethod.CASH), ZERO),
+        other=sum((p.amount for p in payments if p.method != PaymentMethod.CASH), ZERO),
+    )

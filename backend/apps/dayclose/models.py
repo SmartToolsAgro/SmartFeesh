@@ -33,6 +33,10 @@ class DayClosing(OrganizationScopedModel, TimeStampedModel):
     counted_cash = MoneyField()
     # counted - expected, shown without judgement (negative: less cash than expected).
     difference = models.DecimalField(max_digits=14, decimal_places=3)
+    # The purchase money, counted apart from the sales cash (D-158): what is left of it, and the gap.
+    expected_purchase_cash = MoneyField(default=0)
+    counted_purchase_cash = MoneyField(default=0)
+    purchase_difference = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     driver_note = models.TextField(blank=True)
     # `selectors.day_summary` as it was when sent.
     summary: Any = models.JSONField(encoder=DjangoJSONEncoder)
@@ -62,6 +66,8 @@ class DayReopening(OrganizationScopedModel, TimeStampedModel):
     expected_cash = MoneyField()
     counted_cash = MoneyField()
     difference = models.DecimalField(max_digits=14, decimal_places=3)
+    # The purchase money counted at that send (D-158), handed to the office with the sales cash.
+    counted_purchase_cash = MoneyField(default=0)
     driver_note = models.TextField(blank=True)
     summary: Any = models.JSONField(encoder=DjangoJSONEncoder)
     submitted_at = models.DateTimeField()

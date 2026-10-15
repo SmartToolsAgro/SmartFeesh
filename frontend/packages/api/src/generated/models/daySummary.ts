@@ -29,5 +29,18 @@ export interface DaySummary {
   readonly handed_over: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly purchase_float: string;
+  readonly purchases_count: number;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly purchases_total: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly purchases_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly purchases_other: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly purchases_from_sales: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly expected_purchase_cash: string;
   readonly products: readonly DayProduct[];
 }

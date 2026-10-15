@@ -8,6 +8,7 @@ import {
   type RoleEnum,
   reactivateMember,
   resetMemberPassword,
+  setMemberCanBuy,
   setMemberRole,
   updateMember,
   useListMembers,
@@ -308,6 +309,15 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
     onError: (failure) => toast.error(errorText(failure, t("admin.users.error"))),
   });
 
+  const changeCanBuy = useMutation({
+    mutationFn: (canBuy: boolean) => setMemberCanBuy(member.id, { can_buy: canBuy }),
+    onSuccess: async (saved) => {
+      toast.success(t(saved.can_buy ? "admin.users.canBuyOn" : "admin.users.canBuyOff"));
+      await refresh();
+    },
+    onError: (failure) => toast.error(errorText(failure, t("admin.users.error"))),
+  });
+
   const toggleActive = useMutation({
     mutationFn: () => (member.is_active ? deactivateMember(member.id) : reactivateMember(member.id)),
     onSuccess: async () => {
@@ -356,6 +366,19 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
             ))}
           </SelectContent>
         </Select>
+        {member.role === "driver" && (
+          // Buying at the port from the phone (D-158): only the drivers the owner chooses.
+          <label className="mt-1.5 flex items-center gap-2 text-[0.85rem]">
+            <input
+              type="checkbox"
+              checked={member.can_buy}
+              disabled={changeCanBuy.isPending}
+              onChange={(event) => changeCanBuy.mutate(event.target.checked)}
+              className="size-4 accent-coral"
+            />
+            {t("admin.users.canBuy")}
+          </label>
+        )}
       </Td>
       <Td>
         {member.is_active ? (

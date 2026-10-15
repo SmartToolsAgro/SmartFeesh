@@ -17,6 +17,8 @@ export interface DayReopening {
   readonly counted_cash: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly difference: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly counted_purchase_cash: string;
   readonly driver_note: string;
   readonly submitted_at: string;
   readonly reviewed_by_name: string;

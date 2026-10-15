@@ -8,4 +8,6 @@
 export interface DriverDayOpen {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   opening_cash: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  purchase_float?: string;
 }

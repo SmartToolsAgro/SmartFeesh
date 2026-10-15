@@ -405,6 +405,10 @@ class FieldPurchase(OrganizationScopedModel, TimeStampedModel):
     invoice = models.OneToOneField(
         SupplierInvoice, null=True, blank=True, on_delete=models.PROTECT, related_name="field_purchase"
     )
+    # Sent by the phone, which may retry: the same value never makes two purchases (D-158).
+    client_uuid = models.UUIDField(null=True, blank=True)
+    # When the phone says it was bought (D-133); empty for one typed at the office. The day's cash counts it then.
+    made_at = models.DateTimeField(null=True, blank=True)
     # Who validated or refused it, and when.
     decided_at = models.DateTimeField(null=True, blank=True)
     decided_by = models.ForeignKey(
@@ -415,6 +419,11 @@ class FieldPurchase(OrganizationScopedModel, TimeStampedModel):
         ordering = ["-bought_on", "-id"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "number"], name="field_purchase_number_unique_per_org"),
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"],
+                condition=models.Q(client_uuid__isnull=False),
+                name="field_purchase_client_uuid_unique_per_org",
+            ),
             models.CheckConstraint(
                 condition=models.Q(supplier__isnull=False) | ~models.Q(proposed_supplier=""),
                 name="field_purchase_has_a_supplier",

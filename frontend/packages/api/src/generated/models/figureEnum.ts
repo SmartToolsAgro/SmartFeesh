@@ -14,6 +14,9 @@
  * * `on_credit` - on_credit
  * * `expenses_total` - expenses_total
  * * `expected_cash` - expected_cash
+ * * `purchases_cash` - purchases_cash
+ * * `purchases_other` - purchases_other
+ * * `expected_purchase_cash` - expected_purchase_cash
  * * `opening` - opening
  * * `loaded` - loaded
  * * `sold` - sold
@@ -33,6 +36,9 @@ export const FigureEnum = {
   on_credit: 'on_credit',
   expenses_total: 'expenses_total',
   expected_cash: 'expected_cash',
+  purchases_cash: 'purchases_cash',
+  purchases_other: 'purchases_other',
+  expected_purchase_cash: 'expected_purchase_cash',
   opening: 'opening',
   loaded: 'loaded',
   sold: 'sold',

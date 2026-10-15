@@ -70,6 +70,8 @@ class Membership(TimeStampedModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="memberships")
     role = models.CharField(max_length=20, choices=Role.choices)
     is_active = models.BooleanField(default=True)
+    # A driver the owner lets buy at the port and send the purchase from the phone (D-158). Not every driver may.
+    can_buy = models.BooleanField(default=False)
 
     class Meta:
         constraints = [

@@ -1,6 +1,7 @@
 """Every write on purchases goes through these functions (ARCHITECTURE §3)."""
 
 import datetime as dt
+import uuid
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -1267,12 +1268,24 @@ def _add_revision(purchase: FieldPurchase, actor: User | None, action: str, note
 
 
 @transaction.atomic
-def submit_field_purchase(*, organization: Organization, buyer: User, fields: FieldPurchaseFields) -> FieldPurchase:
+def submit_field_purchase(
+    *,
+    organization: Organization,
+    buyer: User,
+    fields: FieldPurchaseFields,
+    client_uuid: uuid.UUID | None = None,
+    made_at: dt.datetime | None = None,
+) -> FieldPurchase:
     """Record what a driver bought at the port, sent to be checked. Nothing enters stock and nothing is owed yet.
 
     The supplier and each product are picked from the lists, or given as a new name for the office to create.
-    The first revision keeps it as the driver sent it.
+    The first revision keeps it as the driver sent it. From the phone (D-158), `client_uuid` makes a retry answer
+    with the purchase already saved, and `made_at` is when the phone says it was bought.
     """
+    if client_uuid is not None:
+        existing = FieldPurchase.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            return existing
     values = _checked_field_purchase(organization, fields)
     purchase = FieldPurchase(
         organization=organization,
@@ -1280,6 +1293,8 @@ def submit_field_purchase(*, organization: Organization, buyer: User, fields: Fi
             organization, DocumentKind.FIELD_PURCHASE, FIELD_PURCHASE_NUMBER_PREFIX, yearly=True
         ),
         buyer=buyer,
+        client_uuid=client_uuid,
+        made_at=made_at,
     )
     _write_field_purchase(purchase, values)
     _add_revision(purchase, buyer, FieldPurchaseAction.SUBMITTED)
@@ -1447,6 +1462,46 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
         target=purchase,
         after={"receipt": receipt.number, "invoice": invoice.number, "total": str(invoice.total)},
     )
+
+
+@transaction.atomic
+def update_field_purchase_by_buyer(
+    *, purchase: FieldPurchase, buyer: User, revision: int, fields: FieldPurchaseFields
+) -> FieldPurchase:
+    """The driver changes a purchase they sent, while the office has not decided it (D-158). What the office set
+    stays: the place, the boxes, the office's note, and the kg received and the partner of a line still buying the
+    same product at the same position. The day of the purchase does not change."""
+    current = FieldPurchase.objects.select_related("location").get(pk=purchase.pk)
+    if current.buyer_id != buyer.pk:
+        raise ValidationError(_("Cet achat n'est pas le vôtre."))
+    kept = list(current.lines.order_by("id"))
+    lines: list[FieldLineFields] = []
+    for index, line in enumerate(fields.get("lines", ())):
+        office = kept[index] if index < len(kept) else None
+        product = line.get("product")
+        same = office is not None and (
+            (product is not None and office.product_id == product.pk)
+            or (
+                product is None
+                and office.product_id is None
+                and office.proposed_product == line.get("proposed_product", "").strip()
+            )
+        )
+        lines.append(
+            {
+                **line,
+                "received_quantity": office.received_quantity if same and office is not None else None,
+                "partner": office.partner if same and office is not None else None,
+            }
+        )
+    merged: FieldPurchaseFields = {
+        **fields,
+        "bought_on": current.bought_on,
+        "location": current.location,
+        "boxes": current.boxes,
+        "lines": lines,
+    }
+    return update_field_purchase(purchase=current, actor=buyer, revision=revision, fields=merged)
 
 
 @transaction.atomic

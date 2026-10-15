@@ -50,6 +50,7 @@ def test_login_opens_a_session_and_returns_who_is_logged_in(api):
         },
         "organization": {"id": membership.organization.id, "name": membership.organization.name, "logo_url": None},
         "role": "owner",
+        "can_buy": False,
         "truck": None,
     }
     assert api.get(reverse("me")).json() == response.json()
