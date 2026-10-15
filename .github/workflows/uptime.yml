@@ -24,8 +24,8 @@ jobs:
     env:
       # Repository variables (Settings → Secrets and variables → Actions → Variables) override these, for
       # example once production has its own addresses.
-      ADMIN_URL: ${{ vars.UPTIME_ADMIN_URL || 'http://admin.217-182-205-137.sslip.io:8095' }}
-      DRIVER_URL: ${{ vars.UPTIME_DRIVER_URL || 'http://chauffeur.217-182-205-137.sslip.io:8096' }}
+      ADMIN_URL: ${{ vars.UPTIME_ADMIN_URL || 'http://app.fruttidelmar.com' }}
+      DRIVER_URL: ${{ vars.UPTIME_DRIVER_URL || 'http://ch.fruttidelmar.com' }}
     steps:
       - name: Check the apps, the API and the nightly stock check
         run: |

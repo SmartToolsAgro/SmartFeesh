@@ -136,7 +136,8 @@ sessions; it has not run in a cloud session yet._
 - [x] Deploy to a staging VPS at OVH running the Docker stack (D-017, D-019).
 - [ ] Automatic deploy from `main`: the CI job exists; its secrets were added on 2026-10-10. Tick this
       once the first automatic deploy has run (`docs/runbook.md`).
-- [ ] HTTPS: needs a domain (human). Staging runs on plain HTTP for now (D-027).
+- [ ] HTTPS: domain fruttidelmar.com chosen (D-155); DNS records and certificate are human steps; staging is plain
+      HTTP until phase 2 (D-027, D-155, `docs/runbook.md` "Domain and HTTPS").
 - [ ] Sentry: the backend sends errors when `SENTRY_DSN` is set; needs a Sentry project (human).
 
 **Acceptance:** the client can open staging on their phone and log in as a demo driver.

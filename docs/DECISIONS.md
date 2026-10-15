@@ -2252,3 +2252,30 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   The server already charged a list customer their list price (D-150); this only makes the phone show it too.
 - Offline, a customer never asked for before has no price of its own yet: the daily prices stay on screen until the
   phone is online (the server still applies the list price).
+
+**D-154 · The driver sees the company logo: every member reads it, and the phone keeps a copy (corrects D-147)** · accepted · 2026-10-15
+- Found on staging: the driver's header and tab icon showed no logo, and the login screen showed the default mark. The
+  logo endpoint allowed owner, manager and accountant only, so a driver's request for the logo got 403. D-147 relied on
+  that URL, so it never worked for a driver.
+- The logo is read by every member of the organization (`ReadMemberWriteOwnerOrManager`); only owners and managers
+  change it. Same reason as D-125: the logo is on every document already, so it is not private.
+- The login screen runs before any session, and the logo needs one. So the driver app keeps a copy of the logo as a
+  `data:` address in `localStorage` (`frutti-truck-logo`), taken with the driver's session after each login. The login
+  screen and the tab icon use that copy. A company without a logo clears it. Blocked storage keeps the default icon.
+- Not solved: a phone that has never logged in on a logo-bearing company still shows the default mark on the login
+  screen. Showing the logo there too would need a public endpoint (which company's logo, when several share a server?).
+
+**D-155 · The company domain fruttidelmar.com: one name per app, HTTPS in two steps** · accepted · 2026-10-15
+- The owner's domain is fruttidelmar.com. The admin app is `app.fruttidelmar.com`, the driver app
+  `ch.fruttidelmar.com` (chosen by the owner; D-036 planned one name per app on the real domain). The sslip.io names
+  redirect to them.
+- Staging stays on the shared OVH VPS (217.182.205.137). The host nginx serves the two names; the certificate is one
+  Let's Encrypt certificate for both names, issued with the webroot method (`/var/www/frutti-acme`), so the nginx site
+  does not change for certbot. Its renewal reloads nginx (`--deploy-hook`).
+- Two steps, because nginx refuses a site that points at certificate files which do not exist yet: phase 1 serves the
+  names on plain HTTP (port 80) and the challenge; phase 2, once the certificate exists, adds port 443 and turns on the
+  HTTPS settings (`DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SECURE_COOKIES`, `DJANGO_SECURE_HSTS_SECONDS`) and https origins.
+  Supersedes D-027's "no domain" and the sslip.io names of D-036.
+- The backend health check sends `X-Forwarded-Proto: https` so Django does not redirect it once HTTPS is on.
+- The bare domain `fruttidelmar.com` gets no page and no redirect: the apps live only on their two names (owner, 2026-10-15).
+- Not done here: the production server (P4-T02).

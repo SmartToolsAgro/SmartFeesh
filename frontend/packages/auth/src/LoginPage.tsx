@@ -7,8 +7,20 @@ import { Navigate, useLocation } from "react-router";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { useLogin, useSession } from "./session";
 
-/** Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"); `withLanguage` offers French or Arabic. */
-export function LoginPage({ title, withLanguage = false }: { title: string; withLanguage?: boolean }) {
+/**
+ * Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"); `withLanguage` offers
+ * French or Arabic; `logoUrl` is the company logo to show in place of the default mark (before login, only a copy kept
+ * on the phone can be shown: D-154).
+ */
+export function LoginPage({
+  title,
+  withLanguage = false,
+  logoUrl,
+}: {
+  title: string;
+  withLanguage?: boolean;
+  logoUrl?: string | null;
+}) {
   const { t } = useTranslation();
   const session = useSession();
   const login = useLogin();
@@ -39,7 +51,7 @@ export function LoginPage({ title, withLanguage = false }: { title: string; with
     <main className="grid min-h-dvh place-items-center bg-radial-[60%_70%_at_70%_40%] from-sea-soft to-transparent p-4">
       <Card className="flex w-full max-w-[380px] flex-col gap-5 p-6">
         <div className="flex items-center justify-between gap-3">
-          <Brand />
+          <Brand logoUrl={logoUrl} />
           <ThemeToggle />
         </div>
         {withLanguage && <LanguageSwitch className="self-start" />}

@@ -14,8 +14,8 @@ customers and photos, list prices; D-147 to D-153)_
   pickups keep the moment the phone says, so they count in the day they were made (D-151, #143); a driver adds a
   customer on the phone and the stock shows product photos (D-152, #144); the sale screen shows the price the chosen
   customer pays (D-153, #145); "Aujourd'hui" at the top of the day (D-149, #141).
-- **Staging** (D-036, `docs/runbook.md`): admin http://admin.217-182-205-137.sslip.io:8095, driver
-  http://chauffeur.217-182-205-137.sslip.io:8096. Demo logins `owner` / `driver` (password in `~/frutti-staging/.env`
+- **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmar.com, driver
+  http://ch.fruttidelmar.com (phase 1 of the domain; HTTPS is phase 2, after the certificate). Demo logins `owner` / `driver` (password in `~/frutti-staging/.env`
   on the server). Every merge to `main` deploys staging; check `gh run list`.
 - **The plan (2026-10-11, `docs/spec/client-meeting-2026-10-11.md`):** profit per lot, shared with partners (D-040);
   a driver's truck is chosen per day (D-042). Q21 confirmed; Q24 (truck-cost split) still provisional.
@@ -24,6 +24,9 @@ customers and photos, list prices; D-147 to D-153)_
 
 ## Next step (do this first)
 
+0. **Domain and HTTPS (D-155, `docs/runbook.md` "Domain and HTTPS"):** the owner adds the two DNS `A` records
+   (`app` and `ch` → 217.182.205.137); merge phase 1 and check the names answer; on the server run the
+   certbot webroot command; then phase 2 (443, HTTPS settings, https origins) in a new PR.
 1. **Owner decisions still open:**
    - Backups (D-139, runbook "Backups"): create the off-site storage and put its credentials in `.env`; move the backup
      private key to a password manager and a USB key.
@@ -34,7 +37,7 @@ customers and photos, list prices; D-147 to D-153)_
    - Price rule (D-150): a sale on a stale price is refused after 24 hours. Owner to confirm the window.
    - Archived records (D-145): confirm they leave every dropdown except the one a saved record uses.
    - Approved electricity bills under the daily rule are not recalculated (D-142, owner to decide).
-2. **Check on staging with a real phone:** the tab icon after login; a price change during a sale (notice, new price,
+2. **Check on staging with a real phone:** the company logo in the driver header and on the login screen (after one login; D-154); a price change during a sale (notice, new price,
    sale refused on a stale price); a late expense and a payment (dated the day they were made); a customer added on the
    phone; product photos in the stock list; a sale to a customer with a price list (the price shown is the list price).
 3. **Phase 3, in this order:** P3-T10 printing spike (needs a real Android and iPhone and a printer, human), P3-T09
@@ -47,7 +50,8 @@ customers and photos, list prices; D-147 to D-153)_
 
 - **P0-T02** (worked example): now **one real lot** worked out by hand with the owner. Phase 6 has no target without it.
 - **P0-T01**: no prototype walk-through or client materials yet (stand-ins in `docs/spec/sample/`).
-- **P0-T11 human items:** a domain for HTTPS (staging is plain HTTP, D-027); the owner creates a Sentry project and puts
+- **P0-T11 human items:** DNS for `app.` and `ch.fruttidelmar.com` and the certificate (D-155; the domain is
+  chosen, the records are not yet there); the owner creates a Sentry project and puts
   its DSN in `.env` (runbook "Monitoring", D-140).
 - **TTN / El Fatoora is on hold** (D-016) although Q5 says it is required now.
 - **For the accountant** (`docs/spec/sample/README.md`): the VAT code lists Tunisian fishing products as exempt, which
@@ -84,6 +88,8 @@ customers and photos, list prices; D-147 to D-153)_
 
 ## Recently done
 
+- 2026-10-15 · D-154 the driver sees the company logo: the logo endpoint lets every member read it (the driver got 403),
+  and the phone keeps a copy for the login screen and the tab icon (corrects D-147; on this branch, not yet merged).
 - 2026-10-15 · quote form: each product in the list shows its kilos in stock and the places holding them, fullest
   first (`LinesGrid` `places`, `placesOf`; not yet on the sale screens).
 - 2026-10-15 · D-153 the sale screen shows the price the selected customer pays (`my-stock?customer=`), closing D-150's
