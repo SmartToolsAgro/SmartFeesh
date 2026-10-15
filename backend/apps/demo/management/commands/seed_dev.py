@@ -57,6 +57,10 @@ class Command(BaseCommand):
             password = DEV_PASSWORD
 
         organization = Organization.objects.filter(name=ORGANIZATION_NAME).first()
+        if organization is not None and organization.real_data_since is not None:
+            # The client's real data is in: no demo rows, no demo logins (prepare_client_start, D-146).
+            self.stdout.write(f"{ORGANIZATION_NAME} holds real data since {organization.real_data_since:%Y-%m-%d}.")
+            return
         if organization is None:
             organization = services.create_organization(name=ORGANIZATION_NAME)
 
