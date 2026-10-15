@@ -3,9 +3,18 @@
 # The runner image is pinned as well: `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19. Change it on purpose, on a branch.
 name: CI
 
+# A change that touches only docs (docs/ and Markdown files) runs no checks at all (D-157).
 on:
   push:
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "**/*.md"
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "**/*.md"
 
 permissions:
   contents: read

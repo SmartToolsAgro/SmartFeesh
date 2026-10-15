@@ -2308,6 +2308,8 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   gates the merge.
 - Sessions do not run the e2e tests on the machine (owner, 2026-10-15): they take minutes and CI runs them before
   the merge. A session reads the CI result and fixes a failure there. `make e2e` stays for when the owner asks.
-- Backend, frontend and API-client checks still run on every push and every PR.
+- Backend, frontend and API-client checks still run on every push and every PR, except when a push or PR
+  changes only docs (`docs/**` and Markdown files): then CI does not run at all and the PR can be merged at once.
+  A PR that mixes docs and code runs everything.
 - Deploy to staging no longer waits for e2e: it already passed on the PR before the merge. A direct push to
   `main` (no PR) therefore deploys without e2e, so changes go through a PR.
