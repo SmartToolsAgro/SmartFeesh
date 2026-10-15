@@ -2156,3 +2156,20 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - Not done by the command: media files of the deleted records (receipts, PDFs) stay on the volume, unreferenced. The
   opening stock of the company's boxes is not re-entered (zero, as asked); the screen for a box opening stock on a real
   database is still to build (STATUS).
+
+**D-148 · Driver app: prices refreshed every minute, a notice when a price changes (P3-T02)** · accepted · 2026-10-15
+- Asked by the owner (2026-10-15): a driver must not sell at an old price without knowing it, and must see a notification
+  when a price changes during the day.
+- The truck's stock and today's prices (`listMyStock`) are asked again every minute while the phone is online, on
+  reconnect and when the app comes back to the front (`apps/truck/src/myStock.ts`). Every screen shares that one query.
+- A change of a product's price, against the price the phone last saw, raises a notice on every screen (`PriceNotice`,
+  `priceWatch.ts`) until the driver acknowledges it. A product the phone never saw is not a change: its first price is
+  only remembered. The last prices seen are kept on the phone (`frutti-truck-prices`, cleared at logout), so a change
+  made while the app was closed is still announced. No system notification yet: that needs push.
+- The stock and sale screens show "Prix reçus le ..." when offline, from the time the prices were last received.
+- **Not done, open for the owner:** the server still prices a phone sale at the price in force at the sale's moment
+  (`catalog.price_in_force` at `sold_at`, D-133), not at the price the phone showed. So a sale made on a stale price (a
+  change not yet refreshed, or offline) is charged the new price. The phone could send the price it showed (the sale
+  line's `unit_price`, the API already accepts it), but `my-stock` shows the daily price only, not the customer's own
+  price list (D-049) that the server would apply, so sending it now would charge those customers the daily price instead of their list price.
+  Next step: show the customer price list on the phone, then send the shown price. Owner to confirm the rule first.

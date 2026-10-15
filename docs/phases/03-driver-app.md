@@ -18,10 +18,12 @@ Look and feel: the "Camion" view of `prototype/index.html`.
 
 ### P3-T02 · My stock · S
 - [x] (kg and price, no pictures yet) Truck stock list with product pictures, kg, today's price; read-only.
-- [ ] Prices are downloaded at the start of day and refreshed whenever the phone is online; a price
-      changed during the day reaches the driver at the next refresh, with a visible notice.
-      Offline, the driver sells at the last prices received, and the screen shows their date and time.
-      The server keeps the price the driver charged; it never recalculates an offline sale.
+- [x] (D-148) Prices are refreshed every minute while the phone is online, on reconnect and on focus. A price
+      changed during the day raises a notice on every screen until the driver acknowledges it; the sale screen takes
+      the new price at once. Offline, the stock and sale screens show when the prices were last received.
+- [ ] Open (D-148): the server still prices a phone sale at the price in force at its moment, not the price the phone
+      showed, so a sale made on a stale price is charged the new one. Sending the shown price needs the customer price
+      list on the phone first (the phone shows the daily price only).
 
 ### P3-T03 · Sale on the road · M
 - [x] (search only, D-091) Choose customer (search, recent first; create if allowed), products, weight, payment amount and

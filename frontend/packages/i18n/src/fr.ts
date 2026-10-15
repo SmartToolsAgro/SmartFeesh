@@ -3672,6 +3672,15 @@ export const fr = {
       retry: "Réessayer",
       giveBack: "Rendre l'invendu",
     },
+    // ---- Price changes and the stock's age (P3-T02) ----
+    prices: {
+      title: "Les prix ont changé",
+      changed: "{{product}} : {{from}} → {{to}} par kg",
+      set: "{{product}} : nouveau prix {{to}} par kg",
+      removed: "{{product}} : plus de prix du jour",
+      ok: "Compris",
+      asOf: "Prix reçus le {{time}}. Ils se mettent à jour dès que le téléphone est en ligne.",
+    },
     // ---- Returnable boxes on the road (P1-T14d, D-122) ----
     boxes: {
       small: "Petites caisses",

@@ -1,10 +1,11 @@
-import { useListMyStock } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState } from "@frutti/ui";
 import { Link } from "react-router";
 
+import { PricesAsOf } from "./PriceNotice";
 import { pendingKilos, useQueue } from "./queue";
+import { useTruckStock } from "./myStock";
 
 const millimes = (value: string | number) => Math.round(Number(value) * 1000);
 const fromMillimes = (value: number) => (value / 1000).toFixed(3);
@@ -14,7 +15,7 @@ export function StockPage() {
   const { t } = useTranslation();
   const session = useSession();
   const truck = session.data?.truck ?? null;
-  const stock = useListMyStock({ query: { enabled: truck !== null, retry: false } });
+  const stock = useTruckStock(truck !== null);
   const queue = useQueue();
 
   if (truck === null) {
@@ -24,7 +25,8 @@ export function StockPage() {
       </EmptyState>
     );
   }
-  if (stock.isError) {
+  // A failed refresh keeps the stock already shown: the error screen is for when there is nothing to show.
+  if (stock.isError && stock.data === undefined) {
     return (
       <Card className="space-y-3">
         <p className="text-lg font-semibold">{t("truck.stock.failed")}</p>
@@ -63,6 +65,7 @@ export function StockPage() {
           <h2>{t("truck.stock.title")}</h2>
           <span className="text-xl font-bold">{formatQuantity(fromMillimes(totalKg))}</span>
         </div>
+        <PricesAsOf updatedAt={stock.dataUpdatedAt} />
         <ul className="divide-y divide-line">
           {lines.map((line) => (
             <li key={line.product_id} className="flex items-center justify-between gap-3 py-3">

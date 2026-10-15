@@ -5,7 +5,6 @@ import {
   type SaleDetail,
   createSale,
   useListMyCustomers,
-  useListMyStock,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
@@ -16,6 +15,8 @@ import { useState } from "react";
 import { BoxCountInputs } from "./BoxCountInputs";
 import { boxCountsOf, type BoxInputs, NO_BOXES } from "./boxes";
 import { messagesOf } from "./messages";
+import { useTruckStock } from "./myStock";
+import { PricesAsOf } from "./PriceNotice";
 import { enqueue, madeAtOf, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
@@ -29,7 +30,7 @@ export function SalePage() {
   const session = useSession();
   const queryClient = useQueryClient();
   const truck = session.data?.truck ?? null;
-  const stock = useListMyStock({ query: { enabled: truck !== null, retry: false } });
+  const stock = useTruckStock(truck !== null);
   const [customer, setCustomer] = useState<CustomerChoice | null>(null);
   const [kilos, setKilos] = useState<Record<number, string>>({});
   const [paid, setPaid] = useState<string | null>(null);
@@ -158,6 +159,7 @@ export function SalePage() {
           ) : (
             <Card>
               <h2 className="mb-3">{t("truck.sale.howMuch")}</h2>
+              <PricesAsOf updatedAt={stock.dataUpdatedAt} />
               <ul className="divide-y divide-line">
                 {(stock.data ?? []).map((line) => (
                   <li key={line.product_id} className="space-y-2 py-3">

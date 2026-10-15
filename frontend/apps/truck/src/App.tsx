@@ -11,9 +11,12 @@ import { ExpensePage } from "./ExpensePage";
 import { HistoryDayPage, HistoryPage } from "./HistoryPage";
 import { LossPage } from "./LossPage";
 import { forgetSavedData } from "./offline";
+import { useTruckStock } from "./myStock";
 import { OfflineBanner } from "./OfflineBanner";
 import { PaymentPage } from "./PaymentPage";
 import { PickupPage } from "./PickupPage";
+import { PriceNotice } from "./PriceNotice";
+import { usePriceWatch } from "./priceWatch";
 import { SalePage } from "./SalePage";
 import { ScreenError } from "./ScreenError";
 import { StockPage } from "./StockPage";
@@ -39,6 +42,9 @@ function Shell({ session }: { session: Session }) {
   const tabs = useTabs();
   const logout = useLogout();
   const location = useLocation();
+  // The prices are watched on every screen, so a change is announced wherever the driver is (P3-T02).
+  const stock = useTruckStock(session.truck !== null);
+  usePriceWatch(stock.data);
   useFavicon(session.organization.logo_url);
   return (
     <TruckShell
@@ -53,6 +59,7 @@ function Shell({ session }: { session: Session }) {
     >
       <LanguageSwitch className="mb-3 self-end" />
       <OfflineBanner />
+      <PriceNotice />
       <SyncStatus />
       <ScreenError resetKey={location.pathname}>
         <Outlet />

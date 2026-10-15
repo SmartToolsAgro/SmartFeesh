@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { forgetPriceWatch } from "./priceWatch";
+
 /** True while the phone has a connection. */
 export function useOnline(): boolean {
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -25,6 +27,7 @@ export function registerServiceWorker(): void {
 
 /** Forget what the phone saved of the API, so the next person on this phone sees nothing of the last one. */
 export async function forgetSavedData(): Promise<void> {
+  forgetPriceWatch();
   if (!("caches" in window)) return;
   const names = await caches.keys();
   await Promise.all(names.filter((name) => name.startsWith("frutti-truck-data")).map((name) => caches.delete(name)));
