@@ -107,7 +107,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
     },
   });
   // Kilos left on the truck from an earlier day are not in today's load: show them as "in the truck".
-  const stock = useListMyStock({ query: { retry: false } });
+  const stock = useListMyStock(undefined, { query: { retry: false } });
   // Returnable boxes of the truck today (P1-T14d): read only, nothing is posted at closing.
   const boxes = useGetMyBoxDay({ query: { retry: false } });
   const loadedToday = load.data?.lines.filter((line) => Number(line.loaded) > 0) ?? [];

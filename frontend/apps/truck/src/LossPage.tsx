@@ -26,7 +26,7 @@ export function LossPage() {
   const session = useSession();
   const queryClient = useQueryClient();
   const truck = session.data?.truck ?? null;
-  const stock = useListMyStock({ query: { enabled: truck !== null, retry: false } });
+  const stock = useListMyStock(undefined, { query: { enabled: truck !== null, retry: false } });
   const [product, setProduct] = useState<number | null>(null);
   const [kilos, setKilos] = useState("");
   const [reason, setReason] = useState<(typeof REASONS)[number] | null>(null);
