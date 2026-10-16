@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
@@ -363,6 +364,11 @@ class PaymentTerms(models.TextChoices):
     MONTH_END = "month_end", _("Fin de mois")
 
 
+def paper_path(purchase: "FieldPurchase", filename: str) -> str:
+    # A random name: the photo's address cannot be guessed from the purchase number.
+    return f"field-purchases/{purchase.organization_id}/{uuid.uuid4().hex}.webp"
+
+
 class FieldPurchase(OrganizationScopedModel, TimeStampedModel):
     """Goods a driver bought from a fisherman or at the port, sent from the phone to be checked (D-157).
 
@@ -386,8 +392,9 @@ class FieldPurchase(OrganizationScopedModel, TimeStampedModel):
     # The deal made with the supplier for this purchase.
     terms = models.CharField(max_length=20, choices=PaymentTerms.choices, default=PaymentTerms.CASH)
     due_days = models.PositiveSmallIntegerField(default=0)
-    # The number printed on the supplier's paper, when there is one.
+    # The number printed on the supplier's paper, when there is one, and a photo of that paper (D-159).
     supplier_reference = models.CharField(max_length=50, blank=True)
+    paper = models.FileField(upload_to=paper_path, blank=True)
     # The driver's note, and the office's note to the driver.
     notes = models.TextField(blank=True)
     office_note = models.TextField(blank=True)

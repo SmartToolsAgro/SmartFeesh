@@ -2,6 +2,7 @@
   createReceipt,
   type LastCost,
   type Order,
+  type PaymentTermsEnum,
   type ReceiptWrite,
   useGetPurchaseOrder,
   useListLastPurchaseCosts,
@@ -46,6 +47,7 @@ import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { pickable } from "../lib/pickable";
 import { useDebounced } from "../lib/useDebounced";
+import { dueDateOf } from "../fieldpurchases/shared";
 import { canWriteResults } from "../partnerships/shared";
 import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, refreshAfterReceipt, todayInTunis } from "./shared";
@@ -129,6 +131,10 @@ export function ReceiptFormPage() {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [boxes, setBoxes] = useState<BoxCountInputs>(NO_BOX_INPUTS);
+  // Owed at once (D-159): a posted supplier invoice for the receipt, due by the deal made for this delivery.
+  const [invoiceNow, setInvoiceNow] = useState(true);
+  const [terms, setTerms] = useState<PaymentTermsEnum>("days");
+  const [dueDays, setDueDays] = useState("30");
   const [errors, setErrors] = useState<Errors>({});
 
   // Choosing an order (or arriving from its page) fills the supplier and the lines, once per order.
@@ -230,6 +236,10 @@ export function ReceiptFormPage() {
     });
     const boxCounts = boxCountsFromInputs(boxes);
     for (const boxType of boxCounts.invalid) found[`boxes.${boxType}`] = t("admin.boxes.form.invalid");
+    const days = terms === "cash" ? 0 : Number(dueDays || "0");
+    if (invoiceNow && (!Number.isInteger(days) || days < (terms === "days" ? 1 : 0) || days > 365)) {
+      found.due_days = t("admin.receipts.form.dueDaysError");
+    }
     setErrors(found);
     // An order picked but still loading: wait, or the delivery would be saved without it.
     if (Object.keys(found).length > 0 || (orderId !== null && !order)) return;
@@ -242,6 +252,9 @@ export function ReceiptFormPage() {
       notes: notes.trim(),
       lines: payloadLines,
       boxes: boxCounts.counts,
+      invoice_now: invoiceNow,
+      terms,
+      due_days: days,
     });
   }
 
@@ -513,6 +526,55 @@ export function ReceiptFormPage() {
               </div>
             </dl>
           </div>
+        </Card>
+
+        <Card className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 font-semibold">
+            <input
+              type="checkbox"
+              checked={invoiceNow}
+              onChange={(event) => setInvoiceNow(event.target.checked)}
+              className="size-4 accent-coral"
+            />
+            {t("admin.receipts.form.invoiceNow")}
+          </label>
+          <p className="text-[0.85rem] text-ink-2">
+            {t(invoiceNow ? "admin.receipts.form.invoiceNowHint" : "admin.receipts.form.invoiceLaterHint")}
+          </p>
+          {invoiceNow && (
+            <div className="grid grid-cols-3 items-start gap-4 max-[640px]:grid-cols-1">
+              {select(
+                "terms",
+                t("admin.receipts.form.terms"),
+                terms,
+                (value) => setTerms(value as PaymentTermsEnum),
+                (["cash", "days", "month_end"] as const).map((choice) => ({
+                  value: choice,
+                  label: t(`admin.fieldPurchases.termsChoice.${choice}`),
+                })),
+              )}
+              {terms !== "cash" && (
+                <Field label={t("admin.receipts.form.dueDays")} htmlFor={id("due_days")} error={errors.due_days}>
+                  <Input
+                    id={id("due_days")}
+                    type="number"
+                    min="0"
+                    max="365"
+                    value={dueDays}
+                    onChange={(event) => setDueDays(event.target.value)}
+                    aria-invalid={errors.due_days ? true : undefined}
+                  />
+                </Field>
+              )}
+              <p className="num self-end py-2.5 font-semibold text-ink-2">
+                {t("admin.receipts.form.dueOn", {
+                  date: formatDate(
+                    dueDateOf(receivedOn || todayInTunis(), terms, terms === "cash" ? 0 : Number(dueDays || "0") || 0),
+                  ),
+                })}
+              </p>
+            </div>
+          )}
         </Card>
 
         <BoxCountsFields

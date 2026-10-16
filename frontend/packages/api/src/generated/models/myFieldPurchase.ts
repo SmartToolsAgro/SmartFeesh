@@ -25,6 +25,7 @@ export interface MyFieldPurchase {
   readonly due_days: number;
   readonly due_date: string;
   readonly supplier_reference: string;
+  readonly has_paper: boolean;
   readonly notes: string;
   readonly office_note: string;
   readonly revision: number;

@@ -683,3 +683,124 @@ def purchases_paid_between(
         cash=sum((p.amount for p in payments if p.method == PaymentMethod.CASH), ZERO),
         other=sum((p.amount for p in payments if p.method != PaymentMethod.CASH), ZERO),
     )
+
+
+# ---- Paying suppliers: what is owed, and the cheques to come (P3-T12c, D-159) ----
+
+# "Due soon": within this many days from today.
+DUE_SOON_DAYS = 7
+# Cheques and traites shown: those to be cashed from this many days back (just cashed) on.
+CHEQUES_SINCE_DAYS = 7
+
+
+@dataclass(frozen=True)
+class SupplierDebt:
+    """What the company owes one supplier for goods, from its posted invoices still to pay (D-043)."""
+
+    supplier_id: int
+    name: str
+    outstanding: Decimal  # still to pay on posted invoices
+    overdue: Decimal  # of which past the due date
+    due_soon: Decimal  # of which due from today to DUE_SOON_DAYS days
+    advances: Decimal  # paid and not allocated yet: the supplier holds it
+    open_invoices: int
+    next_due: dt.date | None  # the earliest due date of what is still to pay
+
+
+@dataclass(frozen=True)
+class ChequeToCash:
+    """A cheque or a traite given to a supplier with the day it may be cashed."""
+
+    payment_id: int
+    number: str
+    supplier_id: int
+    supplier_name: str
+    method: str
+    reference: str
+    amount: Decimal
+    paid_on: dt.date
+    cash_on: dt.date
+
+
+@dataclass(frozen=True)
+class SupplierDebts:
+    rows: list[SupplierDebt]
+    total_outstanding: Decimal
+    total_overdue: Decimal
+    total_due_soon: Decimal
+    total_advances: Decimal
+    cheques: list[ChequeToCash]
+    cheques_total: Decimal
+
+
+def supplier_debts(organization: Organization, *, today: dt.date | None = None) -> SupplierDebts:
+    """Every supplier the company owes, biggest first, with what is overdue and what falls due within a week; and
+    the cheques and traites given with a cashing day, from a week back on, the soonest first. The trade payable only:
+    a partner's capital and profit share are other balances (D-040)."""
+    today = today or timezone.localdate()
+    soon = today + dt.timedelta(days=DUE_SOON_DAYS)
+    rows: dict[int, dict[str, Any]] = {}
+
+    def row_of(supplier_id: int, name: str) -> dict[str, Any]:
+        return rows.setdefault(
+            supplier_id,
+            {
+                "supplier_id": supplier_id,
+                "name": name,
+                "outstanding": ZERO,
+                "overdue": ZERO,
+                "due_soon": ZERO,
+                "advances": ZERO,
+                "open_invoices": 0,
+                "next_due": None,
+            },
+        )
+
+    for invoice in invoices_of(organization, status="open"):
+        left: Decimal = getattr(invoice, "outstanding")  # noqa: B009
+        if left <= 0:
+            continue
+        row = row_of(invoice.supplier_id, invoice.supplier.name)
+        row["outstanding"] += left
+        row["open_invoices"] += 1
+        if invoice.due_date < today:
+            row["overdue"] += left
+        elif invoice.due_date <= soon:
+            row["due_soon"] += left
+        if row["next_due"] is None or invoice.due_date < row["next_due"]:
+            row["next_due"] = invoice.due_date
+    for payment in payments_of(organization, unallocated=True):
+        row = row_of(payment.supplier_id, payment.supplier.name)
+        row["advances"] += getattr(payment, "unallocated_amount")  # noqa: B009
+    debts = sorted((SupplierDebt(**row) for row in rows.values()), key=lambda r: (-r.outstanding, r.name))
+
+    cheques = [
+        ChequeToCash(
+            payment_id=payment.pk,
+            number=payment.number,
+            supplier_id=payment.supplier_id,
+            supplier_name=payment.supplier.name,
+            method=payment.method,
+            reference=payment.reference,
+            amount=payment.amount,
+            paid_on=payment.paid_on,
+            cash_on=payment.cash_on,
+        )
+        for payment in SupplierPayment.objects.for_organization(organization)
+        .filter(
+            method__in=(PaymentMethod.CHEQUE, PaymentMethod.BILL),
+            cash_on__gte=today - dt.timedelta(days=CHEQUES_SINCE_DAYS),
+        )
+        .select_related("supplier")
+        .order_by("cash_on", "id")
+        if payment.cash_on is not None
+    ]
+    return SupplierDebts(
+        rows=debts,
+        total_outstanding=sum((r.outstanding for r in debts), ZERO),
+        total_overdue=sum((r.overdue for r in debts), ZERO),
+        total_due_soon=sum((r.due_soon for r in debts), ZERO),
+        total_advances=sum((r.advances for r in debts), ZERO),
+        cheques=cheques,
+        cheques_total=sum((c.amount for c in cheques if c.cash_on >= today), ZERO),
+    )

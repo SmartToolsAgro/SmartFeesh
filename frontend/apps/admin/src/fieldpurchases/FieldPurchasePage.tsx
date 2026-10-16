@@ -266,6 +266,20 @@ export function FieldPurchasePage() {
         <Pill tone={STATUS_TONE[data.status]}>{t(`admin.fieldPurchases.status.${data.status}`)}</Pill>
         {data.is_late && <Pill tone="bad">{t("admin.fieldPurchases.late")}</Pill>}
       </PageHeader>
+      {data.paper_url && (
+        // The photo of the supplier's paper the driver took (D-159), to check the kilos and prices against.
+        <Card className="flex flex-col gap-2">
+          <CardTitle className="mb-0">{t("admin.fieldPurchases.detail.paper")}</CardTitle>
+          <a href={data.paper_url} target="_blank" rel="noreferrer" className="w-fit">
+            <img
+              src={data.paper_url}
+              alt={t("admin.fieldPurchases.detail.paper")}
+              className="max-h-80 rounded-control border border-line object-contain"
+            />
+          </a>
+          <p className="text-[0.85rem] text-ink-2">{t("admin.fieldPurchases.detail.paperHint")}</p>
+        </Card>
+      )}
       {editable ? (
         // Keyed by revision: after someone else's save, a reload starts the form from what is saved now.
         <FieldPurchaseForm

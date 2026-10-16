@@ -14,6 +14,7 @@ from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
 from apps.core import audit
+from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, line_total
 from apps.inventory import services as inventory
@@ -47,6 +48,8 @@ from .models import (
 from .models import PaymentMethod as PaymentMethod  # re-exported for apps that record payments (the demo)
 
 if TYPE_CHECKING:
+    from django.core.files.uploadedfile import UploadedFile
+
     from apps.catalog.models import Product
     from apps.inventory.models import StockLocation
     from apps.partners.models import Supplier
@@ -1525,4 +1528,88 @@ def refuse_field_purchase(*, purchase: FieldPurchase, actor: User | None, revisi
         target=purchase,
         after={"note": note},
     )
+    return purchase
+
+
+# ---- Paying suppliers (P3-T12c, D-159) ----
+
+
+@transaction.atomic
+def receive_and_invoice(
+    *,
+    organization: Organization,
+    actor: User | None,
+    supplier: "Supplier",
+    location: "StockLocation",
+    received_on: dt.date,
+    lines: Sequence[ReceiptLineFields],
+    terms: str,
+    due_days: int = 0,
+    supplier_reference: str = "",
+    notes: str = "",
+    purchase_order: PurchaseOrder | None = None,
+    boxes: Mapping[str, int] | None = None,
+) -> GoodsReceipt:
+    """Record goods received and, in the same step, what is owed for them (D-159): a posted supplier invoice for the
+    receipt, due by the deal made for this delivery, as a purchase at the port is (D-157). The debt starts at the
+    reception; a paper invoice of the supplier, if one comes, is only matched by its number."""
+    errors: dict[str, str] = {}
+    if terms not in PaymentTerms.values:
+        errors["terms"] = _("Accord de paiement inconnu.")
+    elif not 0 <= due_days <= 365:
+        errors["due_days"] = _("Indiquez un nombre de jours entre 0 et 365.")
+    elif terms == PaymentTerms.DAYS and due_days == 0:
+        errors["due_days"] = _("Indiquez dans combien de jours la livraison est payée.")
+    if errors:
+        raise ValidationError(errors)
+    receipt = create_receipt(
+        organization=organization,
+        actor=actor,
+        supplier=supplier,
+        location=location,
+        received_on=received_on,
+        lines=lines,
+        supplier_reference=supplier_reference,
+        notes=notes,
+        purchase_order=purchase_order,
+        boxes=boxes,
+    )
+    create_invoice(
+        organization=organization,
+        actor=actor,
+        supplier=supplier,
+        receipts=[receipt],
+        invoice_date=received_on,
+        due_date=due_date_of(received_on, terms, due_days if terms != PaymentTerms.CASH else 0),
+        supplier_reference=receipt.supplier_reference,
+        post=True,
+    )
+    return receipt
+
+
+@transaction.atomic
+def add_field_purchase_paper(
+    *, purchase: FieldPurchase, actor: User | None, upload: "UploadedFile[bytes]"
+) -> FieldPurchase:
+    """Join the photo of the supplier's paper (D-159): turned upright, shrunk, stored as WebP. It can be replaced
+    while the purchase waits for the office; once decided, it is joined only if there was none."""
+    content = reencoded_photo(upload, field="paper")
+    purchase = FieldPurchase.objects.select_for_update().get(pk=purchase.pk)
+    if purchase.status != FieldPurchaseStatus.SUBMITTED and purchase.paper:
+        raise ValidationError({"paper": _("Cet achat est décidé : la photo de son papier ne change plus.")})
+    previous = purchase.paper.name
+    storage = purchase.paper.storage
+    purchase.paper.save("paper.webp", content, save=False)
+    try:
+        purchase.save(update_fields=["paper", "updated_at"])
+        audit.record(
+            organization=purchase.organization, actor=actor, action="field_purchase.paper_added", target=purchase
+        )
+    except BaseException:
+        # The file is written before the row: never leave it behind when the change is rolled back.
+        if purchase.paper.name:
+            purchase.paper.storage.delete(purchase.paper.name)
+        raise
+    if previous:
+        transaction.on_commit(lambda: storage.delete(previous))
     return purchase

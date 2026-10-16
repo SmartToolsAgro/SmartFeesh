@@ -6,12 +6,12 @@ import {
   createSale,
   reportMyLoss,
   reportSyncProblem,
-  sendMyFieldPurchase,
 } from "@frutti/api";
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { listQueue, madeAtOf, markRefused, markReported, type QueuedItem, removeQueued } from "./queue";
+import { sendPurchase } from "./sendPurchase";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -81,7 +81,7 @@ function sendItem(item: QueuedItem, options: RequestInit): Promise<unknown> {
   if (item.kind === "expense") return addMyExpense({ ...item.data, made_at: madeAt }, options);
   if (item.kind === "payment") return collectMyPayment({ ...item.data, made_at: madeAt }, options);
   if (item.kind === "pickup") return collectMyBoxes({ ...item.data, made_at: madeAt }, options);
-  if (item.kind === "purchase") return sendMyFieldPurchase({ ...item.data, made_at: madeAt }, options);
+  if (item.kind === "purchase") return sendPurchase({ ...item.data, made_at: madeAt }, item.paper, options);
   return reportMyLoss({ ...item.data, made_at: madeAt }, options);
 }
 

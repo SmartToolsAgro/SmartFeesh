@@ -124,7 +124,12 @@ def test_a_validated_load_leaves_a_draft_bl_for_each_client(
     )
 
     assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("32.500")
-    corail, thyna = Sale.objects.filter(transfer=transfer).order_by("customer__name").select_related("customer")
+    sales_by_customer = {
+        sale.customer_id: sale
+        for sale in Sale.objects.filter(transfer=transfer).select_related("customer")
+    }
+    corail = sales_by_customer[restaurant.pk]
+    thyna = sales_by_customer[hotel.pk]
     assert (corail.customer, corail.status, corail.location) == (restaurant, SaleStatus.DRAFT, truck)
     assert corail.delivery_address == "Avenue Hédi Chaker, Sfax"  # the client's own, copied
     assert thyna.delivery_address == "Zone industrielle Thyna"  # typed for this BL only
