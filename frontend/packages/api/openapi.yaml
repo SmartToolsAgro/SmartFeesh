@@ -4298,6 +4298,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
           description: ''
+  /api/v1/my-deliveries:
+    get:
+      operationId: listMyDeliveries
+      description: |-
+        The BL prepared for the driver's truck with its load, still to deliver (drafts), oldest first, each with
+        its client, address, products and boxes. Confirming one (`confirmSale`) is the delivery (D-160).
+      tags:
+      - my-deliveries
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/my-expense-categories:
     get:
       operationId: listRoadCategories
@@ -11384,6 +11403,24 @@ components:
       - sales_count
       - sales_total
       - truck_name
+    DeliveryNoteRef:
+      type: object
+      description: 'The client''s BL made from the load: a draft until the delivery
+        (D-160).'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - number
+      - status
     DifferenceLine:
       type: object
       properties:
@@ -14249,6 +14286,31 @@ components:
       - drift
       - pending_basis
       - pending_share
+    LoadClient:
+      type: object
+      description: The client a part of a load is for (D-160).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+      required:
+      - address
+      - city
+      - id
+      - name
+      - reference
     LocationBatch:
       type: object
       description: |-
@@ -20369,6 +20431,14 @@ components:
           - $ref: '#/components/schemas/QuoteRef'
           readOnly: true
           nullable: true
+        transfer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteRef'
+          readOnly: true
+          nullable: true
+        delivery_address:
+          type: string
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -20496,6 +20566,7 @@ components:
       - credit_over_by
       - credit_status
       - customer
+      - delivery_address
       - discount_total
       - id
       - invoice
@@ -20513,6 +20584,7 @@ components:
       - tax_amount
       - total
       - total_excl_tax
+      - transfer
     SaleBatch:
       type: object
       properties:
@@ -20614,6 +20686,14 @@ components:
           - $ref: '#/components/schemas/QuoteRef'
           readOnly: true
           nullable: true
+        transfer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteRef'
+          readOnly: true
+          nullable: true
+        delivery_address:
+          type: string
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -20730,9 +20810,15 @@ components:
           items:
             $ref: '#/components/schemas/SaleLine'
           readOnly: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
       required:
       - amount_due
       - amount_paid
+      - boxes
       - cancel_reason
       - cancelled_at
       - cancelled_by
@@ -20746,6 +20832,7 @@ components:
       - credit_over_by
       - credit_status
       - customer
+      - delivery_address
       - discount_total
       - id
       - invoice
@@ -20764,6 +20851,7 @@ components:
       - tax_amount
       - total
       - total_excl_tax
+      - transfer
     SaleInvoiceRef:
       type: object
       description: An invoice named from another document (its sale). `number` is
@@ -21037,6 +21125,11 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
+          nullable: true
+        delivery_address:
+          type: string
+          nullable: true
+          maxLength: 255
       required:
       - lines
       - location
@@ -22458,6 +22551,55 @@ components:
       - transferred_on
       - validated_at
       - validated_by
+    TransferDelivery:
+      type: object
+      description: 'One client of a load: where it goes, their boxes, and their BL
+        once the load is validated.'
+      properties:
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/LoadClient'
+          readOnly: true
+        delivery_address:
+          type: string
+          readOnly: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        delivery_note:
+          allOf:
+          - $ref: '#/components/schemas/DeliveryNoteRef'
+          nullable: true
+          readOnly: true
+      required:
+      - boxes
+      - customer
+      - delivery_address
+      - delivery_note
+    TransferDeliveryWrite:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+        delivery_address:
+          type: string
+          default: ''
+          maxLength: 255
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferLineWrite'
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+      required:
+      - customer
+      - lines
     TransferDetail:
       type: object
       properties:
@@ -22534,12 +22676,18 @@ components:
           additionalProperties:
             type: integer
           readOnly: true
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferDelivery'
+          readOnly: true
       required:
       - boxes
       - confirmed_at
       - confirmed_by
       - created_at
       - created_by
+      - deliveries
       - from_location
       - id
       - kind
@@ -22573,6 +22721,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/BatchProduct'
           readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/LoadClient'
+          readOnly: true
+          nullable: true
         quantity:
           type: string
           format: decimal
@@ -22592,6 +22745,7 @@ components:
           readOnly: true
       required:
       - amount
+      - customer
       - id
       - product
       - quantity
@@ -22606,6 +22760,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/BatchProduct'
           readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/LoadClient'
+          readOnly: true
+          nullable: true
         quantity:
           type: string
           format: decimal
@@ -22631,6 +22790,7 @@ components:
       required:
       - amount
       - batches
+      - customer
       - id
       - product
       - quantity
@@ -22686,6 +22846,10 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferDeliveryWrite'
       required:
       - from_location
       - lines

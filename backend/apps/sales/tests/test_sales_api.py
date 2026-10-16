@@ -408,3 +408,31 @@ def test_a_customer_price_list_wins_over_the_price_the_phone_showed(
     assert charged.status_code == 201
     line = charged.json()["lines"][0]
     assert (line["unit_price"], line["price_source"]) == ("40.000", "price_list")
+
+
+def test_a_driver_sees_and_delivers_the_bl_prepared_with_their_load(
+    manager, organization, customer, crevette, driver_with_truck
+):
+    driver, truck_place = driver_with_truck
+    cold_room = StockLocationFactory.create(organization=organization, name="Chambre froide 1")
+    receive(organization, crevette, cold_room, "20")
+    stock.create_transfer(
+        organization=organization,
+        actor=manager.user,
+        from_location=cold_room,
+        to_location=truck_place,
+        transferred_on=timezone.localdate(),
+        lines=[],
+        deliveries=[{"customer": customer, "lines": [{"product": crevette, "quantity": "5"}]}],
+        validate=True,
+    )
+    phone = client_for(driver)
+
+    listed = phone.get(reverse("my-deliveries")).json()
+    assert [row["customer"]["id"] for row in listed] == [customer.pk]
+    assert listed[0]["status"] == "draft"
+    confirmed = phone.post(reverse("sale-confirm", args=[listed[0]["id"]]), {}, format="json")
+
+    assert confirmed.status_code == 200
+    assert confirmed.json()["status"] == "confirmed"
+    assert phone.get(reverse("my-deliveries")).json() == []

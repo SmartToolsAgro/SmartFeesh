@@ -50,6 +50,7 @@ import {
   withSpare,
 } from "../lib/lines";
 import { LinesGrid } from "../lib/LinesGrid";
+import { addressOf } from "../transfers/formLines";
 import { canSell, localInputOf, momentOf, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
 type Errors = Record<string, string>;
@@ -100,6 +101,8 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   );
   const [soldAt, setSoldAt] = useState(draft ? localInputOf(draft.sold_at) : "");
   const [notes, setNotes] = useState(draft?.notes ?? "");
+  // Where this delivery goes when it is not the client's own address: for this BL only (D-160).
+  const [deliveryAddress, setDeliveryAddress] = useState(draft?.delivery_address ?? "");
   const [paidInFull, setPaidInFull] = useState(false);
   const [amountPaid, setAmountPaid] = useState(draft && !isZero(draft.amount_paid) ? asTyped(draft.amount_paid) : "");
   const [method, setMethod] = useState<string>(draft?.payment_method || NO_METHOD);
@@ -235,6 +238,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
       location: place,
       sold_at: momentOf(soldAt),
       notes: notes.trim(),
+      delivery_address: deliveryAddress.trim(),
       lines: payloadLines,
       paid_in_full: paidInFull,
       amount_paid: paid,
@@ -401,7 +405,22 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
           )}
         </Card>
 
-        <Card>
+        <Card className="flex flex-col gap-4">
+          <Field
+            label={t("admin.sales.form.deliveryAddress")}
+            htmlFor={id("deliveryAddress")}
+            error={errors.delivery_address}
+          >
+            <Input
+              id={id("deliveryAddress")}
+              value={deliveryAddress}
+              maxLength={255}
+              autoComplete="off"
+              placeholder={addressOf(customers.data?.find((candidate) => String(candidate.id) === customer))}
+              onChange={(event) => setDeliveryAddress(event.target.value)}
+            />
+            <p className="text-[0.85rem] text-ink-2">{t("admin.sales.form.deliveryAddressHint")}</p>
+          </Field>
           <Field label={t("admin.sales.form.notes")} htmlFor={id("notes")} error={errors.notes}>
             <textarea
               id={id("notes")}

@@ -116,6 +116,17 @@ Asked by the owner (2026-10-14): the seller picks the products, not the cold roo
 - [x] Sales list, sale page, a lot's sales and the quote page: no "Lieu" column or line.
 - [ ] Owner question: may one sale take kilos from a cold room and a truck at once? (D-144)
 
+### P2-T13 · Truck load split by client, one BL per client (D-160) · M
+Asked by the owner (2026-10-16): the client is known from the start, so the load names who buys what.
+- [x] A load (cold room → truck) holds a part per client: products, prices, small/big boxes and the delivery address.
+      What is left unassigned stays on the truck for the road ("sans client").
+- [x] The address starts from the client's record and is changed for this load's BL only (never written back).
+- [x] Validating the load makes a draft BL per client (`Sale.transfer`), printable as "PROVISOIRE" with the address and
+      the boxes; confirming it at the delivery takes the stock off the truck and gives the boxes to the client.
+- [x] Driver phone: "Mes livraisons" lists the draft BL of the truck's load (`GET /my-deliveries`), one card per client with
+      address, products, boxes and total; "Livré" confirms it (online only for now). A driver also sees the BL of their truck's load.
+- [ ] Later: confirm a delivery offline (queue), adjust a quantity on the spot, collect payment from the same card.
+
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.

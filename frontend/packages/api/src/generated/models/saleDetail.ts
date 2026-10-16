@@ -6,6 +6,7 @@
  */
 import type { QuoteRef } from './quoteRef';
 import type { SaleCustomer } from './saleCustomer';
+import type { SaleDetailBoxes } from './saleDetailBoxes';
 import type { SaleDetailCreditStatus } from './saleDetailCreditStatus';
 import type { SaleDetailPaymentMethod } from './saleDetailPaymentMethod';
 import type { SaleInvoiceRef } from './saleInvoiceRef';
@@ -21,6 +22,8 @@ export interface SaleDetail {
   readonly location: SaleLocation;
   readonly sold_at: string;
   readonly quote: QuoteRef | null;
+  readonly transfer: QuoteRef | null;
+  readonly delivery_address: string;
   readonly notes: string;
   readonly line_count: number;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
@@ -69,4 +72,5 @@ export interface SaleDetail {
   /** @nullable */
   readonly credit_decided_at: string | null;
   readonly lines: readonly SaleLine[];
+  readonly boxes: SaleDetailBoxes;
 }

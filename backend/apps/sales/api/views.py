@@ -20,13 +20,13 @@ from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization, Role
-from apps.core.permissions import HasRole, IsOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import HasRole, IsDriver, IsOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.sales import selectors, services
-from apps.sales.models import CreditNote, Invoice, PriceSource, Quote, Sale
+from apps.sales.models import CreditNote, Invoice, PriceSource, Quote, Sale, SaleStatus
 
 from .serializers import (
     BatchSalesSerializer,
@@ -232,7 +232,16 @@ class SaleView(OfficeView):
     def sales(self) -> QuerySet[Sale]:
         # A driver sees the sales they made, nothing else.
         created_by_id = self.membership.user_id if self.is_driver else None
-        return selectors.sales_of(self.organization, created_by_id=created_by_id)
+        return selectors.sales_of(
+            self.organization, created_by_id=created_by_id, load_location_id=self.driver_truck_location()
+        )
+
+    def driver_truck_location(self) -> int | None:
+        """The place of the driver's truck of the day: the BL prepared with its load are theirs to deliver (D-160)."""
+        if not self.is_driver:
+            return None
+        truck = fleet.truck_of_driver(self.membership)
+        return truck.location_id if truck is not None else None
 
     def sale(self, sale_id: int) -> Sale:
         try:
@@ -312,6 +321,7 @@ class SaleView(OfficeView):
             "confirm": data["confirm_now"],
             "approve_credit": self.may_approve_credit(data["approve_credit"]),
             "boxes": data["boxes"],
+            "delivery_address": data["delivery_address"],
         }
 
     def may_approve_credit(self, asked: bool) -> bool:
@@ -342,6 +352,7 @@ class SaleListView(SaleView, ListAPIView[Sale]):
             location_id=filters.validated_data.get("location"),
             uninvoiced=filters.validated_data["uninvoiced"],
             created_by_id=self.membership.user_id if self.is_driver else None,
+            load_location_id=self.driver_truck_location(),
             date_from=filters.validated_data.get("date_from"),
             date_to=filters.validated_data.get("date_to"),
             search=filters.validated_data["search"],
@@ -709,3 +720,25 @@ class CreditNoteDetailView(OfficeView):
         except CreditNote.DoesNotExist:
             raise Http404 from None
         return Response(CreditNoteSerializer(note).data)
+
+
+class MyDeliveriesView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="listMyDeliveries", responses=SaleDetailSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The BL prepared for the driver's truck with its load, still to deliver (drafts), oldest first, each with
+        its client, address, products and boxes. Confirming one (`confirmSale`) is the delivery (D-160)."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise Http404
+        sales = (
+            selectors.sales_of(
+                membership.organization, status=SaleStatus.DRAFT, load_location_id=None, location_id=truck.location_id
+            )
+            .filter(transfer__isnull=False)
+            .order_by("sold_at", "id")
+        )
+        return Response(SaleDetailSerializer(sales, many=True, context={"show_costs": False}).data)

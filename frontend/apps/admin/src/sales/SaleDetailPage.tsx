@@ -26,6 +26,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { BOX_TYPES, formatBoxCount } from "../boxes/shared";
 import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { useSeller } from "../lib/documentSeller";
 import { fieldErrors } from "../lib/errors";
@@ -330,6 +331,23 @@ export function SaleDetailPage() {
             <Detail label={t("admin.sales.detail.soldAt")} numeric>
               {formatDateTime(data.sold_at)}
             </Detail>
+            {data.delivery_address && (
+              <Detail label={t("admin.sales.detail.deliveryAddress")}>{data.delivery_address}</Detail>
+            )}
+            {BOX_TYPES.some((type) => (data.boxes[type] ?? 0) > 0) && (
+              <Detail label={t("admin.sales.detail.boxesLeft")}>
+                {BOX_TYPES.filter((type) => (data.boxes[type] ?? 0) > 0)
+                  .map((type) => `${t(`admin.boxes.types.${type}`)} : ${formatBoxCount(data.boxes[type] ?? 0)}`)
+                  .join(" · ")}
+              </Detail>
+            )}
+            {data.transfer && (
+              <Detail label={t("admin.sales.detail.fromLoad")}>
+                <Link to={`/stock/transferts/${data.transfer.id}`} className="font-semibold text-sea hover:underline">
+                  {data.transfer.number}
+                </Link>
+              </Detail>
+            )}
             {data.invoice && (
               <Detail label={t("admin.sales.detail.invoiceLabel")}>
                 <Link to={`/factures/${data.invoice.id}`} className="font-semibold text-sea hover:underline">

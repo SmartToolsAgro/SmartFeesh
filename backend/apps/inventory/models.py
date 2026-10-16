@@ -317,6 +317,8 @@ class TransferLine(OrganizationScopedModel):
     unit_price = models.DecimalField[Decimal | None, Decimal | None](
         max_digits=14, decimal_places=3, null=True, blank=True
     )
+    # The client this part of a load is for (D-160); empty is the part kept on the truck for the road.
+    customer = models.ForeignKey("partners.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
 
     class Meta:
         ordering = ["transfer", "id"]
@@ -326,7 +328,16 @@ class TransferLine(OrganizationScopedModel):
                 condition=models.Q(unit_price__isnull=True) | models.Q(unit_price__gt=0),
                 name="transfer_line_price_positive",
             ),
-            models.UniqueConstraint(fields=["transfer", "product"], name="one_transfer_line_per_product"),
+            models.UniqueConstraint(
+                fields=["transfer", "product"],
+                condition=models.Q(customer__isnull=True),
+                name="one_transfer_line_per_product",
+            ),
+            models.UniqueConstraint(
+                fields=["transfer", "customer", "product"],
+                condition=models.Q(customer__isnull=False),
+                name="one_transfer_line_per_client_product",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -341,16 +352,48 @@ class TransferBoxLine(OrganizationScopedModel):
     transfer = models.ForeignKey(Transfer, on_delete=models.CASCADE, related_name="box_lines")
     box_type = models.CharField(max_length=10)
     count = models.PositiveIntegerField()
+    # The client these boxes are for (D-160); empty is the part kept on the truck.
+    customer = models.ForeignKey("partners.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
 
     class Meta:
         ordering = ["transfer", "id"]
         constraints = [
             models.CheckConstraint(condition=models.Q(count__gt=0), name="transfer_box_line_count_positive"),
-            models.UniqueConstraint(fields=["transfer", "box_type"], name="one_transfer_box_line_per_type"),
+            models.UniqueConstraint(
+                fields=["transfer", "box_type"],
+                condition=models.Q(customer__isnull=True),
+                name="one_transfer_box_line_per_type",
+            ),
+            models.UniqueConstraint(
+                fields=["transfer", "customer", "box_type"],
+                condition=models.Q(customer__isnull=False),
+                name="one_transfer_box_line_per_client_type",
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.transfer} · {self.box_type} · {self.count}"
+
+
+class TransferDelivery(OrganizationScopedModel):
+    """One client of a truck load (D-160): who the part of the load is for, and where it is delivered.
+
+    The address starts from the client's own and may be changed here, for this load only: it is copied to the
+    client's delivery note (BL), never written back to the client. The BL itself is a draft sale made by
+    `sales` when the load is validated (`Sale.transfer`)."""
+
+    transfer = models.ForeignKey(Transfer, on_delete=models.CASCADE, related_name="deliveries")
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="+")
+    delivery_address = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["transfer", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["transfer", "customer"], name="one_delivery_per_client_per_transfer"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.transfer} · {self.customer_id}"
 
 
 # ---- Losses and stock counts (P1-T10, D-045) ----
