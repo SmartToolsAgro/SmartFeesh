@@ -25,6 +25,8 @@ async function recordReceipt(page: Page, deliveryNote: string): Promise<string> 
   await page.getByRole("option", { name: "Dorade royale · DO-003" }).click();
   await line.getByLabel("Facturé (kg)").fill("10");
   await line.getByLabel("Coût (DT/kg)").fill("20");
+  // This receipt waits for the supplier's invoice, typed below (not owed at once, D-159).
+  await page.getByRole("checkbox", { name: "Dû dès la réception" }).uncheck();
   await page.getByRole("button", { name: "Enregistrer la réception" }).click();
   const heading = page.getByRole("heading", { name: /^BR-\d+$/, level: 1 });
   await expect(heading).toBeVisible();
