@@ -4298,6 +4298,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
           description: ''
+  /api/v1/my-deliveries:
+    get:
+      operationId: listMyDeliveries
+      description: |-
+        The BL prepared for the driver's truck with its load, still to deliver (drafts), oldest first, each with
+        its client, address, products and boxes. Confirming one (`confirmSale`) is the delivery (D-160).
+      tags:
+      - my-deliveries
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/my-expense-categories:
     get:
       operationId: listRoadCategories

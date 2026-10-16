@@ -3738,6 +3738,18 @@ export const fr = {
     },
   },
   truck: {
+    deliveries: {
+      open: "Mes livraisons",
+      title: "Livraisons du chargement",
+      empty: "Aucune livraison à faire",
+      emptyBody: "Les bons préparés avec le chargement du camion apparaissent ici, un par client.",
+      failed: "Les livraisons n'ont pas pu être chargées.",
+      total: "Total",
+      confirm: "Livré : valider le bon",
+      confirming: "Validation…",
+      failedConfirm: "Le bon n'a pas pu être validé. Réessayez.",
+      offline: "Pas de réseau : la livraison se valide quand le téléphone est en ligne.",
+    },
     appName: "Chauffeur",
     navigation: "Navigation camion",
     wrongApp: "Ce compte n'est pas un compte chauffeur. Utilisez l'application d'administration.",

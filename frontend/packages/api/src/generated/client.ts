@@ -13685,6 +13685,105 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCloseMyPastDayMutationOptions(options), queryClient);
     }
 
+export const getListMyDeliveriesUrl = () => {
+
+
+
+
+  return `/api/v1/my-deliveries`
+}
+
+/**
+ * The BL prepared for the driver's truck with its load, still to deliver (drafts), oldest first, each with
+ * its client, address, products and boxes. Confirming one (`confirmSale`) is the delivery (D-160).
+ */
+export const listMyDeliveries = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail[]> => {
+
+  return apiFetch<SaleDetail[]>(getListMyDeliveriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyDeliveriesQueryKey = () => {
+    return [
+    `/api/v1/my-deliveries`
+    ] as const;
+    }
+
+
+export const getListMyDeliveriesQueryOptions = <TData = Awaited<ReturnType<typeof listMyDeliveries>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDeliveries>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyDeliveriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyDeliveries>>> = ({ signal }) => listMyDeliveries({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyDeliveries>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyDeliveriesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyDeliveries>>>
+export type ListMyDeliveriesQueryError = unknown
+
+
+export function useListMyDeliveries<TData = Awaited<ReturnType<typeof listMyDeliveries>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDeliveries>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDeliveries>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDeliveries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDeliveries<TData = Awaited<ReturnType<typeof listMyDeliveries>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDeliveries>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDeliveries>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDeliveries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDeliveries<TData = Awaited<ReturnType<typeof listMyDeliveries>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDeliveries>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyDeliveries<TData = Awaited<ReturnType<typeof listMyDeliveries>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDeliveries>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyDeliveriesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListRoadCategoriesUrl = () => {
 
 

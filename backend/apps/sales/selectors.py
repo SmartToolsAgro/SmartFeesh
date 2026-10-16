@@ -184,6 +184,7 @@ def sales_of(
     customer_id: int | None = None,
     location_id: int | None = None,
     created_by_id: int | None = None,
+    load_location_id: int | None = None,
     date_from: dt.date | None = None,
     date_to: dt.date | None = None,
     search: str = "",
@@ -228,7 +229,11 @@ def sales_of(
     if location_id is not None:
         sales = sales.filter(location_id=location_id)
     if created_by_id is not None:
-        sales = sales.filter(created_by_id=created_by_id)
+        # A driver also sees the BL prepared for their truck's load (D-160), not only the sales they made.
+        own = Q(created_by_id=created_by_id)
+        if load_location_id is not None:
+            own |= Q(transfer__isnull=False, location_id=load_location_id)
+        sales = sales.filter(own)
     if date_from is not None:
         sales = sales.filter(sold_at__date__gte=date_from)
     if date_to is not None:

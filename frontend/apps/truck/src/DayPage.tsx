@@ -233,6 +233,9 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
           </Button>
         </>
       ) : null}
+      <Button asChild size="lg" variant="primary" className="py-4 text-lg">
+        <Link to="/livraisons">{t("truck.deliveries.open")}</Link>
+      </Button>
       <Button asChild size="lg" className="py-4 text-lg">
         <Link to="/reprise">{t("truck.boxes.pickupAdd")}</Link>
       </Button>

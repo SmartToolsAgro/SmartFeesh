@@ -123,8 +123,9 @@ Asked by the owner (2026-10-16): the client is known from the start, so the load
 - [x] The address starts from the client's record and is changed for this load's BL only (never written back).
 - [x] Validating the load makes a draft BL per client (`Sale.transfer`), printable as "PROVISOIRE" with the address and
       the boxes; confirming it at the delivery takes the stock off the truck and gives the boxes to the client.
-- [ ] Driver phone: see the load by client, confirm each delivery (the draft BL belongs to the office user today, and a
-      driver sees only the sales they made). Next step.
+- [x] Driver phone: "Mes livraisons" lists the draft BL of the truck's load (`GET /my-deliveries`), one card per client with
+      address, products, boxes and total; "Livré" confirms it (online only for now). A driver also sees the BL of their truck's load.
+- [ ] Later: confirm a delivery offline (queue), adjust a quantity on the spot, collect payment from the same card.
 
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays

@@ -2388,5 +2388,7 @@ client's record but may be changed on this BL only.
   "PROVISOIRE" under its draft number `VE-NNNN`; any other draft still has no BL (D-095).
 - **Provisional:** the price of a client's line is the load's price of the day, not the client's price list (D-153 shows
   that price on the phone's sale screen only); the office edits the draft BL to change it. A cancelled draft BL is not
-  recreated; fix by a new load. Not done: the driver phone (list the load by client, confirm each delivery) and the
-  Arabic strings of the new screens.
+  recreated; fix by a new load. Not done: the Arabic strings of the new screens.
+- **Driver phone.** `GET /my-deliveries` (driver only): the draft BL made from a load, for the truck of the day. A driver also
+  sees (list, detail, confirm) the sales of a load on their truck, not only the ones they made. "Mes livraisons" confirms with
+  `confirmSale`, online only: offline confirmation, a quantity changed on the spot and payment from the card are later.
