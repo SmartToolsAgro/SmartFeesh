@@ -125,8 +125,7 @@ def test_a_validated_load_leaves_a_draft_bl_for_each_client(
 
     assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("32.500")
     sales_by_customer = {
-        sale.customer_id: sale
-        for sale in Sale.objects.filter(transfer=transfer).select_related("customer")
+        sale.customer_id: sale for sale in Sale.objects.filter(transfer=transfer).select_related("customer")
     }
     corail = sales_by_customer[restaurant.pk]
     thyna = sales_by_customer[hotel.pk]

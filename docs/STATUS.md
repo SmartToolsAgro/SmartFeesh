@@ -7,7 +7,8 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
 - **Phase 1:** done except P1-T14 (returnable boxes; owner decisions 2–4 are open). **Phase 2:** mostly done.
 - **Phase 3:** T01–T07d and T11–T12c are done; open: T08 field test, T09 Arabic review, T10 printing.
 - **P2-T13 / D-160:** load parts, draft BL per client, provisional PDF and driver-phone "Mes livraisons" are implemented
-  on `load-per-client` / PR #160. A test-ordering failure from CI is fixed locally; do not merge until CI is green.
+  on `load-per-client` / PR #160. CI identified a formatting issue in the corrected test; it is fixed, and CI must pass
+  before merge.
 - **On main:** D-157/158 cover buying at the port from the office and phone; D-159 covers supplier debts, payments and
   the supplier-paper photo. Staging checks for these and D-156's statement PDF remain.
 - **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmare.com, driver
@@ -20,7 +21,7 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
 
 ## Next step
 
-1. Push the CI test fix for PR #160, wait for green CI, then merge. After deployment, check a load with two clients on
+1. Push the CI fixes for PR #160, wait for green CI, then merge. After deployment, check a load with two clients on
    staging: change one address, validate, print both provisional BLs, confirm one, and verify the driver's "Mes livraisons".
 2. Check D-159 on staging (overdue invoice, cheque cashing day, receipt owed at once, monthly supplier statement and
    supplier-paper photo); check D-158 with a real phone (port purchase, office decision notice and closing money).
