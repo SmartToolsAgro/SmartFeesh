@@ -31,7 +31,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { BOX_TYPES, formatBoxCount } from "../boxes/shared";
+import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { PdfButton } from "../lib/PdfButton";
 import { canRecordTransfers, isZero, KIND_ICONS, refreshAfterTransfer, STATUS_TONES } from "./shared";
 
 function Detail({ label, children, numeric = false }: { label: string; children: ReactNode; numeric?: boolean }) {
@@ -124,6 +127,105 @@ function TruckDayCard({ locationId, day }: { locationId: number; day: string }) 
   );
 }
 
+const NOTE_TONES = { draft: "warn", confirmed: "good", cancelled: "neutral" } as const;
+
+const isNoteStatus = (status: string): status is keyof typeof NOTE_TONES => status in NOTE_TONES;
+
+/** The clients of a load: where each goes, what they buy, their boxes and their BL (D-160). */
+function DeliveryCards({ transfer, lineErrors }: { transfer: TransferDetail; lineErrors: Record<string, string> }) {
+  const { t } = useTranslation();
+  const none = t("admin.transfers.detail.none");
+  return (
+    <section className="flex flex-col gap-4" aria-label={t("admin.transfers.deliveries.title")}>
+      <div>
+        <h2 className="text-[1rem] font-bold">{t("admin.transfers.deliveries.title")}</h2>
+        <p className="text-[0.85rem] text-ink-2">{t("admin.transfers.deliveries.intro")}</p>
+      </div>
+      {transfer.deliveries.map((delivery, index) => {
+        const lines = transfer.lines.filter((line) => line.customer?.id === delivery.customer.id);
+        const amount = sum(
+          lines.flatMap((line) => (line.unit_price ? [lineTotal(line.quantity, line.unit_price)] : [])),
+        );
+        const note = delivery.delivery_note;
+        const boxes = BOX_TYPES.filter((type) => (delivery.boxes[type] ?? 0) > 0);
+        const noteStatus = note && isNoteStatus(note.status) ? note.status : "draft";
+        return (
+          <Card key={delivery.customer.id} className="flex flex-col gap-3 p-2" role="group">
+            <div className="flex flex-wrap items-center gap-3 px-2.5 pt-2">
+              <CardTitle className="mb-0">
+                <Link to={`/clients/${delivery.customer.id}`} className="hover:underline">
+                  {delivery.customer.name}
+                </Link>
+              </CardTitle>
+              {note ? (
+                <>
+                  <Pill tone={NOTE_TONES[noteStatus]}>
+                    {note.number} · {t(`admin.transfers.deliveries.status.${noteStatus}`)}
+                  </Pill>
+                  <span className="ms-auto flex gap-2">
+                    <Link to={`/ventes/${note.id}`} className="text-[0.85rem] font-semibold text-sea hover:underline">
+                      {t("admin.transfers.deliveries.open")}
+                    </Link>
+                    <PdfButton kind="delivery_note" id={note.id} label={t("admin.transfers.deliveries.print")} />
+                  </span>
+                </>
+              ) : (
+                <span className="text-[0.85rem] text-ink-2">{t("admin.transfers.deliveries.noNote")}</span>
+              )}
+            </div>
+            <dl className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-6 gap-y-3 px-2.5">
+              <Detail label={t("admin.transfers.deliveries.address")}>{delivery.delivery_address || none}</Detail>
+              <Detail label={t("admin.transfers.deliveries.boxes")}>
+                {boxes.length === 0
+                  ? t("admin.transfers.deliveries.noBoxes")
+                  : boxes
+                      .map((type) => `${t(`admin.boxes.types.${type}`)} : ${formatBoxCount(delivery.boxes[type] ?? 0)}`)
+                      .join(" · ")}
+              </Detail>
+            </dl>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>{t("admin.transfers.detail.product")}</Th>
+                  <Th numeric>{t("admin.transfers.detail.quantity")}</Th>
+                  <Th numeric>{t("admin.transfers.detail.price")}</Th>
+                  <Th numeric>{t("admin.transfers.detail.amount")}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line, lineIndex) => {
+                  const error = lineErrors[`deliveries.${index}.lines.${lineIndex}.quantity`];
+                  return (
+                    <tr key={line.id}>
+                      <Td>
+                        <span className="font-semibold">{line.product.name}</span>
+                        <div className="num text-[0.8rem] text-ink-2">{line.product.reference}</div>
+                      </Td>
+                      <Td numeric className="font-semibold whitespace-nowrap">
+                        {formatQuantity(line.quantity)}
+                        {error && (
+                          <div className="text-[0.78rem] font-semibold whitespace-normal text-bad">{error}</div>
+                        )}
+                      </Td>
+                      <Td numeric className="whitespace-nowrap">
+                        {line.unit_price ? formatMoney(line.unit_price) : none}
+                      </Td>
+                      <Td numeric className="whitespace-nowrap">
+                        {line.amount ? formatMoney(line.amount) : none}
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+            <p className="num px-2.5 pb-2 text-end font-bold">{formatMoney(amount)}</p>
+          </Card>
+        );
+      })}
+    </section>
+  );
+}
+
 export function TransferDetailPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
@@ -192,6 +294,10 @@ export function TransferDetailPage() {
   const canAct = isDraft && canRecordTransfers(session);
   const isLoad = data.kind === "load";
   const truck = truckOf(data);
+  // The part kept on the truck (no client) is what the server numbers `lines.<i>`; a client's lines are numbered
+  // under `deliveries.<d>.lines.<i>` (D-160).
+  const keptLines = data.lines.filter((line) => line.customer === null);
+  const hasClients = data.deliveries.length > 0;
 
   return (
     <>
@@ -261,68 +367,74 @@ export function TransferDetailPage() {
         </dl>
       </Card>
 
-      <Card className="p-2">
-        <CardTitle className="px-2.5 pt-2">{t("admin.transfers.detail.lines")}</CardTitle>
-        <Table>
-          <thead>
-            <tr>
-              <Th>{t("admin.transfers.detail.product")}</Th>
-              <Th numeric>{t("admin.transfers.detail.quantity")}</Th>
-              {isLoad && <Th numeric>{t("admin.transfers.detail.price")}</Th>}
-              {isLoad && <Th numeric>{t("admin.transfers.detail.amount")}</Th>}
-              <Th>{t("admin.transfers.detail.batches")}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.lines.map((line, index) => {
-              const error = lineErrors[`lines.${index}.quantity`];
-              return (
-                <tr key={line.id}>
-                  <Td>
-                    <span className="font-semibold">{line.product.name}</span>
-                    <div className="num text-[0.8rem] text-ink-2">{line.product.reference}</div>
-                  </Td>
-                  <Td numeric className="font-semibold whitespace-nowrap">
-                    {formatQuantity(line.quantity)}
-                    {error && <div className="text-[0.78rem] font-semibold whitespace-normal text-bad">{error}</div>}
-                  </Td>
-                  {isLoad && (
-                    <Td numeric className="whitespace-nowrap">
-                      {line.unit_price ? formatMoney(line.unit_price) : none}
+      {hasClients && <DeliveryCards transfer={data} lineErrors={lineErrors} />}
+
+      {(!hasClients || keptLines.length > 0) && (
+        <Card className="p-2">
+          <CardTitle className="px-2.5 pt-2">
+            {hasClients ? t("admin.transfers.deliveries.kept") : t("admin.transfers.detail.lines")}
+          </CardTitle>
+          <Table>
+            <thead>
+              <tr>
+                <Th>{t("admin.transfers.detail.product")}</Th>
+                <Th numeric>{t("admin.transfers.detail.quantity")}</Th>
+                {isLoad && <Th numeric>{t("admin.transfers.detail.price")}</Th>}
+                {isLoad && <Th numeric>{t("admin.transfers.detail.amount")}</Th>}
+                <Th>{t("admin.transfers.detail.batches")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {keptLines.map((line, index) => {
+                const error = lineErrors[`lines.${index}.quantity`];
+                return (
+                  <tr key={line.id}>
+                    <Td>
+                      <span className="font-semibold">{line.product.name}</span>
+                      <div className="num text-[0.8rem] text-ink-2">{line.product.reference}</div>
                     </Td>
-                  )}
-                  {isLoad && (
-                    <Td numeric className="whitespace-nowrap">
-                      {line.amount ? formatMoney(line.amount) : none}
+                    <Td numeric className="font-semibold whitespace-nowrap">
+                      {formatQuantity(line.quantity)}
+                      {error && <div className="text-[0.78rem] font-semibold whitespace-normal text-bad">{error}</div>}
                     </Td>
-                  )}
-                  <Td className="num text-[0.85rem]">
-                    {line.batches.length === 0 ? (
-                      <span className="text-ink-2">{isDraft ? t("admin.transfers.detail.batchesLater") : none}</span>
-                    ) : (
-                      line.batches.map((batch) => (
-                        <div key={batch.batch_id} className="whitespace-nowrap">
-                          {batch.batch_number} · {formatQuantity(batch.quantity)}
-                        </div>
-                      ))
+                    {isLoad && (
+                      <Td numeric className="whitespace-nowrap">
+                        {line.unit_price ? formatMoney(line.unit_price) : none}
+                      </Td>
                     )}
-                  </Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-        <dl className="flex flex-wrap justify-end gap-x-8 gap-y-2 border-t border-line px-2.5 py-3">
-          <Detail label={t("admin.transfers.detail.totalQuantity")} numeric>
-            <b>{formatQuantity(data.total_quantity)}</b>
-          </Detail>
-          {data.total_amount && (
-            <Detail label={t("admin.transfers.detail.totalAmount")} numeric>
-              <b>{formatMoney(data.total_amount)}</b>
+                    {isLoad && (
+                      <Td numeric className="whitespace-nowrap">
+                        {line.amount ? formatMoney(line.amount) : none}
+                      </Td>
+                    )}
+                    <Td className="num text-[0.85rem]">
+                      {line.batches.length === 0 ? (
+                        <span className="text-ink-2">{isDraft ? t("admin.transfers.detail.batchesLater") : none}</span>
+                      ) : (
+                        line.batches.map((batch) => (
+                          <div key={batch.batch_id} className="whitespace-nowrap">
+                            {batch.batch_number} · {formatQuantity(batch.quantity)}
+                          </div>
+                        ))
+                      )}
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+          <dl className="flex flex-wrap justify-end gap-x-8 gap-y-2 border-t border-line px-2.5 py-3">
+            <Detail label={t("admin.transfers.detail.totalQuantity")} numeric>
+              <b>{formatQuantity(data.total_quantity)}</b>
             </Detail>
-          )}
-        </dl>
-      </Card>
+            {data.total_amount && (
+              <Detail label={t("admin.transfers.detail.totalAmount")} numeric>
+                <b>{formatMoney(data.total_amount)}</b>
+              </Detail>
+            )}
+          </dl>
+        </Card>
+      )}
 
       {truck && <TruckDayCard locationId={truck.id} day={data.transferred_on} />}
 

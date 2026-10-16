@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
 
     from apps.catalog.models import Product
-    from apps.inventory.models import Batch, StockLocation
+    from apps.inventory.models import Batch, StockLocation, Transfer
     from apps.partners.models import Customer
 
 # ---- Quotes (P2-T03, D-050) ----
@@ -734,6 +734,7 @@ def _sale_snapshot(sale: Sale) -> dict[str, Any]:
         "location": sale.location.name,
         "sold_at": sale.sold_at.isoformat(),
         "quote": sale.quote.number if sale.quote is not None else None,
+        "delivery_address": sale.delivery_address,
         "lines": [
             {
                 "product": line.product.reference,
@@ -770,13 +771,16 @@ def create_sale(
     typed_source: str = PriceSource.TYPED,
     boxes: Mapping[str, object] | None = None,
     stock_held_since: bool = False,
+    delivery_address: str | None = None,
+    transfer: "Transfer | None" = None,
 ) -> Sale:
     """Type a sale as a draft; with `confirm`, also confirm it (one transaction: a refusal leaves nothing).
 
     No customer means the walk-in customer (a counter sale, D-047). A line without a price takes what the
     customer is charged at `sold_at` (now by default), kept on the line. A `client_uuid` already used
     returns that sale. `stock_held_since` is for a sale whose `sold_at` comes from a driver's phone (D-133):
-    see `confirm_sale`.
+    see `confirm_sale`. `delivery_address` is where this delivery goes when it is not the customer's address (D-160);
+    `transfer` is the truck load a draft BL was prepared with.
     """
     if client_uuid is not None:
         existing = Sale.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
@@ -795,6 +799,8 @@ def create_sale(
         sold_at=sold_at,
         quote=quote,
         notes=notes.strip(),
+        delivery_address=(delivery_address or "").strip()[:255],
+        transfer=transfer,
         created_by=actor,
         client_uuid=client_uuid,
     )
@@ -804,6 +810,38 @@ def create_sale(
     if confirm:
         return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit, stock_held_since=stock_held_since)
     return sale
+
+
+@transaction.atomic
+def create_delivery_drafts(*, transfer: "Transfer", actor: User | None) -> list[Sale]:
+    """One draft BL per client of a validated truck load (D-160): their products at the load's prices, their boxes
+    and the address of this delivery. Nothing leaves the truck yet: the BL is confirmed at the delivery, which
+    takes the stock off the truck, records what the client owes and hands over the boxes. Called when the
+    load is validated; a load already holding its BLs makes none again."""
+    if transfer.delivery_notes.exists():
+        return []
+    lines = list(transfer.lines.filter(customer__isnull=False).select_related("product").order_by("id"))
+    boxes = list(transfer.box_lines.filter(customer__isnull=False).order_by("id"))
+    sold_at = timezone.now()
+    drafts = []
+    for delivery in transfer.deliveries.select_related("customer").order_by("id"):
+        own = [line for line in lines if line.customer_id == delivery.customer_id]
+        drafts.append(
+            create_sale(
+                organization=transfer.organization,
+                actor=actor,
+                customer=delivery.customer,
+                location=transfer.to_location,
+                lines=[
+                    {"product": line.product, "quantity": line.quantity, "unit_price": line.unit_price} for line in own
+                ],
+                sold_at=sold_at,
+                boxes={line.box_type: line.count for line in boxes if line.customer_id == delivery.customer_id},
+                delivery_address=delivery.delivery_address,
+                transfer=transfer,
+            )
+        )
+    return drafts
 
 
 def _locked_sale(sale: Sale) -> Sale:
@@ -842,9 +880,12 @@ def update_sale(
     confirm: bool = False,
     approve_credit: bool = False,
     boxes: Mapping[str, object] | None = None,
+    delivery_address: str | None = None,
 ) -> Sale:
     """Change a draft: customer, place, moment, notes, payment, lines and boxes (all replaced). With `confirm`,
-    confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment."""
+    confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment.
+    Without `delivery_address` the address of this BL stays as it is, and without `boxes` its boxes stay
+    (D-160): a draft BL made from a truck load keeps both when its lines are changed."""
     sale = _locked_draft_sale(sale)
     organization = sale.organization
     if customer is None:
@@ -854,11 +895,13 @@ def update_sale(
     # A sale made from a quote keeps "quote" as the source of the prices typed again from it.
     typed_source = PriceSource.QUOTE if sale.quote_id is not None else PriceSource.TYPED
     checked_lines, paid = _prepared_sale(organization, customer, location, sold_at, lines, payment or {}, typed_source)
-    box_counts = _checked_sale_boxes(boxes)
+    box_counts = _checked_sale_boxes(boxes) if boxes is not None else None
     sale.customer = customer
     sale.location = location
     sale.sold_at = sold_at
     sale.notes = notes.strip()
+    if delivery_address is not None:
+        sale.delivery_address = delivery_address.strip()[:255]
     # A changed draft is checked again against the credit limit: an earlier request for approval is void.
     sale.credit_status = ""
     sale.credit_over_by = Decimal("0.000")
@@ -866,8 +909,9 @@ def update_sale(
     sale.credit_decided_at = None
     sale.lines.all().delete()
     _write_sale_lines(sale, checked_lines, paid)
-    sale.box_lines.all().delete()
-    _write_sale_boxes(sale, box_counts)
+    if box_counts is not None:
+        sale.box_lines.all().delete()
+        _write_sale_boxes(sale, box_counts)
     audit.record(
         organization=organization,
         actor=actor,

@@ -5,10 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { BatchProduct } from './batchProduct';
+import type { LoadClient } from './loadClient';
 
 export interface TransferLine {
   readonly id: number;
   readonly product: BatchProduct;
+  readonly customer: LoadClient | null;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly quantity: string;
   /**

@@ -201,9 +201,16 @@ def sales_of(
     sales = (
         Sale.objects.for_organization(organization)
         .select_related(
-            "customer", "location", "quote", "created_by", "confirmed_by", "cancelled_by", "credit_decided_by"
+            "customer",
+            "location",
+            "quote",
+            "transfer",
+            "created_by",
+            "confirmed_by",
+            "cancelled_by",
+            "credit_decided_by",
         )
-        .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(Prefetch("lines", queryset=lines), "box_lines")
         .prefetch_related(
             Prefetch(
                 "invoices",

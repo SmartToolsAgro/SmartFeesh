@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext as _
 
+from apps.boxes import services as box_services
 from apps.core.models import Organization
 from apps.documents import services as documents
 
@@ -233,7 +234,10 @@ def receipt_printable(organization: Organization, payment_id: int) -> documents.
 def delivery_note_printable(organization: Organization, sale_id: int) -> documents.Printable:
     """The BL of a validated sale (D-095): what left, at what price, and what the customer owes for it."""
     sale = selectors.sale_of(organization, sale_id)
-    if sale.confirmed_at is None:
+    # A draft made for a client when a truck was loaded travels with the goods (D-160): it prints as a provisional
+    # BL, under its draft number, and becomes the real one when the delivery is validated.
+    provisional = sale.confirmed_at is None and sale.transfer_id is not None and sale.status == SaleStatus.DRAFT
+    if sale.confirmed_at is None and not provisional:
         # A draft (or a draft given up) has no BL number and moves nothing: validating the sale is what makes the BL.
         raise ValidationError(_("Une vente en brouillon n'a pas de bon de livraison : validez-la d'abord."))
     lines = list(sale.lines.all())
@@ -250,6 +254,9 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
         "has_discount": any(line.discount_rate for line in lines),
         "total_kg": sum((line.quantity for line in lines), Decimal("0.000")),
         "cancelled": sale.status == SaleStatus.CANCELLED,
+        "provisional": provisional,
+        "deliver_to": sale.delivery_address or _address(sale.customer.address, sale.customer.city),
+        "boxes": [(str(box_services.BoxType(line.box_type).label), line.count) for line in sale.box_lines.all()],
     }
     return documents.Printable(
         template="sales/pdf/delivery_note.html",

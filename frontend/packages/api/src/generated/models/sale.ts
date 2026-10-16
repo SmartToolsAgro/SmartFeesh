@@ -20,6 +20,8 @@ export interface Sale {
   readonly location: SaleLocation;
   readonly sold_at: string;
   readonly quote: QuoteRef | null;
+  readonly transfer: QuoteRef | null;
+  readonly delivery_address: string;
   readonly notes: string;
   readonly line_count: number;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { TransferDeliveryWrite } from './transferDeliveryWrite';
 import type { TransferLineWrite } from './transferLineWrite';
 import type { TransferWriteBoxes } from './transferWriteBoxes';
 
@@ -17,4 +18,5 @@ export interface TransferWrite {
   lines: TransferLineWrite[];
   validate_now?: boolean;
   boxes?: TransferWriteBoxes;
+  deliveries?: TransferDeliveryWrite[];
 }

@@ -1,13 +1,15 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
 {% block heading %}Bon de livraison{% endblock %}
-{% block banner %}{% if cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉ</span></p>{% endif %}{% endblock %}
+{% block banner %}{% if cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉ</span></p>{% elif provisional %}<p class="fa-cancelled"><span class="banner">PROVISOIRE</span></p>{% endif %}{% endblock %}
 {% block head_meta %}<p class="fa-meta">Au départ de {{ location.name }}</p>{% endblock %}
 {% block body %}
 <div class="parties">
   <div>
     <h2>Livraison</h2>
+    {% if deliver_to %}<p><b>Livré à :</b> {{ deliver_to }}</p>{% endif %}
     <p>Prix en dinars tunisiens (DT), par kilo, hors TVA.</p>
-    <p class="muted small">Ce bon fait foi des quantités livrées et des montants dus. La facture est établie à la demande.</p>
+    {% if provisional %}<p class="muted small">Bon préparé au chargement : il devient définitif quand la livraison est validée.</p>
+    {% else %}<p class="muted small">Ce bon fait foi des quantités livrées et des montants dus. La facture est établie à la demande.</p>{% endif %}
   </div>
 </div>
 
@@ -37,6 +39,7 @@
   <div><span>Reste dû</span><span>{{ sale.amount_due|money }} DT</span></div>{% endif %}
 </div>
 
+{% if boxes %}<div class="note"><h2>Caisses laissées chez le client</h2><p>{% for label, count in boxes %}{{ label }} : {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}</p></div>{% endif %}
 {% if sale.notes %}<div class="note"><h2>Remarques</h2><p>{{ sale.notes|linebreaksbr }}</p></div>{% endif %}
 <div class="parties" style="margin-top: 14mm">
   <div><h2>Le livreur</h2><p>&nbsp;</p></div>

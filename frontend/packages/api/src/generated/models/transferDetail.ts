@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { Place } from './place';
+import type { TransferDelivery } from './transferDelivery';
 import type { TransferDetailBoxes } from './transferDetailBoxes';
 import type { TransferKindEnum } from './transferKindEnum';
 import type { TransferLineDetail } from './transferLineDetail';
@@ -36,4 +37,5 @@ export interface TransferDetail {
   /** @nullable */
   readonly confirmed_at: string | null;
   readonly boxes: TransferDetailBoxes;
+  readonly deliveries: readonly TransferDelivery[];
 }

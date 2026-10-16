@@ -5,4 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type SaleWriteBoxes = {[key: string]: number};
+/**
+ * @nullable
+ */
+export type SaleWriteBoxes = {[key: string]: number} | null;

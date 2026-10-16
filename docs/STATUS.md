@@ -1,7 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-16 (buying at the port from the phone, P3-T12b, D-158; before that the office side, P3-T12a,
-D-157, and the statement PDF, D-156)_
+_Last updated: 2026-10-16 (truck load split by client, P2-T13, D-160; before that buying at the port, D-157 and D-158)_
 
 ## Where we are
 
@@ -29,6 +28,10 @@ D-157, and the statement PDF, D-156)_
 
 ## Next step (do this first)
 
+- **P2-T13 / D-160 (branch `load-per-client`):** a load cold room → truck can name the clients; validating it leaves a
+  draft BL per client (address changeable on that BL only, small/big boxes). Check on staging: Stock › Transferts › new
+  load, "Ajouter un client", validate, open the client's BL, print it (PROVISOIRE), confirm it. **Next:** the driver phone
+  (list the load by client, confirm each delivery); a driver sees only the sales they made. D-159 is on PR #159.
 - **P3-T12c, paying suppliers** (`docs/phases/03-driver-app.md`): the "Dettes fournisseurs" screen (owed, overdue,
   due this week; cheques and traites by cashing day, `SupplierPayment.cash_on`), the deal on the office receipt form
   (a posted FF at once), the cashing day on the payment form, the monthly statement, the photo of the supplier's paper.
@@ -100,6 +103,8 @@ D-157, and the statement PDF, D-156)_
 
 ## Recently done
 
+- 2026-10-16 · D-160 truck load by client (P2-T13): `TransferLine/BoxLine.customer`, `TransferDelivery`, `Sale.transfer`
+  and `Sale.delivery_address`, draft BL per client on `load_validated`, provisional BL PDF with address and boxes.
 - 2026-10-16 · D-158 buying at the port from the phone (P3-T12b): "can buy" switch, phone screen (offline), "Mes
   achats" with the office's note and a notice on its decision, purchase money as a second cash box at closing.
 - 2026-10-15 · D-157 buying at the port, office side (P3-T12a): `FieldPurchase` with revisions, check page, validation

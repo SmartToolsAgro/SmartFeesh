@@ -226,18 +226,36 @@ def _transfer_fields(organization: Organization, data: dict[str, Any]) -> dict[s
             places[field] = selectors.location_of(organization, data[field])
         except StockLocation.DoesNotExist:
             errors[field] = _("Emplacement inconnu.")
-    lines = []
-    for index, line in enumerate(data["lines"]):
+    lines = _transfer_lines(organization, data["lines"], errors)
+    deliveries = []
+    for index, delivery in enumerate(data["deliveries"]):
+        prefix = f"deliveries.{index}."
         try:
-            product = catalog.product_of(organization, line["product"])
+            customer = partners.customer_of(organization, delivery["customer"])
         except ObjectDoesNotExist:
-            errors[services.line_error_key(index, "product")] = _("Produit inconnu.")
+            errors[f"{prefix}customer"] = _("Client inconnu.")
             continue
-        lines.append({**line, "product": product})
+        part_lines = _transfer_lines(organization, delivery["lines"], errors, prefix)
+        deliveries.append({**delivery, "customer": customer, "lines": part_lines})
     if errors:
         raise ValidationError(errors)
     fields = {key: value for key, value in data.items() if key != "validate_now"}
-    return {**fields, **places, "lines": lines, "validate": data["validate_now"]}
+    return {**fields, **places, "lines": lines, "deliveries": deliveries, "validate": data["validate_now"]}
+
+
+def _transfer_lines(
+    organization: Organization, rows: list[dict[str, Any]], errors: dict[str, str], prefix: str = ""
+) -> list[dict[str, Any]]:
+    """The lines of a transfer (or of a client's part) with their product rows; unknown products are errors."""
+    lines = []
+    for index, line in enumerate(rows):
+        try:
+            product = catalog.product_of(organization, line["product"])
+        except ObjectDoesNotExist:
+            errors[prefix + services.line_error_key(index, "product")] = _("Produit inconnu.")
+            continue
+        lines.append({**line, "product": product})
+    return lines
 
 
 def _transfer_answer(

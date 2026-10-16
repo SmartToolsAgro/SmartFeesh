@@ -30,5 +30,11 @@ export interface SaleWrite {
   approve_credit?: boolean;
   /** @nullable */
   client_uuid?: string | null;
+  /** @nullable */
   boxes?: SaleWriteBoxes;
+  /**
+     * @maxLength 255
+     * @nullable
+     */
+  delivery_address?: string | null;
 }

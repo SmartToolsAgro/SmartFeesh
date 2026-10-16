@@ -313,6 +313,8 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     location = SaleLocationSerializer(read_only=True)
     quote = QuoteRefSerializer(read_only=True, allow_null=True)
     line_count = serializers.IntegerField(read_only=True)
+    # The truck load this BL was prepared with (D-160), if any.
+    transfer = QuoteRefSerializer(read_only=True, allow_null=True)
     # total without VAT − cost of goods, once confirmed; null for drivers.
     margin = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
@@ -335,6 +337,8 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "location",
             "sold_at",
             "quote",
+            "transfer",
+            "delivery_address",
             "notes",
             "line_count",
             "subtotal",
@@ -394,10 +398,16 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
 
 class SaleDetailSerializer(SaleSerializer):
     lines = SaleLineSerializer(many=True, read_only=True)
+    # The returnable boxes left with the client, per box type ("small", "big").
+    boxes = serializers.SerializerMethodField()
 
     class Meta(SaleSerializer.Meta):
-        fields = (*SaleSerializer.Meta.fields, "lines")
+        fields = (*SaleSerializer.Meta.fields, "lines", "boxes")
         read_only_fields = fields
+
+    @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
+    def get_boxes(self, sale: Sale) -> dict[str, int]:
+        return {line.box_type: line.count for line in sale.box_lines.all()}
 
 
 class SalePaymentWriteSerializer(serializers.Serializer[Any]):
@@ -427,9 +437,15 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     approve_credit = serializers.BooleanField(required=False, default=False)
     # Sent by an app that may retry: the same value never makes two sales.
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
-    # Returnable boxes left with the client, per box type ("small", "big"): a count, never kg. Zero or left out
-    # means none; they move when the sale is confirmed (D-122).
-    boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
+    # Returnable boxes left with the client, per box type ("small", "big"): a count, never kg. Zero means none;
+    # they move when the sale is confirmed (D-122). Left out: none on a new sale, unchanged on a draft.
+    boxes = serializers.DictField(
+        child=serializers.IntegerField(min_value=0), required=False, allow_null=True, default=None
+    )
+    # Where this delivery goes when it is not the customer's address, for this BL only (D-160). Left out: unchanged.
+    delivery_address = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, default=None, max_length=255
+    )
 
 
 class QuoteDeliveryLineSerializer(serializers.Serializer[Any]):

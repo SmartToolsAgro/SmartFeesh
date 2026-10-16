@@ -2365,3 +2365,28 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   `purchase_difference` is kept, shown to the office, and counts in the cash-difference alert. A send a new load
   undoes keeps its counted purchase money, handed to the office like the sales cash (D-134).
 - Not done: the photo of the supplier's paper (moved to T12c); the office cannot type the purchase money for a driver.
+
+**D-160 · A truck load is split by client: one draft BL per client, with its own delivery address (P2-T13)** · accepted · 2026-10-16
+Asked by the owner: for a transfer from the cold room to a truck, the client is known from the start, so a BL is printed
+for each client with what they will buy, the small/big boxes are tracked, and the delivery address starts from the
+client's record but may be changed on this BL only.
+- **Load = parts.** `TransferLine.customer` and `TransferBoxLine.customer` (null = kept on the truck, for road sales as
+  before) and `TransferDelivery` (transfer, customer, `delivery_address`, one per client). Uniqueness is per client and
+  product (two partial constraints). Only a load can have clients; a client appears once; each part needs a product.
+  The stock moves for the whole load as before (FIFO per line); the boxes move to the truck added up per type. Errors of
+  a client's line come back on `deliveries.<i>.lines.<j>.<field>`.
+- **BL = the draft sale of the client.** Validating the load sends `inventory.load_validated`; `sales` answers by
+  `create_delivery_drafts`: one draft `Sale` per client at the truck, with the load's prices (source "typed"), the client's
+  boxes (`SaleBoxLine`) and `Sale.transfer` pointing at the load. Nothing is sold yet. Confirming the draft at the delivery
+  (existing `confirm_sale`) takes the kilos off the truck FIFO, records what the client owes and moves the boxes truck →
+  client. Chosen with the owner: draft at the load, real BL (`BL-2026-NNNN`) at the delivery.
+- **Address.** `Sale.delivery_address` (copy, 255 chars). Empty at the load takes the client's address and city; a typed
+  one stays on that BL only, and the client's record is never changed. The BL PDF prints "Livré à" (this address, or the
+  client's when empty) and the boxes left. `update_sale` without `delivery_address` or `boxes` keeps them (the sale form
+  does not edit boxes); the sale form has a field for the address.
+- **Print before delivery.** `delivery_note_printable` allows a draft that comes from a load (`Sale.transfer`) and stamps it
+  "PROVISOIRE" under its draft number `VE-NNNN`; any other draft still has no BL (D-095).
+- **Provisional:** the price of a client's line is the load's price of the day, not the client's price list (D-153 shows
+  that price on the phone's sale screen only); the office edits the draft BL to change it. A cancelled draft BL is not
+  recreated; fix by a new load. Not done: the driver phone (list the load by client, confirm each delivery) and the
+  Arabic strings of the new screens.

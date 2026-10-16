@@ -312,6 +312,7 @@ class SaleView(OfficeView):
             "confirm": data["confirm_now"],
             "approve_credit": self.may_approve_credit(data["approve_credit"]),
             "boxes": data["boxes"],
+            "delivery_address": data["delivery_address"],
         }
 
     def may_approve_credit(self, asked: bool) -> bool:

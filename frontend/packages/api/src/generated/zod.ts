@@ -11033,6 +11033,11 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "id": zod.int(),
   "number": zod.string()
 }),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
   "notes": zod.string(),
   "line_count": zod.int(),
   "subtotal": zod.stringFormat('decimal', convertQuoteToSaleResponseSubtotalRegExp),
@@ -11089,7 +11094,8 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "cost_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
 }).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
-}))
+})),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -12996,6 +13002,11 @@ export const ListSalesResponse = zod.object({
   "id": zod.int(),
   "number": zod.string()
 }),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
   "notes": zod.string(),
   "line_count": zod.int(),
   "subtotal": zod.stringFormat('decimal', listSalesResponseResultsItemSubtotalRegExp),
@@ -13053,6 +13064,8 @@ export const createSaleBodyConfirmNowDefault = false;
 export const createSaleBodyApproveCreditDefault = false;
 export const createSaleBodyBoxesMinOne = 0;
 
+export const createSaleBodyDeliveryAddressMax = 255;
+
 
 
 export const CreateSaleBody = zod.object({
@@ -13074,7 +13087,8 @@ export const CreateSaleBody = zod.object({
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(createSaleBodyApproveCreditDefault),
   "client_uuid": zod.uuid().nullish(),
-  "boxes": zod.record(zod.string(), zod.int().min(createSaleBodyBoxesMinOne)).optional()
+  "boxes": zod.record(zod.string(), zod.int().min(createSaleBodyBoxesMinOne)).nullish(),
+  "delivery_address": zod.string().max(createSaleBodyDeliveryAddressMax).nullish()
 })
 
 export const createSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -13124,6 +13138,11 @@ export const CreateSaleResponse = zod.object({
   "id": zod.int(),
   "number": zod.string()
 }),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
   "notes": zod.string(),
   "line_count": zod.int(),
   "subtotal": zod.stringFormat('decimal', createSaleResponseSubtotalRegExp),
@@ -13180,7 +13199,8 @@ export const CreateSaleResponse = zod.object({
   "cost_amount": zod.stringFormat('decimal', createSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', createSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
 }).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
-}))
+})),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13239,6 +13259,11 @@ export const GetSaleResponse = zod.object({
   "id": zod.int(),
   "number": zod.string()
 }),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
   "notes": zod.string(),
   "line_count": zod.int(),
   "subtotal": zod.stringFormat('decimal', getSaleResponseSubtotalRegExp),
@@ -13295,7 +13320,8 @@ export const GetSaleResponse = zod.object({
   "cost_amount": zod.stringFormat('decimal', getSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', getSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
 }).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
-}))
+})),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13320,6 +13346,8 @@ export const updateSaleBodyConfirmNowDefault = false;
 export const updateSaleBodyApproveCreditDefault = false;
 export const updateSaleBodyBoxesMinOne = 0;
 
+export const updateSaleBodyDeliveryAddressMax = 255;
+
 
 
 export const UpdateSaleBody = zod.object({
@@ -13341,7 +13369,8 @@ export const UpdateSaleBody = zod.object({
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
   "approve_credit": zod.boolean().default(updateSaleBodyApproveCreditDefault),
   "client_uuid": zod.uuid().nullish(),
-  "boxes": zod.record(zod.string(), zod.int().min(updateSaleBodyBoxesMinOne)).optional()
+  "boxes": zod.record(zod.string(), zod.int().min(updateSaleBodyBoxesMinOne)).nullish(),
+  "delivery_address": zod.string().max(updateSaleBodyDeliveryAddressMax).nullish()
 })
 
 export const updateSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -13391,6 +13420,11 @@ export const UpdateSaleResponse = zod.object({
   "id": zod.int(),
   "number": zod.string()
 }),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
   "notes": zod.string(),
   "line_count": zod.int(),
   "subtotal": zod.stringFormat('decimal', updateSaleResponseSubtotalRegExp),
@@ -13447,7 +13481,8 @@ export const UpdateSaleResponse = zod.object({
   "cost_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
 }).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
-}))
+})),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13515,6 +13550,11 @@ export const CancelSaleResponse = zod.object({
   "id": zod.int(),
   "number": zod.string()
 }),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
   "notes": zod.string(),
   "line_count": zod.int(),
   "subtotal": zod.stringFormat('decimal', cancelSaleResponseSubtotalRegExp),
@@ -13571,7 +13611,8 @@ export const CancelSaleResponse = zod.object({
   "cost_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
 }).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
-}))
+})),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -13639,6 +13680,11 @@ export const ConfirmSaleResponse = zod.object({
   "id": zod.int(),
   "number": zod.string()
 }),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
   "notes": zod.string(),
   "line_count": zod.int(),
   "subtotal": zod.stringFormat('decimal', confirmSaleResponseSubtotalRegExp),
@@ -13695,7 +13741,8 @@ export const ConfirmSaleResponse = zod.object({
   "cost_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
 }).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
-}))
+})),
+  "boxes": zod.record(zod.string(), zod.int())
 })
 
 
@@ -14940,6 +14987,13 @@ export const ListTransfersResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),zod.null()]),
   "quantity": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemUnitPriceRegExp).nullable(),
   "amount": zod.stringFormat('decimal', listTransfersResponseResultsItemLinesItemAmountRegExp).nullable()
@@ -14968,6 +15022,13 @@ export const createTransferBodyValidateNowDefault = false;
 export const createTransferBodyBoxesMinOne = 0;
 
 
+export const createTransferBodyDeliveriesItemDeliveryAddressDefault = ``;
+export const createTransferBodyDeliveriesItemDeliveryAddressMax = 255;
+
+
+export const createTransferBodyDeliveriesItemBoxesMinOne = 0;
+
+
 
 export const CreateTransferBody = zod.object({
   "from_location": zod.int().min(1),
@@ -14980,7 +15041,17 @@ export const CreateTransferBody = zod.object({
   "unit_price": zod.string().nullish()
 })),
   "validate_now": zod.boolean().default(createTransferBodyValidateNowDefault),
-  "boxes": zod.record(zod.string(), zod.int().min(createTransferBodyBoxesMinOne)).optional()
+  "boxes": zod.record(zod.string(), zod.int().min(createTransferBodyBoxesMinOne)).optional(),
+  "deliveries": zod.array(zod.object({
+  "customer": zod.int().min(1),
+  "delivery_address": zod.string().max(createTransferBodyDeliveriesItemDeliveryAddressMax).default(createTransferBodyDeliveriesItemDeliveryAddressDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "unit_price": zod.string().nullish()
+})),
+  "boxes": zod.record(zod.string(), zod.int().min(createTransferBodyDeliveriesItemBoxesMinOne)).optional()
+})).optional()
 })
 
 export const createTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -15016,6 +15087,13 @@ export const CreateTransferResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),zod.null()]),
   "quantity": zod.stringFormat('decimal', createTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', createTransferResponseLinesItemUnitPriceRegExp).nullable(),
   "amount": zod.stringFormat('decimal', createTransferResponseLinesItemAmountRegExp).nullable(),
@@ -15033,7 +15111,23 @@ export const CreateTransferResponse = zod.object({
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
   "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "deliveries": zod.array(zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),
+  "delivery_address": zod.string(),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "delivery_note": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string()
+}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+}).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
 
@@ -15077,6 +15171,13 @@ export const GetTransferResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),zod.null()]),
   "quantity": zod.stringFormat('decimal', getTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', getTransferResponseLinesItemUnitPriceRegExp).nullable(),
   "amount": zod.stringFormat('decimal', getTransferResponseLinesItemAmountRegExp).nullable(),
@@ -15094,7 +15195,23 @@ export const GetTransferResponse = zod.object({
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
   "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "deliveries": zod.array(zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),
+  "delivery_address": zod.string(),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "delivery_note": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string()
+}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+}).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
 
@@ -15112,6 +15229,13 @@ export const updateTransferBodyValidateNowDefault = false;
 export const updateTransferBodyBoxesMinOne = 0;
 
 
+export const updateTransferBodyDeliveriesItemDeliveryAddressDefault = ``;
+export const updateTransferBodyDeliveriesItemDeliveryAddressMax = 255;
+
+
+export const updateTransferBodyDeliveriesItemBoxesMinOne = 0;
+
+
 
 export const UpdateTransferBody = zod.object({
   "from_location": zod.int().min(1),
@@ -15124,7 +15248,17 @@ export const UpdateTransferBody = zod.object({
   "unit_price": zod.string().nullish()
 })),
   "validate_now": zod.boolean().default(updateTransferBodyValidateNowDefault),
-  "boxes": zod.record(zod.string(), zod.int().min(updateTransferBodyBoxesMinOne)).optional()
+  "boxes": zod.record(zod.string(), zod.int().min(updateTransferBodyBoxesMinOne)).optional(),
+  "deliveries": zod.array(zod.object({
+  "customer": zod.int().min(1),
+  "delivery_address": zod.string().max(updateTransferBodyDeliveriesItemDeliveryAddressMax).default(updateTransferBodyDeliveriesItemDeliveryAddressDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string(),
+  "unit_price": zod.string().nullish()
+})),
+  "boxes": zod.record(zod.string(), zod.int().min(updateTransferBodyDeliveriesItemBoxesMinOne)).optional()
+})).optional()
 })
 
 export const updateTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -15160,6 +15294,13 @@ export const UpdateTransferResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),zod.null()]),
   "quantity": zod.stringFormat('decimal', updateTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', updateTransferResponseLinesItemUnitPriceRegExp).nullable(),
   "amount": zod.stringFormat('decimal', updateTransferResponseLinesItemAmountRegExp).nullable(),
@@ -15177,7 +15318,23 @@ export const UpdateTransferResponse = zod.object({
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
   "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "deliveries": zod.array(zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),
+  "delivery_address": zod.string(),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "delivery_note": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string()
+}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+}).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
 
@@ -15221,6 +15378,13 @@ export const CancelTransferResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),zod.null()]),
   "quantity": zod.stringFormat('decimal', cancelTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', cancelTransferResponseLinesItemUnitPriceRegExp).nullable(),
   "amount": zod.stringFormat('decimal', cancelTransferResponseLinesItemAmountRegExp).nullable(),
@@ -15238,7 +15402,23 @@ export const CancelTransferResponse = zod.object({
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
   "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "deliveries": zod.array(zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),
+  "delivery_address": zod.string(),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "delivery_note": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string()
+}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+}).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
 
@@ -15284,6 +15464,13 @@ export const ValidateTransferResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),zod.null()]),
   "quantity": zod.stringFormat('decimal', validateTransferResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', validateTransferResponseLinesItemUnitPriceRegExp).nullable(),
   "amount": zod.stringFormat('decimal', validateTransferResponseLinesItemAmountRegExp).nullable(),
@@ -15301,7 +15488,23 @@ export const ValidateTransferResponse = zod.object({
   "validated_at": zod.iso.datetime({"offset":true}).nullable(),
   "confirmed_by": zod.string(),
   "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "deliveries": zod.array(zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "reference": zod.string(),
+  "address": zod.string(),
+  "city": zod.string()
+}).describe('The client a part of a load is for (D-160).'),
+  "delivery_address": zod.string(),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "delivery_note": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string()
+}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+}).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
 

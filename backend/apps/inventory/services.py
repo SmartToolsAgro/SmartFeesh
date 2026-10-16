@@ -38,6 +38,7 @@ from .models import (
     StockSettings,
     Transfer,
     TransferBoxLine,
+    TransferDelivery,
     TransferKind,
     TransferLine,
     TransferStatus,
@@ -50,7 +51,7 @@ if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
 
     from apps.catalog.models import Product
-    from apps.partners.models import Supplier
+    from apps.partners.models import Customer, Supplier
 
 BATCH_NUMBER_PREFIX = "L-"
 
@@ -547,6 +548,16 @@ class TransferLineFields(TypedDict, total=False):
     unit_price: Number | None
 
 
+class TransferDeliveryFields(TypedDict, total=False):
+    """The part of a truck load that is for one client (D-160): their kg and boxes, and where it is delivered."""
+
+    customer: "Customer"
+    # Empty takes the client's own address; a typed one is for this load's BL only.
+    delivery_address: str
+    lines: Sequence[TransferLineFields]
+    boxes: Mapping[str, int] | None
+
+
 def line_error_key(index: int, field: str) -> str:
     """Errors of a document line are reported on `lines.<index>.<field>`, under the line's own input."""
     return f"lines.{index}.{field}"
@@ -623,35 +634,41 @@ def _checked_transfer_lines(
     lines: Sequence[TransferLineFields],
     at: dt.datetime,
     errors: dict[str, str],
+    prefix: str = "",
 ) -> list[dict[str, Any]]:
-    """The lines' values once checked; each problem is added to `errors` under the line's own keys.
+    """The lines' values once checked; each problem is added to `errors` under the line's own keys
+    (`prefix` puts them under a client's part of a load: `deliveries.<i>.`).
 
     Only a load carries a price per kg (the driver sells at it); the other kinds keep none.
     """
+
+    def key(index: int, field: str) -> str:
+        return prefix + line_error_key(index, field)
+
     checked_lines: list[dict[str, Any]] = []
     seen: set[int] = set()
     for index, line in enumerate(lines):
         product = line.get("product")
         checked: dict[str, Any] = {"product": product, "quantity": None, "unit_price": None}
         if product is None or product.organization_id != organization.pk:
-            errors[line_error_key(index, "product")] = _("Produit inconnu.")
+            errors[key(index, "product")] = _("Produit inconnu.")
         elif not product.is_active:
-            errors[line_error_key(index, "product")] = _("Ce produit est archivé.")
+            errors[key(index, "product")] = _("Ce produit est archivé.")
         elif product.pk in seen:
-            errors[line_error_key(index, "product")] = _("Ce produit est déjà sur une autre ligne.")
+            errors[key(index, "product")] = _("Ce produit est déjà sur une autre ligne.")
         else:
             seen.add(product.pk)
         try:
             value: Any = line.get("quantity", "")
             checked["quantity"] = checked_quantity(value)
         except (ValueError, TypeError):
-            errors[line_error_key(index, "quantity")] = _("Indiquez un poids en kg, supérieur à zéro.")
-        if kind == TransferKind.LOAD and line_error_key(index, "product") not in errors:
+            errors[key(index, "quantity")] = _("Indiquez un poids en kg, supérieur à zéro.")
+        if kind == TransferKind.LOAD and key(index, "product") not in errors:
             price = _checked_load_price(product, line.get("unit_price"), at)
             if isinstance(price, Decimal):
                 checked["unit_price"] = price
             else:
-                errors[line_error_key(index, "unit_price")] = price
+                errors[key(index, "unit_price")] = price
         checked_lines.append(checked)
     return checked_lines
 
@@ -669,18 +686,26 @@ def _transfer_snapshot(transfer: Transfer) -> dict[str, Any]:
                 "product": line.product.reference,
                 "quantity": str(line.quantity),
                 "unit_price": str(line.unit_price) if line.unit_price is not None else None,
+                "customer": line.customer.reference if line.customer is not None else None,
             }
-            for line in transfer.lines.select_related("product").order_by("id")
+            for line in transfer.lines.select_related("product", "customer").order_by("id")
+        ],
+        "deliveries": [
+            {"customer": delivery.customer.reference, "delivery_address": delivery.delivery_address}
+            for delivery in transfer.deliveries.select_related("customer").order_by("id")
         ],
     }
 
 
-def _write_transfer_lines(transfer: Transfer, checked_lines: list[dict[str, Any]]) -> None:
+def _write_transfer_lines(
+    transfer: Transfer, checked_lines: list[dict[str, Any]], customer: "Customer | None" = None
+) -> None:
     TransferLine.objects.bulk_create(
         [
             TransferLine(
                 organization_id=transfer.organization_id,
                 transfer=transfer,
+                customer=customer,
                 product=values["product"],
                 quantity=values["quantity"],
                 unit_price=values["unit_price"],
@@ -690,6 +715,53 @@ def _write_transfer_lines(transfer: Transfer, checked_lines: list[dict[str, Any]
     )
 
 
+def _checked_deliveries(
+    organization: Organization,
+    kind: str,
+    deliveries: Sequence[TransferDeliveryFields],
+    at: dt.datetime,
+    errors: dict[str, str],
+) -> list[dict[str, Any]]:
+    """The client parts of a load, checked: a known active client once, at least one product, boxes."""
+    if deliveries and kind != TransferKind.LOAD:
+        errors["deliveries"] = _("Seul un chargement de camion se prépare par client.")
+        return []
+    checked: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for index, delivery in enumerate(deliveries):
+        prefix = f"deliveries.{index}."
+        customer = delivery.get("customer")
+        if customer is None or customer.organization_id != organization.pk:
+            errors[f"{prefix}customer"] = _("Client inconnu.")
+        elif not customer.is_active:
+            errors[f"{prefix}customer"] = _("Ce client est archivé.")
+        elif customer.pk in seen:
+            errors[f"{prefix}customer"] = _("Ce client a déjà son bon sur ce chargement.")
+        else:
+            seen.add(customer.pk)
+        lines = delivery.get("lines") or []
+        if not lines:
+            errors[f"{prefix}lines"] = _("Ajoutez au moins un produit pour ce client.")
+        address = (delivery.get("delivery_address") or "").strip()
+        if len(address) > 255:
+            errors[f"{prefix}delivery_address"] = _("255 caractères au plus.")
+        box_counts = box_services.checked_box_counts(delivery.get("boxes"), errors, prefix=f"{prefix}boxes")
+        checked.append(
+            {
+                "customer": customer,
+                "address": address,
+                "lines": _checked_transfer_lines(organization, kind, lines, at, errors, prefix),
+                "boxes": box_counts,
+            }
+        )
+    return checked
+
+
+def _client_address(customer: "Customer") -> str:
+    """The client's own address as a BL prints it: street, then city."""
+    return ", ".join(part for part in (customer.address, customer.city) if part)[:255]
+
+
 def _prepared_transfer(
     organization: Organization,
     from_location: StockLocation,
@@ -697,13 +769,17 @@ def _prepared_transfer(
     transferred_on: dt.date,
     lines: Sequence[TransferLineFields],
     boxes: Mapping[str, int] | None,
-) -> tuple[str, list[dict[str, Any]], dict[str, int]]:
-    """The kind, the checked lines and the box counts of a transfer, or a ValidationError with every problem."""
+    deliveries: Sequence[TransferDeliveryFields] = (),
+) -> tuple[str, list[dict[str, Any]], dict[str, int], list[dict[str, Any]]]:
+    """The kind, the checked lines, the box counts and the client parts of a transfer, or a ValidationError
+    with every problem. `lines` and `boxes` are the part not given to a client (kept on the truck)."""
     errors = _transfer_header_errors(organization, from_location, to_location)
-    if not lines:
+    if not lines and not deliveries:
         errors["lines"] = _("Ajoutez au moins un produit.")
     kind = transfer_kind(from_location, to_location)
-    checked_lines = _checked_transfer_lines(organization, kind, lines, moment_of(transferred_on), errors)
+    at = moment_of(transferred_on)
+    checked_lines = _checked_transfer_lines(organization, kind, lines, at, errors)
+    checked_deliveries = _checked_deliveries(organization, kind, deliveries, at, errors)
     box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
     # Boxes follow a load (D-122), or a return from a truck to a cold room (P1-T14e, D-124); no other transfer.
     returns_to_cold_room = kind == TransferKind.RETURN and to_location.kind == LocationKind.COLD_ROOM
@@ -711,16 +787,36 @@ def _prepared_transfer(
         errors["boxes"] = _("Les caisses ne se transfèrent que vers un camion, au chargement.")
     if errors:
         raise ValidationError(errors)
-    return kind, checked_lines, box_counts
+    return kind, checked_lines, box_counts, checked_deliveries
 
 
-def _write_box_lines(transfer: Transfer, box_counts: Mapping[str, int]) -> None:
+def _write_box_lines(transfer: Transfer, box_counts: Mapping[str, int], customer: "Customer | None" = None) -> None:
     TransferBoxLine.objects.bulk_create(
         [
-            TransferBoxLine(organization_id=transfer.organization_id, transfer=transfer, box_type=box_type, count=count)
+            TransferBoxLine(
+                organization_id=transfer.organization_id,
+                transfer=transfer,
+                customer=customer,
+                box_type=box_type,
+                count=count,
+            )
             for box_type, count in box_counts.items()
         ]
     )
+
+
+def _write_deliveries(transfer: Transfer, checked_deliveries: list[dict[str, Any]]) -> None:
+    """The client parts of a load: who, where to, and their lines and boxes. An empty address takes the client's."""
+    for part in checked_deliveries:
+        customer = part["customer"]
+        TransferDelivery.objects.create(
+            organization_id=transfer.organization_id,
+            transfer=transfer,
+            customer=customer,
+            delivery_address=part["address"] or _client_address(customer),
+        )
+        _write_transfer_lines(transfer, part["lines"], customer)
+        _write_box_lines(transfer, part["boxes"], customer)
 
 
 @transaction.atomic
@@ -736,19 +832,22 @@ def create_transfer(
     client_uuid: uuid.UUID | None = None,
     validate: bool = False,
     boxes: Mapping[str, int] | None = None,
+    deliveries: Sequence[TransferDeliveryFields] = (),
 ) -> Transfer:
     """Prepare a transfer as a draft; with `validate`, also move the stock at once (one transaction).
 
     The kind (load, return, between places) comes from the two locations. A load line without a price
     takes the sale price in force. A load may carry returnable boxes (`boxes`, per box type): they move
-    with the stock when it is validated. A `client_uuid` already used returns that transfer.
+    with the stock when it is validated. A load may be split by client (`deliveries`, D-160): each client's kg and
+    boxes, with `lines` and `boxes` left for the part kept on the truck; validating it makes a draft BL per
+    client. A `client_uuid` already used returns that transfer.
     """
     if client_uuid is not None:
         existing = Transfer.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
         if existing is not None:
             return existing
-    kind, checked_lines, box_counts = _prepared_transfer(
-        organization, from_location, to_location, transferred_on, lines, boxes
+    kind, checked_lines, box_counts, checked_deliveries = _prepared_transfer(
+        organization, from_location, to_location, transferred_on, lines, boxes, deliveries
     )
     transfer = Transfer.objects.create(
         organization=organization,
@@ -763,6 +862,7 @@ def create_transfer(
     )
     _write_transfer_lines(transfer, checked_lines)
     _write_box_lines(transfer, box_counts)
+    _write_deliveries(transfer, checked_deliveries)
     audit.record(
         organization=organization,
         actor=actor,
@@ -801,13 +901,15 @@ def update_transfer(
     notes: str = "",
     validate: bool = False,
     boxes: Mapping[str, int] | None = None,
+    deliveries: Sequence[TransferDeliveryFields] = (),
 ) -> Transfer:
-    """Change a draft: its places, day, notes, lines and boxes (all replaced). With `validate`, validate it too."""
+    """Change a draft: its places, day, notes, lines, boxes and client parts (all replaced). With `validate`,
+    validate it too."""
     transfer = _locked_draft(transfer)
     organization = transfer.organization
     before = _transfer_snapshot(transfer)
-    kind, checked_lines, box_counts = _prepared_transfer(
-        organization, from_location, to_location, transferred_on, lines, boxes
+    kind, checked_lines, box_counts, checked_deliveries = _prepared_transfer(
+        organization, from_location, to_location, transferred_on, lines, boxes, deliveries
     )
     transfer.kind = kind
     transfer.from_location = from_location
@@ -819,6 +921,8 @@ def update_transfer(
     _write_transfer_lines(transfer, checked_lines)
     transfer.box_lines.all().delete()
     _write_box_lines(transfer, box_counts)
+    transfer.deliveries.all().delete()
+    _write_deliveries(transfer, checked_deliveries)
     audit.record(
         organization=organization,
         actor=actor,
@@ -830,6 +934,33 @@ def update_transfer(
     if validate:
         return validate_transfer(transfer=transfer, actor=actor)
     return transfer
+
+
+def _box_totals(box_lines: Sequence[TransferBoxLine]) -> dict[str, int]:
+    """The boxes of every part of a transfer, added up per box type."""
+    totals: dict[str, int] = {}
+    for line in box_lines:
+        totals[line.box_type] = totals.get(line.box_type, 0) + line.count
+    return totals
+
+
+def _line_keys(transfer: Transfer, lines: Sequence[TransferLine]) -> list[str]:
+    """Where a form shows each line: `lines.<i>.` for the part kept on the truck, `deliveries.<d>.lines.<i>.` for a
+    client's part. The lines were written in the order the form sent them, so ids keep that order."""
+    client_order = {
+        pk: position
+        for position, pk in enumerate(transfer.deliveries.order_by("id").values_list("customer_id", flat=True))
+    }
+    seen: dict[int | None, int] = {}
+    keys = []
+    for line in lines:
+        position = seen.get(line.customer_id, 0)
+        seen[line.customer_id] = position + 1
+        if line.customer_id is None:
+            keys.append(f"lines.{position}.")
+        else:
+            keys.append(f"deliveries.{client_order[line.customer_id]}.lines.{position}.")
+    return keys
 
 
 @transaction.atomic
@@ -849,6 +980,7 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
         raise ValidationError(errors)
     occurred_at = moment_of(transfer.transferred_on)
     lines = list(transfer.lines.order_by("id"))
+    keys = _line_keys(transfer, lines)
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
             post_fifo_movements(
@@ -865,7 +997,7 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
         except ValidationError as error:
             # The line's own savepoint is rolled back; the other lines are still checked, then all is refused.
             for field, messages in getattr(error, "message_dict", {"lines": error.messages}).items():
-                key = line_error_key(index, "quantity") if field == "quantity" else field
+                key = f"{keys[index]}quantity" if field == "quantity" else field
                 errors.setdefault(key, messages[0])
     if errors:
         raise ValidationError(errors)
@@ -883,7 +1015,7 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
                 organization=organization,
                 actor=actor,
                 kind=box_kind,
-                counts={line.box_type: line.count for line in box_lines},
+                counts=_box_totals(box_lines),
                 from_holder=box_services.holder_for(organization=organization, location=transfer.from_location),
                 to_holder=box_services.holder_for(organization=organization, location=transfer.to_location),
                 source=transfer,

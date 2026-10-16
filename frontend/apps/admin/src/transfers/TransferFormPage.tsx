@@ -7,6 +7,7 @@ import {
   type TransferWrite,
   updateTransfer,
   useGetTransfer,
+  useListCustomers,
   useListLocations,
   useListLocationStock,
   useListProducts,
@@ -39,28 +40,11 @@ import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { pickable } from "../lib/pickable";
 import { todayInTunis } from "../receipts/shared";
+import { ClientPart } from "./ClientPart";
+import { type Line, type Part, asTyped, lineKey, newLine, newPart } from "./formLines";
 import { canRecordTransfers, refreshAfterTransfer } from "./shared";
 
-type Line = {
-  key: number;
-  product: string;
-  quantity: string;
-  unit_price: string;
-  // Once a person types a price, the form stops showing the price in force.
-  priceTouched: boolean;
-};
 type Errors = Record<string, string>;
-
-// Gives each line a stable React key, also for lines not saved yet.
-let nextKey = 0;
-function newLine(fields: Partial<Line> = {}): Line {
-  nextKey += 1;
-  return { key: nextKey, product: "", quantity: "", unit_price: "", priceTouched: false, ...fields };
-}
-
-// The API writes "20.250"; people here write "20,250". Both are read back by parseDecimalInput.
-const asTyped = (value: string) => value.replace(".", ",");
-const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 
 /** Into a truck is a load, out of one a return: the server decides the same way. */
 function kindOf(from: StockLocation | undefined, to: StockLocation | undefined): TransferKindEnum | null {
@@ -109,6 +93,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
   const locations = useListLocations({ status: "all" });
   // Archived ones leave the pickers unless this transfer already uses them (pickable).
   const products = useListProducts({ status: "all" });
+  // The clients of a load (D-160), archived ones too so a saved part still shows its client.
+  const customers = useListCustomers({ status: "all" });
 
   const [from, setFrom] = useState(draft ? String(draft.from_location.id) : "");
   const [to, setTo] = useState(draft ? String(draft.to_location.id) : "");
@@ -116,18 +102,40 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
   const [notes, setNotes] = useState(draft?.notes ?? "");
   const [lines, setLines] = useState<Line[]>(() =>
     draft
-      ? draft.lines.map((line) =>
-          newLine({
-            product: String(line.product.id),
-            quantity: asTyped(line.quantity),
-            unit_price: line.unit_price ? asTyped(line.unit_price) : "",
-            priceTouched: line.unit_price !== null,
-          }),
-        )
+      ? draft.lines
+          .filter((line) => line.customer === null)
+          .map((line) =>
+            newLine({
+              product: String(line.product.id),
+              quantity: asTyped(line.quantity),
+              unit_price: line.unit_price ? asTyped(line.unit_price) : "",
+              priceTouched: line.unit_price !== null,
+            }),
+          )
       : [newLine()],
   );
   // The boxes of a load (D-122). A draft's saved boxes come back here, since saving replaces them.
   const [boxes, setBoxes] = useState<BoxCountInputs>(() => (draft ? boxInputsFromCounts(draft.boxes) : NO_BOX_INPUTS));
+  // The clients of a load, each with their own products, boxes and delivery address (D-160).
+  const [parts, setParts] = useState<Part[]>(() =>
+    (draft?.deliveries ?? []).map((delivery) =>
+      newPart({
+        customer: String(delivery.customer.id),
+        address: delivery.delivery_address,
+        lines: draft?.lines
+          .filter((line) => line.customer?.id === delivery.customer.id)
+          .map((line) =>
+            newLine({
+              product: String(line.product.id),
+              quantity: asTyped(line.quantity),
+              unit_price: line.unit_price ? asTyped(line.unit_price) : "",
+              priceTouched: line.unit_price !== null,
+            }),
+          ),
+        boxes: boxInputsFromCounts(delivery.boxes),
+      }),
+    ),
+  );
   const [errors, setErrors] = useState<Errors>({});
 
   const places = locations.data ?? [];
@@ -182,24 +190,45 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
     if (!to) found.to_location = t("admin.transfers.form.required");
     if (from && from === to) found.to_location = t("admin.transfers.form.samePlace");
     if (!day) found.transferred_on = t("admin.transfers.form.required");
-    if (lines.length === 0) found.lines = t("admin.transfers.form.noLines");
-    const payloadLines: TransferWrite["lines"] = [];
-    lines.forEach((line, index) => {
-      if (!line.product) found[lineKey(index, "product")] = t("admin.transfers.form.required");
-      const quantity = parseDecimalInput(line.quantity.trim(), 3);
-      if (quantity === null || quantity.startsWith("-") || /^0+(\.0+)?$/.test(quantity)) {
-        found[lineKey(index, "quantity")] = t("admin.transfers.form.weight");
-      }
-      let price: string | null = null;
-      if (kind === "load") {
-        const typed = priceOf(line).trim();
-        if (typed !== "") {
-          price = parseDecimalInput(typed, 3);
-          if (price === null || price.startsWith("-"))
-            found[lineKey(index, "unit_price")] = t("admin.transfers.form.money");
+    // Clients are only for a load; a form switched to another kind leaves them out.
+    const clientParts = kind === "load" ? parts : [];
+    // With clients, the part kept on the truck is optional: a line left blank is simply not sent.
+    const keptLines = clientParts.length > 0 ? lines.filter((line) => line.product || line.quantity.trim()) : lines;
+    if (keptLines.length === 0 && clientParts.length === 0) found.lines = t("admin.transfers.form.noLines");
+    const checkLines = (rows: Line[], prefix: string): TransferWrite["lines"] => {
+      const payload: TransferWrite["lines"] = [];
+      rows.forEach((line, index) => {
+        if (!line.product) found[prefix + lineKey(index, "product")] = t("admin.transfers.form.required");
+        const quantity = parseDecimalInput(line.quantity.trim(), 3);
+        if (quantity === null || quantity.startsWith("-") || /^0+(\.0+)?$/.test(quantity)) {
+          found[prefix + lineKey(index, "quantity")] = t("admin.transfers.form.weight");
         }
-      }
-      payloadLines.push({ product: Number(line.product), quantity: quantity ?? "", unit_price: price });
+        let price: string | null = null;
+        if (kind === "load") {
+          const typed = priceOf(line).trim();
+          if (typed !== "") {
+            price = parseDecimalInput(typed, 3);
+            if (price === null || price.startsWith("-"))
+              found[prefix + lineKey(index, "unit_price")] = t("admin.transfers.form.money");
+          }
+        }
+        payload.push({ product: Number(line.product), quantity: quantity ?? "", unit_price: price });
+      });
+      return payload;
+    };
+    const payloadLines = checkLines(keptLines, "");
+    const deliveries: NonNullable<TransferWrite["deliveries"]> = clientParts.map((part, index) => {
+      const prefix = `deliveries.${index}.`;
+      if (!part.customer) found[`${prefix}customer`] = t("admin.transfers.form.required");
+      if (part.lines.length === 0) found[`${prefix}lines`] = t("admin.transfers.form.noLines");
+      const partBoxes = boxCountsFromInputs(part.boxes);
+      for (const boxType of partBoxes.invalid) found[`${prefix}boxes.${boxType}`] = t("admin.boxes.form.invalid");
+      return {
+        customer: Number(part.customer),
+        delivery_address: part.address.trim(),
+        lines: checkLines(part.lines, prefix),
+        boxes: partBoxes.counts,
+      };
     });
     // Boxes travel with a load only: the server refuses any other kind that carries them.
     const boxCounts = boxCountsFromInputs(boxes);
@@ -216,6 +245,7 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       lines: payloadLines,
       validate_now: validateNow,
       boxes: kind === "load" ? boxCounts.counts : {},
+      deliveries,
     });
   }
 
@@ -304,7 +334,11 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
 
         <Card className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <CardTitle className="mb-0">{t("admin.transfers.form.lines")}</CardTitle>
+            <CardTitle className="mb-0">
+              {kind === "load" && parts.length > 0
+                ? t("admin.transfers.form.keptLines")
+                : t("admin.transfers.form.lines")}
+            </CardTitle>
             {/* Emptying a truck in the evening: everything it holds comes back. */}
             {fromPlace?.kind === "truck" && (stock.data?.length ?? 0) > 0 && (
               <Button className="ms-auto" title={t("admin.transfers.form.takeAllHint")} onClick={takeAll}>
@@ -404,6 +438,38 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
             )}
           </div>
         </Card>
+
+        {kind === "load" && (
+          <section className="flex flex-col gap-4" aria-label={t("admin.transfers.form.clients")}>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-[1rem] font-bold">{t("admin.transfers.form.clients")}</h2>
+              <p className="text-[0.85rem] text-ink-2">{t("admin.transfers.form.clientsHint")}</p>
+            </div>
+            {parts.map((part, index) => (
+              <ClientPart
+                key={part.key}
+                index={index}
+                part={part}
+                customers={customers.data ?? []}
+                products={products.data ?? []}
+                availableOf={availableOf}
+                priceInForce={priceInForce}
+                errors={errors}
+                onChange={(next) =>
+                  setParts((current) => current.map((other) => (other.key === part.key ? next : other)))
+                }
+                onRemove={() => setParts((current) => current.filter((other) => other.key !== part.key))}
+              />
+            ))}
+            {errors.deliveries && <p className="text-[0.78rem] font-semibold text-bad">{errors.deliveries}</p>}
+            <div>
+              <Button onClick={() => setParts((current) => [...current, newPart()])}>
+                <Icon name="plus" />
+                {t("admin.transfers.form.addClient")}
+              </Button>
+            </div>
+          </section>
+        )}
 
         {kind === "load" && (
           <BoxCountsFields

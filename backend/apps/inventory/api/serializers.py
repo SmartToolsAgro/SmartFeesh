@@ -20,6 +20,7 @@ from apps.inventory.models import (
     StockLoss,
     StockSettings,
     Transfer,
+    TransferDelivery,
     TransferKind,
     TransferLine,
     TransferStatus,
@@ -144,14 +145,26 @@ class MovedBatchSerializer(serializers.Serializer[Any]):
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
 
+class LoadClientSerializer(serializers.Serializer[Any]):
+    """The client a part of a load is for (D-160)."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    reference = serializers.CharField(read_only=True)
+    address = serializers.CharField(read_only=True)
+    city = serializers.CharField(read_only=True)
+
+
 class TransferLineSerializer(serializers.ModelSerializer[TransferLine]):
     product = BatchProductSerializer(read_only=True)
+    # The client this line is for; empty for the part kept on the truck (D-160).
+    customer = LoadClientSerializer(read_only=True, allow_null=True)
     # Kg × the day's price, for a load line; empty otherwise.
     amount = serializers.SerializerMethodField()
 
     class Meta:
         model = TransferLine
-        fields: tuple[str, ...] = ("id", "product", "quantity", "unit_price", "amount")
+        fields: tuple[str, ...] = ("id", "product", "customer", "quantity", "unit_price", "amount")
         read_only_fields: tuple[str, ...] = fields
 
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
@@ -230,19 +243,53 @@ class TransferSerializer(serializers.ModelSerializer[Transfer]):
         return person_name(transfer.confirmed_by)
 
 
+class DeliveryNoteRefSerializer(serializers.Serializer[Any]):
+    """The client's BL made from the load: a draft until the delivery (D-160)."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+
+class TransferDeliverySerializer(serializers.Serializer[Any]):
+    """One client of a load: where it goes, their boxes, and their BL once the load is validated."""
+
+    customer = LoadClientSerializer(read_only=True)
+    delivery_address = serializers.CharField(read_only=True)
+    boxes = serializers.SerializerMethodField()
+    delivery_note = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
+    def get_boxes(self, delivery: TransferDelivery) -> dict[str, int]:
+        return {
+            line.box_type: line.count
+            for line in delivery.transfer.box_lines.all()
+            if line.customer_id == delivery.customer_id
+        }
+
+    @extend_schema_field(DeliveryNoteRefSerializer(allow_null=True))
+    def get_delivery_note(self, delivery: TransferDelivery) -> dict[str, Any] | None:
+        for sale in delivery.transfer.delivery_notes.all():
+            if sale.customer_id == delivery.customer_id and sale.status != "cancelled":
+                return dict(DeliveryNoteRefSerializer(sale).data)
+        return None
+
+
 class TransferDetailSerializer(TransferSerializer):
     lines = TransferLineDetailSerializer(many=True, read_only=True)
-    # The returnable boxes that go with the transfer, per box type (D-122): what a draft's form reloads,
-    # since saving a draft replaces them. Empty when none.
+    # The returnable boxes that go with the part of the transfer not given to a client, per box type (D-122): what
+    # a draft's form reloads, since saving a draft replaces them. Empty when none.
     boxes = serializers.SerializerMethodField()
+    # The clients of a load, each with their address and BL (D-160). Their kg are the `lines` with that customer.
+    deliveries = TransferDeliverySerializer(many=True, read_only=True)
 
     class Meta(TransferSerializer.Meta):
-        fields: tuple[str, ...] = (*TransferSerializer.Meta.fields, "boxes")
+        fields: tuple[str, ...] = (*TransferSerializer.Meta.fields, "boxes", "deliveries")
         read_only_fields: tuple[str, ...] = fields
 
     @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
     def get_boxes(self, transfer: Transfer) -> dict[str, int]:
-        return {line.box_type: line.count for line in transfer.box_lines.all()}
+        return {line.box_type: line.count for line in transfer.box_lines.all() if line.customer_id is None}
 
 
 class TransferLineWriteSerializer(serializers.Serializer[Any]):
@@ -252,6 +299,14 @@ class TransferLineWriteSerializer(serializers.Serializer[Any]):
     quantity = serializers.CharField(allow_blank=True)
     # A load only: DT per kg of the day. Empty takes the sale price in force.
     unit_price = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+
+class TransferDeliveryWriteSerializer(serializers.Serializer[Any]):
+    customer = serializers.IntegerField(min_value=1)
+    # Empty takes the client's own address; a typed one is for this load's BL only (D-160).
+    delivery_address = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+    lines = TransferLineWriteSerializer(many=True, allow_empty=True)
+    boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
 
 
 class TransferWriteSerializer(serializers.Serializer[Any]):
@@ -265,6 +320,9 @@ class TransferWriteSerializer(serializers.Serializer[Any]):
     # Returnable boxes that go with a load or with a return from a truck to a cold room, per box type ("small",
     # "big"): a count, never kg (D-122, D-124).
     boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
+    # A load split by client (D-160): each client's kg and boxes, and where they are delivered. `lines` and
+    # `boxes` are then the part kept on the truck, and may be empty.
+    deliveries = TransferDeliveryWriteSerializer(many=True, required=False, default=list)
 
 
 class TransferFilterSerializer(serializers.Serializer[Any]):

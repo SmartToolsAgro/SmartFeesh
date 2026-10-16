@@ -234,6 +234,14 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     # part of its kilos (D-115).
     quote = models.ForeignKey(Quote, null=True, blank=True, on_delete=models.PROTECT, related_name="sales")
     notes = models.TextField(blank=True)
+    # Where this delivery goes when it is not the customer's own address (D-160): typed on this BL only, never
+    # written back to the customer. Empty means the customer's address.
+    delivery_address = models.CharField(max_length=255, blank=True)
+    # The truck load this BL was prepared with, if any (D-160): a draft made for each client when the load is
+    # validated, confirmed at the delivery.
+    transfer = models.ForeignKey(
+        "inventory.Transfer", null=True, blank=True, on_delete=models.PROTECT, related_name="delivery_notes"
+    )
     # Totals computed by the services from the lines, as on quotes.
     subtotal = MoneyField(default=Decimal("0.000"))
     discount_total = MoneyField(default=Decimal("0.000"))

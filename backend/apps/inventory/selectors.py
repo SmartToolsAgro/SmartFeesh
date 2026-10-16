@@ -31,6 +31,7 @@ from .models import (
     StockOnHand,
     StockSettings,
     Transfer,
+    TransferDelivery,
     TransferLine,
     TransferStatus,
 )
@@ -528,11 +529,15 @@ def transfers_of(
 ) -> QuerySet[Transfer]:
     """Transfers newest day first, with their places and lines (product). A location filter keeps the
     transfers going out of it or coming into it; `search` matches the number and the places' names."""
-    lines = TransferLine.objects.select_related("product").order_by("id")
+    lines = TransferLine.objects.select_related("product", "customer").order_by("id")
     transfers = (
         Transfer.objects.for_organization(organization)
         .select_related("from_location", "to_location", "created_by", "validated_by", "confirmed_by")
         .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(
+            Prefetch("deliveries", queryset=TransferDelivery.objects.select_related("customer").order_by("id"))
+        )
+        .prefetch_related("box_lines", "delivery_notes")
         .order_by("-transferred_on", "-id")
     )
     if kind:
