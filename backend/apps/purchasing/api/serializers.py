@@ -671,10 +671,11 @@ class FieldPurchaseSerializer(serializers.ModelSerializer[FieldPurchase]):
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_paper_url(self, purchase: FieldPurchase) -> str | None:
-        if not purchase.paper:
+        name = purchase.paper.name
+        if not name:
             return None
         # The file name changes with each new photo, so the address does too (no stale cache).
-        version = purchase.paper.name.rsplit("/", 1)[-1].split(".", 1)[0]
+        version = name.rsplit("/", 1)[-1].split(".", 1)[0]
         return f"{reverse('field-purchase-paper', args=[purchase.pk])}?v={version}"
 
     def get_decided_by(self, purchase: FieldPurchase) -> str:
