@@ -62,6 +62,8 @@ export interface QueuedPickup extends Waiting {
 export interface QueuedPurchase extends Waiting {
   kind: "purchase";
   data: MyFieldPurchaseCreate;
+  /** The photo of the supplier's paper, sent after the purchase (IndexedDB keeps files, D-159). */
+  paper?: File;
 }
 
 export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss | QueuedPayment | QueuedPickup | QueuedPurchase;

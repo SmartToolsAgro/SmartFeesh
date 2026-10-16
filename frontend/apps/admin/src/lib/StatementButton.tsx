@@ -19,6 +19,16 @@ import { todayInTunis } from "../receipts/shared";
 
 type Mode = "until" | "between";
 
+/** The first and last day of a month: this one (`back` 0) or an earlier one, from "2026-10-16". */
+function monthOf(today: string, back: number): { from: string; to: string } {
+  const [year, month] = today.split("-").map(Number);
+  const start = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1 - back, 1));
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+  const iso = (date: Date) => date.toISOString().slice(0, 10);
+  // This month runs up to today, not to its last day.
+  return { from: iso(start), to: back === 0 ? today : iso(end) };
+}
+
 /** Opens the PDF made on the spot by the server in a new tab (the tab is opened at the click, so it is not blocked). */
 async function openStatement(url: string): Promise<void> {
   const tab = window.open("", "_blank");
@@ -105,6 +115,22 @@ export function StatementButton({ side, id, name }: { side: "customer" | "suppli
             >
               {segment("until", t("admin.partyStatement.untilDay"))}
               {segment("between", t("admin.partyStatement.between"))}
+            </div>
+            {/* The month's statement, to agree on with a supplier paid monthly and pay (D-159). */}
+            <div className="flex flex-wrap gap-2">
+              {([1, 0] as const).map((back) => (
+                <Button
+                  key={back}
+                  onClick={() => {
+                    const month = monthOf(todayInTunis(), back);
+                    setMode("between");
+                    setDateFrom(month.from);
+                    setDateTo(month.to);
+                  }}
+                >
+                  {t(back === 1 ? "admin.partyStatement.lastMonth" : "admin.partyStatement.thisMonth")}
+                </Button>
+              ))}
             </div>
             <div className="grid grid-cols-2 gap-4 max-[480px]:grid-cols-1">
               {mode === "between" && (

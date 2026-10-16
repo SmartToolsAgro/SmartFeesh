@@ -79,6 +79,7 @@ import type {
   ExportSlowMovingReportParams,
   FieldPurchase,
   FieldPurchaseCreate,
+  FieldPurchasePaper,
   FieldPurchaseRefuse,
   FieldPurchaseWrite,
   FinanceSettingsOverview,
@@ -283,6 +284,7 @@ import type {
   Supplier,
   SupplierBalance,
   SupplierBalances,
+  SupplierDebts,
   SupplierInvoice,
   SupplierInvoiceUpdate,
   SupplierInvoiceWrite,
@@ -14240,6 +14242,81 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getChangeMyFieldPurchaseMutationOptions(options), queryClient);
     }
 
+export const getAddMyFieldPurchasePaperUrl = (purchaseId: number,) => {
+
+
+
+
+  return `/api/v1/my-field-purchases/${purchaseId}/paper`
+}
+
+/**
+ * Join the photo of the supplier's paper to one of the driver's purchases (D-159): turned upright, shrunk,
+ * stored as WebP without the phone's metadata. Replaced while the office has not decided the purchase.
+ */
+export const addMyFieldPurchasePaper = async (purchaseId: number,
+    fieldPurchasePaper: FieldPurchasePaper, options?: Parameters<typeof apiFetch>[1]): Promise<MyFieldPurchase> => {
+    const formData = new FormData();
+formData.append(`paper`, fieldPurchasePaper.paper);
+
+  return apiFetch<MyFieldPurchase>(getAddMyFieldPurchasePaperUrl(purchaseId),
+  {
+    ...options,
+    method: 'PUT'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAddMyFieldPurchasePaperMutationKey = () => ['addMyFieldPurchasePaper'] as const;
+
+export const getAddMyFieldPurchasePaperMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyFieldPurchasePaper>>, TError,AddMyFieldPurchasePaperMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMyFieldPurchasePaper>>, TError,AddMyFieldPurchasePaperMutationVariables, TContext> => {
+
+const mutationKey = getAddMyFieldPurchasePaperMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMyFieldPurchasePaper>>, AddMyFieldPurchasePaperMutationVariables> = (props) => {
+          const {purchaseId,data} = props ?? {};
+
+          return  addMyFieldPurchasePaper(purchaseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMyFieldPurchasePaperMutationResult = NonNullable<Awaited<ReturnType<typeof addMyFieldPurchasePaper>>>
+    export type AddMyFieldPurchasePaperMutationBody = FieldPurchasePaper
+    export type AddMyFieldPurchasePaperMutationError = unknown
+    export type AddMyFieldPurchasePaperMutationVariables = {purchaseId: number;data: FieldPurchasePaper}
+
+    export const useAddMyFieldPurchasePaper = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyFieldPurchasePaper>>, TError,AddMyFieldPurchasePaperMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addMyFieldPurchasePaper>>,
+        TError,
+        AddMyFieldPurchasePaperMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMyFieldPurchasePaperMutationOptions(options), queryClient);
+    }
+
 export const getReportMyLossUrl = () => {
 
 
@@ -18620,7 +18697,8 @@ export const getCreateReceiptUrl = () => {
 /**
  * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
  * Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
- * against that bon d'achat: only its products, and only the part that arrived (partial receipts).
+ * against that bon d'achat: only its products, and only the part that arrived (partial receipts). With
+ * `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
  */
 export const createReceipt = async (receiptWrite: ReceiptWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
 
@@ -23941,6 +24019,105 @@ export function useGetSupplierBalance<TData = Awaited<ReturnType<typeof getSuppl
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetSupplierBalanceQueryOptions(supplierId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSupplierDebtsUrl = () => {
+
+
+
+
+  return `/api/v1/supplier-debts`
+}
+
+/**
+ * What the company owes each supplier for goods, biggest first: still to pay, overdue, due within 7 days,
+ * advances; and the cheques and traites given with a cashing day, from a week back on.
+ */
+export const getSupplierDebts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SupplierDebts> => {
+
+  return apiFetch<SupplierDebts>(getGetSupplierDebtsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierDebtsQueryKey = () => {
+    return [
+    `/api/v1/supplier-debts`
+    ] as const;
+    }
+
+
+export const getGetSupplierDebtsQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierDebts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierDebts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierDebtsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierDebts>>> = ({ signal }) => getSupplierDebts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierDebts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSupplierDebtsQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierDebts>>>
+export type GetSupplierDebtsQueryError = unknown
+
+
+export function useGetSupplierDebts<TData = Awaited<ReturnType<typeof getSupplierDebts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierDebts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplierDebts>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplierDebts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplierDebts<TData = Awaited<ReturnType<typeof getSupplierDebts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierDebts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplierDebts>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplierDebts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplierDebts<TData = Awaited<ReturnType<typeof getSupplierDebts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierDebts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSupplierDebts<TData = Awaited<ReturnType<typeof getSupplierDebts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierDebts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSupplierDebtsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

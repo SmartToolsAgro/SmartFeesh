@@ -27,6 +27,8 @@ export interface FieldPurchase {
   readonly due_days: number;
   readonly due_date: string;
   readonly supplier_reference: string;
+  /** @nullable */
+  readonly paper_url: string | null;
   readonly notes: string;
   readonly office_note: string;
   readonly location: NamedRef | null;

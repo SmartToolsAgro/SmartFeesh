@@ -3,8 +3,8 @@ import {
   changeMyFieldPurchase,
   type MyFieldPurchase,
   type MyFieldPurchaseCreate,
+  addMyFieldPurchasePaper,
   type PaymentTermsEnum,
-  sendMyFieldPurchase,
   useListMyFieldPurchases,
   useListMyPurchaseCosts,
   useListMySuppliers,
@@ -33,6 +33,7 @@ import { useOnline } from "./offline";
 import { dueDateOn, lineAmount, purchaseTotals } from "./purchase";
 import { sendError } from "./sendError";
 import { sendOrKeep } from "./sendOrKeep";
+import { sendPurchase } from "./sendPurchase";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
 
@@ -103,6 +104,8 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
   const [chequeDate, setChequeDate] = useState(firstCheque?.cash_on ?? "");
   const [paper, setPaper] = useState(purchase?.supplier_reference ?? "");
   const [note, setNote] = useState(purchase?.notes ?? "");
+  // A photo of the supplier's paper (optional, D-159); on a purchase already sent, a new one replaces it.
+  const [paperPhoto, setPaperPhoto] = useState<File | undefined>(undefined);
   const [uuid, setUuid] = useState(newUuid);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -177,6 +180,7 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
     try {
       if (purchase) {
         await changeMyFieldPurchase(purchase.id, { ...changes, revision: purchase.revision });
+        if (paperPhoto) await addMyFieldPurchasePaper(purchase.id, { paper: paperPhoto });
         toast.success(t("truck.purchase.changed"));
       } else {
         const data: MyFieldPurchaseCreate = { ...changes, client_uuid: uuid };
@@ -187,10 +191,11 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
             createdAt: new Date().toISOString(),
             label: label(),
             data,
+            paper: paperPhoto,
             status: "pending",
             error: "",
           },
-          () => sendMyFieldPurchase(data),
+          () => sendPurchase(data, paperPhoto),
         );
         toast.success(t(outcome.kept ? "truck.purchase.kept" : "truck.purchase.sent"));
         setUuid(newUuid());
@@ -442,6 +447,21 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
         <Field label={t("truck.purchase.paper")} htmlFor="purchase-paper">
           <Input id="purchase-paper" value={paper} onChange={(event) => setPaper(event.target.value)} />
         </Field>
+        <div className="space-y-1">
+          <label htmlFor="purchase-paper-photo" className="font-semibold">
+            {t("truck.purchase.paperPhoto")}
+          </label>
+          {purchase?.has_paper && paperPhoto === undefined ? (
+            <p className="text-sm text-ink-2">{t("truck.purchase.paperJoined")}</p>
+          ) : null}
+          <input
+            id="purchase-paper-photo"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(event) => setPaperPhoto(event.target.files?.[0])}
+          />
+        </div>
         <Field label={t("truck.purchase.note")} htmlFor="purchase-note">
           <Input id="purchase-note" value={note} onChange={(event) => setNote(event.target.value)} />
         </Field>

@@ -48,6 +48,7 @@ export function MyPurchasesPage() {
             </p>
             <p className="text-sm text-ink-2">
               {purchase.number} · {formatDate(purchase.bought_on)}
+              {purchase.has_paper ? ` · ${t("truck.purchase.paperJoined")}` : ""}
             </p>
             <ul className="text-sm">
               {purchase.lines.map((line) => (

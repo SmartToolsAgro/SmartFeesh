@@ -36,7 +36,16 @@ urlpatterns = [
         driver_views.MyFieldPurchaseView.as_view(),
         name="my-field-purchase",
     ),
+    path(
+        "my-field-purchases/<int:purchase_id>/paper",
+        driver_views.MyFieldPurchasePaperView.as_view(),
+        name="my-field-purchase-paper",
+    ),
     path("my-suppliers", driver_views.MySuppliersView.as_view(), name="my-suppliers"),
+    path("supplier-debts", views.SupplierDebtsView.as_view(), name="supplier-debts"),
+    path(
+        "field-purchases/<int:purchase_id>/paper", views.FieldPurchasePaperView.as_view(), name="field-purchase-paper"
+    ),
     path("my-purchase-costs", driver_views.MyPurchaseCostsView.as_view(), name="my-purchase-costs"),
     path(
         "field-purchases/<int:purchase_id>/refuse",

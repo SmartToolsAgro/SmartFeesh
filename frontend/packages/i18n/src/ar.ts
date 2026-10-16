@@ -116,6 +116,8 @@ export const ar: PartialTranslation = {
       chequeNumber: "رقم الصك",
       chequeDate: "يُصرف يوم",
       paper: "رقم ورقة المزوّد (اختياري)",
+      paperPhoto: "صورة ورقة المزوّد (اختياري)",
+      paperJoined: "صورة الورقة مرفقة",
       note: "ملاحظة للمكتب (اختياري)",
       total: "المجموع",
       paid: "المدفوع",

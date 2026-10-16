@@ -141,9 +141,9 @@ do the stock, the supplier debt and the payment count.
       the money given (expected cash = … + float − purchases paid in cash).
 
 **P3-T12c · Paying suppliers · M**
-- [ ] "Dettes fournisseurs": owed per supplier, overdue, due this week; cheques and traites to be cashed by day.
-- [ ] The office receipt form gets the deal too, so a delivery to the cold room is owed at once (a posted FF), like a
+- [x] "Dettes fournisseurs": owed per supplier, overdue, due this week; cheques and traites to be cashed by day.
+- [x] The office receipt form gets the deal too, so a delivery to the cold room is owed at once (a posted FF), like a
       purchase at the port; the payment form gets the cashing day of a cheque or traite.
-- [ ] Monthly settlement: the supplier statement of the month (D-156) as the paper to agree on and pay.
-- [ ] The photo of the supplier's paper on a purchase at the port (from the phone, optional; seen by the office).
+- [x] Monthly settlement: the supplier statement of the month (D-156) as the paper to agree on and pay.
+- [x] The photo of the supplier's paper on a purchase at the port (from the phone, optional; seen by the office).
 

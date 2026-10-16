@@ -2365,3 +2365,20 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   `purchase_difference` is kept, shown to the office, and counts in the cash-difference alert. A send a new load
   undoes keeps its counted purchase money, handed to the office like the sales cash (D-134).
 - Not done: the photo of the supplier's paper (moved to T12c); the office cannot type the purchase money for a driver.
+
+**D-159 · Paying suppliers: debts and cheques, a delivery owed at once, the photo of the supplier's paper (P3-T12c)** · accepted · 2026-10-16
+- **"Dettes fournisseurs"** (Achats › Dettes, `GET /supplier-debts`, office roles, managers too; the owner's supplier-balances report stays):
+  per supplier what is still to pay on posted invoices, of which overdue and due within 7 days, the next due date and
+  the advances it holds; biggest first, with a "Payer" button. Below, the cheques and traites given with a cashing
+  day (`SupplierPayment.cash_on`, D-157), from a week back on, soonest first; the total counts those still to cash.
+- **A delivery owed at once:** the office receipt form has "Dû dès la réception" (checked by default) with the deal
+  of D-157 (comptant, N days, end of month + N days; 30 days proposed). Saving makes the BR and a posted FF for it,
+  due by the deal, in one transaction (`services.receive_and_invoice`). Unchecked, the receipt waits for the
+  supplier's invoice as in D-043. The payment form asks the cashing day of a cheque or a traite.
+- **Monthly settlement:** the statement dialog (D-156) gets "Le mois dernier" and "Ce mois-ci": the paper to agree on
+  with a supplier paid monthly.
+- **Photo of the supplier's paper** on a purchase at the port: optional, from the phone (`PUT
+  /my-field-purchases/<id>/paper`, multipart; re-encoded as WebP without metadata, `core.images`). Sent after the
+  purchase, also from the phone's queue (same `client_uuid`, so a retry puts it on the same purchase). Replaced while
+  the office has not decided; joined only if none once decided. The office sees it on the check page
+  (`/field-purchases/<id>/paper`, read by an `<img>`, kept out of the API contract).

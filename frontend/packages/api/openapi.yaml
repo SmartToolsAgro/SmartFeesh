@@ -4437,6 +4437,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyFieldPurchase'
           description: ''
+  /api/v1/my-field-purchases/{purchase_id}/paper:
+    put:
+      operationId: addMyFieldPurchasePaper
+      description: |-
+        Join the photo of the supplier's paper to one of the driver's purchases (D-159): turned upright, shrunk,
+        stored as WebP without the phone's metadata. Replaced while the office has not decided the purchase.
+      parameters:
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - my-field-purchases
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FieldPurchasePaper'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyFieldPurchase'
+          description: ''
   /api/v1/my-losses:
     post:
       operationId: reportMyLoss
@@ -5835,7 +5864,8 @@ paths:
       description: |-
         Record goods received from a supplier: one batch per line, its accepted net weight into stock.
         Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
-        against that bon d'achat: only its products, and only the part that arrived (partial receipts).
+        against that bon d'achat: only its products, and only the part that arrived (partial receipts). With
+        `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
       tags:
       - receipts
       requestBody:
@@ -7405,6 +7435,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SupplierBalance'
+          description: ''
+  /api/v1/supplier-debts:
+    get:
+      operationId: getSupplierDebts
+      description: |-
+        What the company owes each supplier for goods, biggest first: still to pay, overdue, due within 7 days,
+        advances; and the cheques and traites given with a cashing day, from a week back on.
+      tags:
+      - supplier-debts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierDebts'
           description: ''
   /api/v1/supplier-invoices:
     get:
@@ -9269,6 +9316,51 @@ components:
       - live
       - product_name
       - sent
+    ChequeToCash:
+      type: object
+      properties:
+        payment_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier_id:
+          type: integer
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid_on:
+          type: string
+          format: date
+          readOnly: true
+        cash_on:
+          type: string
+          format: date
+          readOnly: true
+      required:
+      - amount
+      - cash_on
+      - method
+      - number
+      - paid_on
+      - payment_id
+      - reference
+      - supplier_id
+      - supplier_name
     CloseLot:
       type: object
       properties:
@@ -12209,6 +12301,10 @@ components:
         supplier_reference:
           type: string
           readOnly: true
+        paper_url:
+          type: string
+          nullable: true
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -12307,6 +12403,7 @@ components:
       - number
       - office_note
       - paid
+      - paper_url
       - payments
       - proposed_supplier
       - proposed_supplier_phone
@@ -12510,6 +12607,10 @@ components:
         supplier_reference:
           type: string
           readOnly: true
+        paper_url:
+          type: string
+          nullable: true
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -12603,6 +12704,7 @@ components:
       - number
       - office_note
       - paid
+      - paper_url
       - payments
       - proposed_supplier
       - proposed_supplier_phone
@@ -12614,6 +12716,14 @@ components:
       - supplier_reference
       - terms
       - total
+    FieldPurchasePaper:
+      type: object
+      properties:
+        paper:
+          type: string
+          format: binary
+      required:
+      - paper
     FieldPurchasePayment:
       type: object
       properties:
@@ -15870,6 +15980,9 @@ components:
         supplier_reference:
           type: string
           readOnly: true
+        has_paper:
+          type: boolean
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -15925,6 +16038,7 @@ components:
       - declared_total
       - due_date
       - due_days
+      - has_paper
       - id
       - lines
       - notes
@@ -19120,6 +19234,18 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
+        invoice_now:
+          type: boolean
+          default: false
+        terms:
+          allOf:
+          - $ref: '#/components/schemas/PaymentTermsEnum'
+          default: days
+        due_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          default: 30
       required:
       - lines
       - location
@@ -21717,6 +21843,100 @@ components:
             maxLength: 0
       required:
       - name
+    SupplierDebt:
+      type: object
+      properties:
+        supplier_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        due_soon:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        advances:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        open_invoices:
+          type: integer
+          readOnly: true
+        next_due:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - advances
+      - due_soon
+      - name
+      - next_due
+      - open_invoices
+      - outstanding
+      - overdue
+      - supplier_id
+    SupplierDebts:
+      type: object
+      description: What the company owes its suppliers for goods, and the cheques
+        and traites to be cashed (D-159).
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierDebt'
+          readOnly: true
+        total_outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_due_soon:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_advances:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cheques:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChequeToCash'
+          readOnly: true
+        cheques_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - cheques
+      - cheques_total
+      - rows
+      - total_advances
+      - total_due_soon
+      - total_outstanding
+      - total_overdue
     SupplierInvoice:
       type: object
       properties:
