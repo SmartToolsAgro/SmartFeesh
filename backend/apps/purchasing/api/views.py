@@ -2,7 +2,7 @@ from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -46,6 +46,7 @@ from .serializers import (
     ReceiptSerializer,
     ReceiptWriteSerializer,
     SupplierBalanceSerializer,
+    SupplierDebtsSerializer,
     SupplierInvoiceFilterSerializer,
     SupplierInvoiceSerializer,
     SupplierInvoiceUpdateSerializer,
@@ -140,11 +141,19 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
     def post(self, request: Request) -> Response:
         """Record goods received from a supplier: one batch per line, its accepted net weight into stock.
         Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
-        against that bon d'achat: only its products, and only the part that arrived (partial receipts)."""
+        against that bon d'achat: only its products, and only the part that arrived (partial receipts). With
+        `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`."""
         serializer = ReceiptWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = _resolved(self.organization, serializer.validated_data, is_owner=self.membership.role == Role.OWNER)
-        receipt = services.create_receipt(organization=self.organization, actor=self.membership.user, **data)
+        invoice_now, terms, due_days = data.pop("invoice_now"), data.pop("terms"), data.pop("due_days")
+        if invoice_now:
+            # Owed at once, due by the deal made for this delivery (D-159).
+            receipt = services.receive_and_invoice(
+                organization=self.organization, actor=self.membership.user, terms=terms, due_days=due_days, **data
+            )
+        else:
+            receipt = services.create_receipt(organization=self.organization, actor=self.membership.user, **data)
         return Response(
             ReceiptSerializer(selectors.receipt_of(self.organization, receipt.pk)).data,
             status=status.HTTP_201_CREATED,
@@ -655,3 +664,28 @@ class FieldPurchaseRefuseView(FieldPurchaseView):
             note=serializer.validated_data["office_note"],
         )
         return self._response(purchase_id)
+
+
+# ---- Paying suppliers (P3-T12c, D-159) ----
+
+
+class SupplierDebtsView(PurchasingView):
+    @extend_schema(operation_id="getSupplierDebts", responses=SupplierDebtsSerializer)
+    def get(self, request: Request) -> Response:
+        """What the company owes each supplier for goods, biggest first: still to pay, overdue, due within 7 days,
+        advances; and the cheques and traites given with a cashing day, from a week back on."""
+        return Response(SupplierDebtsSerializer(selectors.supplier_debts(self.organization)).data)
+
+
+class FieldPurchasePaperView(FieldPurchaseView):
+    # Read by an <img> tag, not by the generated client: kept out of the API contract.
+    @extend_schema(exclude=True)
+    def get(self, request: Request, purchase_id: int) -> FileResponse:
+        """The photo of the supplier's paper of a purchase at the port."""
+        purchase = self._purchase(purchase_id)
+        if not purchase.paper:
+            raise Http404
+        response = FileResponse(purchase.paper.open("rb"), content_type="image/webp")
+        # A new photo gets a new random file name, and the API answers its address again.
+        response["Cache-Control"] = "private, max-age=3600"
+        return response

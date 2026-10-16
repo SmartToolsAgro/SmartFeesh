@@ -1,18 +1,18 @@
 # Project status
 
-_Last updated: 2026-10-16 (buying at the port from the phone, P3-T12b, D-158; before that the office side, P3-T12a,
-D-157, and the statement PDF, D-156)_
+_Last updated: 2026-10-16 (paying suppliers, P3-T12c, D-159; before that buying at the port, P3-T12a and T12b, D-157
+and D-158)_
 
 ## Where we are
 
 - **Phase:** Phase 1 is done except P1-T14 (returnable boxes, owner decisions 2 to 4 open). Phase 2 (sales) is mostly
-  done, Phase 5 (costs) is done, Phase 6 has T01 to T03 done. **Phase 3 (driver app) has T01 to T07d, T11, T12a and T12b done, and
-  the price and offline items of T02 and T03 done**; open: T12c (paying suppliers), T08 field test, T09 Arabic
+  done, Phase 5 (costs) is done, Phase 6 has T01 to T03 done. **Phase 3 (driver app) has T01 to T07d and T11 to T12c done, and
+  the price and offline items of T02 and T03 done**; open: T08 field test, T09 Arabic
   review, T10 printing.
 - **New owner request (2026-10-15, Q28, D-157): buying at the port.** A driver buys from a fisherman, sends it from the
   phone; the owner or the manager checks it (kg received, prices, revisions with notes) and validates it, which makes
-  the BR, the FF due by the deal and the RF of what was given. T12a (office, #156) is merged; T12b (phone, "can buy"
-  switch, purchase money counted apart at closing, notice of the office's decision) is on branch `field-purchase-phone`.
+  the BR, the FF due by the deal and the RF of what was given. T12a (#156) and T12b (#157) are merged; T12c (debts,
+  cheques, delivery owed at once, photo of the paper) is on branch `supplier-debts`.
 - **On `main` since the last update:** the company logo as the driver's tab icon, also on the login screen (D-147,
   #138); prices refreshed every minute with a notice on every screen when a price changes (D-148, #140); a driver's
   sale carries the price the phone showed, checked by the server (D-150, #142); expenses, losses, payments and box
@@ -29,9 +29,9 @@ D-157, and the statement PDF, D-156)_
 
 ## Next step (do this first)
 
-- **P3-T12c, paying suppliers** (`docs/phases/03-driver-app.md`): the "Dettes fournisseurs" screen (owed, overdue,
-  due this week; cheques and traites by cashing day, `SupplierPayment.cash_on`), the deal on the office receipt form
-  (a posted FF at once), the cashing day on the payment form, the monthly statement, the photo of the supplier's paper.
+- **Working rule (owner, 2026-10-16):** no local test runs; commit, open the PR, let CI check, fix what it reports.
+- **Check on staging (D-159):** Achats › Dettes (a supplier with an overdue FF, a cheque with a cashing day); a receipt
+  "Dû dès la réception" at 15 days; the statement "Le mois dernier"; a purchase from the phone with a photo.
 - **Check on staging with a real phone (D-158):** switch "Peut acheter au port" on for the demo driver (Paramètres ›
   Utilisateurs), start a day with purchase money, buy (one new product name, cash + cheque), then validate it at the
   office and see the notice on the phone; close the day and count the purchase money.
@@ -100,6 +100,8 @@ D-157, and the statement PDF, D-156)_
 
 ## Recently done
 
+- 2026-10-16 · D-159 paying suppliers (P3-T12c): "Dettes fournisseurs" with cheques and traites by cashing day, a
+  receipt owed at once by its deal, the cashing day on payments, month presets on the statement, paper photo.
 - 2026-10-16 · D-158 buying at the port from the phone (P3-T12b): "can buy" switch, phone screen (offline), "Mes
   achats" with the office's note and a notice on its decision, purchase money as a second cash box at closing.
 - 2026-10-15 · D-157 buying at the port, office side (P3-T12a): `FieldPurchase` with revisions, check page, validation

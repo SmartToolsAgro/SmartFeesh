@@ -52,6 +52,7 @@ import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "./purchasing/SupplierInvoicesPage";
 import { SupplierPaymentFormPage } from "./purchasing/SupplierPaymentFormPage";
 import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
+import { SupplierDebtsPage } from "./purchasing/SupplierDebtsPage";
 import { PurchaseOrderDetailPage } from "./orders/PurchaseOrderDetailPage";
 import { PurchaseOrderFormPage } from "./orders/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
@@ -261,6 +262,7 @@ function AppRoutes() {
         <Route path="/achats/factures/:invoiceId/modifier" element={<SupplierInvoiceFormPage />} />
         <Route path="/achats/paiements" element={<SupplierPaymentsPage />} />
         <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
+        <Route path="/achats/dettes" element={<SupplierDebtsPage />} />
         {/* Stock screens (P1-T11) */}
         <Route path="/stock/mouvements" element={<MovementsPage />} />
         {/* Returnable boxes (P1-T14c) */}

@@ -25,6 +25,8 @@ async function recordReceipt(page: Page, deliveryNote: string): Promise<string> 
   await page.getByRole("option", { name: "Dorade royale · DO-003" }).click();
   await line.getByLabel("Facturé (kg)").fill("10");
   await line.getByLabel("Coût (DT/kg)").fill("20");
+  // This receipt waits for the supplier's invoice, typed below (not owed at once, D-159).
+  await page.getByRole("checkbox", { name: "Dû dès la réception" }).uncheck();
   await page.getByRole("button", { name: "Enregistrer la réception" }).click();
   const heading = page.getByRole("heading", { name: /^BR-\d+$/, level: 1 });
   await expect(heading).toBeVisible();
@@ -72,7 +74,9 @@ test("the owner invoices a receipt, posts it and pays it in full", async ({ page
   await page.getByRole("button", { name: "Enregistrer et valider" }).click();
 
   await expect(page.getByText(/Facture FF-\d+ enregistrée et validée/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: /^FF-\d+$/, level: 1 })).toBeVisible();
+  const invoiceHeading = page.getByRole("heading", { name: /^FF-\d+$/, level: 1 });
+  await expect(invoiceHeading).toBeVisible();
+  const invoice = (await invoiceHeading.textContent()) ?? "";
   await expect(page.getByText("Validée", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: receipt })).toBeVisible();
 
@@ -80,7 +84,8 @@ test("the owner invoices a receipt, posts it and pays it in full", async ({ page
   await expect(page.getByRole("heading", { name: "Nouveau paiement fournisseur", level: 1 })).toBeVisible();
   // Coming from the invoice, the payment is its outstanding amount, all of it on that invoice.
   await expect(page.getByLabel("Montant (DT)")).toHaveValue("200,000");
-  await expect(page.getByRole("textbox", { name: /^Montant affecté à FF-\d+$/ })).toHaveValue("200,000");
+  // Other tests leave invoices of this supplier to pay (receipts owed at once, D-159): this one is checked by number.
+  await expect(page.getByRole("textbox", { name: `Montant affecté à ${invoice}`, exact: true })).toHaveValue("200,000");
   await page.getByRole("combobox", { name: "Mode de paiement" }).click();
   await page.getByRole("option", { name: "Espèces" }).click();
   await page.getByRole("button", { name: "Enregistrer le paiement" }).click();

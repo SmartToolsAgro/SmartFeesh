@@ -151,6 +151,11 @@ export function SupplierPaymentsPage() {
                     <Td className="max-[720px]:hidden">
                       {t(`admin.supplierPayments.method.${payment.method}`)}
                       {payment.reference && <div className="num text-[0.8rem] text-ink-2">{payment.reference}</div>}
+                      {payment.cash_on && (
+                        <div className="num text-[0.8rem] text-ink-2">
+                          {t("admin.supplierDebts.cashOn", { date: formatDate(payment.cash_on) })}
+                        </div>
+                      )}
                     </Td>
                     <Td numeric className="font-semibold whitespace-nowrap">
                       {formatMoney(payment.amount)}

@@ -62,6 +62,9 @@ export function SupplierPaymentFormPage() {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethodEnum | "">("");
   const [reference, setReference] = useState("");
+  // The day a cheque or a traite may be cashed (D-159): asked only for those two.
+  const [cashOn, setCashOn] = useState("");
+  const postDated = method === "cheque" || method === "bill";
   const [notes, setNotes] = useState("");
   const [allocations, setAllocations] = useState<Allocations>({});
   // Until the person types an amount or an allocation, the invoice they came from is paid in full.
@@ -131,6 +134,7 @@ export function SupplierPaymentFormPage() {
       amount: parsedAmount,
       method,
       reference: reference.trim(),
+      cash_on: postDated && cashOn ? cashOn : null,
       notes: notes.trim(),
       allocations: payload,
     });
@@ -209,7 +213,7 @@ export function SupplierPaymentFormPage() {
             label={t("admin.supplierPayments.form.reference")}
             htmlFor={id("reference")}
             error={errors.reference}
-            className="col-span-full"
+            className={postDated ? undefined : "col-span-full"}
           >
             <Input
               id={id("reference")}
@@ -219,6 +223,18 @@ export function SupplierPaymentFormPage() {
               autoComplete="off"
             />
           </Field>
+          {postDated && (
+            <Field label={t("admin.supplierPayments.form.cashOn")} htmlFor={id("cash_on")} error={errors.cash_on}>
+              <Input
+                id={id("cash_on")}
+                type="date"
+                min={paidOn}
+                value={cashOn}
+                onChange={(event) => setCashOn(event.target.value)}
+                aria-invalid={errors.cash_on ? true : undefined}
+              />
+            </Field>
+          )}
         </Card>
 
         <Card className="flex flex-col gap-3">

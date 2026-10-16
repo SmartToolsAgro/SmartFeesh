@@ -2,7 +2,9 @@ import itertools
 from decimal import Decimal
 from typing import Any
 
+from django.urls import reverse
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -28,6 +30,11 @@ from apps.purchasing.models import (
 
 AMOUNT = serializers.DecimalField(max_digits=14, decimal_places=3)
 ZERO = Decimal("0.000")
+
+
+@extend_schema_field(OpenApiTypes.BINARY)
+class UploadedPaperField(serializers.FileField):
+    """A file sent in a multipart form: a Blob in the generated client, not a URL."""
 
 
 class RefSerializer(serializers.Serializer[Any]):
@@ -170,6 +177,10 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     lines = ReceiptLineWriteSerializer(many=True, allow_empty=True)
     # Returnable boxes that came with the delivery, per box type ("small", "big"): a count, never kg (D-122).
     boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
+    # Owed at once (D-159): a posted supplier invoice for this receipt, due by the deal made for the delivery.
+    invoice_now = serializers.BooleanField(required=False, default=False)
+    terms = serializers.ChoiceField(choices=PaymentTerms.choices, required=False, default=PaymentTerms.DAYS)
+    due_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=30)
 
 
 class ReceiptFilterSerializer(serializers.Serializer[Any]):
@@ -615,6 +626,8 @@ class FieldPurchaseSerializer(serializers.ModelSerializer[FieldPurchase]):
     invoice = NumberRefSerializer(read_only=True, allow_null=True)
     decided_by = serializers.SerializerMethodField()
     revisions = serializers.SerializerMethodField()
+    # The photo of the supplier's paper, for an <img> (office only); null when there is none (D-159).
+    paper_url = serializers.SerializerMethodField()
 
     class Meta:
         model = FieldPurchase
@@ -631,6 +644,7 @@ class FieldPurchaseSerializer(serializers.ModelSerializer[FieldPurchase]):
             "due_days",
             "due_date",
             "supplier_reference",
+            "paper_url",
             "notes",
             "office_note",
             "location",
@@ -654,6 +668,15 @@ class FieldPurchaseSerializer(serializers.ModelSerializer[FieldPurchase]):
 
     def get_buyer(self, purchase: FieldPurchase) -> str:
         return _name_of(purchase.buyer)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_paper_url(self, purchase: FieldPurchase) -> str | None:
+        name = purchase.paper.name
+        if not name:
+            return None
+        # The file name changes with each new photo, so the address does too (no stale cache).
+        version = name.rsplit("/", 1)[-1].split(".", 1)[0]
+        return f"{reverse('field-purchase-paper', args=[purchase.pk])}?v={version}"
 
     def get_decided_by(self, purchase: FieldPurchase) -> str:
         return _name_of(purchase.decided_by)
@@ -780,6 +803,8 @@ class MyFieldPurchaseSerializer(FieldPurchaseSerializer):
 
     lines = MyFieldPurchaseLineSerializer(many=True, read_only=True)
     payments = MyFieldPurchasePaymentSerializer(many=True, read_only=True)
+    # A photo of the supplier's paper is joined (D-159).
+    has_paper = serializers.SerializerMethodField()
 
     class Meta(FieldPurchaseSerializer.Meta):
         fields = (
@@ -794,6 +819,7 @@ class MyFieldPurchaseSerializer(FieldPurchaseSerializer):
             "due_days",
             "due_date",
             "supplier_reference",
+            "has_paper",
             "notes",
             "office_note",
             "revision",
@@ -807,6 +833,9 @@ class MyFieldPurchaseSerializer(FieldPurchaseSerializer):
             "created_at",
         )
         read_only_fields = fields
+
+    def get_has_paper(self, purchase: FieldPurchase) -> bool:
+        return bool(purchase.paper)
 
 
 class MyFieldPurchaseLineWriteSerializer(serializers.Serializer[Any]):
@@ -842,3 +871,49 @@ class MySupplierSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+
+
+# ---- Paying suppliers (P3-T12c, D-159) ----
+
+
+class SupplierDebtSerializer(serializers.Serializer[Any]):
+    supplier_id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    # Still to pay on posted invoices; of which past the due date, and due within 7 days.
+    outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    overdue = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    due_soon = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Paid and not allocated yet: an advance the supplier holds.
+    advances = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    open_invoices = serializers.IntegerField(read_only=True)
+    next_due = serializers.DateField(read_only=True, allow_null=True)
+
+
+class ChequeToCashSerializer(serializers.Serializer[Any]):
+    payment_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    supplier_id = serializers.IntegerField(read_only=True)
+    supplier_name = serializers.CharField(read_only=True)
+    method = serializers.ChoiceField(choices=PaymentMethod.choices, read_only=True)
+    reference = serializers.CharField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    paid_on = serializers.DateField(read_only=True)
+    cash_on = serializers.DateField(read_only=True)
+
+
+class SupplierDebtsSerializer(serializers.Serializer[Any]):
+    """What the company owes its suppliers for goods, and the cheques and traites to be cashed (D-159)."""
+
+    rows = SupplierDebtSerializer(many=True, read_only=True)
+    total_outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    total_overdue = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    total_due_soon = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    total_advances = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # From a week back on, the soonest first; `cheques_total` counts those still to be cashed (today or later).
+    cheques = ChequeToCashSerializer(many=True, read_only=True)
+    cheques_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class FieldPurchasePaperSerializer(serializers.Serializer[Any]):
+    # A photo of the supplier's paper (JPEG, PNG or WebP).
+    paper = UploadedPaperField()

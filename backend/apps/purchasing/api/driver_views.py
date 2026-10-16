@@ -13,6 +13,7 @@ from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -28,6 +29,7 @@ from apps.purchasing import selectors, services
 from apps.purchasing.models import FieldPurchase
 
 from .serializers import (
+    FieldPurchasePaperSerializer,
     LastCostFilterSerializer,
     LastCostSerializer,
     MyFieldPurchaseCreateSerializer,
@@ -184,3 +186,31 @@ class MyPurchaseCostsView(DriverView):
         filters.is_valid(raise_exception=True)
         batches = inventory.last_batches_from(membership.organization, supplier_id=filters.validated_data["supplier"])
         return Response(LastCostSerializer(batches, many=True).data)
+
+
+class MyFieldPurchasePaperView(DriverView):
+    parser_classes = (MultiPartParser,)
+
+    @extend_schema(
+        operation_id="addMyFieldPurchasePaper",
+        request={"multipart/form-data": FieldPurchasePaperSerializer},
+        responses=MyFieldPurchaseSerializer,
+    )
+    def put(self, request: Request, purchase_id: int) -> Response:
+        """Join the photo of the supplier's paper to one of the driver's purchases (D-159): turned upright, shrunk,
+        stored as WebP without the phone's metadata. Replaced while the office has not decided the purchase."""
+        membership = self.buyer()
+        try:
+            purchase = selectors.field_purchases_of_buyer(membership.organization, buyer_id=membership.user_id).get(
+                pk=purchase_id
+            )
+        except FieldPurchase.DoesNotExist:
+            raise Http404 from None
+        serializer = FieldPurchasePaperSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.add_field_purchase_paper(
+            purchase=purchase, actor=membership.user, upload=serializer.validated_data["paper"]
+        )
+        return Response(
+            MyFieldPurchaseSerializer(selectors.field_purchase_of(membership.organization, purchase_id)).data
+        )
