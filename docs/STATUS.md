@@ -21,6 +21,8 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
 
 - **D-161 (PR load-print-fiche):** the validated load page has a banner and a "Fiche client" button per client.
 
+- **D-162 (PR #163):** Journées des chauffeurs has a live follow-up tab per driver, truck and day; awaits CI, then check on staging.
+
 ## Next step
 
 1. Push the CI fixes for PR #160, wait for green CI, then merge. After deployment, check a load with two clients on

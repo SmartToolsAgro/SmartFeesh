@@ -2417,3 +2417,12 @@ client's record but may be changed on this BL only.
 - **"Tout imprimer"** (`GET /reports/load-print-pack/<transfer>/pdf`): one PDF, for each client their BL (provisional or
   confirmed) then their statement up to today, each document starting on its own page (WeasyPrint pages joined in
   `documents.rendering.htmls_to_pdf`). Made on the spot, not stored.
+
+**D-162 · "Journées des chauffeurs" opens on a live follow-up of each driver's day** · accepted · 2026-10-17
+- The page has two tabs: "Suivi des chauffeurs" (default) and "Clôtures à vérifier" (the former page, unchanged). The follow-up
+  lists every driver day, running or sent, as a card (money expected in hand, sales, expenses, deliveries done/to do), filtered
+  by driver, truck and dates (default today). A card opens the day: money line by line, the load's BL (draft = to deliver,
+  confirmed = delivered), road sales, customer payments, expenses and the truck's stock.
+- Endpoints (office roles, read-only): `GET /day-overview`, `/day-overview/<day id>`, `/day-overview/drivers`. Figures are
+  `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
+  is the day. `phase` = `running` or the closing status.
