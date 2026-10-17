@@ -130,38 +130,33 @@ function Checks({ view }: { view: MonthView }) {
         </Dialog>
       )}
       <ul className="flex flex-col gap-1">
-        {view.report.checks.map((check) => {
-          const tracked = check.code !== "cash_differences" && check.code !== "driver_days_closed";
-          return (
-            <li key={check.code} className="flex flex-wrap items-baseline gap-2">
-              <Pill tone={!tracked ? "neutral" : check.ok ? "good" : check.blocking ? "bad" : "warn"}>
-                {!tracked
-                  ? t("admin.monthClosing.checks.notTracked")
-                  : check.ok
-                    ? t("admin.monthClosing.checks.ok")
-                    : check.blocking
-                      ? t("admin.monthClosing.checks.blocking")
-                      : t("admin.monthClosing.checks.warning")}
-              </Pill>
-              <button
-                type="button"
-                className="text-start hover:underline"
-                onClick={() => setOpen(check.code as CheckCode)}
-              >
-                {t(`admin.monthClosing.checks.codes.${check.code as CheckCode}`)}
-              </button>
-              {!check.ok && check.count !== null && check.count > 0 && (
-                <span className="num text-ink-2">
-                  {check.count}
-                  {check.amount && Number(check.amount) !== 0 ? ` · ${formatMoney(check.amount)}` : ""}
-                </span>
-              )}
-              {!check.ok && check.code === "cogs_matches_ledger" && check.amount && (
-                <span className="num text-ink-2">{formatMoney(check.amount)}</span>
-              )}
-            </li>
-          );
-        })}
+        {view.report.checks.map((check) => (
+          <li key={check.code} className="flex flex-wrap items-baseline gap-2">
+            <Pill tone={check.ok ? "good" : check.blocking ? "bad" : "warn"}>
+              {check.ok
+                ? t("admin.monthClosing.checks.ok")
+                : check.blocking
+                  ? t("admin.monthClosing.checks.blocking")
+                  : t("admin.monthClosing.checks.warning")}
+            </Pill>
+            <button
+              type="button"
+              className="text-start hover:underline"
+              onClick={() => setOpen(check.code as CheckCode)}
+            >
+              {t(`admin.monthClosing.checks.codes.${check.code as CheckCode}`)}
+            </button>
+            {!check.ok && check.count !== null && check.count > 0 && (
+              <span className="num text-ink-2">
+                {check.count}
+                {check.amount && Number(check.amount) !== 0 ? ` · ${formatMoney(check.amount)}` : ""}
+              </span>
+            )}
+            {!check.ok && check.code === "cogs_matches_ledger" && check.amount && (
+              <span className="num text-ink-2">{formatMoney(check.amount)}</span>
+            )}
+          </li>
+        ))}
       </ul>
     </Card>
   );

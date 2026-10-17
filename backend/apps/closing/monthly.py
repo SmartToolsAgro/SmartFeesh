@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import Any
 
 from apps.core.models import Organization
+from apps.dayclose import selectors as dayclose
 from apps.expenses import selectors as expenses
 from apps.hr import selectors as hr
 from apps.inventory import selectors as inventory
@@ -140,6 +141,7 @@ def _checks(
     payroll: hr.PayrollSummary,
 ) -> list[ClosingCheck]:
     pending = inventory.pending_losses(organization, date_from=first, date_to=last)
+    days = dayclose.period_days(organization, date_from=first, date_to=last)
     drafts = sales.draft_sales_count(organization, date_from=first, date_to=last)
     # The cost the ledger gave out for sales, less what customers brought back, against the sale snapshots.
     ledger_cogs = -sum((row.value for row in ledger if row.kind in {"sale", "customer_return"}), ZERO)
@@ -162,9 +164,22 @@ def _checks(
         ClosingCheck(
             code="cogs_matches_ledger", ok=ledger_cogs == sold.cogs, blocking=False, amount=ledger_cogs - sold.cogs
         ),
-        # Not tracked yet (driver app, Phase 3): listed so the accountant knows they are not covered.
-        ClosingCheck(code="cash_differences", ok=True, blocking=False),
-        ClosingCheck(code="driver_days_closed", ok=True, blocking=False),
+        # The drivers' days: counted cash that is not what the records say and nobody approved, and days whose
+        # closing was never sent (their figures, such as cash paid out for purchases, were never counted).
+        ClosingCheck(
+            code="cash_differences",
+            ok=days.difference_count == 0,
+            blocking=False,
+            count=days.difference_count,
+            amount=days.difference_amount,
+        ),
+        ClosingCheck(
+            code="driver_days_closed",
+            ok=days.unsent_count == 0,
+            blocking=False,
+            count=days.unsent_count,
+            amount=days.unsent_cash,
+        ),
     ]
 
 

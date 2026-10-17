@@ -690,6 +690,7 @@ export const fr = {
         expenses: "Dépenses payées",
         handedOver: "Déjà remis au bureau",
         purchases: "Payé pour des achats au port",
+        owed: "Avancé par le chauffeur, à lui rembourser",
         expected: "Doit avoir en main",
         counted: "Compté à l'envoi",
         difference: "Écart",
@@ -755,6 +756,7 @@ export const fr = {
         cash: "Donné en espèces",
         other: "Donné par chèque ou traite",
         fromSales: "Payé avec l'argent des ventes",
+        owed: "Avancé de sa poche, à lui rembourser",
         expected: "Argent des achats attendu",
         counted: "Argent des achats compté",
         difference: "Écart sur l'argent des achats",
@@ -3744,15 +3746,14 @@ export const fr = {
         ok: "OK",
         blocking: "Bloquant",
         warning: "À voir",
-        notTracked: "Pas encore suivi",
         codes: {
           expenses_approved: "Toutes les dépenses du mois sont approuvées",
           payroll_approved: "Tous les salaires du mois sont approuvés",
           losses_decided: "Toutes les pertes du mois sont décidées par le propriétaire",
           sales_confirmed: "Toutes les ventes du mois sont confirmées",
           cogs_matches_ledger: "Le coût des ventes est le même dans les ventes et dans le stock",
-          cash_differences: "Écarts de caisse expliqués (application chauffeur, bientôt)",
-          driver_days_closed: "Journées chauffeur clôturées (application chauffeur, bientôt)",
+          cash_differences: "Aucun écart de caisse non approuvé dans les journées des chauffeurs",
+          driver_days_closed: "Toutes les journées des chauffeurs sont envoyées (clôturées)",
         },
         todo: {
           expenses_approved:
@@ -3766,9 +3767,9 @@ export const fr = {
           cogs_matches_ledger:
             "Le coût des ventes diffère entre les ventes et le stock. Consultez les mouvements de stock du mois pour trouver la vente ou le retour concerné et signalez l'écart au propriétaire.",
           cash_differences:
-            "Pas encore suivi automatiquement : ouvrez les journées des chauffeurs et vérifiez que chaque écart de caisse est expliqué.",
+            "Ouvrez les journées des chauffeurs : un écart de caisse envoyé n'est pas encore approuvé. Ouvrez la journée concernée et approuvez l'écart (ou expliquez-le).",
           driver_days_closed:
-            "Pas encore suivi automatiquement : ouvrez les journées des chauffeurs et vérifiez que chaque journée du mois est envoyée.",
+            "Ouvrez les journées des chauffeurs : une journée du mois n'a jamais été envoyée. Demandez au chauffeur de l'envoyer depuis son téléphone.",
         },
         nothingToDo: "Rien à faire : ce contrôle est en ordre.",
         remaining: "{{number}} à traiter",
@@ -4051,6 +4052,7 @@ export const fr = {
       closingCash: "Donné en espèces",
       closingOther: "Donné par chèque ou traite",
       closingFromSales: "Payé avec l'argent des ventes",
+      closingOwed: "Avancé de votre poche, le bureau vous le rembourse",
       closingExpected: "Argent des achats qui doit rester",
       counted: "Argent des achats qui reste (DT)",
       gap: "Écart sur l'argent des achats : {{amount}}",

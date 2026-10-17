@@ -2464,8 +2464,7 @@ client's record but may be changed on this BL only.
 **D-170 · Each check of the month closing opens a dialog saying what to do** · accepted · 2026-10-17
 - On "Clôture du mois", a check label is a button: the dialog gives the instruction, the number left (and amount), and a link
   to the page where it is fixed (charges, salaires, pertes, ventes, mouvements, journées). Links go to the full list, not
-  filtered by month. Texts: `admin.monthClosing.checks.todo.*`; the two driver-day texts say "pas encore suivi" until
-  those checks are real.
+  filtered by month. Texts: `admin.monthClosing.checks.todo.*`.
 
 **D-168 · The truck cards show who really has the truck today, not who usually drives it** · accepted · 2026-10-17
 - `GET /trucks` adds `driver_today` (`selectors.drivers_of_day`): the driver who started today's day on the truck, else
@@ -2491,3 +2490,12 @@ client's record but may be changed on this BL only.
   from 5 min (first to last point); its place is the average of its points. The route endpoint returns the stops; each lists
   the customers whose sale, delivery or payment was made from 10 min before to 10 min after the stop (`dayclose.day_route`).
 - Customer coordinates are not stored yet (T13d): a stop is named by the sales made then, not by distance to a known place.
+
+**D-169 · The monthly closing checks the drivers' days; an out-of-pocket purchase is owed back, not a gap** · accepted · 2026-10-17
+- The checks `cash_differences` and `driver_days_closed` were stubs (always OK, "Pas encore suivi"). Now
+  `dayclose.selectors.period_days` feeds them: `driver_days_closed` counts past days whose closing was never sent (or
+  reopened and not sent again) with the cash they should hold; `cash_differences` counts sent, unapproved days whose
+  count differs from the records (sales cash + purchase money). Both are warnings, not blocking.
+- **Owner decision (2026-10-17):** cash paid at the port beyond the purchase money and beyond the sales cash in hand was
+  paid by the driver out of pocket. `day_summary` has `owed_to_driver` ("à lui rembourser"); `expected_cash` no longer
+  goes below zero for it, so counting 0 is no écart. Nothing records the reimbursement yet; it is only shown.
