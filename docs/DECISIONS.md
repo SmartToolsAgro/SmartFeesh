@@ -2461,6 +2461,10 @@ client's record but may be changed on this BL only.
   `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
   is the day. `phase` = `running` or the closing status.
 
+**D-168 · The truck cards show who really has the truck today, not who usually drives it** · accepted · 2026-10-17
+- `GET /trucks` adds `driver_today` (`selectors.drivers_of_day`): the driver who started today's day on the truck, else
+  today's assignment. The usual driver is not counted (owner, 2026-10-17: real activity only); `driver` stays the usual
+  driver for the truck form. A truck in maintenance or breakdown shows that state, not "Sans chauffeur aujourd'hui".
 **D-164 · The driver's phone sends GPS points while the day runs (P3-T13a)** · accepted · 2026-10-17
 - Owner asked for live position, route and stop times on a map. The driver app stays a web app (PWA); the native wrapper with
   background tracking (Capacitor, "A2") is skipped for now, so the route has gaps when the screen is off or the app is closed.
@@ -2501,3 +2505,11 @@ client's record but may be changed on this BL only.
 - Not changed: the API, the stored data and every rule for sales, closings, stock and purchases. New texts have
   French and Arabic keys; the Arabic is provisional (D-103). Whether the folds and tiles read well with a driver's
   hands and in the sun is for the field test (P3-T08).
+**D-169 · The monthly closing checks the drivers' days; an out-of-pocket purchase is owed back, not a gap** · accepted · 2026-10-17
+- The checks `cash_differences` and `driver_days_closed` were stubs (always OK, "Pas encore suivi"). Now
+  `dayclose.selectors.period_days` feeds them: `driver_days_closed` counts past days whose closing was never sent (or
+  reopened and not sent again) with the cash they should hold; `cash_differences` counts sent, unapproved days whose
+  count differs from the records (sales cash + purchase money). Both are warnings, not blocking.
+- **Owner decision (2026-10-17):** cash paid at the port beyond the purchase money and beyond the sales cash in hand was
+  paid by the driver out of pocket. `day_summary` has `owed_to_driver` ("à lui rembourser"); `expected_cash` no longer
+  goes below zero for it, so counting 0 is no écart. Nothing records the reimbursement yet; it is only shown.

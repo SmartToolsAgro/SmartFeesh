@@ -11530,6 +11530,12 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           default: '0.000'
+        owed_to_driver:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
         expected_purchase_cash:
           type: string
           format: decimal
@@ -11601,6 +11607,7 @@ components:
       - on_credit
       - opening_cash
       - other_payments
+      - owed_to_driver
       - payments
       - payments_cash
       - phase
@@ -11791,6 +11798,12 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           default: '0.000'
+        owed_to_driver:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
         expected_purchase_cash:
           type: string
           format: decimal
@@ -11834,6 +11847,7 @@ components:
       - on_credit
       - opening_cash
       - other_payments
+      - owed_to_driver
       - payments_cash
       - phase
       - products
@@ -12141,6 +12155,12 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           default: '0.000'
+        owed_to_driver:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
         expected_purchase_cash:
           type: string
           format: decimal
@@ -12163,6 +12183,7 @@ components:
       - on_credit
       - opening_cash
       - other_payments
+      - owed_to_driver
       - payments_cash
       - products
       - purchase_float
@@ -23767,6 +23788,11 @@ components:
           - $ref: '#/components/schemas/DriverRef'
           readOnly: true
           nullable: true
+        driver_today:
+          allOf:
+          - $ref: '#/components/schemas/DriverRef'
+          nullable: true
+          readOnly: true
         location_id:
           type: integer
           readOnly: true
@@ -23784,6 +23810,7 @@ components:
       required:
       - condition
       - driver
+      - driver_today
       - id
       - is_active
       - location_id

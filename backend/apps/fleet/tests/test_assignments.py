@@ -312,6 +312,25 @@ def test_assignments_of_another_organization_are_invisible(organization, actor, 
     assert posted.status_code == 400
 
 
+def test_drivers_of_day_follows_the_assignment_over_the_usual_driver(organization, actor, today):
+    usual, other = driver_of(organization), driver_of(organization)
+    truck = new_truck(organization, actor, 1, driver=usual.user)
+    lonely = new_truck(organization, actor, 2)
+    assign(organization, actor, truck, other, today)
+
+    drivers = selectors.drivers_of_day(organization, today)
+
+    assert drivers[truck.id] == other.user
+    assert lonely.id not in drivers
+
+
+def test_drivers_of_day_ignores_the_usual_driver(organization, actor, today):
+    usual = driver_of(organization)
+    truck = new_truck(organization, actor, 1, driver=usual.user)
+
+    assert truck.id not in selectors.drivers_of_day(organization, today)
+
+
 # ---- maintenance, breakdown and a truck left free (D-163) ----
 
 

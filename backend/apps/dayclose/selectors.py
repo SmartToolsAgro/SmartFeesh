@@ -127,6 +127,11 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
     from_sales = max(bought.cash - purchase_money, ZERO)
     driver = driver_day.driver
     handed_over = handed_over_of(driver_day)
+    # Cash in hand before the purchases took theirs. What the cash in hand could not cover was paid by the driver
+    # out of pocket: the office owes it to them (a reimbursement), it is not a gap in the count.
+    in_hand = driver_day.opening_cash + cash + payments_cash - spent - handed_over
+    paid_from_hand = min(from_sales, max(in_hand, ZERO))
+    owed_to_driver = from_sales - paid_from_hand
     return {
         "date": day,
         "truck_name": driver_day.truck.location.name,
@@ -140,13 +145,14 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         "on_credit": sum((s.amount_due for s in day_sales), ZERO),
         "expenses_total": spent,
         "handed_over": handed_over,
-        "expected_cash": driver_day.opening_cash + cash + payments_cash - spent - handed_over - from_sales,
+        "expected_cash": in_hand - paid_from_hand,
         "purchase_float": driver_day.purchase_float,
         "purchases_count": bought.count,
         "purchases_total": bought.total,
         "purchases_cash": bought.cash,
         "purchases_other": bought.other,
         "purchases_from_sales": from_sales,
+        "owed_to_driver": owed_to_driver,
         "expected_purchase_cash": max(purchase_money - bought.cash, ZERO),
         "products": products,
     }
@@ -478,6 +484,42 @@ class CashDifference:
     driver_name: str
     # counted - expected: negative means less cash than the records say.
     difference: Decimal
+
+
+@dataclass(frozen=True)
+class PeriodDays:
+    """What a span of dates leaves open in the drivers' days, for the monthly closing's checks."""
+
+    unsent_count: int  # past days whose closing the driver has not sent (never, or reopened and not sent again)
+    unsent_cash: Decimal  # what those days should have in hand
+    difference_count: int  # sent days the office has not approved whose count is not what the records say
+    difference_amount: Decimal  # counted - expected on those days, the sales cash and the purchase money together
+
+
+def period_days(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> PeriodDays:
+    """The drivers' days of [date_from, date_to] that the monthly closing cannot count as settled. A day still
+    running after its date shows its own figures (`day_summary`) since nothing was sent to set them; an approved
+    day was checked by the office, so its difference no longer counts."""
+    today = timezone.localdate()
+    unsent_count = 0
+    unsent_cash = ZERO
+    for driver_day in fleet.driver_days_between(organization, date_from=date_from, date_to=min(date_to, today)):
+        if driver_day.date >= today or day_state(driver_day) != "running":
+            continue
+        unsent_count += 1
+        summary = day_summary(organization, driver_day)
+        unsent_cash += summary["expected_cash"] + summary["expected_purchase_cash"]
+    sent = (
+        closings_of(organization, date_from=date_from, date_to=date_to)
+        .exclude(status__in=_NOT_WITH_THE_OFFICE)
+        .exclude(difference=0, purchase_difference=0)
+    )
+    return PeriodDays(
+        unsent_count=unsent_count,
+        unsent_cash=unsent_cash,
+        difference_count=len(sent),
+        difference_amount=sum((row.difference + row.purchase_difference for row in sent), ZERO),
+    )
 
 
 def unexplained_cash_differences(organization: Organization) -> list[CashDifference]:

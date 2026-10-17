@@ -27,6 +27,8 @@ function RouteCanvas({ points, stops }: { points: readonly RoutePoint[]; stops: 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "© OpenStreetMap",
+      // The site sends no referrer by default (same-origin policy); OpenStreetMap blocks tile requests without one.
+      referrerPolicy: "origin",
     }).addTo(created);
     map.current = created;
     layer.current = L.layerGroup().addTo(created);
@@ -76,7 +78,7 @@ function RouteCanvas({ points, stops }: { points: readonly RoutePoint[]; stops: 
     }
   }, [points, stops]);
 
-  return <div ref={container} className="h-72 w-full overflow-hidden rounded-control" />;
+  return <div ref={container} className="h-[60vh] min-h-96 w-full overflow-hidden rounded-control" />;
 }
 
 export function RouteMap({ dayId, running }: { dayId: number; running: boolean }) {

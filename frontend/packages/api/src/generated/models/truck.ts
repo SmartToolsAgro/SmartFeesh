@@ -12,6 +12,7 @@ export interface Truck {
   readonly name: string;
   readonly plate: string;
   readonly driver: DriverRef | null;
+  readonly driver_today: DriverRef | null;
   readonly location_id: number;
   readonly is_active: boolean;
   readonly condition: ConditionEnum;

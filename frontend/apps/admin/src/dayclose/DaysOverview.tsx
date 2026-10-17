@@ -189,7 +189,7 @@ function DayDialog({ id }: { id: number }) {
   const d = day.data;
   const k = "admin.dayOverview.detail";
   return (
-    <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+    <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
       {d === undefined ? (
         <>
           <DialogTitle>{t("admin.dayClosings.title")}</DialogTitle>
@@ -216,6 +216,9 @@ function DayDialog({ id }: { id: number }) {
               <MoneyLine label={t(`${k}.expenses`)} value={`− ${formatMoney(d.expenses_total)}`} />
               {Number(d.purchases_from_sales) > 0 && (
                 <MoneyLine label={t(`${k}.purchases`)} value={`− ${formatMoney(d.purchases_from_sales)}`} />
+              )}
+              {Number(d.owed_to_driver) > 0 && (
+                <MoneyLine label={t(`${k}.owed`)} value={`+ ${formatMoney(d.owed_to_driver)}`} />
               )}
               {Number(d.handed_over) > 0 && (
                 <MoneyLine label={t(`${k}.handedOver`)} value={`− ${formatMoney(d.handed_over)}`} />
