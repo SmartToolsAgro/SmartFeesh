@@ -45,7 +45,6 @@ class TruckSerializer(serializers.ModelSerializer[Truck]):
         )
         read_only_fields = fields
 
-
     @extend_schema_field(DriverRefSerializer(allow_null=True))
     def get_driver_today(self, truck: Truck) -> dict[str, Any] | None:
         drivers: dict[int, User] = self.context.get("drivers_today")  # type: ignore[assignment]
