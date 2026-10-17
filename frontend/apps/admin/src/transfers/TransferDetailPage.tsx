@@ -36,8 +36,8 @@ import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 import { BOX_TYPES, formatBoxCount } from "../boxes/shared";
 import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { openStatement } from "../lib/pdf";
 import { PdfButton } from "../lib/PdfButton";
-import { openStatement } from "../lib/StatementButton";
 import { todayInTunis } from "../receipts/shared";
 import { canRecordTransfers, isZero, KIND_ICONS, refreshAfterTransfer, STATUS_TONES } from "./shared";
 
