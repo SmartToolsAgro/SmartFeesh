@@ -1458,6 +1458,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayOverviewDetail'
           description: ''
+  /api/v1/day-overview/{day_id}/route:
+    get:
+      operationId: getDayRoute
+      description: 'The GPS route of one driver''s day for the map: the points in
+        time order and the last one (D-166).'
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayRoute'
+          description: ''
   /api/v1/day-overview/drivers:
     get:
       operationId: listDayOverviewDrivers
@@ -12000,6 +12022,24 @@ components:
       - reviewed_by_name
       - status
       - submitted_at
+    DayRoute:
+      type: object
+      description: The GPS route of one driver's day, in time order; `last` is where
+        the truck was last seen.
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutePoint'
+          readOnly: true
+        last:
+          allOf:
+          - $ref: '#/components/schemas/RoutePoint'
+          readOnly: true
+          nullable: true
+      required:
+      - last
+      - points
     DaySummary:
       type: object
       properties:
@@ -20832,6 +20872,31 @@ components:
         * `manager` - Gestionnaire
         * `driver` - Chauffeur
         * `accountant` - Comptable
+    RoutePoint:
+      type: object
+      properties:
+        recorded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+        accuracy:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+      required:
+      - accuracy
+      - latitude
+      - longitude
+      - recorded_at
     SalaryAdjustment:
       type: object
       properties:

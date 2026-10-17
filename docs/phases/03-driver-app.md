@@ -149,8 +149,8 @@ do the stock, the supplier debt and the payment count.
 
 
 **P3-T13 · Follow the driver on a map (D-164) · M** _(native background tracking, "A2", is skipped for now)_
-- [ ] T13a · The phone sends GPS points while the day runs (offline buffer, batches of 200); `LocationPing` table; the
+- [x] T13a · The phone sends GPS points while the day runs (offline buffer, batches of 200); `LocationPing` table; the
       driver sees a warning when the position is refused.
-- [ ] T13b · Admin: map on the day follow-up with the live position and the day's route (Leaflet + OpenStreetMap).
+- [x] T13b · Admin: map on the day follow-up with the live position and the day's route (Leaflet + OpenStreetMap).
 - [ ] T13c · Stops (about 5 min within 50 m), time spent at each, pins at client places (client coordinates captured at
       delivery), stop list on the day page.

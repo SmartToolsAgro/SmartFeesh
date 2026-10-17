@@ -234,3 +234,18 @@ def drivers_by_truck_day(
 def pings_of_day(driver_day: DriverDay) -> QuerySet[LocationPing]:
     """The GPS points of a driver's day, in the order they were taken (D-164)."""
     return LocationPing.objects.for_organization(driver_day.organization).filter(driver_day=driver_day)
+
+
+def route_of_day(driver_day: DriverDay) -> dict[str, object]:
+    """The day's route for the office map (D-166): the GPS points in time order, and the last one, which is where
+    the truck is now while the day runs."""
+    points = [
+        {
+            "recorded_at": ping.recorded_at,
+            "latitude": float(ping.latitude),
+            "longitude": float(ping.longitude),
+            "accuracy": None if ping.accuracy is None else float(ping.accuracy),
+        }
+        for ping in pings_of_day(driver_day)
+    ]
+    return {"points": points, "last": points[-1] if points else None}

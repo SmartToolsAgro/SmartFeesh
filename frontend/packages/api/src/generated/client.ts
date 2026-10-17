@@ -63,6 +63,7 @@ import type {
   DayOverviewDetail,
   DayOverviewDriver,
   DayOverviewRow,
+  DayRoute,
   DocumentList,
   DriverDay,
   DriverDayOpen,
@@ -4916,6 +4917,104 @@ export function useGetDayOverview<TData = Awaited<ReturnType<typeof getDayOvervi
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetDayOverviewQueryOptions(dayId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDayRouteUrl = (dayId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}/route`
+}
+
+/**
+ * The GPS route of one driver's day for the map: the points in time order and the last one (D-166).
+ */
+export const getDayRoute = async (dayId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayRoute> => {
+
+  return apiFetch<DayRoute>(getGetDayRouteUrl(dayId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDayRouteQueryKey = (dayId: number,) => {
+    return [
+    `/api/v1/day-overview/${dayId}/route`
+    ] as const;
+    }
+
+
+export const getGetDayRouteQueryOptions = <TData = Awaited<ReturnType<typeof getDayRoute>>, TError = unknown>(dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayRoute>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDayRouteQueryKey(dayId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDayRoute>>> = ({ signal }) => getDayRoute(dayId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: dayId !== null && dayId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDayRoute>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDayRouteQueryResult = NonNullable<Awaited<ReturnType<typeof getDayRoute>>>
+export type GetDayRouteQueryError = unknown
+
+
+export function useGetDayRoute<TData = Awaited<ReturnType<typeof getDayRoute>>, TError = unknown>(
+ dayId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayRoute>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayRoute>>,
+          TError,
+          Awaited<ReturnType<typeof getDayRoute>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayRoute<TData = Awaited<ReturnType<typeof getDayRoute>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayRoute>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayRoute>>,
+          TError,
+          Awaited<ReturnType<typeof getDayRoute>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayRoute<TData = Awaited<ReturnType<typeof getDayRoute>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayRoute>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDayRoute<TData = Awaited<ReturnType<typeof getDayRoute>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayRoute>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDayRouteQueryOptions(dayId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

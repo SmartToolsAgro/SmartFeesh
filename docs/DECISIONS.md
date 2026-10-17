@@ -2454,3 +2454,8 @@ client's record but may be changed on this BL only.
 - Phone (`tracking.ts`): `watchPosition` only while the day runs; keeps a fix if accuracy <= 100 m, >= 30 s after the last
   and (moved >= 15 m or >= 2 min, a heartbeat that proves a stop); buffer in localStorage (3000 points), sent every minute,
   when back online and when the page hides. A refused permission shows a warning line.
+
+**D-166 · The day dialog of "Journées des chauffeurs" shows the route on a map (P3-T13b)** · accepted · 2026-10-17
+- `GET /day-overview/<day id>/route` (office roles): the day's GPS points in time order and the last one. The dialog has a
+  "Parcours" section: OpenStreetMap tiles with Leaflet 1.9.4 (no API key), the line of the route, a green start point and a red
+  last position; it refreshes every 30 s while the day runs, and warns when the last point is older than 10 minutes.

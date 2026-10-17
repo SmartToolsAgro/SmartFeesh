@@ -97,3 +97,24 @@ def test_only_a_driver_sends_points(road):
     client.force_authenticate(manager.user)
 
     assert client.post(reverse("my-locations"), {"points": [point()]}, format="json").status_code == 403
+
+
+def test_the_office_reads_the_route_of_a_day(road):
+    day = open_day(road)
+    road["client"].post(
+        reverse("my-locations"),
+        {"points": [point(minutes_ago=2, lat="34.741000"), point(minutes_ago=9)]},
+        format="json",
+    )
+    office = APIClient()
+    office.force_authenticate(MembershipFactory.create(organization=road["organization"], role=Role.MANAGER).user)
+
+    route = office.get(reverse("day-overview-route", args=[day.pk])).json()
+
+    assert [p["latitude"] for p in route["points"]] == [34.74, 34.741]
+    assert route["last"]["latitude"] == 34.741
+    # Neither a driver nor another company reads it.
+    assert road["client"].get(reverse("day-overview-route", args=[day.pk])).status_code == 403
+    stranger = APIClient()
+    stranger.force_authenticate(MembershipFactory.create(role=Role.OWNER).user)
+    assert stranger.get(reverse("day-overview-route", args=[day.pk])).status_code == 404
