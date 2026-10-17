@@ -20163,6 +20163,105 @@ export function useGetCustomerStatementPdf<TData = Awaited<ReturnType<typeof get
 
 
 
+export const getGetLoadPrintPackPdfUrl = (transferId: number,) => {
+
+
+
+
+  return `/api/v1/reports/load-print-pack/${transferId}/pdf`
+}
+
+/**
+ * Everything to hand out after a truck load (D-161): for each client, their BL then their statement up to
+ * today, in one PDF, each document starting on its own page. Office roles.
+ */
+export const getLoadPrintPackPdf = async (transferId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetLoadPrintPackPdfUrl(transferId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLoadPrintPackPdfQueryKey = (transferId: number,) => {
+    return [
+    `/api/v1/reports/load-print-pack/${transferId}/pdf`
+    ] as const;
+    }
+
+
+export const getGetLoadPrintPackPdfQueryOptions = <TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLoadPrintPackPdfQueryKey(transferId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoadPrintPackPdf>>> = ({ signal }) => getLoadPrintPackPdf(transferId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: transferId !== null && transferId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLoadPrintPackPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getLoadPrintPackPdf>>>
+export type GetLoadPrintPackPdfQueryError = unknown
+
+
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLoadPrintPackPdfQueryOptions(transferId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetLossesReportUrl = (params?: GetLossesReportParams,) => {
   const normalizedParams = new URLSearchParams();
 

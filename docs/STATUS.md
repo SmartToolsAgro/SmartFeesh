@@ -19,6 +19,8 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
 - **Working rule (owner, 2026-10-16):** do not run tests locally; commit and let CI check, then fix reported failures.
   One branch and one PR per task; merge only after CI passes.
 
+- **D-161 (PR load-print-fiche):** the validated load page has a banner and a "Fiche client" button per client.
+
 ## Next step
 
 1. Push the CI fixes for PR #160, wait for green CI, then merge. After deployment, check a load with two clients on

@@ -6275,6 +6275,30 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/reports/load-print-pack/{transfer_id}/pdf:
+    get:
+      operationId: getLoadPrintPackPdf
+      description: |-
+        Everything to hand out after a truck load (D-161): for each client, their BL then their statement up to
+        today, in one PDF, each document starting on its own page. Office roles.
+      parameters:
+      - in: path
+        name: transfer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/reports/losses:
     get:
       operationId: getLossesReport

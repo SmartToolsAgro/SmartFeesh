@@ -254,6 +254,17 @@ def sale_of(organization: Organization, sale_id: int) -> Sale:
     return sales_of(organization).get(pk=sale_id)
 
 
+def load_delivery_notes(organization: Organization, transfer_id: int) -> list[tuple[int, int]]:
+    """(sale id, customer id) of the BL of a truck load (D-160), live ones only, ordered by customer name."""
+    return list(
+        sales_of(organization)
+        .filter(transfer_id=transfer_id)
+        .exclude(status=SaleStatus.CANCELLED)
+        .order_by("customer__name", "pk")
+        .values_list("pk", "customer_id")
+    )
+
+
 def returned_by_sale_batch(sale_line_batch_ids: Iterable[int]) -> dict[int, Decimal]:
     """Kilos credit notes already took back, per sale line batch id (customer returns, D-070)."""
     rows = (

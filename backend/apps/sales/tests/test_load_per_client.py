@@ -17,7 +17,7 @@ from apps.inventory import services as inventory_services
 from apps.inventory.models import LocationKind, MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
-from apps.sales import printing, services
+from apps.sales import printing, selectors, services
 from apps.sales.models import Sale, SaleStatus
 
 pytestmark = pytest.mark.django_db
@@ -141,6 +141,18 @@ def test_a_validated_load_leaves_a_draft_bl_for_each_client(
     # Nothing is sold yet: the truck still holds the kilos and the boxes.
     assert corail.confirmed_at is None
     assert corail.total == Decimal("350.000")
+
+
+def test_the_print_pack_lists_each_clients_bl_by_customer_name(
+    organization, actor, cold_room, truck, dorade, restaurant, hotel, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "5"), part(hotel, dorade, "6")])
+
+    notes = selectors.load_delivery_notes(organization, transfer.pk)
+
+    assert [customer_id for _sale_id, customer_id in notes] == sorted(
+        [restaurant.pk, hotel.pk], key=lambda pk: {restaurant.pk: restaurant.name, hotel.pk: hotel.name}[pk]
+    )
 
 
 def test_the_boxes_of_every_client_go_to_the_truck_with_the_load(
