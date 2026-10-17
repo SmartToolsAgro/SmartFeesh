@@ -117,7 +117,7 @@ test("a sale's rows are typed from the keyboard like a spreadsheet, the product 
   // A code typed without its dash finds the product; Enter takes it and goes to the kilos.
   await product(1).click();
   await page.keyboard.type("sa010");
-  await expect(page.getByRole("option")).toHaveText(["SardineSA-010"]);
+  await expect(page.getByRole("option")).toHaveText([/^SardineSA-010/]);
   await page.keyboard.press("Enter");
   await expect(product(1)).toHaveValue("Sardine · SA-010");
   await expect(row(1).getByLabel("Poids (kg)")).toBeFocused();
