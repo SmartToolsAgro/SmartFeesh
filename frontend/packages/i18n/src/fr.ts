@@ -2646,7 +2646,7 @@ export const fr = {
         clientBoxesHint: "Les caisses qu'il garde : elles lui sont comptées quand la livraison est validée.",
         keptLines: "Gardé sur le camion, sans client",
         keptHint: "Ce qui n'est pour aucun client : le chauffeur le vend sur la route (client de passage).",
-        // ---- A transfer typed like a spreadsheet, from the cold rooms together (D-173) ----
+        // ---- A transfer typed like a spreadsheet, from the cold rooms together (D-174) ----
         coldRooms: "Chambres froides (toutes)",
         clientLines: "Produits de {{name}}",
       },
@@ -3968,7 +3968,7 @@ export const fr = {
       whoFor: "Pour quel client ?",
       recent: "Récents",
       others: "Autres clients",
-      // Today's load names its clients: only they are sold to, plus the walk-in customer (D-173)
+      // Today's load names its clients: only they are sold to, plus the walk-in customer (D-174)
       loadClients: "Clients de votre chargement",
       toDeliver: "BL à livrer",
       delivered: "Livré",

@@ -312,7 +312,7 @@ class TransferDeliveryWriteSerializer(serializers.Serializer[Any]):
 
 class TransferWriteSerializer(serializers.Serializer[Any]):
     from_location = serializers.IntegerField(min_value=1)
-    # A load from the cold rooms together (D-173): `from_location` is then a cold room (the boxes leave from it) and
+    # A load from the cold rooms together (D-174): `from_location` is then a cold room (the boxes leave from it) and
     # each line takes its kg from whichever cold rooms hold them.
     from_cold_rooms = serializers.BooleanField(required=False, default=False)
     to_location = serializers.IntegerField(min_value=1)

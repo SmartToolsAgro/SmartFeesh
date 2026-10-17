@@ -287,7 +287,7 @@ def test_the_part_kept_on_the_truck_makes_no_bl(organization, actor, cold_room, 
     assert Sale.objects.filter(transfer=transfer).count() == 1
 
 
-# ---- A load from the cold rooms together (D-173) ----
+# ---- A load from the cold rooms together (D-174) ----
 
 
 def _received(organization, product, room, kg):

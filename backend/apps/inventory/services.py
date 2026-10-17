@@ -848,7 +848,7 @@ def create_transfer(
     takes the sale price in force. A load may carry returnable boxes (`boxes`, per box type): they move
     with the stock when it is validated. A load may be split by client (`deliveries`, D-160): each client's kg and
     boxes, with `lines` and `boxes` left for the part kept on the truck; validating it makes a draft BL per
-    client. With `from_cold_rooms` a load takes each line from the cold rooms together (D-173). A `client_uuid`
+    client. With `from_cold_rooms` a load takes each line from the cold rooms together (D-174). A `client_uuid`
     already used returns that transfer.
     """
     if client_uuid is not None:
@@ -949,7 +949,7 @@ def update_transfer(
 
 
 def _cold_rooms(organization: Organization) -> list[StockLocation]:
-    """The active cold rooms, by id: a load "from the cold rooms" empties the first one first (D-173)."""
+    """The active cold rooms, by id: a load "from the cold rooms" empties the first one first (D-174)."""
     return list(
         StockLocation.objects.for_organization(organization)
         .filter(kind=LocationKind.COLD_ROOM, is_active=True)
@@ -965,7 +965,7 @@ def _post_line_from(
     occurred_at: dt.datetime,
 ) -> None:
     """Move one line's kg out of `rooms`, the first one first: one place as before, or the cold rooms together
-    (D-173). Refused as a whole when they hold less than the line together."""
+    (D-174). Refused as a whole when they hold less than the line together."""
     portions: list[tuple[StockLocation, Decimal]] = [(rooms[0], line.quantity)] if rooms else []
     if len(rooms) > 1:
         day = timezone.localtime(occurred_at).date()

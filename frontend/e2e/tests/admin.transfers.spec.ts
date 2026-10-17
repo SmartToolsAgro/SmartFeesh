@@ -50,7 +50,7 @@ test("the owner loads Camion 3 at the day's price, from the cold rooms together"
   await page.getByRole("button", { name: "Nouveau transfert" }).click();
   await expect(page.getByRole("heading", { name: "Nouveau transfert", level: 1 })).toBeVisible();
 
-  // No cold room to pick: the products say where they are (D-173).
+  // No cold room to pick: the products say where they are (D-174).
   await choose(page, page, "Départ", COLD_ROOMS);
   await choose(page, page, "Arrivée", "Camion 3");
   await expect(page.getByText("Chargement du camion")).toBeVisible();

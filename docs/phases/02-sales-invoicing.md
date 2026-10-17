@@ -127,7 +127,7 @@ Asked by the owner (2026-10-16): the client is known from the start, so the load
       address, products, boxes and total; "Livré" confirms it (online only for now). A driver also sees the BL of their truck's load.
 - [ ] Later: confirm a delivery offline (queue), adjust a quantity on the spot, collect payment from the same card.
 
-### P2-T14 · Transfer typed like a spreadsheet, from the cold rooms together; driver sells to the load's clients (D-173) · M
+### P2-T14 · Transfer typed like a spreadsheet, from the cold rooms together; driver sells to the load's clients (D-174) · M
 Asked by the owner (2026-10-17).
 - [x] The transfer form uses the sale grid (`LinesGrid`): one grid per client and one for what stays on the truck; the
       client's own price is proposed, and each grid shows the kilos left once the other parts are served.

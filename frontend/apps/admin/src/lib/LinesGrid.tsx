@@ -30,7 +30,7 @@ type LinesGridProps = {
   errors: Record<string, string>;
   /** The discount column: a quote and a sale have one, the counter sale does not. */
   discount?: boolean;
-  /** The price and amount columns: a transfer that is not a truck load has none (D-173). */
+  /** The price and amount columns: a transfer that is not a truck load has none (D-174). */
   price?: boolean;
   /** One more column after the product, with its own controls: the counter sale's lot. */
   extra?: {

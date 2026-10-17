@@ -48,7 +48,7 @@ import { canRecordTransfers, refreshAfterTransfer } from "./shared";
 
 type Errors = Record<string, string>;
 
-/** "Départ" for a load from the cold rooms together: each product leaves from the rooms that hold it (D-173). */
+/** "Départ" for a load from the cold rooms together: each product leaves from the rooms that hold it (D-174). */
 const COLD_ROOMS = "cold_rooms";
 /** The key of the part kept on the truck, without a client, among the parts' keys. */
 const KEPT = 0;
@@ -111,7 +111,7 @@ export function TransferEditPage() {
 }
 
 /**
- * A transfer typed like a spreadsheet (D-173): from the cold rooms (no room to pick, the products say where they
+ * A transfer typed like a spreadsheet (D-174): from the cold rooms (no room to pick, the products say where they
  * are) or a truck, into a truck; a load is split by client, each with their grid, address, boxes and BL.
  */
 function TransferForm({ draft }: { draft?: TransferDetail }) {

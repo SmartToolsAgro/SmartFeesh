@@ -8,7 +8,7 @@ export type Part = {
   key: number;
   customer: string;
   address: string;
-  /** Typed in a grid like a sale's (`LinesGrid`, D-173), ending with a blank row. */
+  /** Typed in a grid like a sale's (`LinesGrid`, D-174), ending with a blank row. */
   lines: Line[];
   boxes: BoxCountInputs;
 };

@@ -26,7 +26,7 @@ import { addressOf, type Part, scopedErrors } from "./formLines";
 /**
  * The part of a truck load that is for one client (D-160): who, where it is delivered (the client's address,
  * changeable for this load's BL only), what they buy and the boxes they get. Each client gets a BL of their own.
- * The products are typed in a grid like a sale's, with the client's price proposed (D-173).
+ * The products are typed in a grid like a sale's, with the client's price proposed (D-174).
  */
 export function ClientPart({
   index,

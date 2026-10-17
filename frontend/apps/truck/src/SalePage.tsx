@@ -280,7 +280,7 @@ export function PickCustomer({
   const [adding, setAdding] = useState(false);
   const online = useOnline();
   const customers = useListMyCustomers({ search: search.trim() });
-  // The BL the office prepared with the load (D-160): a client who has one is delivered first (D-173).
+  // The BL the office prepared with the load (D-160): a client who has one is delivered first (D-174).
   const deliveries = useListMyDeliveries({ query: { enabled: delivers, retry: false } });
   const [delivering, setDelivering] = useState<CustomerChoice | null>(null);
   const toDeliver = (customer: CustomerChoice) =>
@@ -314,7 +314,7 @@ export function PickCustomer({
   }
   if (adding) return <NewCustomerForm onAdded={pick} onCancel={() => setAdding(false)} />;
   const all = customers.data ?? [];
-  // Today's load names its clients: the server lists only them and the walk-in customer (D-173).
+  // Today's load names its clients: the server lists only them and the walk-in customer (D-174).
   const loaded = all.some((customer) => customer.on_load);
   // While nothing is typed, the customers sold to most recently come first.
   const recent =

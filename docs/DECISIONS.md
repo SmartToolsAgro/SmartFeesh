@@ -2526,7 +2526,13 @@ client's record but may be changed on this BL only.
 - A stop within 75 m of a saved place is named after that customer, also when no sale was made there (`dayclose.day_route`); the
   stop's customers are `{id, name, has_place}`.
 
-**D-173 · A transfer is typed like a spreadsheet, leaves from the cold rooms together, and the driver sells to the load's clients (P2-T14)** · accepted · 2026-10-17
+**D-173 · The "Produits reçus" lines of a receipt are a spreadsheet grid** · accepted · 2026-10-17
+- The client's XLS look (D-162) also applies to the new receipt form: the product lines are one table with a shaded
+  header row and bordered cells (product, ordered or remaining, invoiced, accepted, cost, amount, use-by, partner, remove),
+  not a card per line. Cells are borderless fields filling the cell; the last cost hint sits under the cost. The table
+  scrolls sideways on a phone instead of stacking each line.
+
+**D-174 · A transfer is typed like a spreadsheet, leaves from the cold rooms together, and the driver sells to the load's clients (P2-T14)** · accepted · 2026-10-17
 Asked by the owner: the transfer screen in the agreed spreadsheet style; "frigo → camion X" without naming a cold room
 (the products say where they are, as on a quote); camion X → camion Y; every product of a load for a named client, each
 with their BL and fiche; the phone's "Vente" shows only the clients of the load.
