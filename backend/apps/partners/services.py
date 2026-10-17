@@ -398,7 +398,7 @@ def set_customer_active(*, customer: Customer, actor: User | None, is_active: bo
 def set_customer_location(
     *, customer: Customer, actor: User | None, latitude: Decimal | None, longitude: Decimal | None
 ) -> Customer:
-    """Save where a customer is (D-168), from a stop of a driver's route; both empty forget it. The walk-in
+    """Save where a customer is (D-172), from a stop of a driver's route; both empty forget it. The walk-in
     customer has no place."""
     if (latitude is None) != (longitude is None):
         raise ValidationError({"latitude": _("Indiquez la latitude et la longitude, ou aucune des deux.")})

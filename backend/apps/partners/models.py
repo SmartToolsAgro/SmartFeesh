@@ -85,7 +85,7 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
-    # Where the customer is, saved from a stop of a driver's route (D-168); empty when unknown.
+    # Where the customer is, saved from a stop of a driver's route (D-172); empty when unknown.
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     # What the customer may owe at most, in DT. 0 = no credit: pays at once.

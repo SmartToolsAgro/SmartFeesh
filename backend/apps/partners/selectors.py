@@ -78,7 +78,7 @@ def customer_of(organization: Organization, customer_id: int) -> Customer:
 
 
 def customer_places(organization: Organization) -> list[Customer]:
-    """The active customers whose place on the map is known (D-168)."""
+    """The active customers whose place on the map is known (D-172)."""
     return list(
         Customer.objects.for_organization(organization).filter(
             is_active=True, latitude__isnull=False, longitude__isnull=False

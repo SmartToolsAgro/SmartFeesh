@@ -553,14 +553,14 @@ def unexplained_cash_differences(organization: Organization) -> list[CashDiffere
 
 # A sale or payment made this long before or after a stop is put down to it.
 VISIT_MARGIN = dt.timedelta(minutes=10)
-# A stop this close to a customer's saved place is at that customer's (D-168).
+# A stop this close to a customer's saved place is at that customer's (D-172).
 PLACE_RADIUS_M = 75.0
 
 
 def day_route(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """The route of a driver's day for the office map (D-167): the GPS points, the last position, and the stops
     with how long the truck stayed and the customers around them: those served then (sales, deliveries and
-    payments made during the stop) and the one whose saved place is within 75 m (D-168). Each customer says
+    payments made during the stop) and the one whose saved place is within 75 m (D-172). Each customer says
     whether his place is saved, so the office can save it from the stop."""
     route = fleet.route_of_day(driver_day)
     activity = day_activity(organization, driver_day)
