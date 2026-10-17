@@ -23889,6 +23889,8 @@ components:
       - payment
       - pickup
       - purchase
+      - delivery
+      - not_delivered
       type: string
       description: |-
         * `sale` - sale
@@ -23897,6 +23899,8 @@ components:
         * `payment` - payment
         * `pickup` - pickup
         * `purchase` - purchase
+        * `delivery` - delivery
+        * `not_delivered` - not_delivered
     Transfer:
       type: object
       properties:

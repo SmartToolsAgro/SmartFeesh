@@ -10132,7 +10132,7 @@ export const reportSyncProblemBodyReasonMax = 500;
 
 
 export const ReportSyncProblemBody = zod.object({
-  "kind": zod.enum(['sale', 'expense', 'loss', 'payment', 'pickup', 'purchase']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment\n* `pickup` - pickup\n* `purchase` - purchase'),
+  "kind": zod.enum(['sale', 'expense', 'loss', 'payment', 'pickup', 'purchase', 'delivery', 'not_delivered']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment\n* `pickup` - pickup\n* `purchase` - purchase\n* `delivery` - delivery\n* `not_delivered` - not_delivered'),
   "what": zod.string().max(reportSyncProblemBodyWhatMax),
   "reason": zod.string().max(reportSyncProblemBodyReasonMax),
   "client_uuid": zod.uuid()

@@ -214,11 +214,8 @@ def sales_of(
             "cancelled_by",
             "credit_decided_by",
         )
-        .prefetch_related(
-            Prefetch("lines", queryset=lines),
-            "box_lines",
-            Prefetch("revisions", queryset=SaleRevision.objects.select_related("actor").order_by("id")),
-        )
+        .prefetch_related(Prefetch("lines", queryset=lines), "box_lines")
+        .prefetch_related(Prefetch("revisions", queryset=SaleRevision.objects.select_related("actor").order_by("id")))
         .prefetch_related(
             Prefetch(
                 "invoices",
