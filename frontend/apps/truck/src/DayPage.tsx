@@ -159,7 +159,7 @@ interface TileProps {
   primary?: boolean;
 }
 
-// One road task as a tile, two to a row: the day's menu takes one screen, not a scroll (D-168).
+// One road task as a tile, two to a row: the day's menu takes one screen, not a scroll (D-171).
 function DayTile({ to, icon, label, primary = false }: TileProps) {
   return (
     <Link
@@ -226,7 +226,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         <p className="text-2xl font-bold">{truck.name}</p>
         <p className="text-ink-2">{truck.plate}</p>
       </Card>
-      {/* Until the day starts, the cash form is the first thing here, not at the bottom (D-168). */}
+      {/* Until the day starts, the cash form is the first thing here, not at the bottom (D-171). */}
       {day.isLoading ? null : running ? (
         <Card>
           <p className="text-lg font-semibold">{t(reopened ? "truck.history.reopened" : "truck.day.started")}</p>

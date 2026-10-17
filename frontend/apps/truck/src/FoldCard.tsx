@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** A card that opens on tap: its title and one summary line stay in view, so the screen is shorter (D-168). */
+/** A card that opens on tap: its title and one summary line stay in view, so the screen is shorter (D-171). */
 export function FoldCard({
   title,
   summary,

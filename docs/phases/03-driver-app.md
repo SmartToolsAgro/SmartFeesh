@@ -156,7 +156,7 @@ do the stock, the supplier debt and the payment count.
       customers served around each stop (by sale/payment time).
 - [ ] T13d · Store each customer's coordinates (learned from the stops) to name a stop by place, not by time.
 
-**P3-T14 · Less scrolling on the phone (D-168) · M** _(from the owner's note of 2026-10-17: quick wins and medium items)_
+**P3-T14 · Less scrolling on the phone (D-171) · M** _(from the owner's note of 2026-10-17: quick wins and medium items)_
 - [x] Ma journée: the start-of-day form right under the truck card until the day starts; the menu as a two-column tile grid.
 - [x] Load and boxes as folding cards with a summary line; the four stats in one compact card.
 - [x] Shorter header; "Retour à Ma journée" in the header instead of under each screen; the language switch at the bottom.

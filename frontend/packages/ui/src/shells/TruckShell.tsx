@@ -20,7 +20,7 @@ interface Props {
   chips?: { icon: IconName; label: string }[];
   /** The company logo from Paramètres, shown on a white tile at the start of the header. */
   logoUrl?: string | null;
-  /** Shown at the start of the header instead of the logo, e.g. the way back to Ma journée (D-168). */
+  /** Shown at the start of the header instead of the logo, e.g. the way back to Ma journée (D-171). */
   leading?: ReactNode;
   onLogout: () => void;
   children: ReactNode;
