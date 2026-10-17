@@ -112,9 +112,7 @@ function Checks({ view }: { view: MonthView }) {
           <DialogContent>
             <DialogTitle>{t(`admin.monthClosing.checks.codes.${open}`)}</DialogTitle>
             <DialogDescription>
-              {openCheck.ok
-                ? t("admin.monthClosing.checks.nothingToDo")
-                : t(`admin.monthClosing.checks.todo.${open}`)}
+              {openCheck.ok ? t("admin.monthClosing.checks.nothingToDo") : t(`admin.monthClosing.checks.todo.${open}`)}
             </DialogDescription>
             {!openCheck.ok && openCheck.count !== null && openCheck.count > 0 && (
               <p className="num text-ink-2">
@@ -130,6 +128,7 @@ function Checks({ view }: { view: MonthView }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
       <ul className="flex flex-col gap-1">
         {view.report.checks.map((check) => {
           const tracked = check.code !== "cash_differences" && check.code !== "driver_days_closed";

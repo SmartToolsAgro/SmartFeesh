@@ -2461,7 +2461,7 @@ client's record but may be changed on this BL only.
   `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
   is the day. `phase` = `running` or the closing status.
 
-**D-169 · Each check of the month closing opens a dialog saying what to do** · accepted · 2026-10-17
+**D-170 · Each check of the month closing opens a dialog saying what to do** · accepted · 2026-10-17
 - On "Clôture du mois", a check label is a button: the dialog gives the instruction, the number left (and amount), and a link
   to the page where it is fixed (charges, salaires, pertes, ventes, mouvements, journées). Links go to the full list, not
   filtered by month. Texts: `admin.monthClosing.checks.todo.*`; the two driver-day texts say "pas encore suivi" until
