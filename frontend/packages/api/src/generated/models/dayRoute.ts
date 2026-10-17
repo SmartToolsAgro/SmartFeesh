@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { RoutePoint } from './routePoint';
+import type { RouteStop } from './routeStop';
 
 /**
  * The GPS route of one driver's day, in time order; `last` is where the truck was last seen.
@@ -12,4 +13,5 @@ import type { RoutePoint } from './routePoint';
 export interface DayRoute {
   readonly points: readonly RoutePoint[];
   readonly last: RoutePoint | null;
+  readonly stops: readonly RouteStop[];
 }

@@ -482,6 +482,7 @@ export * from './roadPaymentWrite';
 export * from './roadReturn';
 export * from './roleEnum';
 export * from './routePoint';
+export * from './routeStop';
 export * from './salaryAdjustment';
 export * from './salaryAllocationWrite';
 export * from './salaryLine';

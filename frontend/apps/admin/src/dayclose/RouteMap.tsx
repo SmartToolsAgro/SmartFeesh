@@ -1,9 +1,13 @@
-import { type RoutePoint, useGetDayRoute } from "@frutti/api";
+import { type RoutePoint, type RouteStop, useGetDayRoute } from "@frutti/api";
 import { formatDateTime, useTranslation } from "@frutti/i18n";
 import { Card } from "@frutti/ui";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
+
+function formatTime(value: string): string {
+  return new Date(value).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
 
 /** A driver whose last point is older than this is "not seen" while his day runs. */
 const SILENT_AFTER_MS = 10 * 60_000;
@@ -11,7 +15,7 @@ const REFRESH_MS = 30_000;
 const LINE = "#1f6f8b";
 
 /** The route of a driver's day on OpenStreetMap: the line, the start, and the truck where it was last seen (D-166). */
-function RouteCanvas({ points }: { points: readonly RoutePoint[] }) {
+function RouteCanvas({ points, stops }: { points: readonly RoutePoint[]; stops: readonly RouteStop[] }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -45,6 +49,17 @@ function RouteCanvas({ points }: { points: readonly RoutePoint[] }) {
     if (points.length === 0) return;
     const path: L.LatLngTuple[] = points.map((p) => [p.latitude, p.longitude]);
     L.polyline(path, { color: LINE, weight: 4, opacity: 0.8 }).addTo(group);
+    for (const [index, stop] of stops.entries()) {
+      L.circleMarker([stop.latitude, stop.longitude], {
+        radius: 9,
+        color: "#fff",
+        weight: 2,
+        fillColor: "#e08a1e",
+        fillOpacity: 0.95,
+      })
+        .bindTooltip(`${index + 1} · ${stop.customers.join(", ") || "?"} · ${stop.minutes} min`)
+        .addTo(group);
+    }
     L.circleMarker(path[0]!, { radius: 7, color: "#fff", weight: 2, fillColor: "#2e9e5b", fillOpacity: 1 }).addTo(
       group,
     );
@@ -59,7 +74,7 @@ function RouteCanvas({ points }: { points: readonly RoutePoint[] }) {
       current.fitBounds(L.latLngBounds(path), { padding: [30, 30], maxZoom: 17 });
       fitted.current = true;
     }
-  }, [points]);
+  }, [points, stops]);
 
   return <div ref={container} className="h-72 w-full overflow-hidden rounded-control" />;
 }
@@ -69,6 +84,7 @@ export function RouteMap({ dayId, running }: { dayId: number; running: boolean }
   const k = "admin.dayOverview.detail.route";
   const route = useGetDayRoute(dayId, { query: { refetchInterval: running ? REFRESH_MS : false } });
   const points = route.data?.points ?? [];
+  const stops = route.data?.stops ?? [];
   const last = route.data?.last ?? null;
   const silent = running && last !== null && route.dataUpdatedAt - Date.parse(last.recorded_at) > SILENT_AFTER_MS;
   return (
@@ -83,8 +99,24 @@ export function RouteMap({ dayId, running }: { dayId: number; running: boolean }
             {t(`${k}.lastSeen`, { when: formatDateTime(last.recorded_at) })}
             {silent && ` · ${t(`${k}.silent`)}`}
           </p>
-          <RouteCanvas points={points} />
+          <RouteCanvas points={points} stops={stops} />
           <p className="text-[0.8rem] text-ink-2">{t(`${k}.legend`, { count: points.length })}</p>
+          <h4 className="pt-1 font-semibold">{t(`${k}.stops`, { count: stops.length })}</h4>
+          {stops.length === 0 ? (
+            <p className="text-ink-2">{t(`${k}.noStops`)}</p>
+          ) : (
+            <ol className="space-y-1">
+              {stops.map((stop, index) => (
+                <li key={stop.started_at} className="flex flex-wrap justify-between gap-x-3">
+                  <span>
+                    {index + 1} · {formatTime(stop.started_at)} – {formatTime(stop.ended_at)}
+                    {stop.customers.length > 0 && ` · ${stop.customers.join(", ")}`}
+                  </span>
+                  <strong>{t(`${k}.minutes`, { count: stop.minutes })}</strong>
+                </li>
+              ))}
+            </ol>
+          )}
         </>
       )}
     </Card>

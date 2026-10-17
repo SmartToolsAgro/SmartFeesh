@@ -118,3 +118,17 @@ def test_the_office_reads_the_route_of_a_day(road):
     stranger = APIClient()
     stranger.force_authenticate(MembershipFactory.create(role=Role.OWNER).user)
     assert stranger.get(reverse("day-overview-route", args=[day.pk])).status_code == 404
+
+
+def test_the_route_lists_the_stops_with_the_customers_served(road):
+    day = open_day(road)
+    stay = [point(minutes_ago=m, lat="34.745000") for m in (30, 26, 22, 18)]
+    drive = [point(minutes_ago=40, lat="34.700000"), point(minutes_ago=3, lat="34.780000")]
+    road["client"].post(reverse("my-locations"), {"points": drive + stay}, format="json")
+    office = APIClient()
+    office.force_authenticate(MembershipFactory.create(organization=road["organization"], role=Role.OWNER).user)
+
+    route = office.get(reverse("day-overview-route", args=[day.pk])).json()
+
+    assert [(s["minutes"], s["customers"]) for s in route["stops"]] == [(12, [])]
+    assert round(route["stops"][0]["latitude"], 3) == 34.745
