@@ -290,6 +290,26 @@ def least_held_since(
     return least
 
 
+def held_by_location(
+    organization: Organization, *, product_id: int, location_ids: list[int], day: dt.date
+) -> dict[int, Decimal]:
+    """Kilos of one product per place, counting only the lots received by `day` (what a movement of that day may
+    take, D-106)."""
+    rows = (
+        StockOnHand.objects.filter(
+            organization=organization,
+            product_id=product_id,
+            location_id__in=location_ids,
+            quantity__gt=0,
+            batch__received_on__lte=day,
+        )
+        .values("location_id")
+        .annotate(total=Sum("quantity"))
+        .order_by("location_id")
+    )
+    return {row["location_id"]: row["total"] for row in rows}
+
+
 def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationError:
     return ValidationError(
         {

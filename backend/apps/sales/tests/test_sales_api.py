@@ -14,6 +14,7 @@ from apps.fleet import services as fleet
 from apps.inventory import services as stock
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
+from apps.partners import services as partners
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import services
 from apps.sales.models import Sale, SaleStatus
@@ -436,3 +437,36 @@ def test_a_driver_sees_and_delivers_the_bl_prepared_with_their_load(
     assert confirmed.status_code == 200
     assert confirmed.json()["status"] == "confirmed"
     assert phone.get(reverse("my-deliveries")).json() == []
+
+
+def test_a_driver_loaded_for_clients_is_offered_only_those_clients_and_the_walk_in_one(
+    manager, organization, customer, crevette, driver_with_truck
+):
+    driver, truck_place = driver_with_truck
+    # The factory's references come from a sequence: the walk-in one takes the next free reference after them.
+    CustomerFactory.create(organization=organization, name="Hôtel Marina")
+    partners.ensure_walk_in_customer(organization=organization)
+    phone = client_for(driver)
+    before = phone.get(reverse("my-customers")).json()
+    cold_room = StockLocationFactory.create(organization=organization, name="Chambre froide 1")
+    receive(organization, crevette, cold_room, "20")
+    stock.create_transfer(
+        organization=organization,
+        actor=manager.user,
+        from_location=cold_room,
+        to_location=truck_place,
+        transferred_on=timezone.localdate(),
+        lines=[],
+        deliveries=[{"customer": customer, "lines": [{"product": crevette, "quantity": "5"}]}],
+        from_cold_rooms=True,
+        validate=True,
+    )
+
+    after = phone.get(reverse("my-customers")).json()
+
+    assert len(before) == 3
+    assert [(row["name"], row["on_load"]) for row in after] == [
+        ("Restaurant Le Corail", True),
+        (after[1]["name"], False),
+    ]
+    assert after[1]["is_walk_in"] is True

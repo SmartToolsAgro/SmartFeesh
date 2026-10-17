@@ -11,6 +11,7 @@ import type { TransferWriteBoxes } from './transferWriteBoxes';
 export interface TransferWrite {
   /** @minimum 1 */
   from_location: number;
+  from_cold_rooms?: boolean;
   /** @minimum 1 */
   to_location: number;
   transferred_on: string;
