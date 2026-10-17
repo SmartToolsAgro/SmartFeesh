@@ -279,6 +279,118 @@ def closings_of(
     return rows
 
 
+def day_state(driver_day: "DriverDay") -> str:
+    """Where a driver's day stands: `running` (not sent yet, or opened again by a new load), else the status of
+    the closing the driver sent."""
+    if driver_day.ended_at is None:
+        return "running"
+    closing = closing_of(driver_day)
+    return closing.status if closing is not None else "running"
+
+
+def day_deliveries(organization: Organization, driver_day: "DriverDay") -> list[Any]:
+    """The BL made from the truck loads of that date (D-160), not cancelled, by client: a draft is still to
+    deliver, a confirmed one is delivered."""
+    return list(
+        sales.sales_of(organization, location_id=driver_day.truck.location_id)
+        .filter(transfer__isnull=False, transfer__transferred_on=driver_day.date)
+        .exclude(status="cancelled")
+        .order_by("customer__name", "id")
+    )
+
+
+def day_row(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
+    """One line of the office's overview of the drivers' days: the figures, and how many deliveries are done."""
+    summary = day_answer(organization, driver_day)["summary"]
+    deliveries = day_deliveries(organization, driver_day)
+    delivered = sum(1 for sale in deliveries if sale.status == "confirmed")
+    closing = closing_of(driver_day)
+    return {
+        "id": driver_day.pk,
+        "phase": day_state(driver_day),
+        "deliveries_done": delivered,
+        "deliveries_todo": len(deliveries) - delivered,
+        "closing_id": closing.pk if closing is not None else None,
+        **summary,
+    }
+
+
+def _sale_line(sale: Any) -> dict[str, Any]:
+    return {
+        "id": sale.pk,
+        "number": sale.number,
+        "status": sale.status,
+        "customer_name": sale.customer.name,
+        "delivery_address": sale.delivery_address,
+        "sold_at": sale.sold_at,
+        "total": sale.total,
+        "amount_paid": sale.amount_paid,
+        "amount_due": sale.amount_due,
+        "payment_method": sale.payment_method,
+        "from_load": sale.transfer_id is not None,
+        "products": ", ".join(f"{line.product.name} {line.quantity.normalize():f} kg" for line in sale.lines.all()),
+    }
+
+
+def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
+    """Everything a driver's day holds, for the office: the figures, the sales made, the deliveries of the
+    loads (to do and done), the customer payments collected and the road expenses."""
+    start, end = fleet.day_window(driver_day)
+    answer = day_answer(organization, driver_day)
+    made = [
+        sale
+        for sale in sales.sales_of(
+            organization,
+            status="confirmed",
+            location_id=driver_day.truck.location_id,
+            created_by_id=driver_day.driver_id,
+            date_from=driver_day.date,
+            date_to=driver_day.date,
+        )
+        if start <= sale.sold_at < end and sale.transfer_id is None
+    ]
+    deliveries = day_deliveries(organization, driver_day)
+    payments = [
+        p
+        for p in sales.payments_received_by(organization, user_id=driver_day.driver_id, day=driver_day.date)
+        if start <= (p.made_at or p.created_at) < end
+    ]
+    spent = [
+        e
+        for e in expenses.road_expenses(organization, user_id=driver_day.driver_id, day=driver_day.date)
+        if start <= (e.made_at or e.created_at) < end
+    ]
+    return {
+        **day_row(organization, driver_day),
+        "closing": answer["closing"],
+        "sales": [_sale_line(s) for s in made],
+        "deliveries": [_sale_line(s) for s in deliveries],
+        "payments": [
+            {
+                "id": p.pk,
+                "number": p.number,
+                "customer_name": p.customer.name,
+                "method": p.method,
+                "amount": p.amount,
+                "made_at": p.made_at or p.created_at,
+            }
+            for p in payments
+        ],
+        "expenses": [
+            {
+                "id": e.pk,
+                "category_name": e.category.name,
+                "description": e.description,
+                "amount": e.amount,
+                "status": e.status,
+                "payment_method": e.payment_method,
+                "made_at": e.made_at or e.created_at,
+            }
+            for e in spent
+        ],
+    }
+
+
 def closing_by_id(organization: Organization, closing_id: int) -> DayClosing:
     return closings_of(organization).get(pk=closing_id)
 

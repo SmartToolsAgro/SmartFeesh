@@ -22,6 +22,10 @@ from .serializers import (
     DayClosingFilterSerializer,
     DayClosingRowSerializer,
     DayClosingWriteSerializer,
+    DayOverviewDetailSerializer,
+    DayOverviewDriverSerializer,
+    DayOverviewFilterSerializer,
+    DayOverviewRowSerializer,
     JustificationSerializer,
     MyDayRowSerializer,
     MyDaySummarySerializer,
@@ -175,6 +179,48 @@ class DayClosingListView(DayClosingView):
             date_to=data.get("date_to"),
         )
         return Response(DayClosingRowSerializer(rows[:200], many=True).data)
+
+
+class DayOverviewListView(DayClosingView):
+    @extend_schema(
+        operation_id="listDayOverview",
+        parameters=[DayOverviewFilterSerializer],
+        responses=DayOverviewRowSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """The drivers' days as they stand, running or sent (the last 100 matching): money, sales and deliveries.
+        Filter by driver, truck and dates."""
+        filters = DayOverviewFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        data = filters.validated_data
+        days = fleet.driver_days_between(
+            self.membership.organization,
+            driver_id=data.get("driver_id"),
+            truck_id=data.get("truck_id"),
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+        )
+        rows = [selectors.day_row(self.membership.organization, day) for day in days[:100]]
+        return Response(DayOverviewRowSerializer(rows, many=True).data)
+
+
+class DayOverviewDriversView(DayClosingView):
+    @extend_schema(operation_id="listDayOverviewDrivers", responses=DayOverviewDriverSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The drivers who opened at least one day, by name: the choices of the driver filter."""
+        rows = fleet.drivers_with_days(self.membership.organization)
+        return Response(DayOverviewDriverSerializer(rows, many=True).data)
+
+
+class DayOverviewDetailView(DayClosingView):
+    @extend_schema(operation_id="getDayOverview", responses=DayOverviewDetailSerializer)
+    def get(self, request: Request, day_id: int) -> Response:
+        """One driver's day: figures, sales, deliveries to do and done, payments collected and expenses."""
+        try:
+            day = fleet.driver_day_by_id(self.membership.organization, day_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        return Response(DayOverviewDetailSerializer(selectors.day_activity(self.membership.organization, day)).data)
 
 
 class DayClosingDetailView(DayClosingView):
