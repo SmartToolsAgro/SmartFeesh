@@ -311,7 +311,13 @@ export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) =>
 }
 
 // One customer on one line: the name, and the city when there is one.
-function CustomerButton({ customer, onPick }: { customer: CustomerChoice; onPick: (customer: CustomerChoice) => void }) {
+function CustomerButton({
+  customer,
+  onPick,
+}: {
+  customer: CustomerChoice;
+  onPick: (customer: CustomerChoice) => void;
+}) {
   return (
     <Button
       size="lg"
