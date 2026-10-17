@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { OWNER_STATE } from "./owner";
 
-// Only reads: the month shown is the last finished one, and nothing is reviewed or approved here, so the
+// Only reads: the page opens on the current month; the last finished month is picked here, and nothing is reviewed or approved here, so the
 // other browser tests keep their data.
 test.use({ storageState: OWNER_STATE });
 

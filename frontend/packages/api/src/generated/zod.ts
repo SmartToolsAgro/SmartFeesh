@@ -2638,6 +2638,37 @@ export const GetDayOverviewResponse = zod.object({
 
 
 /**
+ * The GPS route of one driver's day for the map: the points in time order and the last one (D-167).
+ */
+export const GetDayRouteParams = zod.object({
+  "day_id": zod.int()
+})
+
+export const GetDayRouteResponse = zod.object({
+  "points": zod.array(zod.object({
+  "recorded_at": zod.iso.datetime({"offset":true}),
+  "latitude": zod.number(),
+  "longitude": zod.number(),
+  "accuracy": zod.number().nullable()
+})),
+  "last": zod.union([zod.object({
+  "recorded_at": zod.iso.datetime({"offset":true}),
+  "latitude": zod.number(),
+  "longitude": zod.number(),
+  "accuracy": zod.number().nullable()
+}),zod.null()]),
+  "stops": zod.array(zod.object({
+  "started_at": zod.iso.datetime({"offset":true}),
+  "ended_at": zod.iso.datetime({"offset":true}),
+  "minutes": zod.int(),
+  "latitude": zod.number(),
+  "longitude": zod.number(),
+  "customers": zod.array(zod.string())
+}).describe('Where the truck stayed five minutes or more.'))
+}).describe('The GPS route of one driver\'s day, in time order; `last` is where the truck was last seen.')
+
+
+/**
  * The drivers who opened at least one day, by name: the choices of the driver filter.
  */
 export const ListDayOverviewDriversResponseItem = zod.object({
@@ -8572,6 +8603,30 @@ export const GetMyDaySummaryResponse = zod.object({
   "submitted_at": zod.iso.datetime({"offset":true}),
   "changed_since_sent": zod.boolean()
 }).describe('What the driver sees of their closing.'),zod.null()])
+})
+
+
+/**
+ * The GPS points of the driver's phone for today's day, up to 200 at a time (D-164). A resent point is
+ * stored once; points after the sent closing are dropped. 404 until the day is started.
+ */
+export const recordMyLocationsBodyPointsItemLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const recordMyLocationsBodyPointsItemLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const recordMyLocationsBodyPointsItemAccuracyRegExp = new RegExp('^-?\\d{0,7}(?:\\.\\d{0,1})?$');
+
+
+export const RecordMyLocationsBody = zod.object({
+  "points": zod.array(zod.object({
+  "client_uuid": zod.uuid(),
+  "recorded_at": zod.iso.datetime({"offset":true}),
+  "latitude": zod.stringFormat('decimal', recordMyLocationsBodyPointsItemLatitudeRegExp),
+  "longitude": zod.stringFormat('decimal', recordMyLocationsBodyPointsItemLongitudeRegExp),
+  "accuracy": zod.stringFormat('decimal', recordMyLocationsBodyPointsItemAccuracyRegExp).nullish()
+}))
+})
+
+export const RecordMyLocationsResponse = zod.object({
+  "saved": zod.int()
 })
 
 

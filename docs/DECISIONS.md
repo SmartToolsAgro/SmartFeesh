@@ -2445,3 +2445,39 @@ client's record but may be changed on this BL only.
   while the table scrolls (price board). The sale, quote and counter-sale grids show, under the product, the places holding
   it and its open partnership (coloured). A transfer goes from a cold room or a truck into a truck, never into itself.
   The lot page no longer shows the stock tabs. The month closing opens on the current month.
+**D-161 · After a load is validated, the page offers each client's BL and fiche (P2-T13)** · accepted · 2026-10-17
+- The validated load page shows a banner and, on each client card, "Imprimer le bon" (the draft BL, D-160) and "Fiche client"
+  (the customer statement PDF of D-156 up to today, which includes the BL's sale once the draft exists). No new endpoint.
+- **"Tout imprimer"** (`GET /reports/load-print-pack/<transfer>/pdf`): one PDF, for each client their BL (provisional or
+  confirmed) then their statement up to today, each document starting on its own page (WeasyPrint pages joined in
+  `documents.rendering.htmls_to_pdf`). Made on the spot, not stored.
+
+**D-162 · "Journées des chauffeurs" opens on a live follow-up of each driver's day** · accepted · 2026-10-17
+- The page has two tabs: "Suivi des chauffeurs" (default) and "Clôtures à vérifier" (the former page, unchanged). The follow-up
+  lists every driver day, running or sent, as a card (money expected in hand, sales, expenses, deliveries done/to do), filtered
+  by driver, truck and dates (default today). A card opens the day: money line by line, the load's BL (draft = to deliver,
+  confirmed = delivered), road sales, customer payments, expenses and the truck's stock.
+- Endpoints (office roles, read-only): `GET /day-overview`, `/day-overview/<day id>`, `/day-overview/drivers`. Figures are
+  `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
+  is the day. `phase` = `running` or the closing status.
+
+**D-164 · The driver's phone sends GPS points while the day runs (P3-T13a)** · accepted · 2026-10-17
+- Owner asked for live position, route and stop times on a map. The driver app stays a web app (PWA); the native wrapper with
+  background tracking (Capacitor, "A2") is skipped for now, so the route has gaps when the screen is off or the app is closed.
+- `fleet.LocationPing` (driver day, `client_uuid`, phone time, latitude/longitude 6 decimals, accuracy m). Append-only.
+  `POST /my-day/locations` takes up to 200 points; resent points are stored once; points in the future (> 5 min) or after
+  the sent closing are dropped. Office read endpoints come with T13b.
+- Phone (`tracking.ts`): `watchPosition` only while the day runs; keeps a fix if accuracy <= 100 m, >= 30 s after the last
+  and (moved >= 15 m or >= 2 min, a heartbeat that proves a stop); buffer in localStorage (3000 points), sent every minute,
+  when back online and when the page hides. A refused permission shows a warning line.
+
+**D-166 · The day dialog of "Journées des chauffeurs" shows the route on a map (P3-T13b)** · accepted · 2026-10-17
+- `GET /day-overview/<day id>/route` (office roles): the day's GPS points in time order and the last one. The dialog has a
+  "Parcours" section: OpenStreetMap tiles with Leaflet 1.9.4 (no API key), the line of the route, a green start point and a red
+  last position; it refreshes every 30 s while the day runs, and warns when the last point is older than 10 minutes.
+
+**D-167 · Stops on the route: 5 minutes within 50 m (P3-T13c)** · accepted · 2026-10-17
+- `fleet/trail.py` (pure): a stop starts at a GPS point and takes the next ones within 50 m, with no gap above 15 min; it counts
+  from 5 min (first to last point); its place is the average of its points. The route endpoint returns the stops; each lists
+  the customers whose sale, delivery or payment was made from 10 min before to 10 min after the stop (`dayclose.day_route`).
+- Customer coordinates are not stored yet (T13d): a stop is named by the sales made then, not by distance to a known place.

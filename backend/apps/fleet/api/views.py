@@ -18,6 +18,8 @@ from .permissions import AssignmentsOfficeOrOwnDriver, OwnTruckOrOffice
 from .serializers import (
     DriverDayOpenSerializer,
     DriverDaySerializer,
+    LocationPingBatchSerializer,
+    LocationPingSavedSerializer,
     PurchaseFloatSerializer,
     TruckAssignmentFilterSerializer,
     TruckAssignmentSerializer,
@@ -303,3 +305,23 @@ class MyPurchaseFloatView(APIView):
             driver_day=day, actor=membership.user, purchase_float=serializer.validated_data["purchase_float"]
         )
         return Response(DriverDaySerializer(day).data)
+
+
+class MyLocationsView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(
+        operation_id="recordMyLocations", request=LocationPingBatchSerializer, responses=LocationPingSavedSerializer
+    )
+    def post(self, request: Request) -> Response:
+        """The GPS points of the driver's phone for today's day, up to 200 at a time (D-164). A resent point is
+        stored once; points after the sent closing are dropped. 404 until the day is started."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = LocationPingBatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        day = selectors.driver_day_of(membership)
+        if day is None:
+            raise Http404
+        saved = services.record_location_pings(driver_day=day, points=serializer.validated_data["points"])
+        return Response(LocationPingSavedSerializer({"saved": saved}).data)

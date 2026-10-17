@@ -147,3 +147,11 @@ do the stock, the supplier debt and the payment count.
 - [x] Monthly settlement: the supplier statement of the month (D-156) as the paper to agree on and pay.
 - [x] The photo of the supplier's paper on a purchase at the port (from the phone, optional; seen by the office).
 
+
+**P3-T13 · Follow the driver on a map (D-164) · M** _(native background tracking, "A2", is skipped for now)_
+- [x] T13a · The phone sends GPS points while the day runs (offline buffer, batches of 200); `LocationPing` table; the
+      driver sees a warning when the position is refused.
+- [x] T13b · Admin: map on the day follow-up with the live position and the day's route (Leaflet + OpenStreetMap).
+- [x] T13c · Stops (5 min within 50 m), time spent at each, orange pins and a stop list on the day page, with the
+      customers served around each stop (by sale/payment time).
+- [ ] T13d · Store each customer's coordinates (learned from the stops) to name a stop by place, not by time.
