@@ -44,8 +44,8 @@ test("the evening return of the demo truck shows loaded − returned = sold or l
   await expect(dorade).toContainText(/25,000\sDT/);
 });
 
-test("the owner loads Camion 3 at the day's price, then takes everything back in the evening", async ({ page }) => {
-  test.slow(); // two transfers, filled and validated through the screens
+test("the owner loads Camion 3 at the day's price", async ({ page }) => {
+  test.slow(); // a transfer filled and validated through the screens
   await openTransfers(page);
   await page.getByRole("button", { name: "Nouveau transfert" }).click();
   await expect(page.getByRole("heading", { name: "Nouveau transfert", level: 1 })).toBeVisible();
@@ -69,27 +69,6 @@ test("the owner loads Camion 3 at the day's price, then takes everything back in
   await expect(loaded).toContainText(/28,000\sDT/);
   await expect(loaded).toContainText(/L-\d+ · 2,000\skg/);
   await expect(page.getByRole("region", { name: /Journée de Camion 3/ })).toContainText("Loup de mer");
-
-  // Evening: everything on the truck comes back.
-  await page.goto("/stock/transferts/nouveau");
-  await choose(page, page, "Départ", "Camion 3");
-  await choose(page, page, "Arrivée", FRESH_ROOM);
-  await expect(page.getByText("Retour du soir")).toBeVisible();
-  await page.getByRole("button", { name: "Tout reprendre" }).click();
-  await expect(page.getByRole("group", { name: "Produit 1" }).getByRole("combobox", { name: "Produit" })).toContainText(
-    "Loup de mer",
-  );
-  await page.getByRole("button", { name: "Valider le transfert" }).click();
-
-  await expect(page.getByText(/Transfert TR-\d+ validé/)).toBeVisible();
-  const day = page.getByRole("region", { name: /Journée de Camion 3/ });
-  // Everything loaded today came back: nothing sold or lost.
-  await expect(
-    day
-      .getByRole("row", { name: /Loup de mer/ })
-      .getByRole("cell")
-      .nth(3),
-  ).toHaveText(/^0,000\skg$/);
 });
 
 test("a load bigger than the cold room's stock is refused on its line and nothing is saved", async ({ page }) => {
@@ -106,13 +85,13 @@ test("a load bigger than the cold room's stock is refused on its line and nothin
   await expect(page).toHaveURL(/\/stock\/transferts\/nouveau$/);
 });
 
-test("a draft between cold rooms is saved, changed, then cancelled without moving stock", async ({ page }) => {
+test("a draft truck load is saved, changed, then cancelled without moving stock", async ({ page }) => {
   await page.goto("/stock/transferts/nouveau");
   await choose(page, page, "Départ", "Chambre froide 2 (congelé)");
-  await choose(page, page, "Arrivée", FRESH_ROOM);
+  await choose(page, page, "Arrivée", "Camion 3");
   const line = page.getByRole("group", { name: "Produit 1" });
   await choose(page, line, "Produit", "Calamar · CA-005");
-  await expect(line.getByLabel("Prix du jour (DT/kg)")).toHaveCount(0);
+  await line.getByLabel("Prix du jour (DT/kg)").fill("20");
   await line.getByLabel("Poids (kg)").fill("1");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
 

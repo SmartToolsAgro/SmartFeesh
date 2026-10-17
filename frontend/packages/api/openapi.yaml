@@ -4332,6 +4332,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
           description: ''
+  /api/v1/my-day/locations:
+    post:
+      operationId: recordMyLocations
+      description: |-
+        The GPS points of the driver's phone for today's day, up to 200 at a time (D-164). A resent point is
+        stored once; points after the sent closing are dropped. 404 until the day is started.
+      tags:
+      - my-day
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationPingBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LocationPingBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LocationPingBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationPingSaved'
+          description: ''
   /api/v1/my-day/purchase-float:
     put:
       operationId: setMyPurchaseFloat
@@ -15046,6 +15075,50 @@ components:
       - received_on
       - supplier_id
       - supplier_name
+    LocationPingBatch:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationPingWrite'
+      required:
+      - points
+    LocationPingSaved:
+      type: object
+      properties:
+        saved:
+          type: integer
+          readOnly: true
+      required:
+      - saved
+    LocationPingWrite:
+      type: object
+      properties:
+        client_uuid:
+          type: string
+          format: uuid
+        recorded_at:
+          type: string
+          format: date-time
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,1})?$
+          nullable: true
+      required:
+      - client_uuid
+      - latitude
+      - longitude
+      - recorded_at
     LocationStock:
       type: object
       description: How many kg of one product a location holds, all batches together.

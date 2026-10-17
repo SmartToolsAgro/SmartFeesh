@@ -2444,3 +2444,13 @@ client's record but may be changed on this BL only.
 - Endpoints (office roles, read-only): `GET /day-overview`, `/day-overview/<day id>`, `/day-overview/drivers`. Figures are
   `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
   is the day. `phase` = `running` or the closing status.
+
+**D-164 · The driver's phone sends GPS points while the day runs (P3-T13a)** · accepted · 2026-10-17
+- Owner asked for live position, route and stop times on a map. The driver app stays a web app (PWA); the native wrapper with
+  background tracking (Capacitor, "A2") is skipped for now, so the route has gaps when the screen is off or the app is closed.
+- `fleet.LocationPing` (driver day, `client_uuid`, phone time, latitude/longitude 6 decimals, accuracy m). Append-only.
+  `POST /my-day/locations` takes up to 200 points; resent points are stored once; points in the future (> 5 min) or after
+  the sent closing are dropped. Office read endpoints come with T13b.
+- Phone (`tracking.ts`): `watchPosition` only while the day runs; keeps a fix if accuracy <= 100 m, >= 30 s after the last
+  and (moved >= 15 m or >= 2 min, a heartbeat that proves a stop); buffer in localStorage (3000 points), sent every minute,
+  when back online and when the page hides. A refused permission shows a warning line.
