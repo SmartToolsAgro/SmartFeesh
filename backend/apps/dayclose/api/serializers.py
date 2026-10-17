@@ -345,3 +345,18 @@ class DayOverviewDriverSerializer(serializers.Serializer[Any]):
 
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
+
+
+class RoutePointSerializer(serializers.Serializer[Any]):
+    recorded_at = serializers.DateTimeField(read_only=True)
+    latitude = serializers.FloatField(read_only=True)
+    longitude = serializers.FloatField(read_only=True)
+    # Radius of the fix in metres.
+    accuracy = serializers.FloatField(read_only=True, allow_null=True)
+
+
+class DayRouteSerializer(serializers.Serializer[Any]):
+    """The GPS route of one driver's day, in time order; `last` is where the truck was last seen."""
+
+    points = RoutePointSerializer(many=True, read_only=True)
+    last = RoutePointSerializer(read_only=True, allow_null=True)

@@ -23,6 +23,8 @@ import {
 } from "@frutti/ui";
 import { type ReactNode, useState } from "react";
 
+import { RouteMap } from "./RouteMap";
+
 const SELECT_CLASSES = "rounded-control border border-line bg-surface px-3 py-2 text-ink";
 const PHASE_TONES = {
   running: "sea",
@@ -201,6 +203,10 @@ function DayDialog({ id }: { id: number }) {
           <DialogDescription>
             {formatDate(d.date)} · <Pill tone={PHASE_TONES[d.phase]}>{t(`admin.dayOverview.phases.${d.phase}`)}</Pill>
           </DialogDescription>
+
+          <Section title={t(`${k}.route.title`)}>
+            <RouteMap dayId={id} running={d.phase === "running" || d.phase === "reopened"} />
+          </Section>
 
           <Section title={t(`${k}.money`)}>
             <Card className="space-y-1.5 p-4">

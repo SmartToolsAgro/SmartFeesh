@@ -2638,6 +2638,29 @@ export const GetDayOverviewResponse = zod.object({
 
 
 /**
+ * The GPS route of one driver's day for the map: the points in time order and the last one (D-166).
+ */
+export const GetDayRouteParams = zod.object({
+  "day_id": zod.int()
+})
+
+export const GetDayRouteResponse = zod.object({
+  "points": zod.array(zod.object({
+  "recorded_at": zod.iso.datetime({"offset":true}),
+  "latitude": zod.number(),
+  "longitude": zod.number(),
+  "accuracy": zod.number().nullable()
+})),
+  "last": zod.union([zod.object({
+  "recorded_at": zod.iso.datetime({"offset":true}),
+  "latitude": zod.number(),
+  "longitude": zod.number(),
+  "accuracy": zod.number().nullable()
+}),zod.null()])
+}).describe('The GPS route of one driver\'s day, in time order; `last` is where the truck was last seen.')
+
+
+/**
  * The drivers who opened at least one day, by name: the choices of the driver filter.
  */
 export const ListDayOverviewDriversResponseItem = zod.object({
