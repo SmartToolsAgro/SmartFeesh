@@ -69,7 +69,7 @@ function contactRow(contact?: SupplierContact): ContactRow {
 }
 
 /** Create a supplier (`supplier` absent) or change one. Owners and managers only; the server checks it too.
- * `start` fills a new supplier's name and phone, e.g. the ones a driver typed at the port (D-157). */
+ * `start` fills a new supplier's name and phone, e.g. the ones a driver typed at the port (D-175). */
 export function SupplierDialog({
   supplier,
   start,

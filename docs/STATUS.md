@@ -11,7 +11,7 @@ _Last updated: 2026-10-17 (receipt lines as a spreadsheet grid, D-173; P3-T14 dr
 - **P2-T13 / D-160:** load parts, draft BL per client, provisional PDF and driver-phone "Mes livraisons" are implemented
   on `load-per-client` / PR #160. CI identified a formatting issue in the corrected test; it is fixed, and CI must pass
   before merge.
-- **On main:** D-157/158 cover buying at the port from the office and phone; D-159 covers supplier debts, payments and
+- **On main:** D-175/158 cover buying at the port from the office and phone; D-159 covers supplier debts, payments and
   the supplier-paper photo. Staging checks for these and D-156's statement PDF remain.
 - **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmare.com, driver
   http://ch.fruttidelmare.com. Demo logins `owner` / `driver`; password is in `~/frutti-staging/.env` on the server.

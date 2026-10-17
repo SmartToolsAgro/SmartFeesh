@@ -496,7 +496,7 @@ class SupplierBalanceView(PurchasingView):
         return Response(SupplierBalanceSerializer(selectors.supplier_balance(self.organization, supplier.pk)).data)
 
 
-# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-175) ----
 # The office checks what a driver bought: owner and manager change, validate or refuse it; the accountant reads.
 
 

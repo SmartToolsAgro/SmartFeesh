@@ -2313,7 +2313,7 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   A PR that mixes docs and code runs everything.
 - Deploy to staging no longer waits for e2e: it already passed on the PR before the merge. A direct push to
   `main` (no PR) therefore deploys without e2e, so changes go through a PR.
-**D-157 · Buying at the port: a purchase is checked by the office before it counts (P3-T12a, Q28)** · accepted · 2026-10-15
+**D-175 · Buying at the port: a purchase is checked by the office before it counts (P3-T12a, Q28)** · accepted · 2026-10-15
 - **Owner request (Q28):** a driver buys from a fisherman or at the port, sends it from the phone, and the owner or the
   manager checks it. Only then do the stock, the supplier debt and the payment count. Split in three PRs: T12a office
   side (this one), T12b the phone screen, the "can buy" switch and the purchase float, T12c paying suppliers.
@@ -2370,9 +2370,9 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - **"Dettes fournisseurs"** (Achats › Dettes, `GET /supplier-debts`, office roles, managers too; the owner's supplier-balances report stays):
   per supplier what is still to pay on posted invoices, of which overdue and due within 7 days, the next due date and
   the advances it holds; biggest first, with a "Payer" button. Below, the cheques and traites given with a cashing
-  day (`SupplierPayment.cash_on`, D-157), from a week back on, soonest first; the total counts those still to cash.
+  day (`SupplierPayment.cash_on`, D-175), from a week back on, soonest first; the total counts those still to cash.
 - **A delivery owed at once:** the office receipt form has "Dû dès la réception" (checked by default) with the deal
-  of D-157 (comptant, N days, end of month + N days; 30 days proposed). Saving makes the BR and a posted FF for it,
+  of D-175 (comptant, N days, end of month + N days; 30 days proposed). Saving makes the BR and a posted FF for it,
   due by the deal, in one transaction (`services.receive_and_invoice`). Unchecked, the receipt waits for the
   supplier's invoice as in D-043. The payment form asks the cashing day of a cheque or a traite.
 - **Monthly settlement:** the statement dialog (D-156) gets "Le mois dernier" and "Ce mois-ci": the paper to agree on
@@ -2445,21 +2445,6 @@ client's record but may be changed on this BL only.
   while the table scrolls (price board). The sale, quote and counter-sale grids show, under the product, the places holding
   it and its open partnership (coloured). A transfer goes from a cold room or a truck into a truck, never into itself.
   The lot page no longer shows the stock tabs. The month closing opens on the current month.
-**D-161 · After a load is validated, the page offers each client's BL and fiche (P2-T13)** · accepted · 2026-10-17
-- The validated load page shows a banner and, on each client card, "Imprimer le bon" (the draft BL, D-160) and "Fiche client"
-  (the customer statement PDF of D-156 up to today, which includes the BL's sale once the draft exists). No new endpoint.
-- **"Tout imprimer"** (`GET /reports/load-print-pack/<transfer>/pdf`): one PDF, for each client their BL (provisional or
-  confirmed) then their statement up to today, each document starting on its own page (WeasyPrint pages joined in
-  `documents.rendering.htmls_to_pdf`). Made on the spot, not stored.
-
-**D-162 · "Journées des chauffeurs" opens on a live follow-up of each driver's day** · accepted · 2026-10-17
-- The page has two tabs: "Suivi des chauffeurs" (default) and "Clôtures à vérifier" (the former page, unchanged). The follow-up
-  lists every driver day, running or sent, as a card (money expected in hand, sales, expenses, deliveries done/to do), filtered
-  by driver, truck and dates (default today). A card opens the day: money line by line, the load's BL (draft = to deliver,
-  confirmed = delivered), road sales, customer payments, expenses and the truck's stock.
-- Endpoints (office roles, read-only): `GET /day-overview`, `/day-overview/<day id>`, `/day-overview/drivers`. Figures are
-  `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
-  is the day. `phase` = `running` or the closing status.
 
 **D-170 · Each check of the month closing opens a dialog saying what to do** · accepted · 2026-10-17
 - On "Clôture du mois", a check label is a button: the dialog gives the instruction, the number left (and amount), and a link

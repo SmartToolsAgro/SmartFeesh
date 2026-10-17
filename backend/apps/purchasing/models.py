@@ -281,7 +281,7 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     method = models.CharField(max_length=20, choices=PaymentMethod.choices)
     # Cheque or bill number, transfer reference.
     reference = models.CharField(max_length=50, blank=True)
-    # The day a cheque or a traite may be cashed (post-dated); empty when it is paid at once (D-157).
+    # The day a cheque or a traite may be cashed (post-dated); empty when it is paid at once (D-175).
     cash_on = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
@@ -341,7 +341,7 @@ class DocumentCounter(OrganizationScopedModel):
         return f"{self.organization} · {self.kind} · {self.year} · {self.last_number}"
 
 
-# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-175) ----
 
 
 class FieldPurchaseStatus(models.TextChoices):
@@ -370,7 +370,7 @@ def paper_path(purchase: "FieldPurchase", filename: str) -> str:
 
 
 class FieldPurchase(OrganizationScopedModel, TimeStampedModel):
-    """Goods a driver bought from a fisherman or at the port, sent from the phone to be checked (D-157).
+    """Goods a driver bought from a fisherman or at the port, sent from the phone to be checked (D-175).
 
     Nothing counts until the owner or the manager validates it: then a goods receipt puts the kg really received
     in stock, a posted supplier invoice records what is owed for them, and each sum given at the port becomes a

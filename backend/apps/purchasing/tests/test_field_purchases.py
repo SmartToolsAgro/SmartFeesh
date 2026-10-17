@@ -1,4 +1,4 @@
-"""Buying at the port, the "achat terrain" (P3-T12a, D-157): sent by a driver, checked and validated by the office."""
+"""Buying at the port, the "achat terrain" (P3-T12a, D-175): sent by a driver, checked and validated by the office."""
 
 import datetime as dt
 from decimal import Decimal

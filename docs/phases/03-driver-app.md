@@ -115,7 +115,7 @@ Moved here from the Phase 8 backlog (Q13: printed and digital receipts, Android 
 - [x] Driver picks a customer (with what they owe), types the cash received, saves; offline-safe (D-111).
 - [x] The payment is allocated to the customer's oldest open sales (the P2-T06 service) and counted in the day's expected cash.
 
-### P3-T12 · Buying at the port (achat terrain) · L → split into T12a to T12c, in this order (added 2026-10-15, D-157, Q28)
+### P3-T12 · Buying at the port (achat terrain) · L → split into T12a to T12c, in this order (added 2026-10-15, D-175, Q28)
 A driver buys from a fisherman or at the port, sends it from the phone; the owner or the manager checks it; only then
 do the stock, the supplier debt and the payment count.
 

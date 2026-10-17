@@ -250,7 +250,7 @@ function AppRoutes() {
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
         <Route path="/achats/bons/nouveau" element={<PurchaseOrderFormPage />} />
         <Route path="/achats/bons/:orderId" element={<PurchaseOrderDetailPage />} />
-        {/* Buying at the port (P3-T12a, D-157) */}
+        {/* Buying at the port (P3-T12a, D-175) */}
         <Route path="/achats/terrain" element={<FieldPurchasesPage />} />
         <Route path="/achats/terrain/nouveau" element={<FieldPurchaseNewPage />} />
         <Route path="/achats/terrain/:purchaseId" element={<FieldPurchasePage />} />

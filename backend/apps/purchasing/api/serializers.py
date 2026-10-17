@@ -495,7 +495,7 @@ class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
     amount = serializers.CharField(allow_blank=True)
     method = serializers.ChoiceField(choices=PaymentMethod.choices)
     reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
-    # The day a post-dated cheque or a traite may be cashed (D-157).
+    # The day a post-dated cheque or a traite may be cashed (D-175).
     cash_on = serializers.DateField(required=False, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     allocations = AllocationWriteSerializer(many=True, required=False, default=list)
@@ -532,7 +532,7 @@ class SupplierBalanceSerializer(serializers.Serializer[Any]):
     uninvoiced_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
-# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-175) ----
 
 
 class NamedRefSerializer(serializers.Serializer[Any]):
