@@ -2,11 +2,13 @@ from decimal import Decimal
 from typing import Any
 
 from django.db.models import QuerySet
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.models import Organization, User
+from apps.fleet import selectors
 from apps.fleet.models import DriverDay, Truck, TruckAssignment, TruckCondition
 
 
@@ -25,11 +27,31 @@ class DriverRefSerializer(serializers.ModelSerializer[User]):
 class TruckSerializer(serializers.ModelSerializer[Truck]):
     name = serializers.CharField(source="location.name", read_only=True)
     driver = DriverRefSerializer(read_only=True, allow_null=True)
+    # Who has the truck today, not who usually drives it (see `selectors.drivers_of_day`).
+    driver_today = serializers.SerializerMethodField()
 
     class Meta:
         model = Truck
-        fields = ("id", "name", "plate", "driver", "location_id", "is_active", "condition", "updated_at")
+        fields = (
+            "id",
+            "name",
+            "plate",
+            "driver",
+            "driver_today",
+            "location_id",
+            "is_active",
+            "condition",
+            "updated_at",
+        )
         read_only_fields = fields
+
+    @extend_schema_field(DriverRefSerializer(allow_null=True))
+    def get_driver_today(self, truck: Truck) -> dict[str, Any] | None:
+        drivers: dict[int, User] | None = self.context.get("drivers_today")
+        if drivers is None:
+            drivers = selectors.drivers_of_day(truck.organization, timezone.localdate())
+        driver = drivers.get(truck.id) if truck.is_active else None
+        return DriverRefSerializer(driver).data if driver else None
 
 
 @extend_schema_field(OpenApiTypes.INT)

@@ -7,7 +7,7 @@ from typing import Any, Literal
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from apps.core.models import Membership, Organization, Role
+from apps.core.models import Membership, Organization, Role, User
 from apps.core.session import TruckRef
 
 from .models import DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
@@ -62,6 +62,25 @@ def day_on_truck_of_another(
         .exclude(driver_id=driver_id)
         .first()
     )
+
+
+def drivers_of_day(organization: Organization, day: date_type) -> dict[int, User]:
+    """Who really has each truck on a day, by truck id: the driver who started the day on it (a running day
+    before a sent one), else the driver assigned to it that day. The usual driver is not counted: it says who
+    normally drives the truck, not who has it now. A truck nobody has is missing."""
+    found: dict[int, User] = {}
+    days = (
+        DriverDay.objects.for_organization(organization)
+        .filter(date=day)
+        .select_related("driver")
+        .order_by("-ended_at", "id")  # running days (no end) sort first on PostgreSQL
+    )
+    for driver_day in days:
+        found.setdefault(driver_day.truck_id, driver_day.driver)
+    for assignment in assignments_on(organization, day):
+        if assignment.driver is not None:
+            found.setdefault(assignment.truck_id, assignment.driver)
+    return found
 
 
 def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truck | None:

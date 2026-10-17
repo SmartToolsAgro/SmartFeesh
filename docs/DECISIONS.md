@@ -2461,6 +2461,10 @@ client's record but may be changed on this BL only.
   `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
   is the day. `phase` = `running` or the closing status.
 
+**D-168 · The truck cards show who really has the truck today, not who usually drives it** · accepted · 2026-10-17
+- `GET /trucks` adds `driver_today` (`selectors.drivers_of_day`): the driver who started today's day on the truck, else
+  today's assignment. The usual driver is not counted (owner, 2026-10-17: real activity only); `driver` stays the usual
+  driver for the truck form. A truck in maintenance or breakdown shows that state, not "Sans chauffeur aujourd'hui".
 **D-164 · The driver's phone sends GPS points while the day runs (P3-T13a)** · accepted · 2026-10-17
 - Owner asked for live position, route and stop times on a map. The driver app stays a web app (PWA); the native wrapper with
   background tracking (Capacitor, "A2") is skipped for now, so the route has gaps when the screen is off or the app is closed.
