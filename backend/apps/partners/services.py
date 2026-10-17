@@ -394,6 +394,31 @@ def set_customer_active(*, customer: Customer, actor: User | None, is_active: bo
 
 
 @transaction.atomic
+@transaction.atomic
+def set_customer_location(
+    *, customer: Customer, actor: User | None, latitude: Decimal | None, longitude: Decimal | None
+) -> Customer:
+    """Save where a customer is (D-168), from a stop of a driver's route; both empty forget it. The walk-in
+    customer has no place."""
+    if (latitude is None) != (longitude is None):
+        raise ValidationError({"latitude": _("Indiquez la latitude et la longitude, ou aucune des deux.")})
+    customer = Customer.objects.select_for_update().get(pk=customer.pk)
+    if customer.is_walk_in:
+        raise ValidationError({"detail": _("Le client de passage n'a pas d'adresse sur la carte.")})
+    before = {"latitude": str(customer.latitude), "longitude": str(customer.longitude)}
+    customer.latitude, customer.longitude = latitude, longitude
+    customer.save(update_fields=["latitude", "longitude", "updated_at"])
+    audit.record(
+        organization=customer.organization,
+        actor=actor,
+        action="customer.location_set",
+        target=customer,
+        before=before,
+        after={"latitude": str(latitude), "longitude": str(longitude)},
+    )
+    return customer
+
+
 def ensure_walk_in_customer(*, organization: Organization, actor: User | None = None) -> Customer:
     """The organization's "Client de passage" record, created when missing (counter sales, P2-T04).
 

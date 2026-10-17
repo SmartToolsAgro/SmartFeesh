@@ -2518,3 +2518,10 @@ client's record but may be changed on this BL only.
 - **Owner decision (2026-10-17):** cash paid at the port beyond the purchase money and beyond the sales cash in hand was
   paid by the driver out of pocket. `day_summary` has `owed_to_driver` ("à lui rembourser"); `expected_cash` no longer
   goes below zero for it, so counting 0 is no écart. Nothing records the reimbursement yet; it is only shown.
+
+**D-168 · A customer's place on the map, saved from a stop of the route (P3-T13d)** · accepted · 2026-10-17
+- `Customer.latitude/longitude` (both or neither). The office (owner or manager) saves them with a button on a stop of the route
+  ("Enregistrer ce lieu") for a customer served at that stop: `PUT /customers/<id>/location` (audited, empty values forget it).
+  Nothing is learned silently: a wrong sale time could otherwise put a customer at the wrong place.
+- A stop within 75 m of a saved place is named after that customer, also when no sale was made there (`dayclose.day_route`); the
+  stop's customers are `{id, name, has_place}`.

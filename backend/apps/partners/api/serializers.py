@@ -88,6 +88,8 @@ class CustomerSerializer(serializers.ModelSerializer[Customer]):
             "address",
             "city",
             "notes",
+            "latitude",
+            "longitude",
             "credit_limit",
             "payment_terms_days",
             "contacts",
@@ -142,3 +144,9 @@ class CustomerChoiceSerializer(serializers.Serializer[Any]):
     is_walk_in = serializers.BooleanField(read_only=True)
     # What they owe now in DT ("0.000" when nothing).
     owes = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class CustomerLocationSerializer(serializers.Serializer[Any]):
+    # Both empty forget the place.
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90, allow_null=True)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-180, max_value=180, allow_null=True)

@@ -75,3 +75,12 @@ def customers_of(
 def customer_of(organization: Organization, customer_id: int) -> Customer:
     """One customer with its contacts. Raises Customer.DoesNotExist outside the organization."""
     return customers_of(organization, status="all").get(pk=customer_id)
+
+
+def customer_places(organization: Organization) -> list[Customer]:
+    """The active customers whose place on the map is known (D-168)."""
+    return list(
+        Customer.objects.for_organization(organization).filter(
+            is_active=True, latitude__isnull=False, longitude__isnull=False
+        )
+    )

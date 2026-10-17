@@ -10,6 +10,7 @@ urlpatterns = [
     path("my-customers", views.MyCustomersView.as_view(), name="my-customers"),
     path("customers", views.CustomerListView.as_view(), name="customer-list"),
     path("customers/<int:customer_id>", views.CustomerDetailView.as_view(), name="customer-detail"),
+    path("customers/<int:customer_id>/location", views.CustomerLocationView.as_view(), name="customer-location"),
     path("customers/<int:customer_id>/archive", views.CustomerArchiveView.as_view(), name="customer-archive"),
     path("customers/<int:customer_id>/restore", views.CustomerRestoreView.as_view(), name="customer-restore"),
 ]

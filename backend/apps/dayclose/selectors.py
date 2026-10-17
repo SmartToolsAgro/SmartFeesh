@@ -14,6 +14,7 @@ from apps.core.models import Membership, Organization
 from apps.expenses import selectors as expenses
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
+from apps.partners import selectors as partners
 from apps.purchasing import selectors as purchasing
 from apps.sales import selectors as sales
 
@@ -326,6 +327,7 @@ def _sale_line(sale: Any) -> dict[str, Any]:
         "id": sale.pk,
         "number": sale.number,
         "status": sale.status,
+        "customer_id": sale.customer_id,
         "customer_name": sale.customer.name,
         "delivery_address": sale.delivery_address,
         "sold_at": sale.sold_at,
@@ -375,6 +377,7 @@ def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[st
             {
                 "id": p.pk,
                 "number": p.number,
+                "customer_id": p.customer_id,
                 "customer_name": p.customer.name,
                 "method": p.method,
                 "amount": p.amount,
@@ -550,21 +553,40 @@ def unexplained_cash_differences(organization: Organization) -> list[CashDiffere
 
 # A sale or payment made this long before or after a stop is put down to it.
 VISIT_MARGIN = dt.timedelta(minutes=10)
+# A stop this close to a customer's saved place is at that customer's (D-168).
+PLACE_RADIUS_M = 75.0
 
 
 def day_route(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """The route of a driver's day for the office map (D-167): the GPS points, the last position, and the stops
-    with how long the truck stayed and the customers served around them (sales and payments made then)."""
+    with how long the truck stayed and the customers around them: those served then (sales, deliveries and
+    payments made during the stop) and the one whose saved place is within 75 m (D-168). Each customer says
+    whether his place is saved, so the office can save it from the stop."""
     route = fleet.route_of_day(driver_day)
     activity = day_activity(organization, driver_day)
-    moments = [(sale["sold_at"], sale["customer_name"]) for sale in [*activity["sales"], *activity["deliveries"]]]
-    moments += [(payment["made_at"], payment["customer_name"]) for payment in activity["payments"]]
+    moments = [
+        (sale["sold_at"], sale["customer_id"], sale["customer_name"])
+        for sale in [*activity["sales"], *activity["deliveries"]]
+    ]
+    moments += [(p["made_at"], p["customer_id"], p["customer_name"]) for p in activity["payments"]]
+    places = partners.customer_places(organization)
+    placed = {customer.pk for customer in places}
     stops = fleet.stops_of_route(route["points"])
     for stop in stops:
-        names = [
-            name
-            for when, name in sorted(moments)
-            if stop["started_at"] - VISIT_MARGIN <= when <= stop["ended_at"] + VISIT_MARGIN
+        found: dict[int, str] = {}
+        nearest: tuple[float, int, str] | None = None
+        for customer in places:
+            gap = fleet.meters_between(
+                stop["latitude"], stop["longitude"], float(customer.latitude or 0), float(customer.longitude or 0)
+            )
+            if gap <= PLACE_RADIUS_M and (nearest is None or gap < nearest[0]):
+                nearest = (gap, customer.pk, customer.name)
+        if nearest is not None:
+            found[nearest[1]] = nearest[2]
+        for when, customer_id, name in sorted(moments, key=lambda moment: moment[0]):
+            if stop["started_at"] - VISIT_MARGIN <= when <= stop["ended_at"] + VISIT_MARGIN:
+                found.setdefault(customer_id, name)
+        stop["customers"] = [
+            {"id": customer_id, "name": name, "has_place": customer_id in placed} for customer_id, name in found.items()
         ]
-        stop["customers"] = list(dict.fromkeys(names))
     return {**route, "stops": stops}

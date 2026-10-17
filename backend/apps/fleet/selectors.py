@@ -11,7 +11,7 @@ from apps.core.models import Membership, Organization, Role, User
 from apps.core.session import TruckRef
 
 from .models import DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
-from .trail import stops_of
+from .trail import distance_m, stops_of
 
 type TruckStatus = Literal["active", "archived", "all"]
 
@@ -274,3 +274,8 @@ def route_of_day(driver_day: DriverDay) -> dict[str, Any]:
 def stops_of_route(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The stops of a route (see `trail.stops_of`): where the truck stayed 5 minutes or more."""
     return stops_of(points)
+
+
+def meters_between(lat_a: float, lng_a: float, lat_b: float, lng_b: float) -> float:
+    """Metres between two positions."""
+    return distance_m(lat_a, lng_a, lat_b, lng_b)
