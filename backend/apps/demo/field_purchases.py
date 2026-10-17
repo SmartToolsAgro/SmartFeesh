@@ -1,4 +1,4 @@
-"""Demo purchase at the port (D-175): what the driver bought from a Kerkennah fisherman this morning, to check.
+"""Demo purchase at the port (D-176): what the driver bought from a Kerkennah fisherman this morning, to check.
 
 Poulpe 18 kg × 28.000 and a fish not in the catalogue yet ("Pageot", 6.500 kg × 16.000) = 608.000 DT; 300 DT given
 in cash, the rest at 15 days. It waits in "Achats › À valider". Known by the supplier's paper number, so the seed

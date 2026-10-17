@@ -2313,7 +2313,7 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   A PR that mixes docs and code runs everything.
 - Deploy to staging no longer waits for e2e: it already passed on the PR before the merge. A direct push to
   `main` (no PR) therefore deploys without e2e, so changes go through a PR.
-**D-175 · Buying at the port: a purchase is checked by the office before it counts (P3-T12a, Q28)** · accepted · 2026-10-15
+**D-176 · Buying at the port: a purchase is checked by the office before it counts (P3-T12a, Q28)** · accepted · 2026-10-15
 - **Owner request (Q28):** a driver buys from a fisherman or at the port, sends it from the phone, and the owner or the
   manager checks it. Only then do the stock, the supplier debt and the payment count. Split in three PRs: T12a office
   side (this one), T12b the phone screen, the "can buy" switch and the purchase float, T12c paying suppliers.
@@ -2370,9 +2370,9 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
 - **"Dettes fournisseurs"** (Achats › Dettes, `GET /supplier-debts`, office roles, managers too; the owner's supplier-balances report stays):
   per supplier what is still to pay on posted invoices, of which overdue and due within 7 days, the next due date and
   the advances it holds; biggest first, with a "Payer" button. Below, the cheques and traites given with a cashing
-  day (`SupplierPayment.cash_on`, D-175), from a week back on, soonest first; the total counts those still to cash.
+  day (`SupplierPayment.cash_on`, D-176), from a week back on, soonest first; the total counts those still to cash.
 - **A delivery owed at once:** the office receipt form has "Dû dès la réception" (checked by default) with the deal
-  of D-175 (comptant, N days, end of month + N days; 30 days proposed). Saving makes the BR and a posted FF for it,
+  of D-176 (comptant, N days, end of month + N days; 30 days proposed). Saving makes the BR and a posted FF for it,
   due by the deal, in one transaction (`services.receive_and_invoice`). Unchecked, the receipt waits for the
   supplier's invoice as in D-043. The payment form asks the cashing day of a cheque or a traite.
 - **Monthly settlement:** the statement dialog (D-156) gets "Le mois dernier" and "Ce mois-ci": the paper to agree on

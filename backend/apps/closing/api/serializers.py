@@ -508,6 +508,6 @@ class DashboardSerializer(serializers.Serializer[Any]):
     # Partner lots whose capital and rates are still to fill in (D-100): the lot cannot close before.
     pending_terms = PendingTermsSerializer(many=True, read_only=True)
     pending_terms_count = serializers.IntegerField(read_only=True)
-    # Purchases at the port to check, and those of them waiting for more than 24 hours (D-175).
+    # Purchases at the port to check, and those of them waiting for more than 24 hours (D-176).
     field_purchases_waiting = serializers.IntegerField(read_only=True)
     field_purchases_late = serializers.IntegerField(read_only=True)

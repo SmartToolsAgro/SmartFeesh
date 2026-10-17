@@ -2,7 +2,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { OWNER_STATE } from "./owner";
 
-// Buying at the port (P3-T12a, D-175). The demo purchase from `manage.py seed_dev` waits to be checked; these tests type
+// Buying at the port (P3-T12a, D-176). The demo purchase from `manage.py seed_dev` waits to be checked; these tests type
 // their own purchase of Moules from Surgelés du Sahel (no other test counts those kilos or that supplier's balance), then
 // check it, save a revision and validate it.
 test.use({ storageState: OWNER_STATE });
