@@ -35,6 +35,7 @@ import { dueDateOn, lineAmount, purchaseTotals } from "./purchase";
 import { sendError } from "./sendError";
 import { sendOrKeep } from "./sendOrKeep";
 import { sendPurchase } from "./sendPurchase";
+import { StickyAction } from "./StickyAction";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
 
@@ -456,9 +457,11 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
 
       {purchase !== undefined && !online ? <p className="text-warn">{t("truck.purchase.needNetwork")}</p> : null}
       {error === "" ? null : <p className="text-bad">{error}</p>}
-      <Button size="lg" variant="primary" className="py-4 text-lg" disabled={!ready} onClick={() => void save()}>
-        {purchase ? t("truck.purchase.save") : t("truck.purchase.send")}
-      </Button>
+      <StickyAction>
+        <Button size="lg" variant="primary" className="py-4 text-lg" disabled={!ready} onClick={() => void save()}>
+          {purchase ? t("truck.purchase.save") : t("truck.purchase.send")}
+        </Button>
+      </StickyAction>
     </div>
   );
 }

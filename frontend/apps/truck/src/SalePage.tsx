@@ -21,6 +21,8 @@ import { useTruckStock } from "./myStock";
 import { PricesAsOf } from "./PriceNotice";
 import { enqueue, madeAtOf, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { ProductPhoto } from "./ProductPhoto";
+import { recentCustomerIds, rememberCustomer } from "./recentCustomers";
+import { StickyAction } from "./StickyAction";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
 
@@ -171,30 +173,24 @@ export function SalePage() {
               <PricesAsOf updatedAt={stock.dataUpdatedAt} />
               <ul className="divide-y divide-line">
                 {(stock.data ?? []).map((line) => (
-                  <li key={line.product_id} className="space-y-2 py-3">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-3">
-                        <ProductPhoto url={line.photo_url} name={line.product_name} />
-                        <span className="text-lg font-semibold">{line.product_name}</span>
-                      </span>
-                      <span className="text-sm text-ink-2">
+                  <li key={line.product_id} className="flex items-center gap-3 py-2.5">
+                    <ProductPhoto url={line.photo_url} name={line.product_name} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-lg font-semibold">{line.product_name}</span>
+                      <span className="block text-sm text-ink-2">
                         {t("truck.sale.left", { kg: formatQuantity(available(line).toFixed(3)) })}
+                        {line.unit_price === null ? null : ` · ${formatMoney(line.unit_price)} / kg`}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        inputMode="decimal"
-                        aria-label={line.product_name}
-                        placeholder="0"
-                        className="text-xl"
-                        value={kilos[line.product_id] ?? ""}
-                        onChange={(event) => setKilos({ ...kilos, [line.product_id]: event.target.value })}
-                      />
-                      <span className="shrink-0 text-lg font-semibold">kg</span>
-                    </div>
-                    {line.unit_price === null ? null : (
-                      <p className="text-sm text-ink-2">{formatMoney(line.unit_price)} / kg</p>
-                    )}
+                    </span>
+                    <Input
+                      inputMode="decimal"
+                      aria-label={line.product_name}
+                      placeholder="0"
+                      className="w-24 text-end text-xl"
+                      value={kilos[line.product_id] ?? ""}
+                      onChange={(event) => setKilos({ ...kilos, [line.product_id]: event.target.value })}
+                    />
+                    <span className="w-6 flex-none text-lg font-semibold">kg</span>
                   </li>
                 ))}
               </ul>
@@ -206,22 +202,24 @@ export function SalePage() {
             <BoxCountInputs inputs={boxInputs} onChange={setBoxInputs} />
             {boxCounts === null ? <p className="text-bad">{t("truck.boxes.invalidCount")}</p> : null}
           </Card>
-          <Card className="space-y-3">
-            <p className="flex items-baseline justify-between">
-              <span>{t("truck.sale.total")}</span>
-              <span className="text-2xl font-bold">{formatMoney(totalText)}</span>
-            </p>
-            <Button
-              size="lg"
-              variant="primary"
-              className="py-4 text-lg"
-              disabled={lines.length === 0 || overstock || boxCounts === null}
-              onClick={() => setStep("pay")}
-            >
-              {t("truck.sale.next")}
-            </Button>
+          <StickyAction>
             {overstock ? <p className="text-bad">{t("truck.sale.notEnough")}</p> : null}
-          </Card>
+            <div className="flex items-center justify-between gap-3">
+              <p className="flex flex-col">
+                <span className="text-sm text-ink-2">{t("truck.sale.total")}</span>
+                <span className="text-2xl font-bold">{formatMoney(totalText)}</span>
+              </p>
+              <Button
+                size="lg"
+                variant="primary"
+                className="w-auto flex-none px-6 py-3 text-lg"
+                disabled={lines.length === 0 || overstock || boxCounts === null}
+                onClick={() => setStep("pay")}
+              >
+                {t("truck.sale.next")}
+              </Button>
+            </div>
+          </StickyAction>
         </>
       ) : (
         <Card className="space-y-4">
@@ -273,7 +271,16 @@ export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) =>
   const [adding, setAdding] = useState(false);
   const online = useOnline();
   const customers = useListMyCustomers({ search: search.trim() });
-  if (adding) return <NewCustomerForm onAdded={onPick} onCancel={() => setAdding(false)} />;
+  // A customer picked goes to the top of the recent list (D-168).
+  const pick = (customer: CustomerChoice) => {
+    rememberCustomer(customer.id);
+    onPick(customer);
+  };
+  if (adding) return <NewCustomerForm onAdded={pick} onCancel={() => setAdding(false)} />;
+  // While nothing is typed, the customers sold to most recently come first.
+  const all = customers.data ?? [];
+  const recent = search.trim() === "" ? recentCustomerIds().flatMap((id) => all.filter((one) => one.id === id)) : [];
+  const others = all.filter((customer) => !recent.includes(customer));
   return (
     <div className="space-y-3">
       <h2>{t("truck.sale.whoFor")}</h2>
@@ -285,23 +292,42 @@ export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) =>
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
-      {(customers.data ?? []).map((customer) => (
-        <Button
-          key={customer.id}
-          size="lg"
-          variant={customer.is_walk_in ? "secondary" : "primary"}
-          className="flex-col py-4 text-xl"
-          onClick={() => onPick(customer)}
-        >
-          <span>{customer.name}</span>
-          {customer.city === "" ? null : <span className="text-sm font-normal">{customer.city}</span>}
-        </Button>
+      {recent.length > 0 ? <p className="text-sm font-semibold text-ink-2">{t("truck.sale.recent")}</p> : null}
+      {recent.map((customer) => (
+        <CustomerButton key={customer.id} customer={customer} onPick={pick} />
+      ))}
+      {recent.length > 0 && others.length > 0 ? (
+        <p className="text-sm font-semibold text-ink-2">{t("truck.sale.others")}</p>
+      ) : null}
+      {others.map((customer) => (
+        <CustomerButton key={customer.id} customer={customer} onPick={pick} />
       ))}
       <Button size="lg" className="py-4 text-lg" disabled={!online} onClick={() => setAdding(true)}>
         {t("truck.newCustomer.button")}
       </Button>
       {online ? null : <p className="text-sm text-ink-2">{t("truck.newCustomer.needNetwork")}</p>}
     </div>
+  );
+}
+
+// One customer on one line: the name, and the city when there is one.
+function CustomerButton({
+  customer,
+  onPick,
+}: {
+  customer: CustomerChoice;
+  onPick: (customer: CustomerChoice) => void;
+}) {
+  return (
+    <Button
+      size="lg"
+      variant={customer.is_walk_in ? "secondary" : "primary"}
+      className="justify-between py-3 text-lg"
+      onClick={() => onPick(customer)}
+    >
+      <span className="min-w-0 truncate">{customer.name}</span>
+      {customer.city === "" ? null : <span className="flex-none text-sm font-normal">{customer.city}</span>}
+    </Button>
   );
 }
 

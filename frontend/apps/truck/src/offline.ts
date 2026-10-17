@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { forgetPriceWatch } from "./priceWatch";
 import { forgetPurchaseWatch } from "./purchaseWatch";
+import { forgetRecentCustomers } from "./recentCustomers";
 
 /** True while the phone has a connection. */
 export function useOnline(): boolean {
@@ -30,6 +31,7 @@ export function registerServiceWorker(): void {
 export async function forgetSavedData(): Promise<void> {
   forgetPriceWatch();
   forgetPurchaseWatch();
+  forgetRecentCustomers();
   if (!("caches" in window)) return;
   const names = await caches.keys();
   await Promise.all(names.filter((name) => name.startsWith("frutti-truck-data")).map((name) => caches.delete(name)));

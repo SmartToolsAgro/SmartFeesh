@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { closingGate } from "./closingGate";
 import { useOnline } from "./offline";
 import { useQueue } from "./queue";
+import { StickyAction } from "./StickyAction";
 import { sendWaiting, useSyncProblem } from "./sync";
 
 const millimes = (value: string) => Math.round(Number(value) * 1000);
@@ -292,6 +293,10 @@ export function DayReport({
           ) : !online ? (
             <p className="text-warn">{t("truck.closing.needNetwork")}</p>
           ) : null}
+        </Card>
+      )}
+      {locked ? null : (
+        <StickyAction>
           <Button
             size="lg"
             variant="primary"
@@ -303,7 +308,7 @@ export function DayReport({
           >
             {t("truck.closing.send")}
           </Button>
-        </Card>
+        </StickyAction>
       )}
     </div>
   );

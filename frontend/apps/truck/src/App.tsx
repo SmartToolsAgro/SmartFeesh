@@ -134,6 +134,7 @@ function Shell({ session }: { session: Session }) {
     <TruckShell
       tabs={tabs}
       logoUrl={session.organization.logo_url}
+      leading={location.pathname === "/" ? undefined : <BackToDay />}
       eyebrow={session.truck?.name ?? session.organization.name}
       title={t("truck.hello", { name: session.user.first_name || session.user.username })}
       onLogout={() => {
@@ -142,10 +143,9 @@ function Shell({ session }: { session: Session }) {
         logout.mutate();
       }}
     >
-      <LanguageSwitch className="mb-3 self-end" />
       <OfflineBanner />
       {(tracking === "denied" || tracking === "unavailable") && (
-        <p role="status" className="mb-4 rounded-control bg-warn-soft px-3 py-2 text-warn">
+        <p role="status" className="rounded-control bg-warn-soft px-3 py-2 text-warn">
           {t(`truck.tracking.${tracking}`)}
         </p>
       )}
@@ -156,7 +156,7 @@ function Shell({ session }: { session: Session }) {
       <ScreenError resetKey={location.pathname}>
         <Outlet />
       </ScreenError>
-      <BackToDay pathname={location.pathname} />
+      <LanguageSwitch className="mt-2 self-center" />
     </TruckShell>
   );
 }

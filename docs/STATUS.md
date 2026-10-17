@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 is on main)_
+_Last updated: 2026-10-17 (P3-T14 driver app with less scrolling, D-168; client-by-client truck loads, P2-T13 / D-160)_
 
 ## Where we are
 
@@ -20,6 +20,8 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
   One branch and one PR per task; merge only after CI passes.
 
 - **D-161 (PR load-print-fiche):** the validated load page has a banner and a "Fiche client" button per client.
+- **P3-T14 / D-168 (branch p3-driver-day-density):** the driver app scrolls less (tiles, folding cards, sticky main
+  action, back link in the header, recent customers). CI must pass before merge; then check on staging with a phone.
 
 - **D-162 (PR #163):** Journées des chauffeurs has a live follow-up tab per driver, truck and day; awaits CI, then check on staging.
 - **D-163 (PR #164, branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
@@ -33,7 +35,7 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
    supplier-paper photo); check D-158 with a real phone (port purchase, office decision notice and closing money).
 3. Check D-156's customer and supplier statement PDFs by eye.
 4. Phase 3 order: P3-T10 printing spike (real Android/iPhone and printer), P3-T09 Arabic and RTL review, P3-T08
-   one-week field test.
+   one-week field test. P3-T14 (D-168) gets a phone check on staging before the field test.
 
 ## Open owner decisions
 

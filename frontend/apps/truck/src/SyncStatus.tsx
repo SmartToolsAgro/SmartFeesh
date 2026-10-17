@@ -16,7 +16,7 @@ export function SyncStatus() {
   const refused = queue.filter((item) => item.status === "refused");
   if (queue.length === 0) return null;
   return (
-    <div className="mb-4 space-y-2" role="status">
+    <div className="space-y-2" role="status">
       {waiting.length > 0 && (
         <p className="rounded-control bg-sea-soft px-3 py-2 text-sea">
           {t("truck.sync.waiting", { count: waiting.length })}

@@ -21,7 +21,7 @@ export function PriceNotice() {
     return t("truck.prices.removed", { product: change.productName });
   };
   return (
-    <Card role="alert" className="mb-4 space-y-3 border-warn">
+    <Card role="alert" className="space-y-3 border-warn">
       <p className="font-semibold">{t("truck.prices.title")}</p>
       <ul className="space-y-2">
         {notices.map((change) => (

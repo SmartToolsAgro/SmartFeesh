@@ -27,27 +27,27 @@ export function TodayAtAGlance({ enabled }: { enabled: boolean }) {
   const waitingSales = queue.filter((item: QueuedItem) => item.kind === "sale").length;
 
   return (
-    <Card className="space-y-3">
+    <Card className="space-y-2 p-4">
       <h2>{t("truck.glance.title")}</h2>
-      <dl className="grid grid-cols-2 gap-3">
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
         <div>
           <dt className="text-sm text-ink-2">{t("truck.glance.sales")}</dt>
-          <dd className="text-xl font-bold">
+          <dd className="text-lg font-bold">
             {t("truck.glance.salesCount", { count: day.sales_count })}
             <span className="block text-base font-normal text-ink-2">{formatMoney(day.sales_total)}</span>
           </dd>
         </div>
         <div>
           <dt className="text-sm text-ink-2">{t("truck.glance.cash")}</dt>
-          <dd className="text-xl font-bold">{formatMoney(day.expected_cash)}</dd>
+          <dd className="text-lg font-bold">{formatMoney(day.expected_cash)}</dd>
         </div>
         <div>
           <dt className="text-sm text-ink-2">{t("truck.glance.expenses")}</dt>
-          <dd className="text-xl font-bold">{formatMoney(day.expenses_total)}</dd>
+          <dd className="text-lg font-bold">{formatMoney(day.expenses_total)}</dd>
         </div>
         <div>
           <dt className="text-sm text-ink-2">{t("truck.glance.kilos")}</dt>
-          <dd className="text-xl font-bold">{formatQuantity((leftMillimes / 1000).toFixed(3))}</dd>
+          <dd className="text-lg font-bold">{formatQuantity((leftMillimes / 1000).toFixed(3))}</dd>
         </div>
       </dl>
       {waitingSales > 0 ? (

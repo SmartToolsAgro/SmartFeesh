@@ -3911,6 +3911,8 @@ export const fr = {
   truck: {
     deliveries: {
       open: "Mes livraisons",
+      summary_one: "{{count}} produit · {{total}}",
+      summary_other: "{{count}} produits · {{total}}",
       title: "Livraisons du chargement",
       empty: "Aucune livraison à faire",
       emptyBody: "Les bons préparés avec le chargement du camion apparaissent ici, un par client.",
@@ -3934,6 +3936,8 @@ export const fr = {
     sale: {
       needTruck: "Choisissez d'abord votre camion dans « Ma journée ».",
       whoFor: "Pour quel client ?",
+      recent: "Récents",
+      others: "Autres clients",
       search: "Chercher un client",
       customer: "Client",
       change: "Changer",
@@ -4189,6 +4193,8 @@ export const fr = {
     },
     day: {
       yourTruck: "Votre camion aujourd'hui",
+      loadSummary_one: "{{count}} produit · {{kg}} kg",
+      loadSummary_other: "{{count}} produits · {{kg}} kg",
       noTruck: "Pas de camion aujourd'hui",
       noTruckBody: "Aucun camion n'est disponible. Appelez le bureau.",
       pickTruck: "Quel camion prenez-vous aujourd'hui ?",

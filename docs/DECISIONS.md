@@ -2486,6 +2486,25 @@ client's record but may be changed on this BL only.
   the customers whose sale, delivery or payment was made from 10 min before to 10 min after the stop (`dayclose.day_route`).
 - Customer coordinates are not stored yet (T13d): a stop is named by the sales made then, not by distance to a known place.
 
+**D-168 · The driver's phone scrolls less (P3-T14)** · accepted · 2026-10-17
+- Ma journée: while the day is not started, the cash form sits right under the truck card; the day's menu is a
+  two-column grid of tiles (the history is one of them), not eight full-width buttons. The load and the boxes are
+  folding cards (`FoldCard`): the load opens, the boxes stay closed; each shows a summary line (products and kilos,
+  or boxes). The four stats are one compact card.
+- Header: smaller (one-line title, logo 40 px). "Retour à Ma journée" moved from under each screen's content (the
+  rule of D-090's follow-up) into the header, in the logo's place, so it is always in view. The language switch moved
+  from the top of every screen to its bottom.
+- Notices (offline, price changes, purchase decisions, sending) stay visible until they are acknowledged; only their
+  extra margins went. Not folded into one panel: the price and purchase alerts need an answer from the driver.
+- The main action stays on screen (`StickyAction`): the sale's total with "Suivant", the purchase's save, the day's
+  closing send.
+- Sale: one line per product (name, kilos left and price, the kilo input). Customers: the last five sold to come first
+  under "Récents", kept only on this phone (localStorage), cleared at logout; the other customers follow, one line each.
+- Deliveries: each client folds; the client, the product count and the total show when closed, the lines and the
+  confirm button inside.
+- Not changed: the API, the stored data and every rule for sales, closings, stock and purchases. New texts have
+  French and Arabic keys; the Arabic is provisional (D-103). Whether the folds and tiles read well with a driver's
+  hands and in the sun is for the field test (P3-T08).
 **D-169 · The monthly closing checks the drivers' days; an out-of-pocket purchase is owed back, not a gap** · accepted · 2026-10-17
 - The checks `cash_differences` and `driver_days_closed` were stubs (always OK, "Pas encore suivi"). Now
   `dayclose.selectors.period_days` feeds them: `driver_days_closed` counts past days whose closing was never sent (or

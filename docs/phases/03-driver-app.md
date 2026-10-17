@@ -155,3 +155,12 @@ do the stock, the supplier debt and the payment count.
 - [x] T13c · Stops (5 min within 50 m), time spent at each, orange pins and a stop list on the day page, with the
       customers served around each stop (by sale/payment time).
 - [ ] T13d · Store each customer's coordinates (learned from the stops) to name a stop by place, not by time.
+
+**P3-T14 · Less scrolling on the phone (D-168) · M** _(from the owner's note of 2026-10-17: quick wins and medium items)_
+- [x] Ma journée: the start-of-day form right under the truck card until the day starts; the menu as a two-column tile grid.
+- [x] Load and boxes as folding cards with a summary line; the four stats in one compact card.
+- [x] Shorter header; "Retour à Ma journée" in the header instead of under each screen; the language switch at the bottom.
+- [x] The main action stays on screen: sale total and "Suivant", purchase save, closing send.
+- [x] Sale: one line per product; recent customers first (kept on the phone, cleared at logout); one line per customer.
+- [x] Deliveries: each client folds; the confirm button sits inside its fold.
+- [ ] Check on a real phone with a driver (with P3-T08): the folds and tiles read well, the sticky bar hides no field.

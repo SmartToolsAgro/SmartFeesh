@@ -4,21 +4,15 @@ import { expect, test } from "vitest";
 
 import { BackToDay } from "./BackToDay";
 
-function markup(pathname: string): string {
+function markup(): string {
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={[pathname]}>
-      <BackToDay pathname={pathname} />
+    <MemoryRouter>
+      <BackToDay />
     </MemoryRouter>,
   );
 }
 
-test("every driver screen but Ma journée has a Retour button to Ma journée", () => {
-  for (const pathname of ["/cloture", "/stock", "/vente", "/depense", "/encaissement", "/perte", "/reprise"]) {
-    expect(markup(pathname), pathname).toContain('href="/"');
-    expect(markup(pathname), pathname).toContain("Retour à Ma journée");
-  }
-});
-
-test("Ma journée itself has no such button", () => {
-  expect(markup("/")).toBe("");
+test("the header's way back goes to Ma journée and says what it is", () => {
+  expect(markup()).toContain('href="/"');
+  expect(markup()).toContain('aria-label="Retour à Ma journée"');
 });
