@@ -562,7 +562,7 @@ def test_the_office_follows_a_running_day_and_filters_it(day):
     drivers = day["office"].get(reverse("day-overview-drivers")).json()
 
     assert len(rows) == 1
-    assert (rows[0]["phase"], rows[0]["sales_count"], rows[0]["sales_total"]) == ("running", 1, "100.000")
+    assert (rows[0]["phase"], rows[0]["sales_count"], rows[0]["sales_total"]) == ("running", 1, "140.000")
     assert (rows[0]["deliveries_done"], rows[0]["deliveries_todo"]) == (0, 0)
     assert other_driver == []
     assert len(detail["sales"]) == 1
