@@ -29,6 +29,8 @@ export const fr = {
     submitting: "Connexion…",
     tooManyAttempts: "Trop de tentatives. Réessayez dans une minute.",
     networkError: "Connexion impossible. Vérifiez le réseau puis réessayez.",
+    showPassword: "Afficher",
+    hidePassword: "Masquer",
   },
   roles: {
     owner: "Propriétaire",
