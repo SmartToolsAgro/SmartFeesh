@@ -3754,6 +3754,26 @@ export const fr = {
           cash_differences: "Écarts de caisse expliqués (application chauffeur, bientôt)",
           driver_days_closed: "Journées chauffeur clôturées (application chauffeur, bientôt)",
         },
+        todo: {
+          expenses_approved:
+            "Ouvrez les charges du mois, vérifiez chaque dépense en attente puis approuvez-la (ou corrigez-la) pour qu'elle compte dans le résultat.",
+          payroll_approved:
+            "Ouvrez les salaires du mois et approuvez chaque fiche de paie encore en brouillon : un salaire en brouillon n'est pas encore une charge.",
+          losses_decided:
+            "Ouvrez les pertes et faites décider chaque perte en attente par le propriétaire (accepter ou refuser). Tant qu'elle attend, le mois est bloqué.",
+          sales_confirmed:
+            "Ouvrez les ventes du mois et confirmez chaque vente en brouillon (ou supprimez-la). Un brouillon n'a pas encore quitté le stock.",
+          cogs_matches_ledger:
+            "Le coût des ventes diffère entre les ventes et le stock. Consultez les mouvements de stock du mois pour trouver la vente ou le retour concerné et signalez l'écart au propriétaire.",
+          cash_differences:
+            "Pas encore suivi automatiquement : ouvrez les journées des chauffeurs et vérifiez que chaque écart de caisse est expliqué.",
+          driver_days_closed:
+            "Pas encore suivi automatiquement : ouvrez les journées des chauffeurs et vérifiez que chaque journée du mois est envoyée.",
+        },
+        nothingToDo: "Rien à faire : ce contrôle est en ordre.",
+        remaining: "{{number}} à traiter",
+        goTo: "Ouvrir la page",
+        close: "Fermer",
       },
       reopen: {
         title: "Rouvrir le mois",
