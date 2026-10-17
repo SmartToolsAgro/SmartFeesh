@@ -88,7 +88,7 @@ function RouteCanvas({ points, stops }: { points: readonly RoutePoint[]; stops: 
     }
   }, [points, stops]);
 
-  return <div ref={container} className="h-[60vh] min-h-96 w-full overflow-hidden rounded-control" />;
+  return <div ref={container} className="h-[72dvh] min-h-96 w-full overflow-hidden rounded-control" />;
 }
 
 /** The customers of one stop; the owner or manager can save the stop as the place of a customer who has none. */

@@ -189,7 +189,7 @@ function DayDialog({ id }: { id: number }) {
   const d = day.data;
   const k = "admin.dayOverview.detail";
   return (
-    <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+    <DialogContent className="max-h-[96dvh] w-[min(1400px,calc(100vw-1.5rem))] max-w-none overflow-y-auto p-5">
       {d === undefined ? (
         <>
           <DialogTitle>{t("admin.dayClosings.title")}</DialogTitle>
