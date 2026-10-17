@@ -2518,3 +2518,9 @@ client's record but may be changed on this BL only.
 - **Owner decision (2026-10-17):** cash paid at the port beyond the purchase money and beyond the sales cash in hand was
   paid by the driver out of pocket. `day_summary` has `owed_to_driver` ("à lui rembourser"); `expected_cash` no longer
   goes below zero for it, so counting 0 is no écart. Nothing records the reimbursement yet; it is only shown.
+
+**D-172 · The "Produits reçus" lines of a receipt are a spreadsheet grid** · accepted · 2026-10-17
+- The client's XLS look (D-162) also applies to the new receipt form: the product lines are one table with a shaded
+  header row and bordered cells (product, ordered or remaining, invoiced, accepted, cost, amount, use-by, partner, remove),
+  not a card per line. Cells are borderless fields filling the cell; the last cost hint sits under the cost. The table
+  scrolls sideways on a phone instead of stacking each line.

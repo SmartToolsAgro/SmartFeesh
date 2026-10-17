@@ -34,6 +34,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Table,
+  Td,
+  Th,
+  cn,
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -61,6 +65,8 @@ type Line = Record<LineField, string> & {
   costTouched: boolean;
 };
 type Errors = Record<string, string>;
+// The line fields typed as kilos or money: each one is a cell of the lines table.
+type WeightField = "ordered_quantity" | "invoiced_quantity" | "accepted_quantity" | "unit_cost";
 
 // "No partner" in a line's partner select (a Radix item cannot have an empty value).
 const NO_PARTNER = "none";
@@ -90,6 +96,10 @@ const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 
 // "No purchase order" in the order select (a Radix item cannot have an empty value).
 const NO_ORDER = "none";
+
+// A product line is a row of a spreadsheet (D-162): its cells are borderless fields that fill the cell.
+const CELL_INPUT =
+  "block w-full rounded-none border-0 bg-transparent px-2.5 py-2 text-ink outline-none placeholder:text-ink-2/70 focus:bg-sea-soft focus:inset-ring-2 focus:inset-ring-sea aria-invalid:bg-bad-soft";
 
 /** The lines of a delivery against an order: what is still to come, at the agreed price. Most deliveries
  * arrive as agreed, so the weights start at the remaining weight and the person lowers what did not come. */
@@ -328,6 +338,46 @@ export function ReceiptFormPage() {
     </Field>
   );
 
+  const weightLabels: Record<WeightField, string> = {
+    ordered_quantity: t("admin.receipts.form.ordered"),
+    invoiced_quantity: t("admin.receipts.form.invoiced"),
+    accepted_quantity: t("admin.receipts.form.accepted"),
+    unit_cost: t("admin.receipts.form.cost"),
+  };
+
+  const cellError = (name: string) =>
+    errors[name] ? <p className="px-2.5 pb-1.5 text-[0.78rem] font-semibold text-bad">{errors[name]}</p> : null;
+
+  // The same choice as `select`, inside a spreadsheet cell: the column header is its label.
+  const cellSelect = (
+    name: string,
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    options: { value: string; label: string }[],
+  ) => (
+    <>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          id={id(name)}
+          aria-label={label}
+          aria-invalid={errors[name] ? true : undefined}
+          className={cn(CELL_INPUT, "flex items-center justify-between gap-2 text-start")}
+        >
+          <SelectValue placeholder={t("admin.receipts.form.choose")} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {cellError(name)}
+    </>
+  );
+
   return (
     <>
       <PageHeader eyebrow={t("admin.nav.purchases")} title={t("admin.receipts.form.title")} />
@@ -402,113 +452,140 @@ export function ReceiptFormPage() {
               {t("admin.receipts.form.orderHint")} ({order.number})
             </p>
           )}
-          {lines.map((line, index) => {
-            const hint = lastCostHint(line);
-            const amount = amounts[index]?.invoiced;
-            const weightInput = (field: LineField, label: string, onChange: (value: string) => void) => (
-              <Field label={label} htmlFor={id(lineKey(index, field))} error={errors[lineKey(index, field)]}>
-                <Input
-                  id={id(lineKey(index, field))}
-                  inputMode="decimal"
-                  value={field === "unit_cost" ? costOf(line) : line[field]}
-                  onChange={(event) => onChange(event.target.value)}
-                  aria-invalid={errors[lineKey(index, field)] ? true : undefined}
-                  autoComplete="off"
-                  className="num"
-                />
-              </Field>
-            );
-            return (
-              <div
-                key={line.key}
-                role="group"
-                aria-label={t("admin.receipts.form.lineNumber", { number: index + 1 })}
-                className="grid grid-cols-[2fr_repeat(4,1fr)_auto] items-start gap-3 rounded-card border border-line p-3 max-[960px]:grid-cols-2"
-              >
-                {select(
-                  lineKey(index, "product"),
-                  t("admin.receipts.form.product"),
-                  line.product,
-                  (value) => setLine(line.key, () => ({ product: value })),
-                  productOptions,
-                  "max-[960px]:col-span-2",
-                )}
+          <Table>
+            <thead>
+              <tr>
+                <Th>{t("admin.receipts.form.product")}</Th>
                 {order ? (
-                  <Field label={t("admin.receipts.form.remaining")} htmlFor={id(lineKey(index, "remaining"))}>
-                    <p id={id(lineKey(index, "remaining"))} className="num py-2.5 text-ink-2">
-                      {formatQuantity(orderLineOf(line.product)?.remaining_quantity ?? "0")}
-                    </p>
-                  </Field>
+                  <Th numeric>{t("admin.receipts.form.remaining")}</Th>
                 ) : (
-                  weightInput("ordered_quantity", t("admin.receipts.form.ordered"), (value) =>
-                    setLine(line.key, () => ({ ordered_quantity: value })),
-                  )
+                  <Th numeric>{t("admin.receipts.form.ordered")}</Th>
                 )}
-                {weightInput("invoiced_quantity", t("admin.receipts.form.invoiced"), (value) =>
-                  // Most deliveries are accepted as invoiced: the accepted weight follows until it is typed.
-                  setLine(line.key, (current) => ({
-                    invoiced_quantity: value,
-                    ...(current.acceptedTouched ? {} : { accepted_quantity: value }),
-                  })),
-                )}
-                {weightInput("accepted_quantity", t("admin.receipts.form.accepted"), (value) =>
-                  setLine(line.key, () => ({ accepted_quantity: value, acceptedTouched: true })),
-                )}
-                {weightInput("unit_cost", t("admin.receipts.form.cost"), (value) =>
-                  setLine(line.key, () => ({ unit_cost: value, costTouched: true })),
-                )}
-                <div className="flex items-end self-stretch max-[960px]:col-span-2 max-[960px]:justify-end">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("admin.receipts.form.removeLine")}
-                    title={t("admin.receipts.form.removeLine")}
-                    onClick={() => setLines((current) => current.filter((other) => other.key !== line.key))}
-                  >
-                    <Icon name="trash" />
-                  </Button>
-                </div>
-                <Field
-                  label={t("admin.receipts.form.useBy")}
-                  htmlFor={id(lineKey(index, "use_by"))}
-                  error={errors[lineKey(index, "use_by")]}
-                >
-                  <Input
-                    id={id(lineKey(index, "use_by"))}
-                    type="date"
-                    min={receivedOn}
-                    value={line.use_by}
-                    onChange={(event) => setLine(line.key, () => ({ use_by: event.target.value }))}
-                    aria-invalid={errors[lineKey(index, "use_by")] ? true : undefined}
-                  />
-                </Field>
-                {canWriteResults(session) &&
-                  select(
-                    lineKey(index, "partner"),
-                    t("admin.receipts.form.partner"),
-                    line.partner,
-                    (value) => setLine(line.key, () => ({ partner: value })),
-                    [
-                      { value: NO_PARTNER, label: t("admin.receipts.form.noPartner") },
-                      ...pickable(suppliers.data ?? [], [line.partner]).map((one) => ({
-                        value: String(one.id),
-                        label: String(one.id) === supplier ? t("admin.receipts.form.sameSupplier") : one.name,
+                <Th numeric>{t("admin.receipts.form.invoiced")}</Th>
+                <Th numeric>{t("admin.receipts.form.accepted")}</Th>
+                <Th numeric>{t("admin.receipts.form.cost")}</Th>
+                <Th numeric>{t("admin.receipts.form.amount")}</Th>
+                <Th>{t("admin.receipts.form.useBy")}</Th>
+                {canWriteResults(session) && <Th>{t("admin.receipts.form.partner")}</Th>}
+                <Th className="w-10">
+                  <span className="sr-only">{t("admin.receipts.form.removeLine")}</span>
+                </Th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line, index) => {
+                const hint = lastCostHint(line);
+                const amount = amounts[index]?.invoiced;
+                const weightCell = (
+                  field: WeightField,
+                  value: string,
+                  onChange: (value: string) => void,
+                  note?: string | null,
+                ) => (
+                  <Td className="p-0">
+                    <input
+                      id={id(lineKey(index, field))}
+                      inputMode="decimal"
+                      aria-label={weightLabels[field]}
+                      value={value}
+                      onChange={(event) => onChange(event.target.value)}
+                      aria-invalid={errors[lineKey(index, field)] ? true : undefined}
+                      autoComplete="off"
+                      className={cn(CELL_INPUT, "num text-end")}
+                    />
+                    {cellError(lineKey(index, field))}
+                    {note && (
+                      <p className="px-2.5 pb-1.5 text-[0.75rem] text-ink-2" aria-live="polite">
+                        {note}
+                      </p>
+                    )}
+                  </Td>
+                );
+                return (
+                  <tr key={line.key}>
+                    <Td className="p-0">
+                      {cellSelect(
+                        lineKey(index, "product"),
+                        t("admin.receipts.form.product"),
+                        line.product,
+                        (value) => setLine(line.key, () => ({ product: value })),
+                        productOptions,
+                      )}
+                    </Td>
+                    {order ? (
+                      <Td numeric className="text-ink-2">
+                        {formatQuantity(orderLineOf(line.product)?.remaining_quantity ?? "0")}
+                      </Td>
+                    ) : (
+                      weightCell("ordered_quantity", line.ordered_quantity, (value) =>
+                        setLine(line.key, () => ({ ordered_quantity: value })),
+                      )
+                    )}
+                    {weightCell("invoiced_quantity", line.invoiced_quantity, (value) =>
+                      // Most deliveries are accepted as invoiced: the accepted weight follows until it is typed.
+                      setLine(line.key, (current) => ({
+                        invoiced_quantity: value,
+                        ...(current.acceptedTouched ? {} : { accepted_quantity: value }),
                       })),
-                    ],
-                    "col-span-2 max-[960px]:col-span-2",
-                  )}
-                <p
-                  className={`self-end text-[0.85rem] text-ink-2 max-[960px]:col-span-2 ${canWriteResults(session) ? "col-span-2" : "col-span-4"}`}
-                  aria-live="polite"
-                >
-                  {hint}
-                </p>
-                <p className="num self-end text-end font-semibold max-[960px]:col-span-2">
-                  {amount ? formatMoney(amount) : ""}
-                </p>
-              </div>
-            );
-          })}
+                    )}
+                    {weightCell("accepted_quantity", line.accepted_quantity, (value) =>
+                      setLine(line.key, () => ({ accepted_quantity: value, acceptedTouched: true })),
+                    )}
+                    {weightCell(
+                      "unit_cost",
+                      costOf(line),
+                      (value) => setLine(line.key, () => ({ unit_cost: value, costTouched: true })),
+                      hint,
+                    )}
+                    <Td numeric className="font-semibold">
+                      {amount ? formatMoney(amount) : ""}
+                    </Td>
+                    <Td className="p-0">
+                      <input
+                        id={id(lineKey(index, "use_by"))}
+                        type="date"
+                        aria-label={t("admin.receipts.form.useBy")}
+                        min={receivedOn}
+                        value={line.use_by}
+                        onChange={(event) => setLine(line.key, () => ({ use_by: event.target.value }))}
+                        aria-invalid={errors[lineKey(index, "use_by")] ? true : undefined}
+                        className={CELL_INPUT}
+                      />
+                      {cellError(lineKey(index, "use_by"))}
+                    </Td>
+                    {canWriteResults(session) && (
+                      <Td className="p-0">
+                        {cellSelect(
+                          lineKey(index, "partner"),
+                          t("admin.receipts.form.partner"),
+                          line.partner,
+                          (value) => setLine(line.key, () => ({ partner: value })),
+                          [
+                            { value: NO_PARTNER, label: t("admin.receipts.form.noPartner") },
+                            ...pickable(suppliers.data ?? [], [line.partner]).map((one) => ({
+                              value: String(one.id),
+                              label: String(one.id) === supplier ? t("admin.receipts.form.sameSupplier") : one.name,
+                            })),
+                          ],
+                        )}
+                      </Td>
+                    )}
+                    <Td className="p-0 text-center">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t("admin.receipts.form.removeLine")}
+                        title={t("admin.receipts.form.removeLine")}
+                        onClick={() => setLines((current) => current.filter((other) => other.key !== line.key))}
+                      >
+                        <Icon name="trash" />
+                      </Button>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
           {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
           <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
             <Button onClick={() => setLines((current) => [...current, newLine()])}>
