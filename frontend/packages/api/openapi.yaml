@@ -147,6 +147,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/BatchSales'
           description: ''
+  /api/v1/boxes/adjustments:
+    post:
+      operationId: adjustBoxes
+      description: |-
+        Boxes bought (they come into a cold room or a truck) or lost or broken (they leave it, with the
+        reason). Owners and managers; a mistake is corrected by a new adjustment.
+      tags:
+      - boxes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoxAdjustmentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BoxAdjustmentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BoxAdjustmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoxMovement'
+          description: ''
   /api/v1/boxes/balances:
     get:
       operationId: listBoxBalances
@@ -306,6 +335,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ColdRoomMonth'
+          description: ''
+  /api/v1/cold-room-shares:
+    put:
+      operationId: updateColdRoomShares
+      description: |-
+        Set every active cold room's share of the electricity bill in %, adding up to 100 (owner only):
+        used by the bills approved from now on.
+      tags:
+      - cold-room-shares
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ColdRoomSharesWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ColdRoomSharesWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ColdRoomSharesWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ColdRoomWeight'
           description: ''
   /api/v1/cold-room-weights:
     get:
@@ -8961,6 +9021,37 @@ components:
     BlankEnum:
       enum:
       - ''
+    BoxAdjustmentWrite:
+      type: object
+      properties:
+        location:
+          type: integer
+          minimum: 1
+        box_type:
+          $ref: '#/components/schemas/BoxTypeEnum'
+        kind:
+          $ref: '#/components/schemas/BoxAdjustmentWriteKindEnum'
+        count:
+          type: integer
+          maximum: 100000
+          minimum: 1
+        reason:
+          type: string
+          default: ''
+          maxLength: 300
+      required:
+      - box_type
+      - count
+      - kind
+      - location
+    BoxAdjustmentWriteKindEnum:
+      enum:
+      - purchase
+      - write_off
+      type: string
+      description: |-
+        * `purchase` - purchase
+        * `write_off` - write_off
     BoxBalance:
       type: object
       description: Boxes of one type one holder has now. A supplier's count is what
@@ -9050,6 +9141,7 @@ components:
       - return
       - truck_return
       - write_off
+      - purchase
       type: string
       description: |-
         * `opening` - Stock initial
@@ -9060,6 +9152,7 @@ components:
         * `return` - Retour fournisseur
         * `truck_return` - Retour du camion en chambre froide
         * `write_off` - Casse ou perte
+        * `purchase` - Achat de caisses
     BoxTypeEnum:
       enum:
       - small
@@ -9499,6 +9592,25 @@ components:
       - location_name
       - month_amount
       - weight
+    ColdRoomShareWrite:
+      type: object
+      properties:
+        location_id:
+          type: integer
+        percent:
+          type: string
+      required:
+      - location_id
+      - percent
+    ColdRoomSharesWrite:
+      type: object
+      properties:
+        shares:
+          type: array
+          items:
+            $ref: '#/components/schemas/ColdRoomShareWrite'
+      required:
+      - shares
     ColdRoomWeight:
       type: object
       properties:
@@ -9634,6 +9746,16 @@ components:
       - steps
       - stock_rows
       - stock_value
+    ConditionEnum:
+      enum:
+      - ok
+      - maintenance
+      - breakdown
+      type: string
+      description: |-
+        * `ok` - En service
+        * `maintenance` - En maintenance
+        * `breakdown` - En panne
     Count:
       type: object
       properties:
@@ -17305,6 +17427,9 @@ components:
         number:
           type: string
           readOnly: true
+        product_id:
+          type: integer
+          readOnly: true
         product_name:
           type: string
           readOnly: true
@@ -17320,6 +17445,7 @@ components:
       required:
       - id
       - number
+      - product_id
       - product_name
       - received_on
       - unit_cost
@@ -17674,6 +17800,8 @@ components:
         driver:
           type: integer
           nullable: true
+        condition:
+          $ref: '#/components/schemas/ConditionEnum'
     PatchedUpdateProfile:
       type: object
       properties:
@@ -22878,11 +23006,16 @@ components:
         is_active:
           type: boolean
           readOnly: true
+        condition:
+          allOf:
+          - $ref: '#/components/schemas/ConditionEnum'
+          readOnly: true
         updated_at:
           type: string
           format: date-time
           readOnly: true
       required:
+      - condition
       - driver
       - id
       - is_active
@@ -22913,6 +23046,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/DriverRef'
           readOnly: true
+          nullable: true
       required:
       - date
       - driver
@@ -22927,6 +23061,9 @@ components:
           type: integer
         driver:
           type: integer
+        free:
+          type: boolean
+          default: false
         date:
           type: string
           format: date
@@ -23114,6 +23251,8 @@ components:
         driver:
           type: integer
           nullable: true
+        condition:
+          $ref: '#/components/schemas/ConditionEnum'
       required:
       - name
       - plate

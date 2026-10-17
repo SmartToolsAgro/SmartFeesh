@@ -45,6 +45,7 @@ function PlaceCard({
   numeric = false,
   onOpen,
   action,
+  alert = false,
 }: {
   illustration: IllustrationName;
   title: string;
@@ -57,6 +58,8 @@ function PlaceCard({
   onOpen?: () => void;
   // A button under the card, outside the clickable area (archive or restore).
   action?: ReactNode;
+  // The place cannot be used (a truck in maintenance or broken down): the card lights up in red.
+  alert?: boolean;
 }) {
   const body = (
     <>
@@ -74,7 +77,7 @@ function PlaceCard({
     </>
   );
   return (
-    <Card className="p-0" role="article" aria-label={title}>
+    <Card className={cn("p-0", alert && "border-bad bg-bad-soft")} role="article" aria-label={title}>
       {onOpen ? (
         <button
           type="button"
@@ -229,8 +232,12 @@ export function LocationsPage() {
                     subtitle={truck.plate}
                     stock={stockLine(truck.location_id)}
                     numeric
+                    alert={truck.is_active && truck.condition !== "ok"}
                     pills={
                       <>
+                        {truck.is_active && truck.condition !== "ok" && (
+                          <Pill tone="bad">{t(`admin.locations.conditions.${truck.condition}`)}</Pill>
+                        )}
                         {!truck.driver && truck.is_active && <Pill tone="warn">{t("admin.locations.noDriver")}</Pill>}
                         {archivedPill(truck.is_active)}
                       </>

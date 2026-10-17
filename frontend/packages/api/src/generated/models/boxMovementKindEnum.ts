@@ -14,6 +14,7 @@
  * * `return` - Retour fournisseur
  * * `truck_return` - Retour du camion en chambre froide
  * * `write_off` - Casse ou perte
+ * * `purchase` - Achat de caisses
  */
 export type BoxMovementKindEnum = typeof BoxMovementKindEnum[keyof typeof BoxMovementKindEnum];
 
@@ -27,4 +28,5 @@ export const BoxMovementKindEnum = {
   return: 'return',
   truck_return: 'truck_return',
   write_off: 'write_off',
+  purchase: 'purchase',
 } as const;

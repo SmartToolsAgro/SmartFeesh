@@ -8,8 +8,6 @@ import { Link, useOutletContext, useParams } from "react-router";
 import { LotResultCard } from "../closing/LotResultCard";
 import { SettlementCard } from "../closing/SettlementCard";
 import { LotCostsCard } from "../expenses/LotCostsCard";
-
-import { StockTabs } from "../lib/StockTabs";
 import { LotPartnerPill } from "../partnerships/LotPartnerPill";
 import { PartnershipSection } from "../partnerships/PartnershipSection";
 import { canReadResults } from "../partnerships/shared";
@@ -65,7 +63,6 @@ export function BatchStockPage() {
       <PageHeader eyebrow={data.product.name} title={t("admin.stock.batch.title", { number: data.number })}>
         {canReadResults(session) && <LotPartnerPill batchId={batchId} />}
       </PageHeader>
-      <StockTabs />
 
       <Card className="p-4">
         <dl className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">

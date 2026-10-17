@@ -24,6 +24,16 @@ class ColdRoomWeightWriteSerializer(serializers.Serializer[Any]):
     weight = serializers.CharField()
 
 
+class ColdRoomShareWriteSerializer(serializers.Serializer[Any]):
+    location_id = serializers.IntegerField()
+    # Percent with at most 3 decimals ("20.000"), checked by the service.
+    percent = serializers.CharField()
+
+
+class ColdRoomSharesWriteSerializer(serializers.Serializer[Any]):
+    shares = ColdRoomShareWriteSerializer(many=True)
+
+
 class ElectricityBillSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     month = serializers.DateField(read_only=True)

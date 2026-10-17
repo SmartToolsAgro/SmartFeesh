@@ -2,6 +2,7 @@
 
 import datetime as dt
 import uuid
+from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
@@ -800,6 +801,33 @@ def set_cold_room_weight(
         after={"room": location.name, "weight": str(row.weight)},
     )
     return row
+
+
+@transaction.atomic
+def set_cold_room_shares(
+    *, organization: Organization, actor: User | None, shares: Mapping[int, Number]
+) -> list[ColdRoomWeight]:
+    """Set every active cold room's share of the electricity bill in %, all at once: they must cover every
+    active room and add up to exactly 100 %. A share is stored as the room's weight, so the split stays
+    proportional. Months already billed keep the shares they were billed with."""
+    rooms = {room.pk: room for room in cost_selectors.cold_rooms(organization)}
+    if set(shares) != set(rooms):
+        raise ValidationError({"shares": _("Indiquez la part de chaque chambre froide active.")})
+    values: dict[int, Decimal] = {}
+    for room_id, raw in shares.items():
+        try:
+            value = Decimal(str(raw))
+            if value != value.quantize(Decimal("0.001")) or value <= 0 or value > 100:
+                raise ValueError
+        except (InvalidOperation, ValueError):
+            raise ValidationError({"shares": _("Chaque part doit être supérieure à zéro, au millième près.")}) from None
+        values[room_id] = value.quantize(Decimal("0.001"))
+    if sum(values.values(), Decimal("0")) != Decimal("100.000"):
+        raise ValidationError({"shares": _("Les parts doivent faire 100 % au total.")})
+    return [
+        set_cold_room_weight(organization=organization, actor=actor, location=rooms[room_id], weight=value)
+        for room_id, value in values.items()
+    ]
 
 
 # ---- Electricity bills ----

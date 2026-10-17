@@ -85,7 +85,7 @@ def _terms(
     values: dict[str, Any] = {}
     if batch.organization_id != organization.pk:
         errors["batch"] = _("Lot inconnu.")
-    elif has_sold(organization, batch_id=batch.pk) and not (current is not None and current.terms_pending):
+    elif current is None and has_sold(organization, batch_id=batch.pk):
         errors["batch"] = _("Ce lot a déjà été vendu en partie : un partenariat se fixe avant la première vente.")
     elif current is None and inventory.quantity_on_hand(organization, batch_id=batch.pk) <= 0:
         errors["batch"] = _("Ce lot n'a plus de stock : un partenariat se fixe sur un lot ouvert.")
@@ -227,7 +227,7 @@ def update_partnership(
     loss_rate: Any = None,
     notes: str | None = None,
 ) -> LotPartnership:
-    """Change the terms of an open partnership while its lot has not been sold. A changed partner capital
+    """Change the terms of an open partnership, until its lot is closed (D-162). A changed partner capital
     posts a correction (the difference) on the capital ledger; the ledger itself is never rewritten."""
     partnership = _locked(partnership)
     organization = partnership.organization

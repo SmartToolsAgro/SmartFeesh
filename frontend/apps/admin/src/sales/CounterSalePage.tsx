@@ -35,7 +35,8 @@ import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { amountsOf, filled, isShort, type Line, newLine, shownPrice } from "../lib/lines";
 import { LinesGrid } from "../lib/LinesGrid";
-import { choosePlace, needsOf, totalsOf, usePlacesStock } from "../lib/placeStock";
+import { choosePlace, needsOf, placesOf, totalsOf, usePlacesStock } from "../lib/placeStock";
+import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { type ReactNode } from "react";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
@@ -117,6 +118,9 @@ export function CounterSalePage() {
   // The counter sale leaves from one open cold room: the one that holds the whole basket (D-144).
   const byRoom = usePlacesStock(rooms.map((option) => option.id));
   const totals = useMemo(() => totalsOf(byRoom), [byRoom]);
+  const roomNames = useMemo(() => new Map(rooms.map((option) => [option.id, option.name])), [rooms]);
+  const placesOfProduct = useMemo(() => placesOf(byRoom, roomNames), [byRoom, roomNames]);
+  const partnerProducts = usePartnerProducts(session);
   const room = choosePlace(needsOf(filled(basket)), byRoom);
   const roomName = rooms.find((option) => option.id === room)?.name;
   const origin = roomName ? new Map(needsOf(filled(basket)).map((need) => [need.product, roomName])) : undefined;
@@ -276,6 +280,8 @@ export function CounterSalePage() {
               proposedPrice={proposedPrice}
               stock={rooms.length > 0 ? totals : undefined}
               origin={origin}
+              places={placesOfProduct}
+              partners={partnerProducts}
               errors={errors}
               extra={{
                 header: t("admin.sales.counterSale.lot"),

@@ -16,6 +16,7 @@ def person_name(user: Any) -> str:
 class PartnershipBatchSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     number = serializers.CharField(read_only=True)
+    product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(read_only=True, source="product.name")
     received_on = serializers.DateField(read_only=True)
     unit_cost = serializers.DecimalField(read_only=True, max_digits=14, decimal_places=3)

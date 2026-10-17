@@ -310,3 +310,42 @@ def test_assignments_of_another_organization_are_invisible(organization, actor, 
     assert client.delete(reverse("truck-assignment-detail", args=[assignment.pk])).status_code == 404
     posted = client.post(reverse("truck-assignment-list"), {"truck": truck.pk, "driver": driver.user.pk}, format="json")
     assert posted.status_code == 400
+
+
+# ---- maintenance, breakdown and a truck left free (D-162) ----
+
+
+def test_a_truck_in_maintenance_is_not_taken_and_loses_its_coming_days(organization, actor, today):
+    truck, driver = new_truck(organization, actor, driver=None), driver_of(organization)
+    assign(organization, actor, truck, driver, today)
+
+    services.update_truck(truck=truck, actor=actor, condition="maintenance")
+
+    assert not TruckAssignment.objects.filter(truck=truck).exists()
+    with pytest.raises(ValidationError):
+        assign(organization, actor, truck, driver, today)
+    services.update_truck(truck=truck, actor=actor, condition="ok")
+    assert assign(organization, actor, truck, driver, today).truck == truck
+
+
+def test_a_truck_in_breakdown_is_not_the_usual_trucks_of_its_driver(organization, actor):
+    driver = driver_of(organization)
+    truck = new_truck(organization, actor, driver=driver.user)
+    assert selectors.truck_of_driver(driver) == truck
+
+    services.update_truck(truck=truck, actor=actor, condition="breakdown")
+
+    assert selectors.truck_of_driver(driver) is None
+
+
+def test_a_truck_left_free_has_no_driver_that_day_and_a_driver_can_take_it(organization, actor, today):
+    usual = driver_of(organization)
+    other = driver_of(organization)
+    truck = new_truck(organization, actor, driver=usual.user)
+
+    freed = services.assign_truck(organization=organization, actor=actor, truck=truck, driver=None, date=today)
+
+    assert freed.driver is None
+    assert selectors.truck_of_driver(usual) is None
+    taken = assign(organization, actor, truck, other, today)
+    assert (taken.pk, taken.driver) == (freed.pk, other.user)

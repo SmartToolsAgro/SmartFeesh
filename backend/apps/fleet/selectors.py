@@ -10,7 +10,7 @@ from django.utils import timezone
 from apps.core.models import Membership, Organization, Role
 from apps.core.session import TruckRef
 
-from .models import DriverDay, Truck, TruckAssignment
+from .models import DriverDay, Truck, TruckAssignment, TruckCondition
 
 type TruckStatus = Literal["active", "archived", "all"]
 
@@ -74,9 +74,12 @@ def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truc
     day = on or timezone.localdate()
     assigned = assignments_on(membership.organization, day).filter(driver_id=membership.user_id).first()
     if assigned is not None:
-        return assigned.truck if assigned.truck.is_active else None
+        return assigned.truck if assigned.truck.is_active and assigned.truck.condition == TruckCondition.OK else None
     return (
-        trucks_of(membership.organization).filter(driver_id=membership.user_id).exclude(assignments__date=day).first()
+        trucks_of(membership.organization)
+        .filter(driver_id=membership.user_id, condition=TruckCondition.OK)
+        .exclude(assignments__date=day)
+        .first()
     )
 
 

@@ -184,6 +184,40 @@ export const GetBatchSalesResponse = zod.object({
 
 
 /**
+ * Boxes bought (they come into a cold room or a truck) or lost or broken (they leave it, with the
+ * reason). Owners and managers; a mistake is corrected by a new adjustment.
+ */
+
+export const adjustBoxesBodyCountMax = 100000;
+
+export const adjustBoxesBodyReasonDefault = ``;
+export const adjustBoxesBodyReasonMax = 300;
+
+
+
+export const AdjustBoxesBody = zod.object({
+  "location": zod.int().min(1),
+  "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
+  "kind": zod.enum(['purchase', 'write_off']).describe('* `purchase` - purchase\n* `write_off` - write_off'),
+  "count": zod.int().min(1).max(adjustBoxesBodyCountMax),
+  "reason": zod.string().max(adjustBoxesBodyReasonMax).default(adjustBoxesBodyReasonDefault)
+})
+
+export const AdjustBoxesResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['opening', 'receive', 'load', 'leave', 'collect', 'return', 'truck_return', 'write_off', 'purchase']).describe('* `opening` - Stock initial\n* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `truck_return` - Retour du camion en chambre froide\n* `write_off` - Casse ou perte\n* `purchase` - Achat de caisses'),
+  "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
+  "count": zod.int(),
+  "from_holder": zod.int().nullable(),
+  "from_holder_name": zod.string().nullable(),
+  "to_holder": zod.int().nullable(),
+  "to_holder_name": zod.string().nullable(),
+  "reason": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * How many boxes each holder has, per box type: locations, clients and suppliers that have moved
  * boxes. A supplier's count is what we owe it (boxes it lent us).
  */
@@ -217,7 +251,7 @@ export const ListBoxMovementsResponse = zod.object({
   "previous": zod.url().nullish(),
   "results": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['opening', 'receive', 'load', 'leave', 'collect', 'return', 'truck_return', 'write_off']).describe('* `opening` - Stock initial\n* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `truck_return` - Retour du camion en chambre froide\n* `write_off` - Casse ou perte'),
+  "kind": zod.enum(['opening', 'receive', 'load', 'leave', 'collect', 'return', 'truck_return', 'write_off', 'purchase']).describe('* `opening` - Stock initial\n* `receive` - Réception fournisseur\n* `load` - Chargement camion\n* `leave` - Départ chez client\n* `collect` - Reprise chez client\n* `return` - Retour fournisseur\n* `truck_return` - Retour du camion en chambre froide\n* `write_off` - Casse ou perte\n* `purchase` - Achat de caisses'),
   "box_type": zod.enum(['small', 'big']).describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
   "count": zod.int(),
   "from_holder": zod.int().nullable(),
@@ -325,6 +359,30 @@ export const GetColdRoomMonthResponse = zod.object({
 })),
   "total": zod.stringFormat('decimal', getColdRoomMonthResponseTotalRegExp).nullable()
 })
+
+
+/**
+ * Set every active cold room's share of the electricity bill in %, adding up to 100 (owner only):
+ * used by the bills approved from now on.
+ */
+export const UpdateColdRoomSharesBody = zod.object({
+  "shares": zod.array(zod.object({
+  "location_id": zod.int(),
+  "percent": zod.string()
+}))
+})
+
+export const updateColdRoomSharesResponseWeightRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,3})?$');
+export const updateColdRoomSharesResponseSharePercentRegExp = new RegExp('^-?\\d{0,4}(?:\\.\\d{0,2})?$');
+
+
+export const UpdateColdRoomSharesResponseItem = zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "weight": zod.stringFormat('decimal', updateColdRoomSharesResponseWeightRegExp),
+  "share_percent": zod.stringFormat('decimal', updateColdRoomSharesResponseSharePercentRegExp)
+})
+export const UpdateColdRoomSharesResponse = zod.array(UpdateColdRoomSharesResponseItem)
 
 
 /**
@@ -9388,6 +9446,7 @@ export const ListPartnershipsResponse = zod.object({
   "batch": zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "product_id": zod.int(),
   "product_name": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', listPartnershipsResponseResultsItemBatchOneUnitCostRegExp)
@@ -9445,6 +9504,7 @@ export const CreatePartnershipResponse = zod.object({
   "batch": zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "product_id": zod.int(),
   "product_name": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', createPartnershipResponseBatchOneUnitCostRegExp)
@@ -9501,6 +9561,7 @@ export const GetPartnershipResponse = zod.object({
   "batch": zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "product_id": zod.int(),
   "product_name": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', getPartnershipResponseBatchOneUnitCostRegExp)
@@ -9570,6 +9631,7 @@ export const UpdatePartnershipResponse = zod.object({
   "batch": zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "product_id": zod.int(),
   "product_name": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', updatePartnershipResponseBatchOneUnitCostRegExp)
@@ -9635,6 +9697,7 @@ export const CancelPartnershipResponse = zod.object({
   "batch": zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "product_id": zod.int(),
   "product_name": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', cancelPartnershipResponseBatchOneUnitCostRegExp)
@@ -15818,11 +15881,11 @@ export const ListTruckAssignmentsResponseItem = zod.object({
   "truck_id": zod.int(),
   "truck_name": zod.string(),
   "plate": zod.string(),
-  "driver": zod.object({
+  "driver": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()
-})
+}),zod.null()])
 })
 export const ListTruckAssignmentsResponse = zod.array(ListTruckAssignmentsResponseItem)
 
@@ -15831,9 +15894,12 @@ export const ListTruckAssignmentsResponse = zod.array(ListTruckAssignmentsRespon
  * Give a truck to a driver for a day. A driver can only take a truck for themselves; they may
  * change their own mind, the office must remove the first assignment before giving another truck.
  */
+export const assignTruckBodyFreeDefault = false;
+
 export const AssignTruckBody = zod.object({
   "truck": zod.int(),
   "driver": zod.int().optional(),
+  "free": zod.boolean().default(assignTruckBodyFreeDefault),
   "date": zod.iso.date().optional()
 })
 
@@ -15843,11 +15909,11 @@ export const AssignTruckResponse = zod.object({
   "truck_id": zod.int(),
   "truck_name": zod.string(),
   "plate": zod.string(),
-  "driver": zod.object({
+  "driver": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()
-})
+}),zod.null()])
 })
 
 
@@ -15881,6 +15947,7 @@ export const ListTrucksResponseItem = zod.object({
 }),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 export const ListTrucksResponse = zod.array(ListTrucksResponseItem)
@@ -15898,7 +15965,8 @@ export const createTruckBodyPlateMax = 20;
 export const CreateTruckBody = zod.object({
   "name": zod.string().max(createTruckBodyNameMax),
   "plate": zod.string().max(createTruckBodyPlateMax),
-  "driver": zod.int().nullish()
+  "driver": zod.int().nullish(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).optional().describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne')
 })
 
 export const CreateTruckResponse = zod.object({
@@ -15912,6 +15980,7 @@ export const CreateTruckResponse = zod.object({
 }),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
@@ -15931,6 +16000,7 @@ export const GetTruckResponse = zod.object({
 }),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
@@ -15951,7 +16021,8 @@ export const updateTruckBodyPlateMax = 20;
 export const UpdateTruckBody = zod.object({
   "name": zod.string().max(updateTruckBodyNameMax).optional(),
   "plate": zod.string().max(updateTruckBodyPlateMax).optional(),
-  "driver": zod.int().nullish()
+  "driver": zod.int().nullish(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).optional().describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne')
 })
 
 export const UpdateTruckResponse = zod.object({
@@ -15965,6 +16036,7 @@ export const UpdateTruckResponse = zod.object({
 }),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
@@ -15987,6 +16059,7 @@ export const ArchiveTruckResponse = zod.object({
 }),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
@@ -16006,6 +16079,7 @@ export const RestoreTruckResponse = zod.object({
 }),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
+  "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 

@@ -1,6 +1,6 @@
 import type { Product } from "@frutti/api";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, cn, Combobox, type ComboboxOption, Icon, Table, Th } from "@frutti/ui";
+import { Button, cn, Combobox, type ComboboxOption, Icon, Pill, Table, Th } from "@frutti/ui";
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { subtract, sum } from "./decimal";
@@ -24,6 +24,8 @@ type LinesGridProps = {
   origin?: Map<string, string>;
   /** The places holding each product, fullest first, with the kilos in each: listed under the product. Missing while the stock is not loaded. */
   places?: Map<string, PlaceKilos[]>;
+  /** The partners of each product's lots still being sold (names). Missing while unknown; a product with none shows "Sans partenaire". */
+  partners?: Map<string, string[]>;
   /** Messages keyed "lines.<n>.<field>", where n counts the filled rows only, as they are sent. */
   errors: Record<string, string>;
   /** The discount column: a quote and a sale have one, the counter sale does not. */
@@ -60,6 +62,7 @@ export function LinesGrid({
   stock,
   origin,
   places,
+  partners,
   errors,
   discount = false,
   extra,
@@ -279,6 +282,23 @@ export function LinesGrid({
                     className={CELL_INPUT}
                   />
                   {message(errorOf("product") ?? duplicate)}
+                  {line.product && (places || partners) && (
+                    <div className="flex flex-wrap gap-1 px-2.5 pb-1.5">
+                      {places?.get(line.product)?.map((place) => (
+                        <Pill key={place.place} tone="sea">
+                          {t("admin.lines.placeKilos", { place: place.place, kg: formatQuantity(place.kg) })}
+                        </Pill>
+                      ))}
+                      {partners &&
+                        (partners.get(line.product)?.length ? (
+                          <Pill tone="coral">
+                            {t("admin.lines.partnerWith", { name: partners.get(line.product)?.join(", ") })}
+                          </Pill>
+                        ) : (
+                          <Pill>{t("admin.lines.noPartner")}</Pill>
+                        ))}
+                    </div>
+                  )}
                   {line.product && origin?.get(line.product) && (
                     <p className="px-2.5 pb-1.5 text-[0.78rem] text-ink-2">
                       {t("admin.lines.origin", { place: origin.get(line.product) })}

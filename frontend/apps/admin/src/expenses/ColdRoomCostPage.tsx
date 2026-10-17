@@ -5,7 +5,7 @@ import {
   deleteElectricityBill,
   type ElectricityBill,
   type PaymentMethodEnum,
-  updateColdRoomWeight,
+  updateColdRoomShares,
   useGetColdRoomMonth,
   useListColdRoomWeights,
   useListElectricityBills,
@@ -17,6 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 import { useOutletContext } from "react-router";
 
+import { fromThousandths, toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { currentMonth, monthLabel, shiftMonth } from "../hr/shared";
 import { CostSelect } from "./CostSelect";
@@ -159,55 +160,94 @@ function BillSummary({ bill, canWrite }: { bill: ElectricityBill; canWrite: bool
   );
 }
 
-/** One row of the weights table: the owner types a weight and saves it. */
-function WeightRow({ room, canEdit }: { room: ColdRoomWeight; canEdit: boolean }) {
+/** The share of each cold room in %: the owner types the percentages, which must add up to 100 (a new cold room
+ * is given its part by lowering the others). */
+function SharesForm({ rooms, canEdit }: { rooms: ColdRoomWeight[]; canEdit: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [weight, setWeight] = useState(room.weight.replace(".", ","));
+  const [typed, setTyped] = useState<Record<number, string>>(() =>
+    Object.fromEntries(rooms.map((room) => [room.location_id, room.share_percent.replace(".", ",")])),
+  );
   const [error, setError] = useState("");
+  // Each share as typed, in thousandths of a percent; null while a field is not a positive number.
+  const parsed = rooms.map((room) => {
+    const value = parseDecimalInput((typed[room.location_id] ?? "").trim(), 3);
+    return value && !value.startsWith("-") && toThousandths(value) > 0n ? value : null;
+  });
+  const total = parsed.reduce<bigint>((all, value) => all + (value ? toThousandths(value) : 0n), 0n);
+  const complete = parsed.every((value) => value !== null);
+  const valid = complete && total === 100000n;
   const save = useMutation({
-    mutationFn: () => {
-      const parsed = parseDecimalInput(weight.trim(), 3);
-      if (!parsed || parsed.startsWith("-") || /^0+(\.0+)?$/.test(parsed)) throw new Error("weight");
-      return updateColdRoomWeight(room.location_id, { weight: parsed });
-    },
+    mutationFn: () =>
+      updateColdRoomShares({
+        shares: rooms.map((room, index) => ({ location_id: room.location_id, percent: parsed[index] ?? "0" })),
+      }),
     onSuccess: async () => {
       setError("");
-      toast.success(t("admin.coldCost.weights.saved", { room: room.location_name }));
+      toast.success(t("admin.coldCost.weights.saved"));
       await refreshExpenses(queryClient);
     },
-    onError: () => setError(t("admin.coldCost.weights.invalid")),
+    onError: (failure) => setError(fieldErrors(failure).shares ?? t("admin.coldCost.weights.invalid")),
   });
   return (
-    <tr>
-      <Td className="font-semibold">{room.location_name}</Td>
-      <Td numeric>
-        {canEdit ? (
-          <Input
-            aria-label={t("admin.coldCost.weights.weightOf", { room: room.location_name })}
-            inputMode="decimal"
-            className="num w-24 text-end"
-            value={weight}
-            onChange={(event) => setWeight(event.target.value)}
-            aria-invalid={error ? true : undefined}
-            autoComplete="off"
-          />
-        ) : (
-          <span className="num">{room.weight.replace(".", ",")}</span>
-        )}
-        {error && <div className="text-[0.8rem] text-bad">{error}</div>}
-      </Td>
-      <Td numeric className="num">
-        {room.share_percent.replace(".", ",")} %
-      </Td>
+    <>
+      <Table>
+        <thead>
+          <tr>
+            <Th>{t("admin.coldCost.rooms.room")}</Th>
+            <Th numeric>{t("admin.coldCost.rooms.share")}</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rooms.map((room) => (
+            <tr key={room.location_id}>
+              <Td className="font-semibold">{room.location_name}</Td>
+              <Td numeric>
+                {canEdit ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Input
+                      aria-label={t("admin.coldCost.weights.shareOf", { room: room.location_name })}
+                      inputMode="decimal"
+                      className="num w-24 text-end"
+                      value={typed[room.location_id] ?? ""}
+                      onChange={(event) => setTyped({ ...typed, [room.location_id]: event.target.value })}
+                      autoComplete="off"
+                    />
+                    %
+                  </span>
+                ) : (
+                  <span className="num">{room.share_percent.replace(".", ",")} %</span>
+                )}
+              </Td>
+            </tr>
+          ))}
+          <tr>
+            <Td className="font-semibold">{t("admin.coldCost.weights.total")}</Td>
+            <Td numeric className={valid || !canEdit ? "font-semibold" : "font-semibold text-bad"}>
+              {fromThousandths(canEdit ? total : 100000n).replace(".", ",")} %
+            </Td>
+          </tr>
+        </tbody>
+      </Table>
       {canEdit && (
-        <Td>
-          <Button variant="ghost" disabled={save.isPending} onClick={() => save.mutate()}>
+        <div className="flex flex-wrap items-center gap-3 p-2">
+          {!valid && (
+            <span role="status" className="text-[0.85rem] text-bad">
+              {t("admin.coldCost.weights.mustBe100")}
+            </span>
+          )}
+          {error && <span className="text-[0.85rem] text-bad">{error}</span>}
+          <Button
+            variant="primary"
+            className="ms-auto"
+            disabled={!valid || save.isPending}
+            onClick={() => save.mutate()}
+          >
             {t("admin.coldCost.weights.save")}
           </Button>
-        </Td>
+        </div>
       )}
-    </tr>
+    </>
   );
 }
 
@@ -343,21 +383,13 @@ export function ColdRoomCostPage() {
         <p className="text-ink-2">{t("admin.coldCost.weights.body")}</p>
         {!isOwner && <p className="text-[0.85rem] text-ink-2">{t("admin.coldCost.weights.ownerOnly")}</p>}
         <Card className="p-2">
-          <Table>
-            <thead>
-              <tr>
-                <Th>{t("admin.coldCost.rooms.room")}</Th>
-                <Th numeric>{t("admin.coldCost.rooms.weight")}</Th>
-                <Th numeric>{t("admin.coldCost.rooms.share")}</Th>
-                {isOwner && <Th className="w-0" />}
-              </tr>
-            </thead>
-            <tbody>
-              {(weights.data ?? []).map((room) => (
-                <WeightRow key={`${room.location_id}-${room.weight}`} room={room} canEdit={isOwner} />
-              ))}
-            </tbody>
-          </Table>
+          {weights.data && (
+            <SharesForm
+              key={weights.data.map((room) => `${room.location_id}:${room.weight}`).join(",")}
+              rooms={weights.data}
+              canEdit={isOwner}
+            />
+          )}
         </Card>
       </section>
 

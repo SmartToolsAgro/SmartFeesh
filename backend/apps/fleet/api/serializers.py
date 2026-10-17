@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.models import Organization, User
-from apps.fleet.models import DriverDay, Truck, TruckAssignment
+from apps.fleet.models import DriverDay, Truck, TruckAssignment, TruckCondition
 
 
 class DriverRefSerializer(serializers.ModelSerializer[User]):
@@ -28,7 +28,7 @@ class TruckSerializer(serializers.ModelSerializer[Truck]):
 
     class Meta:
         model = Truck
-        fields = ("id", "name", "plate", "driver", "location_id", "is_active", "updated_at")
+        fields = ("id", "name", "plate", "driver", "location_id", "is_active", "condition", "updated_at")
         read_only_fields = fields
 
 
@@ -46,13 +46,16 @@ class TruckWriteSerializer(serializers.Serializer[Any]):
     plate = serializers.CharField(max_length=20)
     # A driver's user id; null leaves the truck without a driver.
     driver = OrganizationUserField(allow_null=True, required=False, default=None)
+    # In service, in maintenance or broken down: a driver cannot take a truck that is not in service.
+    condition = serializers.ChoiceField(choices=TruckCondition.choices, required=False)
 
 
 class TruckAssignmentSerializer(serializers.ModelSerializer[TruckAssignment]):
     truck_id = serializers.IntegerField(read_only=True)
     truck_name = serializers.CharField(source="truck.location.name", read_only=True)
     plate = serializers.CharField(source="truck.plate", read_only=True)
-    driver = DriverRefSerializer(read_only=True)
+    # Empty: the truck is left free that day.
+    driver = DriverRefSerializer(read_only=True, allow_null=True)
 
     class Meta:
         model = TruckAssignment
@@ -64,6 +67,8 @@ class TruckAssignmentWriteSerializer(serializers.Serializer[Any]):
     truck = serializers.IntegerField()
     # Absent for a driver (always themselves); the office names the driver.
     driver = OrganizationUserField(required=False)
+    # The office leaves the truck without any driver that day, whoever drives it usually.
+    free = serializers.BooleanField(required=False, default=False)
     # Absent means today.
     date = serializers.DateField(required=False)
 

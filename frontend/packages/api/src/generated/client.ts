@@ -29,12 +29,15 @@ import type {
   ApprovedMonth,
   Batch,
   BatchSales,
+  BoxAdjustmentWrite,
   BoxBalance,
+  BoxMovement,
   CashFlow,
   Category,
   ChangePassword,
   CloseLot,
   ColdRoomMonth,
+  ColdRoomSharesWrite,
   ColdRoomWeight,
   ColdRoomWeightWrite,
   Count,
@@ -905,6 +908,92 @@ export function useGetBatchSales<TData = Awaited<ReturnType<typeof getBatchSales
 
 
 
+export const getAdjustBoxesUrl = () => {
+
+
+
+
+  return `/api/v1/boxes/adjustments`
+}
+
+/**
+ * Boxes bought (they come into a cold room or a truck) or lost or broken (they leave it, with the
+ * reason). Owners and managers; a mistake is corrected by a new adjustment.
+ */
+export const adjustBoxes = async (boxAdjustmentWrite: BoxAdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<BoxMovement> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<BoxMovement>(getAdjustBoxesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(boxAdjustmentWrite)
+  }
+);}
+
+
+
+
+
+export const getAdjustBoxesMutationKey = () => ['adjustBoxes'] as const;
+
+export const getAdjustBoxesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustBoxes>>, TError,AdjustBoxesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adjustBoxes>>, TError,AdjustBoxesMutationVariables, TContext> => {
+
+const mutationKey = getAdjustBoxesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adjustBoxes>>, AdjustBoxesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  adjustBoxes(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdjustBoxesMutationResult = NonNullable<Awaited<ReturnType<typeof adjustBoxes>>>
+    export type AdjustBoxesMutationBody = BoxAdjustmentWrite
+    export type AdjustBoxesMutationError = unknown
+    export type AdjustBoxesMutationVariables = {data: BoxAdjustmentWrite}
+
+    export const useAdjustBoxes = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustBoxes>>, TError,AdjustBoxesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof adjustBoxes>>,
+        TError,
+        AdjustBoxesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdjustBoxesMutationOptions(options), queryClient);
+    }
+
 export const getListBoxBalancesUrl = () => {
 
 
@@ -1475,6 +1564,92 @@ export function useGetColdRoomMonth<TData = Awaited<ReturnType<typeof getColdRoo
 
 
 
+
+export const getUpdateColdRoomSharesUrl = () => {
+
+
+
+
+  return `/api/v1/cold-room-shares`
+}
+
+/**
+ * Set every active cold room's share of the electricity bill in %, adding up to 100 (owner only):
+ * used by the bills approved from now on.
+ */
+export const updateColdRoomShares = async (coldRoomSharesWrite: ColdRoomSharesWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ColdRoomWeight[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ColdRoomWeight[]>(getUpdateColdRoomSharesUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(coldRoomSharesWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateColdRoomSharesMutationKey = () => ['updateColdRoomShares'] as const;
+
+export const getUpdateColdRoomSharesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomShares>>, TError,UpdateColdRoomSharesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomShares>>, TError,UpdateColdRoomSharesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateColdRoomSharesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateColdRoomShares>>, UpdateColdRoomSharesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateColdRoomShares(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateColdRoomSharesMutationResult = NonNullable<Awaited<ReturnType<typeof updateColdRoomShares>>>
+    export type UpdateColdRoomSharesMutationBody = ColdRoomSharesWrite
+    export type UpdateColdRoomSharesMutationError = unknown
+    export type UpdateColdRoomSharesMutationVariables = {data: ColdRoomSharesWrite}
+
+    export const useUpdateColdRoomShares = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomShares>>, TError,UpdateColdRoomSharesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateColdRoomShares>>,
+        TError,
+        UpdateColdRoomSharesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateColdRoomSharesMutationOptions(options), queryClient);
+    }
 
 export const getListColdRoomWeightsUrl = () => {
 

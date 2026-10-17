@@ -19,6 +19,9 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
 - **Working rule (owner, 2026-10-16):** do not run tests locally; commit and let CI check, then fix reported failures.
   One branch and one PR per task; merge only after CI passes.
 
+- **D-162 (branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
+  truck condition, partnership edits, XLS tables, frozen header). CI must pass before merge; then check on staging.
+
 ## Next step
 
 1. Push the CI fixes for PR #160, wait for green CI, then merge. After deployment, check a load with two clients on

@@ -471,3 +471,18 @@ def test_creating_a_bill_locks_the_organization_so_two_at_once_get_the_clean_mes
     with pytest.raises(ValidationError) as error:
         bill(organization, actor, last_month, "310.000")
     assert "month" in error.value.message_dict
+
+
+def test_the_shares_of_the_cold_rooms_are_set_together_and_must_make_100_percent(organization):
+    rooms = [StockLocationFactory.create(organization=organization, kind="cold_room") for _ in range(3)]
+    shares = {rooms[0].pk: D("20"), rooms[1].pk: D("40"), rooms[2].pk: D("40")}
+
+    services.set_cold_room_shares(organization=organization, actor=None, shares=shares)
+
+    assert cost_selectors.room_weights(organization) == {room.pk: shares[room.pk] for room in rooms}
+    with pytest.raises(ValidationError):  # 99 %
+        services.set_cold_room_shares(organization=organization, actor=None, shares={**shares, rooms[2].pk: D("39")})
+    with pytest.raises(ValidationError):  # a room is missing
+        services.set_cold_room_shares(
+            organization=organization, actor=None, shares={rooms[0].pk: D("50"), rooms[1].pk: D("50")}
+        )
