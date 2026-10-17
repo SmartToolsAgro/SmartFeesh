@@ -1,6 +1,7 @@
 import {
   ApiError,
   cancelTransfer,
+  getGetCustomerStatementPdfUrl,
   type TransferDetail,
   useGetTransfer,
   useGetTruckDay,
@@ -35,6 +36,8 @@ import { BOX_TYPES, formatBoxCount } from "../boxes/shared";
 import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
+import { openStatement } from "../lib/StatementButton";
+import { todayInTunis } from "../receipts/shared";
 import { canRecordTransfers, isZero, KIND_ICONS, refreshAfterTransfer, STATUS_TONES } from "./shared";
 
 function Detail({ label, children, numeric = false }: { label: string; children: ReactNode; numeric?: boolean }) {
@@ -167,6 +170,17 @@ function DeliveryCards({ transfer, lineErrors }: { transfer: TransferDetail; lin
                       {t("admin.transfers.deliveries.open")}
                     </Link>
                     <PdfButton kind="delivery_note" id={note.id} label={t("admin.transfers.deliveries.print")} />
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        void openStatement(
+                          getGetCustomerStatementPdfUrl(delivery.customer.id, { date_to: todayInTunis() }),
+                        ).catch(() => toast.error(t("admin.transfers.deliveries.ficheFailed")))
+                      }
+                    >
+                      <Icon name="receipt" />
+                      {t("admin.transfers.deliveries.fiche")}
+                    </Button>
                   </span>
                 </>
               ) : (
@@ -366,6 +380,15 @@ export function TransferDetailPage() {
           )}
         </dl>
       </Card>
+
+      {hasClients && data.status === "validated" && (
+        <div role="note" className="flex items-start gap-3 rounded-card border border-line bg-good-soft p-3">
+          <span className="text-good">
+            <Icon name="check" />
+          </span>
+          <span className="text-[0.9rem]">{t("admin.transfers.deliveries.ready")}</span>
+        </div>
+      )}
 
       {hasClients && <DeliveryCards transfer={data} lineErrors={lineErrors} />}
 

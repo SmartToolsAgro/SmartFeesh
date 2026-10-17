@@ -30,7 +30,7 @@ function monthOf(today: string, back: number): { from: string; to: string } {
 }
 
 /** Opens the PDF made on the spot by the server in a new tab (the tab is opened at the click, so it is not blocked). */
-async function openStatement(url: string): Promise<void> {
+export async function openStatement(url: string): Promise<void> {
   const tab = window.open("", "_blank");
   try {
     const response = await fetch(url, { credentials: "same-origin" });

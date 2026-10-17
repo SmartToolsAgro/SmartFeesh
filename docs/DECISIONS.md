@@ -2410,3 +2410,7 @@ client's record but may be changed on this BL only.
   sees (list, detail, confirm) the sales of a load on their truck, not only the ones they made. "Mes livraisons" confirms with
   `confirmSale`, online only: offline confirmation, a quantity changed on the spot and payment from the card are later.
 - The new delivery screen has provisional Arabic translations; native-speaker review remains part of P3-T09.
+
+**D-161 · After a load is validated, the page offers each client's BL and fiche (P2-T13)** · accepted · 2026-10-17
+- The validated load page shows a banner and, on each client card, "Imprimer le bon" (the draft BL, D-160) and "Fiche client"
+  (the customer statement PDF of D-156 up to today, which includes the BL's sale once the draft exists). No new endpoint.
