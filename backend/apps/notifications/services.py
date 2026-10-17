@@ -57,7 +57,7 @@ def tell_driver(
 def mark_read(*, membership: Membership, ids: Sequence[int] | None) -> int:
     """The member has seen these notifications (`None`: all they are shown). Only their own; the others' reads
     stay as they are. Returns how many are left unread."""
-    unread = selectors.visible_to(membership).filter(read=False)
+    unread = selectors.unread_of(membership)
     if ids is not None:
         unread = unread.filter(pk__in=list(ids))
     NotificationRead.objects.bulk_create(

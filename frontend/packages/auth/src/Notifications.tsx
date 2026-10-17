@@ -71,7 +71,10 @@ function useNotificationText(): (notification: Notification) => string {
       const values = Object.fromEntries(
         Object.entries(notification.params).map(([name, value]) => [name, shown(name, value)]),
       );
-      return t(`notifications.kinds.${notification.kind}`, values);
+      // The values come from the server as a plain map; the typed `t` wants each message's own names, so the key is
+      // checked (`isKind`) and the values are passed untyped.
+      const translate = t as unknown as (key: string, values: Record<string, string>) => string;
+      return translate(`notifications.kinds.${notification.kind}`, values);
     },
     [t],
   );

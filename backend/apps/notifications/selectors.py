@@ -32,10 +32,15 @@ def visible_to(membership: Membership) -> QuerySet[Notification]:
     )
 
 
+def unread_of(membership: Membership) -> QuerySet[Notification]:
+    """What one member is shown and has not read yet."""
+    return visible_to(membership).exclude(reads__user_id=membership.user_id)
+
+
 def latest_for(membership: Membership) -> list[Notification]:
     """The newest notifications of one member, newest first, each with `read` for them."""
     return list(visible_to(membership).select_related("actor").order_by("-id")[:SHOWN])
 
 
 def unread_count(membership: Membership) -> int:
-    return visible_to(membership).filter(read=False).count()
+    return unread_of(membership).count()
