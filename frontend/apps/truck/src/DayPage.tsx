@@ -12,7 +12,7 @@ import {
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Field, Icon, type IconName, Input, toast } from "@frutti/ui";
+import { Button, Card, cn, ConfirmButton, EmptyState, Field, Icon, type IconName, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -141,13 +141,14 @@ function PurchaseFloat({ amount }: { amount: string }) {
           onChange={(event) => setValue(event.target.value)}
         />
       </Field>
-      <Button
+      <ConfirmButton
         variant="primary"
         disabled={parsed === null || parsed.startsWith("-") || save.isPending}
-        onClick={() => parsed !== null && save.mutate({ data: { purchase_float: parsed } })}
+        rows={[[t("truck.purchase.float"), formatMoney(parsed ?? "0")]]}
+        onConfirm={() => parsed !== null && save.mutate({ data: { purchase_float: parsed } })}
       >
         {t("truck.purchase.floatSave")}
-      </Button>
+      </ConfirmButton>
     </div>
   );
 }
@@ -266,19 +267,23 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
               <p className="mt-1 text-sm text-ink-2">{t("truck.purchase.floatHint")}</p>
             </Field>
           ) : null}
-          <Button
+          <ConfirmButton
             size="lg"
             variant="primary"
             className="py-4 text-lg"
             disabled={cashValue === null || floatValue === null || open.isPending}
-            onClick={() =>
+            rows={[
+              [t("truck.day.cashLabel"), formatMoney(cashValue ?? "0")],
+              ...(canBuy ? [[t("truck.purchase.float"), formatMoney(floatValue ?? "0")] as [string, string]] : []),
+            ]}
+            onConfirm={() =>
               cashValue !== null &&
               floatValue !== null &&
               open.mutate({ data: { opening_cash: cashValue, purchase_float: floatValue } })
             }
           >
             {t("truck.day.start")}
-          </Button>
+          </ConfirmButton>
         </Card>
       )}
       <TodayAtAGlance enabled={running} />

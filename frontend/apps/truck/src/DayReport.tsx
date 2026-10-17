@@ -1,6 +1,6 @@
 import type { DayProduct, DaySummary, MyDaySummary } from "@frutti/api";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, Input } from "@frutti/ui";
+import { Button, Card, ConfirmButton, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -297,17 +297,23 @@ export function DayReport({
       )}
       {locked ? null : (
         <StickyAction>
-          <Button
+          <ConfirmButton
             size="lg"
             variant="primary"
             className="py-4 text-lg"
             disabled={!gate.canSend}
-            onClick={() =>
+            rows={[
+              [t("truck.closing.counted"), formatMoney(countedValue ?? "0")],
+              ...(purchases === null
+                ? []
+                : [[t("truck.purchase.counted"), formatMoney(countedPurchaseValue ?? "0")] as [string, string]]),
+            ]}
+            onConfirm={() =>
               countedValue !== null && countedPurchaseValue !== null && onSend(countedValue, note, countedPurchaseValue)
             }
           >
             {t("truck.closing.send")}
-          </Button>
+          </ConfirmButton>
         </StickyAction>
       )}
     </div>

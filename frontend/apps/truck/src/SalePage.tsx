@@ -9,7 +9,7 @@ import {
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Input } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -249,15 +249,20 @@ export function SalePage() {
             </p>
           ) : null}
           {error === "" ? null : <p className="text-bad">{error}</p>}
-          <Button
+          <ConfirmButton
             size="lg"
             variant="primary"
             className="py-4 text-lg"
             disabled={paidValue === null || tooMuch || sending}
-            onClick={() => void confirm()}
+            title={customer.name}
+            rows={[
+              [t("truck.sale.total"), formatMoney(totalText)],
+              [t("truck.sale.paid"), formatMoney(paidValue ?? "0")],
+            ]}
+            onConfirm={() => void confirm()}
           >
             {t("truck.sale.confirm")}
-          </Button>
+          </ConfirmButton>
           <Button size="lg" onClick={() => setStep("goods")}>
             {t("truck.sale.back")}
           </Button>

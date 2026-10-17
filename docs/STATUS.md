@@ -1,9 +1,12 @@
 # Project status
 
-_Last updated: 2026-10-17 (load BL delivered in full, in part or not at all, P2-T15 / D-178; notifications, D-175)_
+_Last updated: 2026-10-17 (money actions ask Annuler / Confirmer, D-179; load BL delivery, P2-T15 / D-178)_
 
 ## Where we are
 
+- **D-179 (branch money-confirm-popup):** every money action of the driver app (delivery, sale, payment, expense,
+  purchase, opening cash and float, closing) opens an "Annuler / Confirmer" window with the amounts. Awaits CI.
+  Admin money forms are not converted yet; new money screens must use `ConfirmButton`.
 - **P2-T15 / D-178 (branch load-delivery-workflow):** the BL of a load is validated at the load (real BL number, no
   PROVISOIRE), then the driver delivers it in full, in part or not at all from the phone (also offline); only what is
   delivered is sold, the rest stays on the truck; versions, PDF "Commandé / Livré", notifications. Awaits CI.
@@ -38,6 +41,8 @@ _Last updated: 2026-10-17 (load BL delivered in full, in part or not at all, P2-
 
 ## Next step
 
+0. D-179: merge after green CI; on staging with a phone, check each money button opens the window and "Annuler" sends
+   nothing. Then ask the owner whether the admin app's money forms need the same window.
 0. P2-T15: merge after green CI; on staging, load two clients, print both BLs (no PROVISOIRE), on the phone deliver one
    in part (one product at zero) and mark the other "Non livré"; check the truck stock, the client balance, the bell, and
    reprint the corrected BL ("Commandé / Livré", version 2).

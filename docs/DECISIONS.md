@@ -2592,3 +2592,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   gets its BL number at the delivery, as before.
 - **Provisional:** a credit limit under the "approval" policy can leave a delivered BL waiting (draft, `partial`/`delivered`)
   until the owner approves; a BL loaded for tomorrow is made "non livré" by tonight's closing.
+
+**D-179 · Every action that records money asks "Annuler / Confirmer" first** · accepted · 2026-10-17
+
+- **Owner request (2026-10-17):** a money action never goes out on one tap. `ConfirmButton` (`@frutti/ui`) opens a
+  window with the amounts to check (total, cash taken, rest…) and acts only on "Confirmer"; "Annuler" does nothing.
+- **Driver app now:** delivering a load BL, a sale, a customer payment, a road expense, a port purchase, starting the
+  day (opening cash, purchase float), changing the float, and sending the closing (counted cash).
+- **From now on:** any new screen that records money (driver or admin) uses `ConfirmButton`. The admin app's existing
+  money forms are not yet converted.
