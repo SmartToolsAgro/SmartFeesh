@@ -85,6 +85,9 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
+    # Where the customer is, saved from a stop of a driver's route (D-172); empty when unknown.
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     # What the customer may owe at most, in DT. 0 = no credit: pays at once.
     credit_limit = models.DecimalField(max_digits=12, decimal_places=3, default=0, validators=[MinValueValidator(0)])
     # Days after the invoice date by which the customer pays; 0 = on delivery.
@@ -109,6 +112,11 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
                 fields=["organization"],
                 condition=models.Q(is_walk_in=True),
                 name="customer_one_walk_in_per_organization",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(latitude__isnull=True, longitude__isnull=True)
+                | models.Q(latitude__isnull=False, longitude__isnull=False),
+                name="customer_place_has_both_coordinates",
             ),
         ]
 

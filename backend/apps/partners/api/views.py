@@ -18,6 +18,7 @@ from apps.sales import selectors as sales
 from .serializers import (
     CustomerChoiceSerializer,
     CustomerFilterSerializer,
+    CustomerLocationSerializer,
     CustomerSerializer,
     CustomerWriteSerializer,
     MyCustomerWriteSerializer,
@@ -172,6 +173,18 @@ class CustomerDetailView(CustomerView):
         serializer = CustomerWriteSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         services.update_customer(customer=customer, actor=self.membership.user, **serializer.validated_data)
+        return self.customer_answer(customer_id)
+
+
+class CustomerLocationView(CustomerView):
+    @extend_schema(operation_id="setCustomerLocation", request=CustomerLocationSerializer, responses=CustomerSerializer)
+    def put(self, request: Request, customer_id: int) -> Response:
+        """Save where the customer is (owner or manager), from a stop of a driver's route; empty values forget it."""
+        serializer = CustomerLocationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_customer_location(
+            customer=self.customer(customer_id), actor=self.membership.user, **serializer.validated_data
+        )
         return self.customer_answer(customer_id)
 
 

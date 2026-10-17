@@ -132,3 +132,58 @@ def test_the_route_lists_the_stops_with_the_customers_served(road):
 
     assert [(s["minutes"], s["customers"]) for s in route["stops"]] == [(12, [])]
     assert round(route["stops"][0]["latitude"], 3) == 34.745
+
+
+def test_a_stop_near_a_saved_customer_place_is_named_after_him(road):
+    from apps.partners import services as partners
+    from apps.partners.tests.factories import CustomerFactory
+
+    day = open_day(road)
+    near = CustomerFactory.create(organization=road["organization"], name="Poissonnerie El Bahr")
+    far = CustomerFactory.create(organization=road["organization"], name="Hôtel Lointain")
+    owner = MembershipFactory.create(organization=road["organization"], role=Role.OWNER)
+    office = APIClient()
+    office.force_authenticate(owner.user)
+    stay = [point(minutes_ago=m, lat="34.745000", lng="10.760000") for m in (30, 26, 22, 18)]
+    road["client"].post(reverse("my-locations"), {"points": stay}, format="json")
+
+    route = office.get(reverse("day-overview-route", args=[day.pk])).json()
+    assert route["stops"][0]["customers"] == []
+
+    # The office saves the place of the customer and of another one far away; only the near one names the stop.
+    assert (
+        office.put(
+            reverse("customer-location", args=[near.pk]),
+            {"latitude": "34.745100", "longitude": "10.760100"},
+            format="json",
+        ).status_code
+        == 200
+    )
+    partners.set_customer_location(customer=far, actor=owner.user, latitude=Decimal("35.5"), longitude=Decimal("10.7"))
+    route = office.get(reverse("day-overview-route", args=[day.pk])).json()
+
+    assert route["stops"][0]["customers"] == [{"id": near.pk, "name": "Poissonnerie El Bahr", "has_place": True}]
+
+
+def test_a_customer_place_needs_both_coordinates_and_not_the_walk_in(road):
+    from apps.partners import services as partners
+    from apps.partners.tests.factories import CustomerFactory
+
+    owner = MembershipFactory.create(organization=road["organization"], role=Role.OWNER)
+    office = APIClient()
+    office.force_authenticate(owner.user)
+    customer = CustomerFactory.create(organization=road["organization"])
+    walk_in = partners.ensure_walk_in_customer(organization=road["organization"])
+    url = reverse("customer-location", args=[customer.pk])
+
+    assert office.put(url, {"latitude": "34.7", "longitude": None}, format="json").status_code == 400
+    assert (
+        office.put(
+            reverse("customer-location", args=[walk_in.pk]), {"latitude": "34.7", "longitude": "10.7"}, format="json"
+        ).status_code
+        == 400
+    )
+    assert office.put(url, {"latitude": "34.7", "longitude": "10.7"}, format="json").json()["latitude"] == "34.700000"
+    assert office.put(url, {"latitude": None, "longitude": None}, format="json").json()["latitude"] is None
+    # A driver cannot save places.
+    assert road["client"].put(url, {"latitude": "34.7", "longitude": "10.7"}, format="json").status_code == 403

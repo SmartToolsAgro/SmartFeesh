@@ -1,6 +1,14 @@
-import { type RoutePoint, type RouteStop, useGetDayRoute } from "@frutti/api";
+import {
+  getGetDayRouteQueryKey,
+  type RoutePoint,
+  type RouteStop,
+  setCustomerLocation,
+  useGetDayRoute,
+} from "@frutti/api";
+import { useSession } from "@frutti/auth";
 import { formatDateTime, useTranslation } from "@frutti/i18n";
-import { Card } from "@frutti/ui";
+import { Button, Card, toast } from "@frutti/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
@@ -59,7 +67,9 @@ function RouteCanvas({ points, stops }: { points: readonly RoutePoint[]; stops: 
         fillColor: "#e08a1e",
         fillOpacity: 0.95,
       })
-        .bindTooltip(`${index + 1} · ${stop.customers.join(", ") || "?"} · ${stop.minutes} min`)
+        .bindTooltip(
+          `${index + 1} · ${stop.customers.map((customer) => customer.name).join(", ") || "?"} · ${stop.minutes} min`,
+        )
         .addTo(group);
     }
     L.circleMarker(path[0]!, { radius: 7, color: "#fff", weight: 2, fillColor: "#2e9e5b", fillOpacity: 1 }).addTo(
@@ -81,9 +91,43 @@ function RouteCanvas({ points, stops }: { points: readonly RoutePoint[]; stops: 
   return <div ref={container} className="h-[60vh] min-h-96 w-full overflow-hidden rounded-control" />;
 }
 
+/** The customers of one stop; the owner or manager can save the stop as the place of a customer who has none. */
+function StopCustomers({ stop, dayId, canSave }: { stop: RouteStop; dayId: number; canSave: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const save = async (customerId: number) => {
+    try {
+      await setCustomerLocation(customerId, {
+        latitude: stop.latitude.toFixed(6),
+        longitude: stop.longitude.toFixed(6),
+      });
+      toast.success(t("admin.dayOverview.detail.route.placeSaved"));
+      await queryClient.invalidateQueries({ queryKey: getGetDayRouteQueryKey(dayId) });
+    } catch {
+      toast.error(t("admin.dayOverview.detail.route.placeFailed"));
+    }
+  };
+  return (
+    <span className="flex flex-wrap items-center gap-x-2">
+      {stop.customers.map((customer) => (
+        <span key={customer.id} className="flex items-center gap-1">
+          {customer.name}
+          {canSave && !customer.has_place && (
+            <Button variant="ghost" onClick={() => void save(customer.id)}>
+              {t("admin.dayOverview.detail.route.savePlace")}
+            </Button>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function RouteMap({ dayId, running }: { dayId: number; running: boolean }) {
   const { t } = useTranslation();
   const k = "admin.dayOverview.detail.route";
+  const session = useSession();
+  const canSave = session.data?.role === "owner" || session.data?.role === "manager";
   const route = useGetDayRoute(dayId, { query: { refetchInterval: running ? REFRESH_MS : false } });
   const points = route.data?.points ?? [];
   const stops = route.data?.stops ?? [];
@@ -110,9 +154,11 @@ export function RouteMap({ dayId, running }: { dayId: number; running: boolean }
             <ol className="space-y-1">
               {stops.map((stop, index) => (
                 <li key={stop.started_at} className="flex flex-wrap justify-between gap-x-3">
-                  <span>
-                    {index + 1} · {formatTime(stop.started_at)} – {formatTime(stop.ended_at)}
-                    {stop.customers.length > 0 && ` · ${stop.customers.join(", ")}`}
+                  <span className="flex flex-wrap items-center gap-x-2">
+                    <span>
+                      {index + 1} · {formatTime(stop.started_at)} – {formatTime(stop.ended_at)}
+                    </span>
+                    <StopCustomers stop={stop} dayId={dayId} canSave={canSave} />
                   </span>
                   <strong>{t(`${k}.minutes`, { count: stop.minutes })}</strong>
                 </li>

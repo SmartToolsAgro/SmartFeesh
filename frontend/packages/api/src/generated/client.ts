@@ -49,6 +49,7 @@ import type {
   CustomerBalance,
   CustomerBalances,
   CustomerChoice,
+  CustomerLocation,
   CustomerPaymentDetail,
   CustomerPaymentWrite,
   CustomerWrite,
@@ -3568,6 +3569,92 @@ export function useGetCustomerBalance<TData = Awaited<ReturnType<typeof getCusto
 
 
 
+
+export const getSetCustomerLocationUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/v1/customers/${customerId}/location`
+}
+
+/**
+ * Save where the customer is (owner or manager), from a stop of a driver's route; empty values forget it.
+ */
+export const setCustomerLocation = async (customerId: number,
+    customerLocation: CustomerLocation, options?: Parameters<typeof apiFetch>[1]): Promise<Customer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Customer>(getSetCustomerLocationUrl(customerId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerLocation)
+  }
+);}
+
+
+
+
+
+export const getSetCustomerLocationMutationKey = () => ['setCustomerLocation'] as const;
+
+export const getSetCustomerLocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setCustomerLocation>>, TError,SetCustomerLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setCustomerLocation>>, TError,SetCustomerLocationMutationVariables, TContext> => {
+
+const mutationKey = getSetCustomerLocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setCustomerLocation>>, SetCustomerLocationMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  setCustomerLocation(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetCustomerLocationMutationResult = NonNullable<Awaited<ReturnType<typeof setCustomerLocation>>>
+    export type SetCustomerLocationMutationBody = CustomerLocation
+    export type SetCustomerLocationMutationError = unknown
+    export type SetCustomerLocationMutationVariables = {customerId: number;data: CustomerLocation}
+
+    export const useSetCustomerLocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setCustomerLocation>>, TError,SetCustomerLocationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setCustomerLocation>>,
+        TError,
+        SetCustomerLocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetCustomerLocationMutationOptions(options), queryClient);
+    }
 
 export const getRestoreCustomerUrl = (customerId: number,) => {
 

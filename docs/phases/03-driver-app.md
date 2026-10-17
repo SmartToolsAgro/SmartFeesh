@@ -154,7 +154,7 @@ do the stock, the supplier debt and the payment count.
 - [x] T13b · Admin: map on the day follow-up with the live position and the day's route (Leaflet + OpenStreetMap).
 - [x] T13c · Stops (5 min within 50 m), time spent at each, orange pins and a stop list on the day page, with the
       customers served around each stop (by sale/payment time).
-- [ ] T13d · Store each customer's coordinates (learned from the stops) to name a stop by place, not by time.
+- [x] T13d · Store each customer's coordinates (learned from the stops) to name a stop by place, not by time.
 
 **P3-T14 · Less scrolling on the phone (D-171) · M** _(from the owner's note of 2026-10-17: quick wins and medium items)_
 - [x] Ma journée: the start-of-day form right under the truck card until the day starts; the menu as a two-column tile grid.

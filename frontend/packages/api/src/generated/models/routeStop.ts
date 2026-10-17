@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { RouteStopCustomer } from './routeStopCustomer';
 
 /**
  * Where the truck stayed five minutes or more.
@@ -14,5 +15,5 @@ export interface RouteStop {
   readonly minutes: number;
   readonly latitude: number;
   readonly longitude: number;
-  readonly customers: readonly string[];
+  readonly customers: readonly RouteStopCustomer[];
 }

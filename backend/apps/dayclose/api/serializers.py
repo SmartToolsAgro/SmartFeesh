@@ -357,6 +357,13 @@ class RoutePointSerializer(serializers.Serializer[Any]):
     accuracy = serializers.FloatField(read_only=True, allow_null=True)
 
 
+class RouteStopCustomerSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    # His place is saved: the office can still replace it from another stop.
+    has_place = serializers.BooleanField(read_only=True)
+
+
 class RouteStopSerializer(serializers.Serializer[Any]):
     """Where the truck stayed five minutes or more."""
 
@@ -365,8 +372,8 @@ class RouteStopSerializer(serializers.Serializer[Any]):
     minutes = serializers.IntegerField(read_only=True)
     latitude = serializers.FloatField(read_only=True)
     longitude = serializers.FloatField(read_only=True)
-    # The customers whose sale or payment was made during or just around the stop.
-    customers = serializers.ListField(child=serializers.CharField(), read_only=True)
+    # The customers at the stop: served then, or whose saved place is within 75 m.
+    customers = RouteStopCustomerSerializer(many=True, read_only=True)
 
 
 class DayRouteSerializer(serializers.Serializer[Any]):

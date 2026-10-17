@@ -2519,7 +2519,14 @@ client's record but may be changed on this BL only.
   paid by the driver out of pocket. `day_summary` has `owed_to_driver` ("à lui rembourser"); `expected_cash` no longer
   goes below zero for it, so counting 0 is no écart. Nothing records the reimbursement yet; it is only shown.
 
-**D-172 · The "Produits reçus" lines of a receipt are a spreadsheet grid** · accepted · 2026-10-17
+**D-172 · A customer's place on the map, saved from a stop of the route (P3-T13d)** · accepted · 2026-10-17
+- `Customer.latitude/longitude` (both or neither). The office (owner or manager) saves them with a button on a stop of the route
+  ("Enregistrer ce lieu") for a customer served at that stop: `PUT /customers/<id>/location` (audited, empty values forget it).
+  Nothing is learned silently: a wrong sale time could otherwise put a customer at the wrong place.
+- A stop within 75 m of a saved place is named after that customer, also when no sale was made there (`dayclose.day_route`); the
+  stop's customers are `{id, name, has_place}`.
+
+**D-173 · The "Produits reçus" lines of a receipt are a spreadsheet grid** · accepted · 2026-10-17
 - The client's XLS look (D-162) also applies to the new receipt form: the product lines are one table with a shaded
   header row and bordered cells (product, ordered or remaining, invoiced, accepted, cost, amount, use-by, partner, remove),
   not a card per line. Cells are borderless fields filling the cell; the last cost hint sits under the cost. The table

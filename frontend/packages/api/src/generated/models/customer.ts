@@ -18,6 +18,16 @@ export interface Customer {
   readonly address: string;
   readonly city: string;
   readonly notes: string;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,6})?$
+     */
+  readonly latitude: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,6})?$
+     */
+  readonly longitude: string | null;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly credit_limit: string;
   readonly payment_terms_days: number;
