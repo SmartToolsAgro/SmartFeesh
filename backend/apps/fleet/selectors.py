@@ -2,7 +2,7 @@
 
 from datetime import date as date_type
 from datetime import datetime, time, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from django.db.models import QuerySet
 from django.utils import timezone
@@ -10,7 +10,8 @@ from django.utils import timezone
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.session import TruckRef
 
-from .models import DriverDay, Truck, TruckAssignment, TruckCondition
+from .models import DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
+from .trail import stops_of
 
 type TruckStatus = Literal["active", "archived", "all"]
 
@@ -247,3 +248,28 @@ def drivers_by_truck_day(
         .order_by("id")
     )
     return {(row.truck.location_id, row.date): row.driver.get_full_name() or row.driver.username for row in rows}
+
+
+def pings_of_day(driver_day: DriverDay) -> QuerySet[LocationPing]:
+    """The GPS points of a driver's day, in the order they were taken (D-164)."""
+    return LocationPing.objects.for_organization(driver_day.organization).filter(driver_day=driver_day)
+
+
+def route_of_day(driver_day: DriverDay) -> dict[str, Any]:
+    """The day's route for the office map (D-166): the GPS points in time order, and the last one, which is where
+    the truck is now while the day runs."""
+    points = [
+        {
+            "recorded_at": ping.recorded_at,
+            "latitude": float(ping.latitude),
+            "longitude": float(ping.longitude),
+            "accuracy": None if ping.accuracy is None else float(ping.accuracy),
+        }
+        for ping in pings_of_day(driver_day)
+    ]
+    return {"points": points, "last": points[-1] if points else None}
+
+
+def stops_of_route(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The stops of a route (see `trail.stops_of`): where the truck stayed 5 minutes or more."""
+    return stops_of(points)

@@ -291,8 +291,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       </Select>
     </Field>
   );
-  // Goods leave a cold room or a truck and go into a truck; a place never goes into itself (a truck picked on one
-  // side is missing from the other).
+  // Goods leave a cold room or a truck and go into a truck, or come back from a truck into a cold room (the
+  // evening return); a place never goes into itself (a truck picked on one side is missing from the other).
   const placeOption = (place: StockLocation) => ({
     value: String(place.id),
     label: place.is_active ? place.name : t("admin.transfers.form.archivedPlace", { name: place.name }),
@@ -303,7 +303,10 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
     .filter((place) => String(place.id) !== to)
     .map(placeOption);
   const toOptions = places
-    .filter((place) => place.kind === "truck" && usable(place, to))
+    .filter(
+      (place) =>
+        (place.kind === "truck" || (fromPlace?.kind === "truck" && place.kind === "cold_room")) && usable(place, to),
+    )
     .filter((place) => String(place.id) !== from)
     .map(placeOption);
   const back = draft ? `/stock/transferts/${draft.id}` : "/stock/transferts";

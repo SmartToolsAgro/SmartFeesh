@@ -32,7 +32,9 @@ class TruckSerializer(serializers.ModelSerializer[Truck]):
 
     class Meta:
         model = Truck
-        fields = ("id", "name", "plate", "driver", "driver_today", "location_id", "is_active", "condition", "updated_at")
+        fields = (
+            "id", "name", "plate", "driver", "driver_today", "location_id", "is_active", "condition", "updated_at",
+        )
         read_only_fields = fields
 
 
@@ -124,3 +126,32 @@ class DriverDayOpenSerializer(serializers.Serializer[Any]):
 
 class PurchaseFloatSerializer(serializers.Serializer[Any]):
     purchase_float = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)
+
+
+MAX_PINGS_PER_BATCH = 200
+
+
+class LocationPingWriteSerializer(serializers.Serializer[Any]):
+    # Makes a resent point store once.
+    client_uuid = serializers.UUIDField()
+    # The phone's clock at the fix.
+    recorded_at = serializers.DateTimeField()
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-180, max_value=180)
+    accuracy = serializers.DecimalField(
+        max_digits=8, decimal_places=1, min_value=0, required=False, allow_null=True, default=None
+    )
+
+
+class LocationPingBatchSerializer(serializers.Serializer[Any]):
+    points = LocationPingWriteSerializer(many=True, allow_empty=False)
+
+    def validate_points(self, points: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if len(points) > MAX_PINGS_PER_BATCH:
+            raise serializers.ValidationError(f"{MAX_PINGS_PER_BATCH} points at most per request.")
+        return points
+
+
+class LocationPingSavedSerializer(serializers.Serializer[Any]):
+    # How many points of the batch the server kept.
+    saved = serializers.IntegerField(read_only=True)

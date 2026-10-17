@@ -1458,6 +1458,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayOverviewDetail'
           description: ''
+  /api/v1/day-overview/{day_id}/route:
+    get:
+      operationId: getDayRoute
+      description: 'The GPS route of one driver''s day for the map: the points in
+        time order and the last one (D-167).'
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayRoute'
+          description: ''
   /api/v1/day-overview/drivers:
     get:
       operationId: listDayOverviewDrivers
@@ -4331,6 +4353,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-day/locations:
+    post:
+      operationId: recordMyLocations
+      description: |-
+        The GPS points of the driver's phone for today's day, up to 200 at a time (D-164). A resent point is
+        stored once; points after the sent closing are dropped. 404 until the day is started.
+      tags:
+      - my-day
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationPingBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LocationPingBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LocationPingBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationPingSaved'
           description: ''
   /api/v1/my-day/purchase-float:
     put:
@@ -11971,6 +12022,30 @@ components:
       - reviewed_by_name
       - status
       - submitted_at
+    DayRoute:
+      type: object
+      description: The GPS route of one driver's day, in time order; `last` is where
+        the truck was last seen.
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutePoint'
+          readOnly: true
+        last:
+          allOf:
+          - $ref: '#/components/schemas/RoutePoint'
+          readOnly: true
+          nullable: true
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStop'
+          readOnly: true
+      required:
+      - last
+      - points
+      - stops
     DaySummary:
       type: object
       properties:
@@ -15046,6 +15121,50 @@ components:
       - received_on
       - supplier_id
       - supplier_name
+    LocationPingBatch:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationPingWrite'
+      required:
+      - points
+    LocationPingSaved:
+      type: object
+      properties:
+        saved:
+          type: integer
+          readOnly: true
+      required:
+      - saved
+    LocationPingWrite:
+      type: object
+      properties:
+        client_uuid:
+          type: string
+          format: uuid
+        recorded_at:
+          type: string
+          format: date-time
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,1})?$
+          nullable: true
+      required:
+      - client_uuid
+      - latitude
+      - longitude
+      - recorded_at
     LocationStock:
       type: object
       description: How many kg of one product a location holds, all batches together.
@@ -20759,6 +20878,66 @@ components:
         * `manager` - Gestionnaire
         * `driver` - Chauffeur
         * `accountant` - Comptable
+    RoutePoint:
+      type: object
+      properties:
+        recorded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+        accuracy:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+      required:
+      - accuracy
+      - latitude
+      - longitude
+      - recorded_at
+    RouteStop:
+      type: object
+      description: Where the truck stayed five minutes or more.
+      properties:
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+        minutes:
+          type: integer
+          readOnly: true
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+        customers:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - customers
+      - ended_at
+      - latitude
+      - longitude
+      - minutes
+      - started_at
     SalaryAdjustment:
       type: object
       properties:

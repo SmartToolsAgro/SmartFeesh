@@ -1,5 +1,6 @@
 """Every write on trucks goes through these functions (ARCHITECTURE §3)."""
 
+import datetime as dt
 import re
 from datetime import date as date_type
 from datetime import datetime
@@ -16,7 +17,7 @@ from apps.core.models import Membership, Organization, Role, User
 from apps.inventory import services as inventory
 from apps.inventory.services import LocationKind
 
-from .models import DriverDay, Truck, TruckAssignment, TruckCondition
+from .models import DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
 
 
 class _Unchanged:
@@ -92,7 +93,7 @@ def update_truck(
     condition: str | None = None,
 ) -> Truck:
     """Rename a truck, change its plate, give it to another driver (`driver=None` takes it back), or put it in
-    maintenance or break it down (a driver cannot take it then, D-162)."""
+    maintenance or break it down (a driver cannot take it then, D-163)."""
     truck = Truck.objects.select_for_update().select_related("location").get(pk=truck.pk)
     before = _snapshot(truck)
     if plate is not None:
@@ -187,7 +188,7 @@ def assign_truck(
     replace: bool = False,
 ) -> TruckAssignment:
     """Say that `driver` takes `truck` on `date` (D-046). No driver leaves the truck free that day, also for its
-    usual driver (D-162); a driver may then take it.
+    usual driver (D-163); a driver may then take it.
 
     One driver per truck and one truck per driver each day: a second claim is refused with a clear message.
     With `replace`, the driver's other truck of that day is swapped for this one (a driver changing their
@@ -401,3 +402,39 @@ def reopen_driver_day(*, driver_day: DriverDay) -> DriverDay:
         driver_day.ended_at = None
         driver_day.save(update_fields=["ended_at", "updated_at"])
     return driver_day
+
+
+# A phone's clock may be a little ahead: a point further in the future is refused.
+PING_CLOCK_TOLERANCE = dt.timedelta(minutes=5)
+
+
+@transaction.atomic
+def record_location_pings(*, driver_day: DriverDay, points: list[dict[str, Any]]) -> int:
+    """Store the GPS points the driver's phone sends (D-164): each is `{client_uuid, recorded_at, latitude,
+    longitude, accuracy}`. A point already stored (same `client_uuid`) is skipped, so a resent batch is safe. A
+    point dated after the day's sent closing, or in the future, is dropped: the day is followed while it runs.
+    Returns how many points were kept from this batch (new or already stored)."""
+    driver_day = DriverDay.objects.select_for_update().get(pk=driver_day.pk)
+    latest = timezone.now() + PING_CLOCK_TOLERANCE
+    kept: list[dict[str, Any]] = [
+        point
+        for point in points
+        if point["recorded_at"] <= latest
+        and (driver_day.ended_at is None or point["recorded_at"] <= driver_day.ended_at)
+    ]
+    LocationPing.objects.bulk_create(
+        [
+            LocationPing(
+                organization=driver_day.organization,
+                driver_day=driver_day,
+                client_uuid=point["client_uuid"],
+                recorded_at=point["recorded_at"],
+                latitude=point["latitude"],
+                longitude=point["longitude"],
+                accuracy=point.get("accuracy"),
+            )
+            for point in kept
+        ],
+        ignore_conflicts=True,
+    )
+    return len(kept)

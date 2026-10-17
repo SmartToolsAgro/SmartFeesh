@@ -331,7 +331,7 @@ def test_drivers_of_day_ignores_the_usual_driver(organization, actor, today):
     assert truck.id not in selectors.drivers_of_day(organization, today)
 
 
-# ---- maintenance, breakdown and a truck left free (D-162) ----
+# ---- maintenance, breakdown and a truck left free (D-163) ----
 
 
 def test_a_truck_in_maintenance_is_not_taken_and_loses_its_coming_days(organization, actor, today):

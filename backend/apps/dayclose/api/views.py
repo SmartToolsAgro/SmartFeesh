@@ -26,6 +26,7 @@ from .serializers import (
     DayOverviewDriverSerializer,
     DayOverviewFilterSerializer,
     DayOverviewRowSerializer,
+    DayRouteSerializer,
     JustificationSerializer,
     MyDayRowSerializer,
     MyDaySummarySerializer,
@@ -221,6 +222,17 @@ class DayOverviewDetailView(DayClosingView):
         except ObjectDoesNotExist:
             raise Http404 from None
         return Response(DayOverviewDetailSerializer(selectors.day_activity(self.membership.organization, day)).data)
+
+
+class DayOverviewRouteView(DayClosingView):
+    @extend_schema(operation_id="getDayRoute", responses=DayRouteSerializer)
+    def get(self, request: Request, day_id: int) -> Response:
+        """The GPS route of one driver's day for the map: the points in time order and the last one (D-167)."""
+        try:
+            day = fleet.driver_day_by_id(self.membership.organization, day_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        return Response(DayRouteSerializer(selectors.day_route(self.membership.organization, day)).data)
 
 
 class DayClosingDetailView(DayClosingView):

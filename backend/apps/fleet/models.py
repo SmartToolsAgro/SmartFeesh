@@ -27,7 +27,7 @@ class Truck(OrganizationScopedModel, TimeStampedModel):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="trucks"
     )
     is_active = models.BooleanField(default=True)
-    # A truck in maintenance or broken down cannot be taken by a driver (D-162).
+    # A truck in maintenance or broken down cannot be taken by a driver (D-163).
     condition = models.CharField(max_length=12, choices=TruckCondition.choices, default=TruckCondition.OK)
 
     class Meta:
@@ -47,7 +47,7 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
     """
 
     truck = models.ForeignKey(Truck, on_delete=models.PROTECT, related_name="assignments")
-    # Empty: the truck is left free that day, also for its usual driver (D-162).
+    # Empty: the truck is left free that day, also for its usual driver (D-163).
     driver = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="truck_assignments"
     )
@@ -95,3 +95,33 @@ class DriverDay(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.date} · {self.truck.location.name} · {self.driver.username}"
+
+
+class LocationPing(OrganizationScopedModel, TimeStampedModel):
+    """One GPS point of a driver's phone during a running day (D-164). Append-only: points are never changed.
+
+    `recorded_at` is the phone's clock at the moment of the fix (a point queued without signal arrives later);
+    `client_uuid` makes a resent batch store each point once.
+    """
+
+    driver_day = models.ForeignKey(DriverDay, on_delete=models.PROTECT, related_name="pings")
+    client_uuid = models.UUIDField()
+    recorded_at = models.DateTimeField()
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    # Radius of the fix in metres, as the phone reports it.
+    accuracy = models.DecimalField(max_digits=8, decimal_places=1, null=True, blank=True)
+
+    class Meta:
+        ordering = ["recorded_at", "id"]
+        indexes = [models.Index(fields=["driver_day", "recorded_at"], name="ping_day_time")]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "client_uuid"], name="location_ping_uuid_unique"),
+            models.CheckConstraint(
+                condition=models.Q(latitude__gte=-90, latitude__lte=90, longitude__gte=-180, longitude__lte=180),
+                name="location_ping_on_earth",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.driver_day} · {self.recorded_at:%H:%M:%S}"

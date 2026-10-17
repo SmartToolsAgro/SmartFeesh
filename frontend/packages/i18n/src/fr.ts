@@ -673,6 +673,16 @@ export const fr = {
       credit: "à crédit",
       open: "Voir le détail",
       detail: {
+        route: {
+          title: "Parcours",
+          empty: "Aucune position reçue : le téléphone n'a pas envoyé de point GPS pour cette journée.",
+          lastSeen: "Dernière position : {{when}}",
+          silent: "pas de signal depuis plus de 10 minutes",
+          legend: "{{count}} points · vert : départ · rouge : dernière position · orange : arrêt",
+          stops: "Arrêts de 5 minutes ou plus ({{count}})",
+          noStops: "Aucun arrêt de 5 minutes ou plus.",
+          minutes: "{{count}} min",
+        },
         money: "Son argent",
         opening: "Caisse au départ",
         cashSales: "Espèces des ventes",
@@ -4095,6 +4105,11 @@ export const fr = {
     },
     offline: {
       banner: "Pas de réseau : les chiffres affichés datent de la dernière connexion.",
+    },
+    tracking: {
+      denied:
+        "Position refusée : le bureau ne peut pas suivre la tournée. Autorisez la position pour ce site dans les réglages du navigateur.",
+      unavailable: "Position introuvable : vérifiez que le GPS du téléphone est activé.",
     },
     closing: {
       notStarted: "La journée n'a pas commencé",
