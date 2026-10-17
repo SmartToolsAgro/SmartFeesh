@@ -1626,6 +1626,15 @@ export const fr = {
         // Bon de livraison (D-095)
         validateAndPrint: "Valider et imprimer le BL",
         deliveryNote: "Bon de livraison",
+        // A BL prepared with a truck load (D-160, D-177): printed provisional; validated by the driver at the delivery
+        printProvisional: "Imprimer le bon provisoire",
+        fromLoadNote:
+          "Bon préparé avec le chargement {{load}} : le chauffeur le valide à la livraison, depuis son téléphone. Imprimer ce bon ne change rien.",
+        markDelivered: "Marquer livré",
+        markDeliveredTitle: "Marquer livré le bon de {{customer}} ?",
+        markDeliveredBody:
+          "À faire seulement si la marchandise est déjà livrée et que le chauffeur ne peut pas le valider : les kilos sortent du camion, le client doit le montant, et le bon disparaît des livraisons du chauffeur.",
+        markDeliveredConfirm: "Oui, c'est livré",
         cancel: "Annuler la vente",
         cancelTitle: "Annuler la vente {{number}} ?",
         cancelDraftBody: "Le brouillon reste dans la liste, annulé. Rien ne bouge dans le stock.",

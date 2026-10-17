@@ -2552,3 +2552,11 @@ with their BL and fiche; the phone's "Vente" shows only the clients of the load.
   this device saw (localStorage, per user) plays a two-note Web Audio tone (no sound file; vibration on a phone) and a
   toast; the first visit on a device rings for nothing old. Tone on by default, switch in the bell's panel. Push
   notifications to a closed app (Web Push) are not done: they would need a service-worker subscription and VAPID keys.
+
+**D-177 · A BL prepared with a truck load prints provisional from its page; validating it there asks "delivered?"** · accepted · 2026-10-17
+- Found on staging: the office opened a load's draft BL (D-160) and its page offered only "Valider la vente (BL)" and
+  "Valider et imprimer le BL" (D-095). Printing from there confirmed the sale, which is the delivery: the kilos left the
+  truck, the client owed the amount and the BL left the driver's "Mes livraisons" ("Aucune livraison à faire").
+- Now a draft with `Sale.transfer` shows "Imprimer le bon provisoire" (the PROVISOIRE PDF, nothing changes), a note that
+  the driver validates it at the delivery, and "Marquer livré" behind a confirmation dialog for the case the driver
+  cannot. "Valider et imprimer le BL" stays for other drafts only. No server change.

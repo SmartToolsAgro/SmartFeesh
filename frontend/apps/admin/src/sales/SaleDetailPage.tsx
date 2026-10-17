@@ -73,6 +73,9 @@ export function SaleDetailPage() {
   const sale = useGetSale(id, { query: { enabled: validId, retry: false } });
   const seller = useSeller(session);
   const [cancelling, setCancelling] = useState(false);
+  // A BL prepared with a truck load is validated by the driver at the delivery (D-160): validating it here means
+  // "delivered", so it is asked first (D-177).
+  const [delivering, setDelivering] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState("");
 
@@ -149,13 +152,26 @@ export function SaleDetailPage() {
   const busy = confirm.isPending || cancel.isPending || invoice.isPending || validateAndPrint.isPending;
   const hasDiscount = !isZero(data.discount_total);
   const showCosts = data.cost_total !== null;
+  const fromLoad = data.transfer !== null;
 
   return (
     <>
       {back}
       <PageHeader eyebrow={t("admin.sales.title")} title={data.number}>
         <Pill tone={STATUS_TONES[data.status]}>{t(`admin.sales.statuses.${data.status}`)}</Pill>
-        {canWrite && data.status === "draft" && (
+        {data.status === "draft" && fromLoad && (
+          <PdfButton kind="delivery_note" id={data.id} label={t("admin.sales.detail.printProvisional")} />
+        )}
+        {canWrite && data.status === "draft" && fromLoad && (
+          <>
+            <Button onClick={() => void navigate(`/ventes/${data.id}/modifier`)}>{t("admin.sales.detail.edit")}</Button>
+            <Button disabled={busy} onClick={() => setDelivering(true)}>
+              <Icon name="check" />
+              {t("admin.sales.detail.markDelivered")}
+            </Button>
+          </>
+        )}
+        {canWrite && data.status === "draft" && !fromLoad && (
           <>
             <Button onClick={() => void navigate(`/ventes/${data.id}/modifier`)}>{t("admin.sales.detail.edit")}</Button>
             <Button variant="primary" disabled={busy} onClick={() => confirm.mutate(data.credit_status === "pending")}>
@@ -196,6 +212,11 @@ export function SaleDetailPage() {
         )}
       </PageHeader>
 
+      {data.status === "draft" && fromLoad && (
+        <p role="note" className="rounded-chip bg-surface-2 px-3 py-2 text-[0.9rem]">
+          {t("admin.sales.detail.fromLoadNote", { load: data.transfer?.number ?? "" })}
+        </p>
+      )}
       {data.credit_status === "pending" && (
         <p role="alert" className="rounded-chip bg-warn-soft px-3 py-2 text-[0.9rem]">
           {t("admin.payments.sale.pending", { amount: formatMoney(data.credit_over_by) })}
@@ -388,6 +409,26 @@ export function SaleDetailPage() {
           </dl>
         </Card>
       </div>
+
+      <Dialog open={delivering} onOpenChange={setDelivering}>
+        <DialogContent>
+          <DialogTitle>{t("admin.sales.detail.markDeliveredTitle", { customer: data.customer.name })}</DialogTitle>
+          <DialogDescription>{t("admin.sales.detail.markDeliveredBody")}</DialogDescription>
+          <DialogFooter>
+            <Button onClick={() => setDelivering(false)}>{t("admin.sales.detail.keep")}</Button>
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={() => {
+                setDelivering(false);
+                confirm.mutate(data.credit_status === "pending");
+              }}
+            >
+              {t("admin.sales.detail.markDeliveredConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={cancelling} onOpenChange={setCancelling}>
         <DialogContent>
