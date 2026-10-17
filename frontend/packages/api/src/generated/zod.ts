@@ -12143,6 +12143,17 @@ export const GetCustomerStatementPdfResponse = zod.unknown()
 
 
 /**
+ * Everything to hand out after a truck load (D-161): for each client, their BL then their statement up to
+ * today, in one PDF, each document starting on its own page. Office roles.
+ */
+export const GetLoadPrintPackPdfParams = zod.object({
+  "transfer_id": zod.int()
+})
+
+export const GetLoadPrintPackPdfResponse = zod.unknown()
+
+
+/**
  * Per product: kilos written off as losses, and the net weight differences found by counts and
  * adjustments, at the lot's cost per kg.
  */

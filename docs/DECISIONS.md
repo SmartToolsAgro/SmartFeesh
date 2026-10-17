@@ -2414,3 +2414,6 @@ client's record but may be changed on this BL only.
 **D-161 · After a load is validated, the page offers each client's BL and fiche (P2-T13)** · accepted · 2026-10-17
 - The validated load page shows a banner and, on each client card, "Imprimer le bon" (the draft BL, D-160) and "Fiche client"
   (the customer statement PDF of D-156 up to today, which includes the BL's sale once the draft exists). No new endpoint.
+- **"Tout imprimer"** (`GET /reports/load-print-pack/<transfer>/pdf`): one PDF, for each client their BL (provisional or
+  confirmed) then their statement up to today, each document starting on its own page (WeasyPrint pages joined in
+  `documents.rendering.htmls_to_pdf`). Made on the spot, not stored.

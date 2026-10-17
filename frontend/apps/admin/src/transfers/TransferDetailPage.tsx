@@ -2,6 +2,7 @@ import {
   ApiError,
   cancelTransfer,
   getGetCustomerStatementPdfUrl,
+  getGetLoadPrintPackPdfUrl,
   type TransferDetail,
   useGetTransfer,
   useGetTruckDay,
@@ -382,11 +383,22 @@ export function TransferDetailPage() {
       </Card>
 
       {hasClients && data.status === "validated" && (
-        <div role="note" className="flex items-start gap-3 rounded-card border border-line bg-good-soft p-3">
+        <div role="note" className="flex flex-wrap items-center gap-3 rounded-card border border-line bg-good-soft p-3">
           <span className="text-good">
             <Icon name="check" />
           </span>
-          <span className="text-[0.9rem]">{t("admin.transfers.deliveries.ready")}</span>
+          <span className="flex-1 text-[0.9rem]">{t("admin.transfers.deliveries.ready")}</span>
+          <Button
+            variant="primary"
+            onClick={() =>
+              void openStatement(getGetLoadPrintPackPdfUrl(data.id)).catch(() =>
+                toast.error(t("admin.transfers.deliveries.printAllFailed")),
+              )
+            }
+          >
+            <Icon name="receipt" />
+            {t("admin.transfers.deliveries.printAll")}
+          </Button>
         </div>
       )}
 
