@@ -5,6 +5,7 @@ import {
   type SaleDetail,
   createSale,
   useListMyCustomers,
+  useListMyDeliveries,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
@@ -14,6 +15,7 @@ import { useState } from "react";
 
 import { BoxCountInputs } from "./BoxCountInputs";
 import { boxCountsOf, type BoxInputs, NO_BOXES } from "./boxes";
+import { Delivery } from "./DeliveriesPage";
 import { messagesOf } from "./messages";
 import { NewCustomerForm } from "./NewCustomerForm";
 import { useOnline } from "./offline";
@@ -70,7 +72,7 @@ export function SalePage() {
     if ("uuid" in receipt) return <QueuedReceipt sale={receipt} onNew={startNew} />;
     return <Receipt sale={receipt} onNew={startNew} />;
   }
-  if (customer === null) return <PickCustomer onPick={setCustomer} />;
+  if (customer === null) return <PickCustomer onPick={setCustomer} delivers />;
 
   // What the truck holds, less the sales still waiting to be sent: those kilos are already promised.
   const promised = pendingKilos(queue);
@@ -265,22 +267,61 @@ export function SalePage() {
   );
 }
 
-export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) => void }) {
+// `delivers`: a client with a BL from the load opens it (Vente); the box pickup only picks the client.
+export function PickCustomer({
+  onPick,
+  delivers = false,
+}: {
+  onPick: (customer: CustomerChoice) => void;
+  delivers?: boolean;
+}) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const online = useOnline();
   const customers = useListMyCustomers({ search: search.trim() });
+  // The BL the office prepared with the load (D-160): a client who has one is delivered first (D-173).
+  const deliveries = useListMyDeliveries({ query: { enabled: delivers, retry: false } });
+  const [delivering, setDelivering] = useState<CustomerChoice | null>(null);
+  const toDeliver = (customer: CustomerChoice) =>
+    delivers ? deliveries.data?.find((sale) => sale.customer.id === customer.id) : undefined;
   // A customer picked goes to the top of the recent list (D-171).
   const pick = (customer: CustomerChoice) => {
     rememberCustomer(customer.id);
-    onPick(customer);
+    if (toDeliver(customer)) setDelivering(customer);
+    else onPick(customer);
   };
+  if (delivering !== null) {
+    const sale = toDeliver(delivering);
+    return (
+      <div className="space-y-3">
+        <h2>{delivering.name}</h2>
+        {sale ? (
+          <Delivery sale={sale} />
+        ) : (
+          <Card>
+            <p className="text-lg font-semibold">{t("truck.sale.deliveredDone")}</p>
+          </Card>
+        )}
+        <Button size="lg" className="w-full py-4 text-lg" onClick={() => onPick(delivering)}>
+          {t("truck.sale.sellMore")}
+        </Button>
+        <Button size="lg" variant="ghost" className="w-full" onClick={() => setDelivering(null)}>
+          {t("truck.sale.change")}
+        </Button>
+      </div>
+    );
+  }
   if (adding) return <NewCustomerForm onAdded={pick} onCancel={() => setAdding(false)} />;
-  // While nothing is typed, the customers sold to most recently come first.
   const all = customers.data ?? [];
-  const recent = search.trim() === "" ? recentCustomerIds().flatMap((id) => all.filter((one) => one.id === id)) : [];
+  // Today's load names its clients: the server lists only them and the walk-in customer (D-173).
+  const loaded = all.some((customer) => customer.on_load);
+  // While nothing is typed, the customers sold to most recently come first.
+  const recent =
+    search.trim() === "" && !loaded ? recentCustomerIds().flatMap((id) => all.filter((one) => one.id === id)) : [];
   const others = all.filter((customer) => !recent.includes(customer));
+  const badge = (customer: CustomerChoice) =>
+    delivers && customer.on_load ? t(toDeliver(customer) ? "truck.sale.toDeliver" : "truck.sale.delivered") : undefined;
   return (
     <div className="space-y-3">
       <h2>{t("truck.sale.whoFor")}</h2>
@@ -292,6 +333,7 @@ export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) =>
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
+      {loaded ? <p className="text-sm font-semibold text-ink-2">{t("truck.sale.loadClients")}</p> : null}
       {recent.length > 0 ? <p className="text-sm font-semibold text-ink-2">{t("truck.sale.recent")}</p> : null}
       {recent.map((customer) => (
         <CustomerButton key={customer.id} customer={customer} onPick={pick} />
@@ -300,23 +342,29 @@ export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) =>
         <p className="text-sm font-semibold text-ink-2">{t("truck.sale.others")}</p>
       ) : null}
       {others.map((customer) => (
-        <CustomerButton key={customer.id} customer={customer} onPick={pick} />
+        <CustomerButton key={customer.id} customer={customer} onPick={pick} badge={badge(customer)} />
       ))}
-      <Button size="lg" className="py-4 text-lg" disabled={!online} onClick={() => setAdding(true)}>
-        {t("truck.newCustomer.button")}
-      </Button>
-      {online ? null : <p className="text-sm text-ink-2">{t("truck.newCustomer.needNetwork")}</p>}
+      {loaded ? null : (
+        <>
+          <Button size="lg" className="py-4 text-lg" disabled={!online} onClick={() => setAdding(true)}>
+            {t("truck.newCustomer.button")}
+          </Button>
+          {online ? null : <p className="text-sm text-ink-2">{t("truck.newCustomer.needNetwork")}</p>}
+        </>
+      )}
     </div>
   );
 }
 
-// One customer on one line: the name, and the city when there is one.
+// One customer on one line: the name, and the city when there is one (or what is left to deliver to them).
 function CustomerButton({
   customer,
   onPick,
+  badge,
 }: {
   customer: CustomerChoice;
   onPick: (customer: CustomerChoice) => void;
+  badge?: string;
 }) {
   return (
     <Button
@@ -326,7 +374,11 @@ function CustomerButton({
       onClick={() => onPick(customer)}
     >
       <span className="min-w-0 truncate">{customer.name}</span>
-      {customer.city === "" ? null : <span className="flex-none text-sm font-normal">{customer.city}</span>}
+      {badge !== undefined ? (
+        <span className="flex-none text-sm font-semibold">{badge}</span>
+      ) : customer.city === "" ? null : (
+        <span className="flex-none text-sm font-normal">{customer.city}</span>
+      )}
     </Button>
   );
 }

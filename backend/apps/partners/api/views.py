@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.http import Http404
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -11,6 +12,7 @@ from rest_framework.views import APIView
 
 from apps.core.models import Membership, Organization
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.fleet import selectors as fleet
 from apps.partners import selectors, services
 from apps.partners.models import Customer, Supplier
 from apps.sales import selectors as sales
@@ -213,12 +215,25 @@ class MyCustomersView(APIView):
     )
     def get(self, request: Request) -> Response:
         """Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
-        the walk-in customer last. Filter with `search`. At most 30 rows."""
+        the walk-in customer last. Filter with `search`. At most 30 rows. When today's load of the driver's truck
+        names clients, only those clients and the walk-in customer are listed (D-173)."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         filters = CustomerFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
         found = list(selectors.customers_of(membership.organization, search=filters.validated_data["search"]))
+        truck = fleet.truck_of_driver(membership)
+        loaded_for = (
+            set(
+                sales.load_customer_ids(
+                    membership.organization, location_id=truck.location_id, day=timezone.localdate()
+                )
+            )
+            if truck is not None
+            else set()
+        )
+        if loaded_for:
+            found = [customer for customer in found if customer.pk in loaded_for or customer.is_walk_in]
         # The ones this driver sold to lately come first, then the others by name; the walk-in customer last.
         recent = sales.recent_customer_ids(membership.organization, user_id=membership.user_id)
         rank = {customer_id: position for position, customer_id in enumerate(recent)}
@@ -231,6 +246,7 @@ class MyCustomersView(APIView):
                 "city": customer.city,
                 "is_walk_in": customer.is_walk_in,
                 "owes": owed.get(customer.pk, Decimal("0.000")),
+                "on_load": customer.pk in loaded_for,
             }
             for customer in found[:30]
         ]
@@ -261,5 +277,12 @@ class MyCustomersView(APIView):
             phone=data["phone"].strip(),
             city=data["city"].strip(),
         )
-        row = {"id": customer.pk, "name": customer.name, "city": customer.city, "is_walk_in": False, "owes": 0}
+        row = {
+            "id": customer.pk,
+            "name": customer.name,
+            "city": customer.city,
+            "is_walk_in": False,
+            "owes": 0,
+            "on_load": False,
+        }
         return Response(CustomerChoiceSerializer(row).data, status=status.HTTP_201_CREATED)

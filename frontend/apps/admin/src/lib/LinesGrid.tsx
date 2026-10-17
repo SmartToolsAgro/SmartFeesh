@@ -30,6 +30,8 @@ type LinesGridProps = {
   errors: Record<string, string>;
   /** The discount column: a quote and a sale have one, the counter sale does not. */
   discount?: boolean;
+  /** The price and amount columns: a transfer that is not a truck load has none (D-173). */
+  price?: boolean;
   /** One more column after the product, with its own controls: the counter sale's lot. */
   extra?: {
     header: string;
@@ -65,6 +67,7 @@ export function LinesGrid({
   partners,
   errors,
   discount = false,
+  price: priced = true,
   extra,
   hint,
   autoFocus = false,
@@ -75,9 +78,11 @@ export function LinesGrid({
   const wanted = useRef<{ row: number; column: Column } | null>(null);
   const [activeKey, setActiveKey] = useState<number | null>(null);
 
-  const columns: Column[] = discount
-    ? ["product", "quantity", "unit_price", "discount_rate"]
-    : ["product", "quantity", "unit_price"];
+  const columns: Column[] = !priced
+    ? ["product", "quantity"]
+    : discount
+      ? ["product", "quantity", "unit_price", "discount_rate"]
+      : ["product", "quantity", "unit_price"];
   const options = useMemo<ComboboxOption[]>(
     () =>
       products.map((product) => {
@@ -188,7 +193,7 @@ export function LinesGrid({
         }}
         // The columns have their widths and the product takes the rest: on a narrow screen the grid scrolls
         // sideways before the product gets too small to read.
-        className={cn("table-fixed", extra ? "min-w-[62rem]" : "min-w-[56rem]")}
+        className={cn("table-fixed", extra ? "min-w-[62rem]" : priced ? "min-w-[56rem]" : "min-w-[40rem]")}
       >
         <thead>
           <tr className="bg-surface-2">
@@ -198,9 +203,11 @@ export function LinesGrid({
             <Th numeric className="w-28 border border-line">
               {t("admin.lines.quantity")}
             </Th>
-            <Th numeric className="w-32 border border-line">
-              {t("admin.lines.price")}
-            </Th>
+            {priced && (
+              <Th numeric className="w-32 border border-line">
+                {t("admin.lines.price")}
+              </Th>
+            )}
             {discount && (
               <Th numeric className="w-24 border border-line">
                 {t("admin.lines.discount")}
@@ -209,9 +216,11 @@ export function LinesGrid({
             <Th numeric className="w-32 border border-line">
               {t("admin.lines.remaining")}
             </Th>
-            <Th numeric className="w-36 border border-line">
-              {t("admin.lines.amount")}
-            </Th>
+            {priced && (
+              <Th numeric className="w-36 border border-line">
+                {t("admin.lines.amount")}
+              </Th>
+            )}
             <Th className="w-11 border border-line" />
           </tr>
         </thead>
@@ -312,7 +321,7 @@ export function LinesGrid({
                   </td>
                 )}
                 {number("quantity", t("admin.lines.quantity"), line.quantity)}
-                {number("unit_price", t("admin.lines.price"), price)}
+                {priced && number("unit_price", t("admin.lines.price"), price)}
                 {discount && number("discount_rate", t("admin.lines.discount"), line.discount_rate)}
                 <td
                   className={cn(
@@ -326,9 +335,11 @@ export function LinesGrid({
                 >
                   {left !== undefined ? formatQuantity(left) : line.product ? "—" : ""}
                 </td>
-                <td className={cn(CELL, CELL_TEXT, "num text-end font-semibold")}>
-                  {amounts ? formatMoney(amounts.amount) : ""}
-                </td>
+                {priced && (
+                  <td className={cn(CELL, CELL_TEXT, "num text-end font-semibold")}>
+                    {amounts ? formatMoney(amounts.amount) : ""}
+                  </td>
+                )}
                 <td className={cn(CELL, "text-center align-middle")}>
                   {!blank && (
                     // Out of the Tab order, so Tab goes from cell to cell: Ctrl + Delete removes a row from the keyboard.

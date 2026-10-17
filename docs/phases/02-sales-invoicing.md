@@ -127,6 +127,17 @@ Asked by the owner (2026-10-16): the client is known from the start, so the load
       address, products, boxes and total; "Livré" confirms it (online only for now). A driver also sees the BL of their truck's load.
 - [ ] Later: confirm a delivery offline (queue), adjust a quantity on the spot, collect payment from the same card.
 
+### P2-T14 · Transfer typed like a spreadsheet, from the cold rooms together; driver sells to the load's clients (D-173) · M
+Asked by the owner (2026-10-17).
+- [x] The transfer form uses the sale grid (`LinesGrid`): one grid per client and one for what stays on the truck; the
+      client's own price is proposed, and each grid shows the kilos left once the other parts are served.
+- [x] "Départ" offers "Chambres froides (toutes)" or a truck, never one cold room: each line takes its kilos from the
+      cold rooms that hold them (`Transfer.from_cold_rooms`). Truck → truck stays possible (no clients, no price).
+- [x] Each client keeps their own BL, address and fiche (D-160, D-161).
+- [x] Driver phone, "Vente": when today's load names clients, only those clients and the walk-in customer are listed
+      (`GET /my-customers`, `on_load`); a client with a BL to deliver opens it; "Nouveau client" is hidden.
+- [ ] Owner check on staging: a load for two clients from two cold rooms, then the driver's "Vente" list.
+
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.

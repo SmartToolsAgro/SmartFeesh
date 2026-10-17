@@ -14,7 +14,7 @@ from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
 from apps.core.tests.factories import OrganizationFactory, UserFactory
 from apps.inventory import selectors as inventory
 from apps.inventory import services as inventory_services
-from apps.inventory.models import LocationKind, MovementKind
+from apps.inventory.models import LocationKind, MovementKind, StockOnHand
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import printing, selectors, services
@@ -285,3 +285,104 @@ def test_the_part_kept_on_the_truck_makes_no_bl(organization, actor, cold_room, 
 
     assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("25.000")
     assert Sale.objects.filter(transfer=transfer).count() == 1
+
+
+# ---- A load from the cold rooms together (D-173) ----
+
+
+def _received(organization, product, room, kg):
+    batch = BatchFactory.create(organization=organization, product=product, received_on=timezone.localdate())
+    inventory_services.post_movement(
+        organization=organization,
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=batch,
+        quantity=Decimal(kg),
+        to_location=room,
+    )
+
+
+def _held(room, product):
+    return sum((row.quantity for row in StockOnHand.objects.filter(location=room, product=product)), Decimal("0.000"))
+
+
+def test_a_load_from_the_cold_rooms_takes_the_kilos_from_each_room_in_turn(
+    organization, actor, cold_room, truck, dorade, restaurant
+):
+    second_room = StockLocationFactory.create(organization=organization, name="Chambre froide 2")
+    _received(organization, dorade, cold_room, "30")
+    _received(organization, dorade, second_room, "40")
+
+    transfer = inventory_services.create_transfer(
+        organization=organization,
+        actor=actor,
+        from_location=cold_room,
+        to_location=truck,
+        transferred_on=timezone.localdate(),
+        lines=[],
+        deliveries=[part(restaurant, dorade, "50")],
+        from_cold_rooms=True,
+        validate=True,
+    )
+
+    assert transfer.from_cold_rooms is True
+    assert _held(cold_room, dorade) == Decimal("0.000")
+    assert _held(second_room, dorade) == Decimal("20.000")
+    assert _held(truck, dorade) == Decimal("50.000")
+    assert Sale.objects.filter(transfer=transfer, customer=restaurant).count() == 1
+
+
+def test_a_load_from_the_cold_rooms_is_refused_when_the_rooms_together_hold_too_little(
+    organization, actor, cold_room, truck, dorade, restaurant
+):
+    second_room = StockLocationFactory.create(organization=organization, name="Chambre froide 2")
+    _received(organization, dorade, cold_room, "30")
+    _received(organization, dorade, second_room, "40")
+
+    with pytest.raises(ValidationError) as refused:
+        inventory_services.create_transfer(
+            organization=organization,
+            actor=actor,
+            from_location=cold_room,
+            to_location=truck,
+            transferred_on=timezone.localdate(),
+            lines=[],
+            deliveries=[part(restaurant, dorade, "80")],
+            from_cold_rooms=True,
+            validate=True,
+        )
+
+    assert "deliveries.0.lines.0.quantity" in refused.value.message_dict
+    assert _held(cold_room, dorade) == Decimal("30.000")
+
+
+def test_only_a_load_into_a_truck_leaves_from_the_cold_rooms_together(organization, actor, cold_room, dorade):
+    second_room = StockLocationFactory.create(organization=organization, name="Chambre froide 2")
+    _received(organization, dorade, cold_room, "30")
+
+    with pytest.raises(ValidationError) as refused:
+        inventory_services.create_transfer(
+            organization=organization,
+            actor=actor,
+            from_location=cold_room,
+            to_location=second_room,
+            transferred_on=timezone.localdate(),
+            lines=[{"product": dorade, "quantity": "5"}],
+            from_cold_rooms=True,
+        )
+
+    assert "from_location" in refused.value.message_dict
+
+
+def test_the_clients_of_the_days_load_are_the_drivers_customers(
+    organization, actor, cold_room, truck, dorade, restaurant, hotel, stocked
+):
+    load(organization, actor, cold_room, truck, [part(restaurant, dorade, "5"), part(hotel, dorade, "6")])
+
+    found = selectors.load_customer_ids(organization, location_id=truck.pk, day=timezone.localdate())
+
+    assert sorted(found) == sorted([restaurant.pk, hotel.pk])
+    assert (
+        selectors.load_customer_ids(organization, location_id=truck.pk, day=timezone.localdate() - dt.timedelta(days=1))
+        == []
+    )

@@ -9,11 +9,11 @@ import {
   useGetTransfer,
   useListCustomers,
   useListLocations,
-  useListLocationStock,
+  useListPriceLists,
   useListProducts,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -36,15 +36,22 @@ import { Link, Navigate, useNavigate, useOutletContext, useParams } from "react-
 
 import { BoxCountsFields } from "../boxes/BoxCountsFields";
 import { type BoxCountInputs, NO_BOX_INPUTS, boxCountsFromInputs, boxInputsFromCounts } from "../boxes/shared";
-import { lineTotal, sum } from "../lib/decimal";
+import { subtract, sum, toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
-import { pickable } from "../lib/pickable";
+import { amountsOf, asTyped, filled, isZero, type Line, newLine, shownPrice, withSpare } from "../lib/lines";
+import { LinesGrid } from "../lib/LinesGrid";
+import { placesOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import { todayInTunis } from "../receipts/shared";
 import { ClientPart } from "./ClientPart";
-import { type Line, type Part, asTyped, lineKey, newLine, newPart } from "./formLines";
+import { newPart, type Part } from "./formLines";
 import { canRecordTransfers, refreshAfterTransfer } from "./shared";
 
 type Errors = Record<string, string>;
+
+/** "Départ" for a load from the cold rooms together: each product leaves from the rooms that hold it (D-173). */
+const COLD_ROOMS = "cold_rooms";
+/** The key of the part kept on the truck, without a client, among the parts' keys. */
+const KEPT = 0;
 
 /** Into a truck is a load, out of one a return: the server decides the same way. */
 function kindOf(from: StockLocation | undefined, to: StockLocation | undefined): TransferKindEnum | null {
@@ -54,6 +61,27 @@ function kindOf(from: StockLocation | undefined, to: StockLocation | undefined):
   if (toTruck && !fromTruck) return "load";
   if (fromTruck && !toTruck) return "return";
   return "internal";
+}
+
+/** A saved line as the grid shows it: its price was chosen, so it is not replaced by a proposed one. */
+function typedLine(line: TransferDetail["lines"][number]): Line {
+  return newLine({
+    product: String(line.product.id),
+    quantity: asTyped(line.quantity),
+    unit_price: line.unit_price ? asTyped(line.unit_price) : "",
+    priceTouched: line.unit_price !== null,
+  });
+}
+
+/** Kilos per product typed in some rows. */
+function kilosOf(rows: readonly Line[]): Map<string, string> {
+  const byProduct = new Map<string, string>();
+  for (const line of filled(rows)) {
+    const kg = parseDecimalInput(line.quantity.trim(), 3);
+    if (!line.product || kg === null || kg.startsWith("-")) continue;
+    byProduct.set(line.product, sum([byProduct.get(line.product) ?? "0", kg]));
+  }
+  return byProduct;
 }
 
 /** "Nouveau transfert": a new draft, or one validated at once. */
@@ -82,6 +110,10 @@ export function TransferEditPage() {
   return <TransferForm key={transfer.data.id} draft={transfer.data} />;
 }
 
+/**
+ * A transfer typed like a spreadsheet (D-173): from the cold rooms (no room to pick, the products say where they
+ * are) or a truck, into a truck; a load is split by client, each with their grid, address, boxes and BL.
+ */
 function TransferForm({ draft }: { draft?: TransferDetail }) {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
@@ -91,28 +123,24 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
 
   // Archived places too: a draft may name one archived since (it shows, and the server refuses it on save).
   const locations = useListLocations({ status: "all" });
-  // Archived ones leave the pickers unless this transfer already uses them (pickable).
   const products = useListProducts({ status: "all" });
   // The clients of a load (D-160), archived ones too so a saved part still shows its client.
   const customers = useListCustomers({ status: "all" });
+  // Every client's own prices: each client of a load is proposed theirs, as on a sale (D-049).
+  const priceLists = useListPriceLists({ status: "active" });
 
-  const [from, setFrom] = useState(draft ? String(draft.from_location.id) : "");
+  const [from, setFrom] = useState(() => {
+    if (!draft) return COLD_ROOMS;
+    return draft.from_cold_rooms || draft.from_location.kind === "cold_room"
+      ? COLD_ROOMS
+      : String(draft.from_location.id);
+  });
   const [to, setTo] = useState(draft ? String(draft.to_location.id) : "");
   const [day, setDay] = useState(draft?.transferred_on ?? todayInTunis());
   const [notes, setNotes] = useState(draft?.notes ?? "");
+  // The part kept on the truck, without a client (sold on the road); every product of any other transfer.
   const [lines, setLines] = useState<Line[]>(() =>
-    draft
-      ? draft.lines
-          .filter((line) => line.customer === null)
-          .map((line) =>
-            newLine({
-              product: String(line.product.id),
-              quantity: asTyped(line.quantity),
-              unit_price: line.unit_price ? asTyped(line.unit_price) : "",
-              priceTouched: line.unit_price !== null,
-            }),
-          )
-      : [newLine()],
+    withSpare((draft?.lines ?? []).filter((line) => line.customer === null).map(typedLine)),
   );
   // The boxes of a load (D-122). A draft's saved boxes come back here, since saving replaces them.
   const [boxes, setBoxes] = useState<BoxCountInputs>(() => (draft ? boxInputsFromCounts(draft.boxes) : NO_BOX_INPUTS));
@@ -122,48 +150,70 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       newPart({
         customer: String(delivery.customer.id),
         address: delivery.delivery_address,
-        lines: draft?.lines
-          .filter((line) => line.customer?.id === delivery.customer.id)
-          .map((line) =>
-            newLine({
-              product: String(line.product.id),
-              quantity: asTyped(line.quantity),
-              unit_price: line.unit_price ? asTyped(line.unit_price) : "",
-              priceTouched: line.unit_price !== null,
-            }),
-          ),
+        lines: withSpare(
+          (draft?.lines ?? []).filter((line) => line.customer?.id === delivery.customer.id).map(typedLine),
+        ),
         boxes: boxInputsFromCounts(delivery.boxes),
       }),
     ),
   );
   const [errors, setErrors] = useState<Errors>({});
 
-  const places = locations.data ?? [];
-  const fromPlace = places.find((place) => String(place.id) === from);
+  const places = useMemo(() => locations.data ?? [], [locations.data]);
+  const coldRooms = useMemo(
+    () => places.filter((place) => place.kind === "cold_room" && place.is_active).sort((a, b) => a.id - b.id),
+    [places],
+  );
+  // From the cold rooms, the boxes leave from the first one, as on the server.
+  const fromPlace = from === COLD_ROOMS ? coldRooms[0] : places.find((place) => String(place.id) === from);
   const toPlace = places.find((place) => String(place.id) === to);
   const kind = kindOf(fromPlace, toPlace);
+  const isLoad = kind === "load";
 
-  const stock = useListLocationStock(Number(from), { query: { enabled: from !== "" } });
-  const availableOf = useMemo(() => {
-    const byProduct = new Map<string, string>();
-    for (const row of stock.data ?? []) byProduct.set(String(row.product_id), row.quantity);
-    return byProduct;
-  }, [stock.data]);
-  const priceInForce = useMemo(() => {
+  // The stock of where the goods leave from: every cold room together, or the one truck.
+  const sourceIds = from === COLD_ROOMS ? coldRooms.map((place) => place.id) : from ? [Number(from)] : [];
+  const byPlace = usePlacesStock(sourceIds);
+  const totals = useMemo(() => totalsOf(byPlace), [byPlace]);
+  const placeNames = useMemo(() => new Map(places.map((place) => [place.id, place.name])), [places]);
+  const placesOfProduct = useMemo(() => placesOf(byPlace, placeNames), [byPlace, placeNames]);
+
+  const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
     return byProduct;
   }, [products.data]);
-
-  // A load line shows the price in force until a price is typed.
-  const priceOf = (line: Line): string => {
-    if (line.priceTouched) return line.unit_price;
-    const price = priceInForce.get(line.product);
-    return price ? asTyped(price) : "";
+  const listOf = (customer: string) => (priceLists.data ?? []).find((list) => String(list.customer) === customer);
+  const proposedFor =
+    (customer: string) =>
+    (product: string): string | null =>
+      listOf(customer)?.items.find((item) => String(item.product) === product)?.price ??
+      dailyPrice.get(product) ??
+      null;
+  const hintFor = (customer: string) => (line: Line) => {
+    const list = listOf(customer);
+    const fromList = list?.items.find((item) => String(item.product) === line.product)?.price;
+    if (list && fromList) return t("admin.sales.form.listPrice", { list: list.name, price: formatMoney(fromList) });
+    const inForce = dailyPrice.get(line.product);
+    return inForce
+      ? t("admin.transfers.form.priceInForce", { price: formatMoney(inForce) })
+      : t("admin.transfers.form.noPrice");
   };
 
-  const setLine = (key: number, change: Partial<Line>) =>
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, ...change } : line)));
+  // What each part takes, so a grid shows the kilos left once the other parts are served.
+  const clientParts = isLoad ? parts : [];
+  const taken = new Map<number, Map<string, string>>([
+    [KEPT, kilosOf(lines)],
+    ...clientParts.map((part): [number, Map<string, string>] => [part.key, kilosOf(part.lines)]),
+  ]);
+  const stockFor = (key: number): Map<string, string> | undefined => {
+    if (sourceIds.length === 0) return undefined;
+    const left = new Map<string, string>();
+    for (const product of new Set([...totals.keys(), ...[...taken.values()].flatMap((kg) => [...kg.keys()])])) {
+      const others = [...taken.entries()].filter(([other]) => other !== key).map(([, kg]) => kg.get(product) ?? "0");
+      left.set(product, subtract(totals.get(product) ?? "0", sum(others)));
+    }
+    return left;
+  };
 
   const save = useMutation({
     mutationFn: (payload: TransferWrite) => (draft ? updateTransfer(draft.id, payload) : createTransfer(payload)),
@@ -186,65 +236,60 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
 
   function submit(validateNow: boolean) {
     const found: Errors = {};
-    if (!from) found.from_location = t("admin.transfers.form.required");
+    if (!from || (from === COLD_ROOMS && !fromPlace)) found.from_location = t("admin.transfers.form.required");
     if (!to) found.to_location = t("admin.transfers.form.required");
     if (from && from === to) found.to_location = t("admin.transfers.form.samePlace");
     if (!day) found.transferred_on = t("admin.transfers.form.required");
-    // Clients are only for a load; a form switched to another kind leaves them out.
-    const clientParts = kind === "load" ? parts : [];
-    // With clients, the part kept on the truck is optional: a line left blank is simply not sent.
-    const keptLines = clientParts.length > 0 ? lines.filter((line) => line.product || line.quantity.trim()) : lines;
-    if (keptLines.length === 0 && clientParts.length === 0) found.lines = t("admin.transfers.form.noLines");
-    const checkLines = (rows: Line[], prefix: string): TransferWrite["lines"] => {
-      const payload: TransferWrite["lines"] = [];
-      rows.forEach((line, index) => {
-        if (!line.product) found[prefix + lineKey(index, "product")] = t("admin.transfers.form.required");
+    if (filled(lines).length === 0 && clientParts.length === 0) found.lines = t("admin.transfers.form.noLines");
+    // The rows sent, in the grid's order: their messages come back on `<prefix>lines.<n>.<field>`.
+    const rowsOf = (rows: Line[], proposed: (product: string) => string | null, prefix: string) =>
+      filled(rows).map((line, index) => {
+        const key = (field: string) => `${prefix}lines.${index}.${field}`;
+        if (!line.product) found[key("product")] = t("admin.transfers.form.required");
         const quantity = parseDecimalInput(line.quantity.trim(), 3);
-        if (quantity === null || quantity.startsWith("-") || /^0+(\.0+)?$/.test(quantity)) {
-          found[prefix + lineKey(index, "quantity")] = t("admin.transfers.form.weight");
+        if (quantity === null || quantity.startsWith("-") || isZero(quantity)) {
+          found[key("quantity")] = t("admin.transfers.form.weight");
         }
         let price: string | null = null;
-        if (kind === "load") {
-          const typed = priceOf(line).trim();
+        if (isLoad) {
+          const typed = shownPrice(line, line.product ? proposed(line.product) : null).trim();
           if (typed !== "") {
             price = parseDecimalInput(typed, 3);
-            if (price === null || price.startsWith("-"))
-              found[prefix + lineKey(index, "unit_price")] = t("admin.transfers.form.money");
+            if (price === null || price.startsWith("-")) found[key("unit_price")] = t("admin.transfers.form.money");
           }
         }
-        payload.push({ product: Number(line.product), quantity: quantity ?? "", unit_price: price });
+        return { product: Number(line.product), quantity: quantity ?? "", unit_price: price };
       });
-      return payload;
-    };
-    const payloadLines = checkLines(keptLines, "");
+    const payloadLines = rowsOf(lines, (product) => dailyPrice.get(product) ?? null, "");
     const deliveries: NonNullable<TransferWrite["deliveries"]> = clientParts.map((part, index) => {
       const prefix = `deliveries.${index}.`;
       if (!part.customer) found[`${prefix}customer`] = t("admin.transfers.form.required");
-      if (part.lines.length === 0) found[`${prefix}lines`] = t("admin.transfers.form.noLines");
+      if (filled(part.lines).length === 0) found[`${prefix}lines`] = t("admin.transfers.form.noLines");
       const partBoxes = boxCountsFromInputs(part.boxes);
       for (const boxType of partBoxes.invalid) found[`${prefix}boxes.${boxType}`] = t("admin.boxes.form.invalid");
       return {
         customer: Number(part.customer),
         delivery_address: part.address.trim(),
-        lines: checkLines(part.lines, prefix),
+        lines: rowsOf(part.lines, proposedFor(part.customer), prefix),
         boxes: partBoxes.counts,
       };
     });
-    // Boxes travel with a load only: the server refuses any other kind that carries them.
+    // Boxes travel with a load only here: the server refuses any other kind that carries them.
     const boxCounts = boxCountsFromInputs(boxes);
-    if (kind === "load") {
+    if (isLoad) {
       for (const boxType of boxCounts.invalid) found[`boxes.${boxType}`] = t("admin.boxes.form.invalid");
     }
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0 || !fromPlace) return;
     save.mutate({
-      from_location: Number(from),
+      from_location: fromPlace.id,
+      from_cold_rooms: from === COLD_ROOMS,
       to_location: Number(to),
       transferred_on: day,
       notes: notes.trim(),
       lines: payloadLines,
       validate_now: validateNow,
-      boxes: kind === "load" ? boxCounts.counts : {},
+      boxes: isLoad ? boxCounts.counts : {},
       deliveries,
     });
   }
@@ -254,18 +299,19 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
     submit(false);
   }
 
+  // Emptying a truck in the evening: everything it holds comes back.
+  const truckStock = fromPlace?.kind === "truck" ? byPlace.get(fromPlace.id) : undefined;
   function takeAll() {
-    const rows = stock.data ?? [];
-    setLines(rows.map((row) => newLine({ product: String(row.product_id), quantity: asTyped(row.quantity) })));
+    const rows = [...(truckStock ?? new Map<string, string>())].filter(([, kg]) => toThousandths(kg) > 0n);
+    setLines(withSpare(rows.map(([product, kg]) => newLine({ product, quantity: asTyped(kg) }))));
   }
 
-  const amounts = lines.map((line) => {
-    if (kind !== "load") return null;
-    const quantity = parseDecimalInput(line.quantity.trim(), 3);
-    const price = parseDecimalInput(priceOf(line).trim(), 3);
-    return quantity && price && !quantity.startsWith("-") && !price.startsWith("-") ? lineTotal(quantity, price) : null;
-  });
-  const total = sum(amounts.flatMap((amount) => (amount ? [amount] : [])));
+  const keptTotal = sum(
+    filled(lines).flatMap((line) => {
+      const amounts = amountsOf(line, shownPrice(line, line.product ? (dailyPrice.get(line.product) ?? null) : null));
+      return amounts ? [amounts.amount] : [];
+    }),
+  );
 
   const id = (name: string) => `${formId}-${name}`;
   const select = (
@@ -274,9 +320,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
     value: string,
     onChange: (value: string) => void,
     options: { value: string; label: string }[],
-    className?: string,
   ) => (
-    <Field label={label} htmlFor={id(name)} error={errors[name]} className={className}>
+    <Field label={label} htmlFor={id(name)} error={errors[name]}>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger id={id(name)} aria-invalid={errors[name] ? true : undefined}>
           <SelectValue placeholder={t("admin.transfers.form.choose")} />
@@ -291,17 +336,19 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       </Select>
     </Field>
   );
-  // Goods leave a cold room or a truck and go into a truck, or come back from a truck into a cold room (the
-  // evening return); a place never goes into itself (a truck picked on one side is missing from the other).
+  // Goods leave the cold rooms or a truck and go into a truck, or come back from a truck into a cold room (the
+  // evening return); a truck never goes into itself (a truck picked on one side is missing from the other).
   const placeOption = (place: StockLocation) => ({
     value: String(place.id),
     label: place.is_active ? place.name : t("admin.transfers.form.archivedPlace", { name: place.name }),
   });
   const usable = (place: StockLocation, chosen: string) => place.is_active || String(place.id) === chosen;
-  const fromOptions = places
-    .filter((place) => (place.kind === "cold_room" || place.kind === "truck") && usable(place, from))
-    .filter((place) => String(place.id) !== to)
-    .map(placeOption);
+  const fromOptions = [
+    { value: COLD_ROOMS, label: t("admin.transfers.form.coldRooms") },
+    ...places
+      .filter((place) => place.kind === "truck" && usable(place, from) && String(place.id) !== to)
+      .map(placeOption),
+  ];
   const toOptions = places
     .filter(
       (place) =>
@@ -310,6 +357,7 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
     .filter((place) => String(place.id) !== from)
     .map(placeOption);
   const back = draft ? `/stock/transferts/${draft.id}` : "/stock/transferts";
+  const productList = products.data ?? [];
 
   return (
     <>
@@ -344,114 +392,7 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
           )}
         </Card>
 
-        <Card className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <CardTitle className="mb-0">
-              {kind === "load" && parts.length > 0
-                ? t("admin.transfers.form.keptLines")
-                : t("admin.transfers.form.lines")}
-            </CardTitle>
-            {/* Emptying a truck in the evening: everything it holds comes back. */}
-            {fromPlace?.kind === "truck" && (stock.data?.length ?? 0) > 0 && (
-              <Button className="ms-auto" title={t("admin.transfers.form.takeAllHint")} onClick={takeAll}>
-                <Icon name="return" />
-                {t("admin.transfers.form.takeAll")}
-              </Button>
-            )}
-          </div>
-          {lines.map((line, index) => {
-            const available = line.product ? availableOf.get(line.product) : undefined;
-            const inForce = line.product ? priceInForce.get(line.product) : undefined;
-            const hints = [
-              line.product && from && stock.data
-                ? available
-                  ? t("admin.transfers.form.available", { quantity: formatQuantity(available) })
-                  : t("admin.transfers.form.notAvailable")
-                : null,
-              kind === "load" && line.product
-                ? inForce
-                  ? t("admin.transfers.form.priceInForce", { price: formatMoney(inForce) })
-                  : t("admin.transfers.form.noPrice")
-                : null,
-            ].filter(Boolean);
-            const amount = amounts[index];
-            const input = (field: "quantity" | "unit_price", label: string) => (
-              <Field label={label} htmlFor={id(lineKey(index, field))} error={errors[lineKey(index, field)]}>
-                <Input
-                  id={id(lineKey(index, field))}
-                  inputMode="decimal"
-                  value={field === "unit_price" ? priceOf(line) : line.quantity}
-                  onChange={(event) =>
-                    setLine(
-                      line.key,
-                      field === "unit_price"
-                        ? { unit_price: event.target.value, priceTouched: true }
-                        : { quantity: event.target.value },
-                    )
-                  }
-                  aria-invalid={errors[lineKey(index, field)] ? true : undefined}
-                  autoComplete="off"
-                  className="num"
-                />
-              </Field>
-            );
-            return (
-              <div
-                key={line.key}
-                role="group"
-                aria-label={t("admin.transfers.form.lineNumber", { number: index + 1 })}
-                className="grid grid-cols-[2fr_1fr_1fr_auto] items-start gap-3 rounded-card border border-line p-3 max-[800px]:grid-cols-2"
-              >
-                {select(
-                  lineKey(index, "product"),
-                  t("admin.transfers.form.product"),
-                  line.product,
-                  (value) => setLine(line.key, { product: value }),
-                  pickable(
-                    products.data ?? [],
-                    lines.map((item) => item.product),
-                  ).map((product) => ({
-                    value: String(product.id),
-                    label: `${product.name} · ${product.reference}`,
-                  })),
-                  "max-[800px]:col-span-2",
-                )}
-                {input("quantity", t("admin.transfers.form.quantity"))}
-                {kind === "load" ? input("unit_price", t("admin.transfers.form.price")) : <div />}
-                <div className="flex items-end self-stretch max-[800px]:col-span-2 max-[800px]:justify-end">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("admin.transfers.form.removeLine")}
-                    title={t("admin.transfers.form.removeLine")}
-                    onClick={() => setLines((current) => current.filter((other) => other.key !== line.key))}
-                  >
-                    <Icon name="trash" />
-                  </Button>
-                </div>
-                <p className="col-span-3 text-[0.85rem] text-ink-2 max-[800px]:col-span-2" aria-live="polite">
-                  {hints.join(" · ")}
-                </p>
-                <p className="num text-end font-semibold max-[800px]:col-span-2">{amount ? formatMoney(amount) : ""}</p>
-              </div>
-            );
-          })}
-          {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-            <Button onClick={() => setLines((current) => [...current, newLine()])}>
-              <Icon name="plus" />
-              {t("admin.transfers.form.addLine")}
-            </Button>
-            {kind === "load" && (
-              <dl className="ms-auto">
-                <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.transfers.detail.totalAmount")}</dt>
-                <dd className="num font-bold">{formatMoney(total)}</dd>
-              </dl>
-            )}
-          </div>
-        </Card>
-
-        {kind === "load" && (
+        {isLoad && (
           <section className="flex flex-col gap-4" aria-label={t("admin.transfers.form.clients")}>
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-[1rem] font-bold">{t("admin.transfers.form.clients")}</h2>
@@ -463,9 +404,11 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
                 index={index}
                 part={part}
                 customers={customers.data ?? []}
-                products={products.data ?? []}
-                availableOf={availableOf}
-                priceInForce={priceInForce}
+                products={productList}
+                proposedPrice={proposedFor(part.customer)}
+                priceHint={hintFor(part.customer)}
+                stock={stockFor(part.key)}
+                places={placesOfProduct}
                 errors={errors}
                 onChange={(next) =>
                   setParts((current) => current.map((other) => (other.key === part.key ? next : other)))
@@ -483,7 +426,43 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
           </section>
         )}
 
-        {kind === "load" && (
+        <Card className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <CardTitle className="mb-0">
+              {isLoad && parts.length > 0 ? t("admin.transfers.form.keptLines") : t("admin.transfers.form.lines")}
+            </CardTitle>
+            {(truckStock?.size ?? 0) > 0 && (
+              <Button className="ms-auto" title={t("admin.transfers.form.takeAllHint")} onClick={takeAll}>
+                <Icon name="return" />
+                {t("admin.transfers.form.takeAll")}
+              </Button>
+            )}
+          </div>
+          {isLoad && parts.length > 0 && (
+            <p className="text-[0.85rem] text-ink-2">{t("admin.transfers.form.keptHint")}</p>
+          )}
+          <LinesGrid
+            label={t("admin.transfers.form.lines")}
+            lines={lines}
+            onChange={setLines}
+            products={productList}
+            proposedPrice={(product) => dailyPrice.get(product) ?? null}
+            price={isLoad}
+            stock={stockFor(KEPT)}
+            places={placesOfProduct}
+            errors={errors}
+            hint={isLoad ? hintFor("") : undefined}
+          />
+          {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
+          {isLoad && (
+            <dl className="ms-auto text-end">
+              <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.transfers.detail.totalAmount")}</dt>
+              <dd className="num font-bold">{formatMoney(keptTotal)}</dd>
+            </dl>
+          )}
+        </Card>
+
+        {isLoad && (
           <BoxCountsFields
             title={t("admin.boxes.form.loadTitle")}
             hint={t("admin.boxes.form.loadHint")}

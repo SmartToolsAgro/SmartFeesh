@@ -1,44 +1,25 @@
 import type { Customer } from "@frutti/api";
 
 import type { BoxCountInputs } from "../boxes/shared";
-
-/** One product line of a transfer form, as typed. */
-export type Line = {
-  key: number;
-  product: string;
-  quantity: string;
-  unit_price: string;
-  // Once a person types a price, the form stops showing the price in force.
-  priceTouched: boolean;
-};
+import { type Line, withSpare } from "../lib/lines";
 
 /** The part of a truck load that is for one client: their products, boxes and the address of their BL (D-160). */
 export type Part = {
   key: number;
   customer: string;
   address: string;
+  /** Typed in a grid like a sale's (`LinesGrid`, D-173), ending with a blank row. */
   lines: Line[];
   boxes: BoxCountInputs;
 };
 
-// Gives each line and part a stable React key, also for those not saved yet.
+// Gives each part a stable React key, also for those not saved yet.
 let nextKey = 0;
-
-export function newLine(fields: Partial<Line> = {}): Line {
-  nextKey += 1;
-  return { key: nextKey, product: "", quantity: "", unit_price: "", priceTouched: false, ...fields };
-}
 
 export function newPart(fields: Partial<Part> = {}): Part {
   nextKey += 1;
-  return { key: nextKey, customer: "", address: "", lines: [newLine()], boxes: { small: "", big: "" }, ...fields };
+  return { key: nextKey, customer: "", address: "", lines: withSpare([]), boxes: { small: "", big: "" }, ...fields };
 }
-
-// The API writes "20.250"; people here write "20,250". Both are read back by parseDecimalInput.
-export const asTyped = (value: string) => value.replace(".", ",");
-
-/** Errors of a line are reported on `lines.<index>.<field>`, under `deliveries.<i>.` for a client's part. */
-export const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 
 /** The address a BL starts from: the client's own, which the person may change for this BL only. */
 export function addressOf(customer: Pick<Customer, "address" | "city"> | undefined): string {

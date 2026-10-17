@@ -2525,3 +2525,21 @@ client's record but may be changed on this BL only.
   Nothing is learned silently: a wrong sale time could otherwise put a customer at the wrong place.
 - A stop within 75 m of a saved place is named after that customer, also when no sale was made there (`dayclose.day_route`); the
   stop's customers are `{id, name, has_place}`.
+
+**D-173 · A transfer is typed like a spreadsheet, leaves from the cold rooms together, and the driver sells to the load's clients (P2-T14)** · accepted · 2026-10-17
+Asked by the owner: the transfer screen in the agreed spreadsheet style; "frigo → camion X" without naming a cold room
+(the products say where they are, as on a quote); camion X → camion Y; every product of a load for a named client, each
+with their BL and fiche; the phone's "Vente" shows only the clients of the load.
+- **Form.** The transfer form uses `LinesGrid` (D-139, D-163): one grid per client (client, delivery address, the
+  client's price list proposed, else the daily price; boxes) and one grid "Gardé sur le camion, sans client". Each grid's
+  "Reste" is the stock less what the other parts take. A transfer that is not a load has no price column (`price` prop).
+- **From the cold rooms together.** "Départ" offers "Chambres froides (toutes)" and the trucks; a single cold room is no
+  longer offered. `Transfer.from_cold_rooms` (migration 0009): only for a load into a truck; `from_location` is then the
+  first active cold room by id (the boxes leave from it). Validation takes each line from the active cold rooms in id
+  order, FIFO inside each room (`_post_line_from`, `selectors.held_by_location`), refused on the line when the rooms hold
+  too little together. Lines stay in product order, rooms in id order: no deadlock between two validations.
+- **Driver phone.** `GET /my-customers`: when today's loads of the driver's truck made BL (D-160), only those clients and
+  the walk-in customer are listed, each with `on_load`. In "Vente", a client with a BL still to deliver opens it ("Livré"),
+  with "Vendre autre chose à ce client" for the kept stock; "Nouveau client" is hidden. The box pickup keeps picking only.
+- **Provisional:** the restriction is a list filter, not a refusal: the server still accepts a sale to another customer
+  (an offline sale typed before the load, say). An old draft from one cold room reopens as "from the cold rooms together".

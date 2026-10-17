@@ -4213,7 +4213,8 @@ paths:
       operationId: listMyCustomers
       description: |-
         Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
-        the walk-in customer last. Filter with `search`. At most 30 rows.
+        the walk-in customer last. Filter with `search`. At most 30 rows. When today's load of the driver's truck
+        names clients, only those clients and the walk-in customer are listed (D-173).
       parameters:
       - in: query
         name: kind
@@ -10557,11 +10558,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        on_load:
+          type: boolean
+          readOnly: true
+          default: false
       required:
       - city
       - id
       - is_walk_in
       - name
+      - on_load
       - owes
     CustomerContact:
       type: object
@@ -23479,6 +23485,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/Place'
           readOnly: true
+        from_cold_rooms:
+          type: boolean
+          readOnly: true
         to_location:
           allOf:
           - $ref: '#/components/schemas/Place'
@@ -23534,6 +23543,7 @@ components:
       - confirmed_by
       - created_at
       - created_by
+      - from_cold_rooms
       - from_location
       - id
       - kind
@@ -23617,6 +23627,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/Place'
           readOnly: true
+        from_cold_rooms:
+          type: boolean
+          readOnly: true
         to_location:
           allOf:
           - $ref: '#/components/schemas/Place'
@@ -23684,6 +23697,7 @@ components:
       - created_at
       - created_by
       - deliveries
+      - from_cold_rooms
       - from_location
       - id
       - kind
@@ -23821,6 +23835,9 @@ components:
         from_location:
           type: integer
           minimum: 1
+        from_cold_rooms:
+          type: boolean
+          default: false
         to_location:
           type: integer
           minimum: 1

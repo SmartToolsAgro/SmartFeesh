@@ -27,6 +27,9 @@ _Last updated: 2026-10-17 (P3-T14 driver app with less scrolling, D-171; client-
 - **D-163 (PR #164, branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
   truck condition, partnership edits, XLS tables, frozen header). CI must pass before merge; then check on staging.
 
+- **P2-T14 / D-173 (branch transfer-load-grid):** transfer form as a spreadsheet grid per client, "Chambres froides
+  (toutes)" as the source, driver "Vente" lists only the load's clients. CI must pass, then check on staging.
+
 ## Next step
 
 1. Push the CI fixes for PR #160, wait for green CI, then merge. After deployment, check a load with two clients on
