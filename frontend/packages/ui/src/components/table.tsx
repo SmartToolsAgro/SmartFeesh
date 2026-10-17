@@ -7,7 +7,7 @@ import { cn } from "../lib/cn";
  * long table scrolls inside its own frame. */
 export function Table({ className, frozen = false, ...props }: ComponentProps<"table"> & { frozen?: boolean }) {
   return (
-    <div className={cn("overflow-x-auto", frozen && "max-h-[70vh] overflow-y-auto")}>
+    <div className={cn("overflow-x-auto", frozen && "max-h-[calc(100vh-18rem)] min-h-48 overflow-y-auto")}>
       <table className={cn("w-full border-collapse text-[0.9rem]", className)} {...props} />
     </div>
   );
