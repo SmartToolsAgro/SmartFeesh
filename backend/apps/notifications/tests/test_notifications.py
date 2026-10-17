@@ -192,3 +192,49 @@ def test_a_broken_notification_never_refuses_the_action(day, monkeypatch):
 
     assert transfer.status == "validated"
     assert not Notification.objects.filter(kind="load_validated").exists()
+
+
+def test_a_bl_delivered_in_part_from_the_phone_tells_the_office_and_its_change_tells_the_driver(day):
+    """The BL of a load (D-178): the office changing it tells the driver, a part delivery tells the office."""
+    inventory.create_transfer(
+        organization=day["organization"],
+        actor=day["owner_user"],
+        from_location=day["room"],
+        to_location=day["truck"].location,
+        transferred_on=timezone.localdate(),
+        lines=[],
+        deliveries=[{"customer": day["customer"], "lines": [{"product": day["product"], "quantity": "6"}]}],
+        validate=True,
+    )
+    (bl,) = day["api"].get(reverse("my-deliveries")).json()
+    changed = day["owner"].put(
+        reverse("sale-detail", args=[bl["id"]]),
+        {
+            "customer": day["customer"].pk,
+            "location": day["truck"].location_id,
+            "lines": [{"product": day["product"].pk, "quantity": "5", "unit_price": "28.000"}],
+        },
+        format="json",
+    )
+    assert changed.status_code == 200
+    assert "bl_changed" in kinds(day["api"])
+    line = changed.json()["lines"][0]
+
+    delivered = day["api"].post(
+        reverse("my-delivery-deliver", args=[bl["id"]]),
+        {"lines": [{"line": line["id"], "quantity": "4"}], "note": "Le client a pris 4 kg"},
+        format="json",
+    )
+
+    assert delivered.status_code == 200
+    body = delivered.json()
+    assert (body["status"], body["delivery_status"], body["version"], body["total"]) == (
+        "confirmed",
+        "partial",
+        3,
+        "112.000",
+    )
+    office = told(day["owner"])["results"][0]
+    assert office["kind"] == "delivery_partial"
+    assert office["params"]["note"] == "Le client a pris 4 kg"
+    assert day["api"].get(reverse("my-deliveries")).json() == []

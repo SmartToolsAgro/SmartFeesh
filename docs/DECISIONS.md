@@ -2560,3 +2560,35 @@ with their BL and fiche; the phone's "Vente" shows only the clients of the load.
 - Now a draft with `Sale.transfer` shows "Imprimer le bon provisoire" (the PROVISOIRE PDF, nothing changes), a note that
   the driver validates it at the delivery, and "Marquer livré" behind a confirmation dialog for the case the driver
   cannot. "Valider et imprimer le BL" stays for other drafts only. No server change.
+
+**D-178 · The BL of a load is validated at the load and delivered by the driver, in full, in part or not at all (P2-T15)** · accepted · 2026-10-17
+Owner's workflow (2026-10-17, all points agreed): the office prints valid BLs, a delivery status follows each one, the
+driver may deliver part of it (the rest goes back to stock), the client may change their mind at the door, every change
+is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIRE print" and D-177's stop-gap.
+- **Issued, not sold.** Validating the load gives each client's BL its BL number (`issued_at`, version 1,
+  `delivery_status=to_deliver`, `SaleLine.ordered_quantity` = kg written). The sale stays a draft: no stock moves and
+  nothing is owed, so the client owes only what is delivered and an undelivered kilo never left the truck (no return
+  movement, the lot stays right for profit per lot, D-040). `confirm_sale` keeps an issued number.
+- **Delivery** (`services.deliver_sale`, `POST /my-deliveries/<id>/deliver`): only the lines that changed are sent; zero
+  takes a product off (the line is deleted, the version keeps it), less is `partial`, more is the weight at the client
+  (up to the truck's stock). The price never changes. Boxes and cash taken at the door are given here. Then the sale is
+  confirmed with what was delivered. All zero = not delivered.
+- **Not delivered** (`cancel_delivery`, `POST /my-deliveries/<id>/not-delivered`, optional note): the draft is cancelled,
+  `delivery_status=cancelled` ("Non livré"); nothing moves. Sending the day closing does this for every BL of the truck
+  still to deliver (`cancel_undelivered`), note "Non livré à la fin de la journée".
+- **Versions** (`SaleRevision`, immutable): issued, edited (the office changes the BL before delivery: version + 1, the
+  driver is notified), delivered (version + 1 only when something differs from the BL), cancelled. Shown on the sale page.
+- **Paper (owner's choice):** the driver writes the kg delivered on the paper BL (it has an empty "Livré" column) and the
+  client signs; the office reprints the corrected BL ("Commandé / Livré" columns, the products not delivered, the
+  version and the driver's note). Printing from the phone waits for P3-T10.
+- **Offline:** the phone keeps a delivery or a "non livré" in its queue (`client_uuid` = `Sale.delivery_uuid`, a retry
+  answers with what was recorded), shows the BL as done, and counts its kilos as gone from the truck meanwhile.
+- **Office:** "Marquer livré" (D-177) confirms it as written (`delivered`); the documents list offers no direct "Valider"
+  for a BL to deliver. Ventes filters by delivery status; the load page shows each client's status and version.
+- **Notifications** (D-175): `sale.delivered` (driver → office: delivered / delivered in part, with the note),
+  `sale.cancelled` of a load BL (driver → office "non livré"; office → driver "bon annulé"), `sale.delivery_changed`
+  (office → driver). The plain "sale confirmed" notification is not sent for a load BL.
+- **Older BLs** (made before this): migration 0019 sets their status; a draft keeps its VE number, prints PROVISOIRE and
+  gets its BL number at the delivery, as before.
+- **Provisional:** a credit limit under the "approval" policy can leave a delivered BL waiting (draft, `partial`/`delivered`)
+  until the owner approves; a BL loaded for tomorrow is made "non livré" by tonight's closing.

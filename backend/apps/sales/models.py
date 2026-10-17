@@ -171,6 +171,19 @@ class SaleStatus(models.TextChoices):
     CANCELLED = "cancelled", _("Annulée")
 
 
+class DeliveryStatus(models.TextChoices):
+    """Where the BL of a truck load stands (D-178). Empty on a sale that was not prepared with a load."""
+
+    # Validated and printed by the office: the goods are on the truck, nothing is sold yet.
+    TO_DELIVER = "to_deliver", _("À livrer")
+    # Delivered as written, or more (the weight at the client).
+    DELIVERED = "delivered", _("Livré")
+    # Less than written, or a product taken off: the rest stays on the truck.
+    PARTIAL = "partial", _("Livré en partie")
+    # Not delivered at all (the client refused, was closed, or the office gave it up): nothing was sold.
+    CANCELLED = "cancelled", _("Non livré")
+
+
 class SalePaymentMethod(models.TextChoices):
     """How the customer paid at the sale. Full customer payments are P2-T06's `CustomerPayment`."""
 
@@ -291,6 +304,21 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     is_opening = models.BooleanField(default=False)
     # Sent by an app that may retry (the driver app, the seed): the same request never makes two sales.
     client_uuid = models.UUIDField(null=True, blank=True)
+    # The BL of a truck load (D-178): validated with its BL number when the load is validated (`issued_at`), then
+    # delivered by the driver, in full or in part, or not at all. Nothing is sold before the delivery: the sale
+    # stays a draft until then, so the client owes only what was delivered and the rest never left the truck.
+    delivery_status = models.CharField(max_length=20, choices=DeliveryStatus.choices, blank=True)
+    issued_at = models.DateTimeField(null=True, blank=True)
+    # Each change of the BL after it was printed makes a new version (`SaleRevision`): 1 is the one printed.
+    version = models.PositiveSmallIntegerField(default=1)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    delivered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # The driver's word on the delivery (what changed, why it was not delivered); optional.
+    delivery_note = models.CharField(max_length=255, blank=True)
+    # Sent by the phone with the delivery: a retry answers with the delivery already recorded.
+    delivery_uuid = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ["-sold_at", "-id"]
@@ -300,6 +328,11 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
                 fields=["organization", "client_uuid"],
                 condition=models.Q(client_uuid__isnull=False),
                 name="sale_client_uuid_unique_per_organization",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "delivery_uuid"],
+                condition=models.Q(delivery_uuid__isnull=False),
+                name="sale_delivery_uuid_unique_per_organization",
             ),
             models.CheckConstraint(
                 condition=models.Q(
@@ -373,6 +406,11 @@ class SaleLine(OrganizationScopedModel):
     cost_amount = models.DecimalField[Decimal | None, Decimal | None](
         max_digits=14, decimal_places=3, null=True, blank=True
     )
+    # On the BL of a truck load (D-178): the kg written on the BL the office printed. `quantity` is then what was
+    # delivered. Null on any other sale.
+    ordered_quantity = models.DecimalField[Decimal | None, Decimal | None](
+        max_digits=12, decimal_places=3, null=True, blank=True
+    )
 
     class Meta:
         ordering = ["sale", "id"]
@@ -390,6 +428,39 @@ class SaleLine(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.sale} · {self.product_id}"
+
+
+class SaleRevisionKind(models.TextChoices):
+    ISSUED = "issued", _("Validé au chargement")
+    EDITED = "edited", _("Modifié par le bureau")
+    DELIVERED = "delivered", _("Livraison")
+    CANCELLED = "cancelled", _("Non livré")
+
+
+class SaleRevision(OrganizationScopedModel):
+    """One version of the BL of a truck load, as it was then (D-178): never changed, never deleted.
+
+    `lines` holds, per product, the kg written on the BL (`ordered`), what was delivered (`delivered`, at the
+    delivery) and the price; `boxes` the boxes per type.
+    """
+
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="revisions")
+    version = models.PositiveSmallIntegerField()
+    kind = models.CharField(max_length=20, choices=SaleRevisionKind.choices)
+    lines = models.JSONField(default=list)
+    boxes = models.JSONField(default=dict)
+    total = MoneyField(default=Decimal("0.000"))
+    note = models.CharField(max_length=255, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sale", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.sale} v{self.version} · {self.kind}"
 
 
 class SaleLineBatch(OrganizationScopedModel):

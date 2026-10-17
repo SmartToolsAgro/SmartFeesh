@@ -39,6 +39,11 @@ const KINDS = [
   "expense_rejected",
   "truck_assigned",
   "sync_resolved",
+  "delivery_done",
+  "delivery_partial",
+  "delivery_cancelled",
+  "bl_changed",
+  "bl_cancelled",
 ] as const;
 type Kind = (typeof KINDS)[number];
 

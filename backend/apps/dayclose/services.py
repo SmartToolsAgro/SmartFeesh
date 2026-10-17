@@ -16,6 +16,7 @@ from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
 from apps.fleet import selectors as fleet
 from apps.fleet import services as fleet_services
+from apps.sales import services as sales_services
 
 from . import selectors
 from .models import DayClosing, DayClosingStatus, DayReopening, SyncProblem
@@ -63,6 +64,11 @@ def submit_day_closing(
         raise ValidationError({"counted_cash": _("Cette journée est déjà envoyée.")})
     if existing is not None and existing.status == DayClosingStatus.APPROVED:
         raise ValidationError({"counted_cash": _("Cette journée est approuvée : elle ne change plus.")})
+    # The BL of the truck still to deliver are not delivered (D-178): nothing was sold, the goods go back with the
+    # return to the cold room.
+    sales_services.cancel_undelivered(
+        organization=driver_day.organization, location_id=driver_day.truck.location_id, actor=actor
+    )
     now = timezone.now()
     # Sending ends the day (D-134): nothing made from now on is taken. Sent again while it is still closed (a
     # justification, changed records), the day keeps its end, so the figures are those of the same window: a

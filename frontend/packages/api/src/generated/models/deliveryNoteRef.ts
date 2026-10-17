@@ -6,10 +6,12 @@
  */
 
 /**
- * The client's BL made from the load: a draft until the delivery (D-160).
+ * The client's BL made from the load (D-160): validated at the load, then delivered by the driver (D-178).
  */
 export interface DeliveryNoteRef {
   readonly id: number;
   readonly number: string;
   readonly status: string;
+  readonly delivery_status: string;
+  readonly version: number;
 }

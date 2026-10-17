@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, TypedDict, Unpack
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import F, Sum
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
@@ -35,6 +35,7 @@ from .models import (
     CreditPolicy,
     CreditStatus,
     CustomerPayment,
+    DeliveryStatus,
     DocumentCounter,
     FinanceSettings,
     Invoice,
@@ -52,6 +53,8 @@ from .models import (
     SaleLine,
     SaleLineBatch,
     SalePaymentMethod,
+    SaleRevision,
+    SaleRevisionKind,
     SaleStatus,
     WithholdingCertificate,
 )
@@ -822,10 +825,11 @@ def create_sale(
 
 @transaction.atomic
 def create_delivery_drafts(*, transfer: "Transfer", actor: User | None) -> list[Sale]:
-    """One draft BL per client of a validated truck load (D-160): their products at the load's prices, their boxes
-    and the address of this delivery. Nothing leaves the truck yet: the BL is confirmed at the delivery, which
-    takes the stock off the truck, records what the client owes and hands over the boxes. Called when the
-    load is validated; a load already holding its BLs makes none again."""
+    """One BL per client of a validated truck load (D-160): their products at the load's prices, their boxes and
+    the address of this delivery. It is validated at once with its BL number, to be printed and taken on the road
+    (D-178); nothing is sold yet: the delivery takes the kilos delivered off the truck, records what the client owes
+    for them and hands over the boxes. Called when the load is validated; a load already holding its BLs makes none
+    again."""
     if transfer.delivery_notes.exists():
         return []
     lines = list(transfer.lines.filter(customer__isnull=False).select_related("product").order_by("id"))
@@ -849,7 +853,214 @@ def create_delivery_drafts(*, transfer: "Transfer", actor: User | None) -> list[
                 transfer=transfer,
             )
         )
+    for sale in drafts:
+        _issue_load_bl(sale, actor)
     return drafts
+
+
+# ---- The BL of a truck load: validated at the load, then delivered (D-178) ----
+
+
+class DeliveredLineFields(TypedDict, total=False):
+    # The BL line's id.
+    line: int
+    # The kg delivered: zero takes the product off the BL; more than written is the weight at the client.
+    quantity: Number
+
+
+def _written(line: SaleLine) -> Decimal:
+    """The kg the printed BL says for this line."""
+    return line.ordered_quantity if line.ordered_quantity is not None else line.quantity
+
+
+def _revision_lines(sale: Sale, *, delivered: bool, removed: Sequence[SaleLine] = ()) -> list[dict[str, Any]]:
+    rows = [
+        {
+            "product": line.product_id,
+            "name": line.product.name,
+            "ordered": str(_written(line)),
+            "delivered": str(line.quantity) if delivered else None,
+            "unit_price": str(line.unit_price),
+            "amount": str(line.amount),
+        }
+        for line in sale.lines.select_related("product").order_by("id")
+    ]
+    rows += [
+        {
+            "product": line.product_id,
+            "name": line.product.name,
+            "ordered": str(_written(line)),
+            "delivered": "0.000",
+            "unit_price": str(line.unit_price),
+            "amount": "0.000",
+        }
+        for line in removed
+    ]
+    return rows
+
+
+def _add_revision(
+    sale: Sale, kind: str, actor: User | None, *, note: str = "", removed: Sequence[SaleLine] = ()
+) -> SaleRevision:
+    return SaleRevision.objects.create(
+        organization_id=sale.organization_id,
+        sale=sale,
+        version=sale.version,
+        kind=kind,
+        lines=_revision_lines(sale, delivered=kind == SaleRevisionKind.DELIVERED, removed=removed),
+        boxes={line.box_type: line.count for line in sale.box_lines.all()},
+        total=sale.total,
+        note=note[:255],
+        actor=actor,
+    )
+
+
+def _issue_load_bl(sale: Sale, actor: User | None) -> None:
+    """The client's BL of a load gets its BL number now and is version 1, the one printed and taken on the road."""
+    sale.number = _next_yearly_number(sale.organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
+    sale.issued_at = timezone.now()
+    sale.delivery_status = DeliveryStatus.TO_DELIVER
+    sale.version = 1
+    sale.save(update_fields=["number", "issued_at", "delivery_status", "version", "updated_at"])
+    sale.lines.update(ordered_quantity=F("quantity"))
+    _add_revision(sale, SaleRevisionKind.ISSUED, actor)
+    audit.record(
+        organization=sale.organization,
+        actor=actor,
+        action="sale.issued",
+        target=sale,
+        after={"number": sale.number, "transfer": sale.transfer_id},
+    )
+
+
+def _locked_to_deliver(sale: Sale) -> Sale:
+    locked = _locked_sale(sale)
+    if locked.status != SaleStatus.DRAFT or locked.delivery_status != DeliveryStatus.TO_DELIVER:
+        label = DeliveryStatus(locked.delivery_status).label if locked.delivery_status else _sale_status_name(locked)
+        raise ValidationError(_("Ce bon n'est plus à livrer (%(status)s).") % {"status": str(label).lower()})
+    return locked
+
+
+def _by_delivery_uuid(organization: Organization, delivery_uuid: uuid.UUID | None) -> Sale | None:
+    if delivery_uuid is None:
+        return None
+    return Sale.objects.for_organization(organization).filter(delivery_uuid=delivery_uuid).first()
+
+
+def delivery_by_uuid(organization: Organization, delivery_uuid: uuid.UUID | None) -> Sale | None:
+    """The BL a phone already delivered (or gave up) with this `delivery_uuid`, for its retry."""
+    return _by_delivery_uuid(organization, delivery_uuid)
+
+
+@transaction.atomic
+def deliver_sale(
+    *,
+    sale: Sale,
+    actor: User | None,
+    lines: Sequence[DeliveredLineFields] = (),
+    boxes: Mapping[str, object] | None = None,
+    note: str = "",
+    payment: PaymentFields | None = None,
+    delivery_uuid: uuid.UUID | None = None,
+) -> Sale:
+    """The driver delivers the BL of a load (D-178), as written or changed at the client's door.
+
+    A line left out is delivered as written. A line at zero takes the product off; less is a part delivery, more
+    is the weight found at the client. The price never changes. The BL is then confirmed with what was delivered:
+    only those kilos leave the truck (oldest batch first) and the client owes only them; the rest stays on the
+    truck, for the road or the return to the cold room. Boxes given replace the BL's. Nothing delivered at all is
+    `cancel_delivery`. A changed BL takes the next version; every version is kept (`SaleRevision`). A retry with
+    the same `delivery_uuid` answers with the delivery already recorded."""
+    done = _by_delivery_uuid(sale.organization, delivery_uuid)
+    if done is not None:
+        return done
+    sale = _locked_to_deliver(sale)
+    current = list(sale.lines.select_related("product").order_by("id"))
+    by_id = {line.pk: line for line in current}
+    delivered = {line.pk: line.quantity for line in current}
+    errors: dict[str, str] = {}
+    for index, row in enumerate(lines):
+        found = by_id.get(int(row.get("line") or 0))
+        if found is None:
+            errors[line_error_key(index, "line")] = _("Cette ligne n'est pas sur le bon.")
+            continue
+        try:
+            delivered[found.pk] = checked_quantity(row.get("quantity", ""), allow_zero=True)
+        except (ValueError, TypeError):
+            errors[line_error_key(index, "quantity")] = _("Indiquez les kg livrés : zéro ou plus, au gramme près.")
+    if errors:
+        raise ValidationError(errors)
+    if all(quantity == 0 for quantity in delivered.values()):
+        return cancel_delivery(sale=sale, actor=actor, note=note, delivery_uuid=delivery_uuid)
+    box_counts = _checked_sale_boxes(boxes) if boxes is not None else None
+    before_boxes = {line.box_type: line.count for line in sale.box_lines.all()}
+    removed = [line for line in current if delivered[line.pk] == 0]
+    partial = any(delivered[line.pk] < _written(line) for line in current)
+    changed = any(delivered[line.pk] != _written(line) for line in current)
+    kept = [(line, delivered[line.pk]) for line in current if delivered[line.pk] > 0]
+    for line in removed:
+        line.delete()
+    for line, quantity in kept:
+        if quantity != line.quantity:
+            line.quantity = quantity
+            priced = priced_line(line.quantity, line.unit_price, line.discount_rate)
+            line.gross_amount = priced["gross_amount"]
+            line.discount_amount = priced["discount_amount"]
+            line.amount = priced["amount"]
+            line.save(update_fields=["quantity", "gross_amount", "discount_amount", "amount"])
+    sale.subtotal = sum((line.gross_amount for line, _kg in kept), Decimal("0.000"))
+    sale.discount_total = sum((line.discount_amount for line, _kg in kept), Decimal("0.000"))
+    sale.total_excl_tax = sale.subtotal - sale.discount_total
+    sale.total = sale.total_excl_tax
+    paid = _checked_payment(sale.total, payment or {}, errors)
+    if errors:
+        raise ValidationError(errors)
+    sale.amount_paid = paid["amount_paid"]
+    sale.payment_method = paid["payment_method"]
+    sale.payment_reference = paid["payment_reference"]
+    sale.amount_due = sale.total - sale.amount_paid
+    if box_counts is not None and box_counts != before_boxes:
+        changed = True
+        sale.box_lines.all().delete()
+        _write_sale_boxes(sale, box_counts)
+    if changed:
+        sale.version += 1
+    sale.delivery_status = DeliveryStatus.PARTIAL if partial else DeliveryStatus.DELIVERED
+    sale.delivered_at = timezone.now()
+    sale.delivered_by = actor
+    sale.delivery_note = note.strip()[:255]
+    sale.delivery_uuid = delivery_uuid
+    sale.save()
+    _add_revision(sale, SaleRevisionKind.DELIVERED, actor, note=sale.delivery_note, removed=removed)
+    return confirm_sale(sale=sale, actor=actor)
+
+
+@transaction.atomic
+def cancel_delivery(*, sale: Sale, actor: User | None, note: str = "", delivery_uuid: uuid.UUID | None = None) -> Sale:
+    """The BL of a load is not delivered at all (D-178): the client refused it, was closed, or the day ended
+    first. Nothing was sold: the kilos and the boxes are still on the truck and go back with the return to the
+    cold room. The note is optional."""
+    done = _by_delivery_uuid(sale.organization, delivery_uuid)
+    if done is not None:
+        return done
+    sale = _locked_to_deliver(sale)
+    sale.delivered_at = timezone.now()
+    sale.delivered_by = actor
+    sale.delivery_note = note.strip()[:255]
+    sale.delivery_uuid = delivery_uuid
+    sale.save(update_fields=["delivered_at", "delivered_by", "delivery_note", "delivery_uuid", "updated_at"])
+    return cancel_sale(sale=sale, actor=actor, reason=sale.delivery_note or _("Non livré"))
+
+
+def cancel_undelivered(*, organization: Organization, location_id: int, actor: User | None) -> list[Sale]:
+    """The BL of the truck at `location_id` still to deliver when the driver's day ends: not delivered (D-178)."""
+    waiting = Sale.objects.for_organization(organization).filter(
+        location_id=location_id, status=SaleStatus.DRAFT, delivery_status=DeliveryStatus.TO_DELIVER
+    )
+    return [
+        cancel_delivery(sale=sale, actor=actor, note=_("Non livré à la fin de la journée"))
+        for sale in waiting.order_by("id")
+    ]
 
 
 def _locked_sale(sale: Sale) -> Sale:
@@ -896,6 +1107,8 @@ def update_sale(
     (D-160): a draft BL made from a truck load keeps both when its lines are changed."""
     sale = _locked_draft_sale(sale)
     organization = sale.organization
+    if sale.delivery_status in (DeliveryStatus.DELIVERED, DeliveryStatus.PARTIAL):
+        raise ValidationError(_("Ce bon est déjà livré : il ne se modifie plus."))
     if customer is None:
         customer = partners.ensure_walk_in_customer(organization=organization, actor=actor)
     before = _sale_snapshot(sale)
@@ -928,6 +1141,19 @@ def update_sale(
         before=before,
         after=_sale_snapshot(sale),
     )
+    if sale.delivery_status == DeliveryStatus.TO_DELIVER:
+        # The BL on the road changes (D-178): a new version, and what it says now is what is to deliver.
+        sale.version += 1
+        sale.save(update_fields=["version", "updated_at"])
+        sale.lines.update(ordered_quantity=F("quantity"))
+        _add_revision(sale, SaleRevisionKind.EDITED, actor)
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="sale.delivery_changed",
+            target=sale,
+            after={"version": sale.version, "total": str(sale.total)},
+        )
     if confirm:
         return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
     return sale
@@ -1167,7 +1393,9 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     # server, so a driver who sold offline gets the next free number when the phone reconnects. A refusal
     # below rolls the counter back with everything else: no gap.
     draft_number = sale.number
-    sale.number = _next_yearly_number(organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
+    # The BL of a load has its number since the load (D-178).
+    if sale.issued_at is None:
+        sale.number = _next_yearly_number(organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
@@ -1186,8 +1414,17 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     sale.status = SaleStatus.CONFIRMED
     sale.confirmed_by = actor
     sale.confirmed_at = timezone.now()
+    # A load's BL confirmed without the delivery screen (the office, or an older phone) is delivered as written.
+    as_written = sale.delivery_status == DeliveryStatus.TO_DELIVER
+    if as_written:
+        sale.delivery_status = DeliveryStatus.DELIVERED
+        sale.delivered_at = sale.confirmed_at
+        sale.delivered_by = actor
     sale.save(
         update_fields=[
+            "delivery_status",
+            "delivered_at",
+            "delivered_by",
             "number",
             "cost_total",
             "amount_due",
@@ -1217,6 +1454,16 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
         target=sale,
         after={**_sale_snapshot(sale), "draft_number": draft_number},
     )
+    if as_written:
+        _add_revision(sale, SaleRevisionKind.DELIVERED, actor)
+    if sale.delivery_status in (DeliveryStatus.DELIVERED, DeliveryStatus.PARTIAL):
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="sale.delivered",
+            target=sale,
+            after={"status": sale.delivery_status, "version": sale.version, "total": str(sale.total)},
+        )
     below = [line for line in lines if line.below_minimum]
     if below:
         audit.record(
@@ -1289,7 +1536,14 @@ def cancel_sale(*, sale: Sale, actor: User | None, reason: str = "") -> Sale:
     sale.cancelled_by = actor
     sale.cancelled_at = timezone.now()
     sale.cancel_reason = reason
-    sale.save(update_fields=["status", "cancelled_by", "cancelled_at", "cancel_reason", "updated_at"])
+    # The BL of a load given up, delivered or not, is "not delivered" (D-178); its versions say what it was.
+    if sale.delivery_status:
+        sale.delivery_status = DeliveryStatus.CANCELLED
+    sale.save(
+        update_fields=["status", "cancelled_by", "cancelled_at", "cancel_reason", "delivery_status", "updated_at"]
+    )
+    if sale.delivery_status:
+        _add_revision(sale, SaleRevisionKind.CANCELLED, actor, note=reason)
     audit.record(
         organization=sale.organization, actor=actor, action="sale.cancelled", target=sale, after={"reason": reason}
     )

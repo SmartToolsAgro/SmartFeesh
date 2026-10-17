@@ -4569,8 +4569,8 @@ paths:
     get:
       operationId: listMyDeliveries
       description: |-
-        The BL prepared for the driver's truck with its load, still to deliver (drafts), oldest first, each with
-        its client, address, products and boxes. Confirming one (`confirmSale`) is the delivery (D-160).
+        The BL prepared for the driver's truck with its load, still to deliver, oldest first, each with its
+        client, address, products and boxes. Delivering one (`deliverMyDelivery`) is the sale (D-160, D-178).
       tags:
       - my-deliveries
       security:
@@ -4583,6 +4583,76 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/my-deliveries/{sale_id}/deliver:
+    post:
+      operationId: deliverMyDelivery
+      description: |-
+        Deliver a BL of the load: send only the lines that changed (`lines`: kg delivered, zero takes the
+        product off), the boxes left and what the client paid. Only the kg delivered leave the truck and are owed;
+        the rest stays on the truck. Nothing delivered is "not delivered". Errors of a line come back on
+        `lines.<index>.<field>`.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - my-deliveries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Deliver'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Deliver'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Deliver'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/my-deliveries/{sale_id}/not-delivered:
+    post:
+      operationId: notDeliveredMyDelivery
+      description: |-
+        The BL is not delivered (refused, closed): nothing is sold, the goods and boxes stay on the truck and go
+        back to the cold room with the return. The note is optional.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - my-deliveries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotDelivered'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NotDelivered'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NotDelivered'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
           description: ''
   /api/v1/my-expense-categories:
     get:
@@ -7348,6 +7418,21 @@ paths:
         schema:
           type: string
           format: date
+      - in: query
+        name: delivery_status
+        schema:
+          enum:
+          - to_deliver
+          - delivered
+          - partial
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `to_deliver` - À livrer
+          * `delivered` - Livré
+          * `partial` - Livré en partie
+          * `cancelled` - Non livré
       - name: limit
         required: false
         in: query
@@ -12308,10 +12393,60 @@ components:
       - sales_count
       - sales_total
       - truck_name
+    Deliver:
+      type: object
+      description: The delivery of the BL of a truck load, from the driver's phone
+        (D-178).
+      properties:
+        amount_paid:
+          type: string
+          nullable: true
+        paid_in_full:
+          type: boolean
+          default: false
+        payment_method:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        payment_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveredLine'
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+    DeliveredLine:
+      type: object
+      properties:
+        line:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+          maxLength: 20
+      required:
+      - line
+      - quantity
     DeliveryNoteRef:
       type: object
-      description: 'The client''s BL made from the load: a draft until the delivery
-        (D-160).'
+      description: 'The client''s BL made from the load (D-160): validated at the
+        load, then delivered by the driver (D-178).'
       properties:
         id:
           type: integer
@@ -12322,10 +12457,30 @@ components:
         status:
           type: string
           readOnly: true
+        delivery_status:
+          type: string
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
       required:
+      - delivery_status
       - id
       - number
       - status
+      - version
+    DeliveryStatusEnum:
+      enum:
+      - to_deliver
+      - delivered
+      - partial
+      - cancelled
+      type: string
+      description: |-
+        * `to_deliver` - À livrer
+        * `delivered` - Livré
+        * `partial` - Livré en partie
+        * `cancelled` - Non livré
     DifferenceLine:
       type: object
       properties:
@@ -17329,6 +17484,17 @@ components:
       required:
       - id
       - name
+    NotDelivered:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
     Notification:
       type: object
       properties:
@@ -21648,6 +21814,30 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        delivery_status:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/DeliveryStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        issued_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        version:
+          type: integer
+          readOnly: true
+        delivered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        delivered_by:
+          type: string
+          readOnly: true
+        delivery_note:
+          type: string
+          readOnly: true
       required:
       - amount_due
       - amount_paid
@@ -21664,10 +21854,15 @@ components:
       - credit_over_by
       - credit_status
       - customer
+      - delivered_at
+      - delivered_by
       - delivery_address
+      - delivery_note
+      - delivery_status
       - discount_total
       - id
       - invoice
+      - issued_at
       - line_count
       - location
       - margin
@@ -21683,6 +21878,7 @@ components:
       - total
       - total_excl_tax
       - transfer
+      - version
     SaleBatch:
       type: object
       properties:
@@ -21903,6 +22099,30 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        delivery_status:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/DeliveryStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        issued_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        version:
+          type: integer
+          readOnly: true
+        delivered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        delivered_by:
+          type: string
+          readOnly: true
+        delivery_note:
+          type: string
+          readOnly: true
         lines:
           type: array
           items:
@@ -21912,6 +22132,11 @@ components:
           type: object
           additionalProperties:
             type: integer
+          readOnly: true
+        revisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRevision'
           readOnly: true
       required:
       - amount_due
@@ -21930,10 +22155,15 @@ components:
       - credit_over_by
       - credit_status
       - customer
+      - delivered_at
+      - delivered_by
       - delivery_address
+      - delivery_note
+      - delivery_status
       - discount_total
       - id
       - invoice
+      - issued_at
       - line_count
       - lines
       - location
@@ -21943,6 +22173,7 @@ components:
       - payment_method
       - payment_reference
       - quote
+      - revisions
       - sold_at
       - status
       - subtotal
@@ -21950,6 +22181,7 @@ components:
       - total
       - total_excl_tax
       - transfer
+      - version
     SaleInvoiceRef:
       type: object
       description: An invoice named from another document (its sale). `number` is
@@ -22028,6 +22260,12 @@ components:
             $ref: '#/components/schemas/SaleLineBatch'
           readOnly: true
           nullable: true
+        ordered_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
       required:
       - amount
       - batches
@@ -22037,6 +22275,7 @@ components:
       - discount_rate
       - gross_amount
       - id
+      - ordered_quantity
       - price_source
       - product
       - quantity
@@ -22162,6 +22401,104 @@ components:
       - id
       - number
       - status
+    SaleRevision:
+      type: object
+      description: One version of the BL of a truck load, as it was then (D-178).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SaleRevisionKindEnum'
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleRevisionLine'
+          readOnly: true
+        boxes:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        actor:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor
+      - boxes
+      - created_at
+      - id
+      - kind
+      - lines
+      - note
+      - total
+      - version
+    SaleRevisionKindEnum:
+      enum:
+      - issued
+      - edited
+      - delivered
+      - cancelled
+      type: string
+      description: |-
+        * `issued` - Validé au chargement
+        * `edited` - Modifié par le bureau
+        * `delivered` - Livraison
+        * `cancelled` - Non livré
+    SaleRevisionLine:
+      type: object
+      properties:
+        product:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        ordered:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        delivered:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - delivered
+      - name
+      - ordered
+      - product
+      - unit_price
     SaleStatusEnum:
       enum:
       - draft
@@ -23552,6 +23889,8 @@ components:
       - payment
       - pickup
       - purchase
+      - delivery
+      - not_delivered
       type: string
       description: |-
         * `sale` - sale
@@ -23560,6 +23899,8 @@ components:
         * `payment` - payment
         * `pickup` - pickup
         * `purchase` - purchase
+        * `delivery` - delivery
+        * `not_delivered` - not_delivered
     Transfer:
       type: object
       properties:

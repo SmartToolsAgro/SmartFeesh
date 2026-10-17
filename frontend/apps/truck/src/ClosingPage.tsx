@@ -1,4 +1,4 @@
-import { useCloseMyDay, useGetMyDaySummary } from "@frutti/api";
+import { useCloseMyDay, useGetMyDaySummary, useListMyDeliveries } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import { Button, Card, EmptyState } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,9 @@ export function ClosingPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const day = useGetMyDaySummary({ query: { retry: false } });
+  // The BL of the load still to deliver become "not delivered" when the day is sent (D-178).
+  const deliveries = useListMyDeliveries({ query: { retry: false } });
+  const undelivered = deliveries.data?.length ?? 0;
   const [error, setError] = useState("");
   const send = useCloseMyDay({
     mutation: {
@@ -41,6 +44,11 @@ export function ClosingPage() {
     (closing.status === "approved" || (closing.status === "submitted" && !closing.changed_since_sent));
   return (
     <div className="space-y-4">
+      {undelivered > 0 && !closed ? (
+        <p role="status" className="rounded-control bg-warn-soft px-3 py-2 font-semibold text-warn">
+          {t("truck.deliveries.closingWarning", { count: undelivered })}
+        </p>
+      ) : null}
       <DayReport
         data={day.data}
         sending={send.isPending}

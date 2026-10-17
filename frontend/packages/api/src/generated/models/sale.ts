@@ -7,6 +7,7 @@
 import type { QuoteRef } from './quoteRef';
 import type { SaleCreditStatus } from './saleCreditStatus';
 import type { SaleCustomer } from './saleCustomer';
+import type { SaleDeliveryStatus } from './saleDeliveryStatus';
 import type { SaleInvoiceRef } from './saleInvoiceRef';
 import type { SaleLocation } from './saleLocation';
 import type { SalePaymentMethod } from './salePaymentMethod';
@@ -69,4 +70,12 @@ export interface Sale {
   readonly credit_decided_by: string;
   /** @nullable */
   readonly credit_decided_at: string | null;
+  readonly delivery_status: typeof SaleDeliveryStatus[keyof typeof SaleDeliveryStatus];
+  /** @nullable */
+  readonly issued_at: string | null;
+  readonly version: number;
+  /** @nullable */
+  readonly delivered_at: string | null;
+  readonly delivered_by: string;
+  readonly delivery_note: string;
 }

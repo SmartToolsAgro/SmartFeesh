@@ -1,11 +1,12 @@
 # Project status
 
-_Last updated: 2026-10-17 (notifications office ⇄ drivers with a tone, P3-T15 / D-175; receipt grid, D-173)_
+_Last updated: 2026-10-17 (load BL delivered in full, in part or not at all, P2-T15 / D-178; notifications, D-175)_
 
 ## Where we are
 
-- **D-177 (branch load-bl-print-provisional):** a load's draft BL prints provisional from the sale page; validating it
-  there asks "Marquer livré ?". Before, printing from that page confirmed it (= delivered). Awaits CI.
+- **P2-T15 / D-178 (branch load-delivery-workflow):** the BL of a load is validated at the load (real BL number, no
+  PROVISOIRE), then the driver delivers it in full, in part or not at all from the phone (also offline); only what is
+  delivered is sold, the rest stays on the truck; versions, PDF "Commandé / Livré", notifications. Awaits CI.
 - **P3-T15 / D-175 (on main):** a bell in both apps; a driver's action notifies the office,
   the office's action notifies the driver, with a tone and a toast (polling every 20 s). Check on staging.
 - **D-173 (on main):** the new receipt's product lines are a bordered spreadsheet table. Check on staging.
@@ -37,6 +38,9 @@ _Last updated: 2026-10-17 (notifications office ⇄ drivers with a tone, P3-T15 
 
 ## Next step
 
+0. P2-T15: merge after green CI; on staging, load two clients, print both BLs (no PROVISOIRE), on the phone deliver one
+   in part (one product at zero) and mark the other "Non livré"; check the truck stock, the client balance, the bell, and
+   reprint the corrected BL ("Commandé / Livré", version 2).
 0. P3-T15: merge after green CI; on staging, log in as `driver` on a phone and `owner` on a PC: start the day / sell →
    the office bell rings; validate a load → the phone rings. Tune the 20 s poll if it is too slow or too heavy.
 1. Push the CI fixes for PR #160, wait for green CI, then merge. After deployment, check a load with two clients on

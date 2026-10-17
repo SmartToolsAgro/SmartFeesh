@@ -138,6 +138,19 @@ Asked by the owner (2026-10-17).
       (`GET /my-customers`, `on_load`); a client with a BL to deliver opens it; "Nouveau client" is hidden.
 - [ ] Owner check on staging: a load for two clients from two cold rooms, then the driver's "Vente" list.
 
+### P2-T15 · The BL of a load is validated at the load and delivered by the driver, in full, in part or not at all (D-178) · L
+_(owner's workflow of 2026-10-17, all twelve points agreed)_
+- [x] The load gives each client a validated BL with its BL number (no PROVISOIRE); nothing is sold before the delivery.
+- [x] Delivery status: à livrer, livré, livré en partie, non livré; filter and pills in Ventes and on the load page.
+- [x] Phone: kg delivered per line (less, more, zero takes it off), boxes, cash taken, note; "Non livré" with an optional
+      note; works offline (queue). The price never changes.
+- [x] Only what is delivered leaves the truck and is owed; the rest stays on the truck and goes back with the return.
+- [x] Every change makes a version (`SaleRevision`); the office editing a BL on the road makes one and tells the driver.
+- [x] PDF: "Commandé / Livré" columns, version, the driver's note; an empty "Livré" column on the BL to deliver.
+- [x] Sending the day closing makes the BL still to deliver "non livré".
+- [x] Notifications: delivered, delivered in part, not delivered (office); BL changed or cancelled (driver).
+- [ ] Owner check on staging: a load for two clients, one delivered in part from the phone, one not delivered; reprint.
+
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.

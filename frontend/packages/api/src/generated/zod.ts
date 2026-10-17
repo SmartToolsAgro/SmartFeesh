@@ -9051,8 +9051,8 @@ export const CloseMyPastDayResponse = zod.object({
 
 
 /**
- * The BL prepared for the driver's truck with its load, still to deliver (drafts), oldest first, each with
- * its client, address, products and boxes. Confirming one (`confirmSale`) is the delivery (D-160).
+ * The BL prepared for the driver's truck with its load, still to deliver, oldest first, each with its
+ * client, address, products and boxes. Delivering one (`deliverMyDelivery`) is the sale (D-160, D-178).
  */
 export const listMyDeliveriesResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -9075,6 +9075,12 @@ export const listMyDeliveriesResponseLinesItemBatchesItemQuantityRegExp = new Re
 export const listMyDeliveriesResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListMyDeliveriesResponseItem = zod.object({
@@ -9135,6 +9141,12 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "credit_over_by": zod.stringFormat('decimal', listMyDeliveriesResponseCreditOverByRegExp),
   "credit_decided_by": zod.string(),
   "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -9161,11 +9173,375 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "unit_cost": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemBatchesItemUnitCostRegExp),
   "cost_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemBatchesItemRevenueAmountRegExp)
-}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemOrderedQuantityRegExp).nullable()
 })),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', listMyDeliveriesResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', listMyDeliveriesResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', listMyDeliveriesResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', listMyDeliveriesResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', listMyDeliveriesResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
 })
 export const ListMyDeliveriesResponse = zod.array(ListMyDeliveriesResponseItem)
+
+
+/**
+ * Deliver a BL of the load: send only the lines that changed (`lines`: kg delivered, zero takes the
+ * product off), the boxes left and what the client paid. Only the kg delivered leave the truck and are owed;
+ * the rest stays on the truck. Nothing delivered is "not delivered". Errors of a line come back on
+ * `lines.<index>.<field>`.
+ */
+export const DeliverMyDeliveryParams = zod.object({
+  "sale_id": zod.int()
+})
+
+export const deliverMyDeliveryBodyPaidInFullDefault = false;
+export const deliverMyDeliveryBodyPaymentMethodDefault = ``;
+export const deliverMyDeliveryBodyPaymentReferenceDefault = ``;
+export const deliverMyDeliveryBodyPaymentReferenceMax = 50;
+
+
+export const deliverMyDeliveryBodyLinesItemQuantityMax = 20;
+
+export const deliverMyDeliveryBodyBoxesMinOne = 0;
+
+export const deliverMyDeliveryBodyNoteDefault = ``;
+export const deliverMyDeliveryBodyNoteMax = 255;
+
+
+
+export const DeliverMyDeliveryBody = zod.object({
+  "amount_paid": zod.string().nullish(),
+  "paid_in_full": zod.boolean().default(deliverMyDeliveryBodyPaidInFullDefault),
+  "payment_method": zod.union([zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),zod.enum([''])]).default(deliverMyDeliveryBodyPaymentMethodDefault),
+  "payment_reference": zod.string().max(deliverMyDeliveryBodyPaymentReferenceMax).default(deliverMyDeliveryBodyPaymentReferenceDefault),
+  "lines": zod.array(zod.object({
+  "line": zod.int().min(1),
+  "quantity": zod.string().max(deliverMyDeliveryBodyLinesItemQuantityMax)
+})).optional(),
+  "boxes": zod.record(zod.string(), zod.int().min(deliverMyDeliveryBodyBoxesMinOne)).nullish(),
+  "note": zod.string().max(deliverMyDeliveryBodyNoteMax).default(deliverMyDeliveryBodyNoteDefault),
+  "client_uuid": zod.uuid().nullish()
+}).describe('The delivery of the BL of a truck load, from the driver\'s phone (D-178).')
+
+export const deliverMyDeliveryResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const deliverMyDeliveryResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const DeliverMyDeliveryResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string()
+}),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "quote": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', deliverMyDeliveryResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', deliverMyDeliveryResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', deliverMyDeliveryResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', deliverMyDeliveryResponseTotalRegExp),
+  "cost_total": zod.stringFormat('decimal', deliverMyDeliveryResponseCostTotalRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', deliverMyDeliveryResponseMarginRegExp).nullable(),
+  "amount_paid": zod.stringFormat('decimal', deliverMyDeliveryResponseAmountPaidRegExp),
+  "payment_method": zod.union([zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),zod.enum([''])]),
+  "payment_reference": zod.string(),
+  "amount_due": zod.stringFormat('decimal', deliverMyDeliveryResponseAmountDueRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_by": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', deliverMyDeliveryResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemUnitPriceRegExp),
+  "price_source": zod.enum(['price_list', 'daily', 'quote', 'typed', 'shown']).describe('* `price_list` - Liste du client\n* `daily` - Prix du jour\n* `quote` - Devis\n* `typed` - Saisi\n* `shown` - Affiché au chauffeur'),
+  "below_minimum": zod.boolean(),
+  "discount_rate": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemAmountRegExp),
+  "cost_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemCostAmountRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemBatchesItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemBatchesItemUnitCostRegExp),
+  "cost_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemBatchesItemCostAmountRegExp),
+  "revenue_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemBatchesItemRevenueAmountRegExp)
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemOrderedQuantityRegExp).nullable()
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', deliverMyDeliveryResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', deliverMyDeliveryResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', deliverMyDeliveryResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', deliverMyDeliveryResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', deliverMyDeliveryResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+})
+
+
+/**
+ * The BL is not delivered (refused, closed): nothing is sold, the goods and boxes stay on the truck and go
+ * back to the cold room with the return. The note is optional.
+ */
+export const NotDeliveredMyDeliveryParams = zod.object({
+  "sale_id": zod.int()
+})
+
+export const notDeliveredMyDeliveryBodyNoteDefault = ``;
+export const notDeliveredMyDeliveryBodyNoteMax = 255;
+
+
+
+export const NotDeliveredMyDeliveryBody = zod.object({
+  "note": zod.string().max(notDeliveredMyDeliveryBodyNoteMax).default(notDeliveredMyDeliveryBodyNoteDefault),
+  "client_uuid": zod.uuid().nullish()
+})
+
+export const notDeliveredMyDeliveryResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const notDeliveredMyDeliveryResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const NotDeliveredMyDeliveryResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string()
+}),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "quote": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseTotalRegExp),
+  "cost_total": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseCostTotalRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseMarginRegExp).nullable(),
+  "amount_paid": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseAmountPaidRegExp),
+  "payment_method": zod.union([zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),zod.enum([''])]),
+  "payment_reference": zod.string(),
+  "amount_due": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseAmountDueRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_by": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemUnitPriceRegExp),
+  "price_source": zod.enum(['price_list', 'daily', 'quote', 'typed', 'shown']).describe('* `price_list` - Liste du client\n* `daily` - Prix du jour\n* `quote` - Devis\n* `typed` - Saisi\n* `shown` - Affiché au chauffeur'),
+  "below_minimum": zod.boolean(),
+  "discount_rate": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemAmountRegExp),
+  "cost_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemCostAmountRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemBatchesItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemBatchesItemUnitCostRegExp),
+  "cost_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemBatchesItemCostAmountRegExp),
+  "revenue_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemBatchesItemRevenueAmountRegExp)
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemOrderedQuantityRegExp).nullable()
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+})
 
 
 /**
@@ -9756,7 +10132,7 @@ export const reportSyncProblemBodyReasonMax = 500;
 
 
 export const ReportSyncProblemBody = zod.object({
-  "kind": zod.enum(['sale', 'expense', 'loss', 'payment', 'pickup', 'purchase']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment\n* `pickup` - pickup\n* `purchase` - purchase'),
+  "kind": zod.enum(['sale', 'expense', 'loss', 'payment', 'pickup', 'purchase', 'delivery', 'not_delivered']).describe('* `sale` - sale\n* `expense` - expense\n* `loss` - loss\n* `payment` - payment\n* `pickup` - pickup\n* `purchase` - purchase\n* `delivery` - delivery\n* `not_delivered` - not_delivered'),
   "what": zod.string().max(reportSyncProblemBodyWhatMax),
   "reason": zod.string().max(reportSyncProblemBodyReasonMax),
   "client_uuid": zod.uuid()
@@ -11728,6 +12104,12 @@ export const convertQuoteToSaleResponseLinesItemBatchesItemQuantityRegExp = new 
 export const convertQuoteToSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ConvertQuoteToSaleResponse = zod.object({
@@ -11788,6 +12170,12 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "credit_over_by": zod.stringFormat('decimal', convertQuoteToSaleResponseCreditOverByRegExp),
   "credit_decided_by": zod.string(),
   "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -11814,9 +12202,28 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "unit_cost": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemBatchesItemUnitCostRegExp),
   "cost_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
-}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemOrderedQuantityRegExp).nullable()
 })),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', convertQuoteToSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', convertQuoteToSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', convertQuoteToSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', convertQuoteToSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', convertQuoteToSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
 })
 
 
@@ -13696,6 +14103,7 @@ export const ListSalesQueryParams = zod.object({
   "customer": zod.int().min(1).optional(),
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
+  "delivery_status": zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).optional().describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
@@ -13777,7 +14185,13 @@ export const ListSalesResponse = zod.object({
   "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
   "credit_over_by": zod.stringFormat('decimal', listSalesResponseResultsItemCreditOverByRegExp),
   "credit_decided_by": zod.string(),
-  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable()
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string()
 }))
 })
 
@@ -13854,6 +14268,12 @@ export const createSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('
 export const createSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const CreateSaleResponse = zod.object({
@@ -13914,6 +14334,12 @@ export const CreateSaleResponse = zod.object({
   "credit_over_by": zod.stringFormat('decimal', createSaleResponseCreditOverByRegExp),
   "credit_decided_by": zod.string(),
   "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -13940,9 +14366,28 @@ export const CreateSaleResponse = zod.object({
   "unit_cost": zod.stringFormat('decimal', createSaleResponseLinesItemBatchesItemUnitCostRegExp),
   "cost_amount": zod.stringFormat('decimal', createSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', createSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
-}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', createSaleResponseLinesItemOrderedQuantityRegExp).nullable()
 })),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', createSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', createSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', createSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', createSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', createSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
 })
 
 
@@ -13975,6 +14420,12 @@ export const getSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?
 export const getSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetSaleResponse = zod.object({
@@ -14035,6 +14486,12 @@ export const GetSaleResponse = zod.object({
   "credit_over_by": zod.stringFormat('decimal', getSaleResponseCreditOverByRegExp),
   "credit_decided_by": zod.string(),
   "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -14061,9 +14518,28 @@ export const GetSaleResponse = zod.object({
   "unit_cost": zod.stringFormat('decimal', getSaleResponseLinesItemBatchesItemUnitCostRegExp),
   "cost_amount": zod.stringFormat('decimal', getSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', getSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
-}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', getSaleResponseLinesItemOrderedQuantityRegExp).nullable()
 })),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', getSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', getSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', getSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', getSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', getSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
 })
 
 
@@ -14136,6 +14612,12 @@ export const updateSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('
 export const updateSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const UpdateSaleResponse = zod.object({
@@ -14196,6 +14678,12 @@ export const UpdateSaleResponse = zod.object({
   "credit_over_by": zod.stringFormat('decimal', updateSaleResponseCreditOverByRegExp),
   "credit_decided_by": zod.string(),
   "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -14222,9 +14710,28 @@ export const UpdateSaleResponse = zod.object({
   "unit_cost": zod.stringFormat('decimal', updateSaleResponseLinesItemBatchesItemUnitCostRegExp),
   "cost_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
-}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', updateSaleResponseLinesItemOrderedQuantityRegExp).nullable()
 })),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', updateSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', updateSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', updateSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', updateSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', updateSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
 })
 
 
@@ -14266,6 +14773,12 @@ export const cancelSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('
 export const cancelSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const CancelSaleResponse = zod.object({
@@ -14326,6 +14839,12 @@ export const CancelSaleResponse = zod.object({
   "credit_over_by": zod.stringFormat('decimal', cancelSaleResponseCreditOverByRegExp),
   "credit_decided_by": zod.string(),
   "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -14352,9 +14871,28 @@ export const CancelSaleResponse = zod.object({
   "unit_cost": zod.stringFormat('decimal', cancelSaleResponseLinesItemBatchesItemUnitCostRegExp),
   "cost_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
-}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', cancelSaleResponseLinesItemOrderedQuantityRegExp).nullable()
 })),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', cancelSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', cancelSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', cancelSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', cancelSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', cancelSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
 })
 
 
@@ -14396,6 +14934,12 @@ export const confirmSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp(
 export const confirmSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ConfirmSaleResponse = zod.object({
@@ -14456,6 +15000,12 @@ export const ConfirmSaleResponse = zod.object({
   "credit_over_by": zod.stringFormat('decimal', confirmSaleResponseCreditOverByRegExp),
   "credit_decided_by": zod.string(),
   "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -14482,9 +15032,28 @@ export const ConfirmSaleResponse = zod.object({
   "unit_cost": zod.stringFormat('decimal', confirmSaleResponseLinesItemBatchesItemUnitCostRegExp),
   "cost_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemBatchesItemCostAmountRegExp),
   "revenue_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
-}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable()
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', confirmSaleResponseLinesItemOrderedQuantityRegExp).nullable()
 })),
-  "boxes": zod.record(zod.string(), zod.int())
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', confirmSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', confirmSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', confirmSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', confirmSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', confirmSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).'))
 })
 
 
@@ -15916,8 +16485,10 @@ export const CreateTransferResponse = zod.object({
   "delivery_note": zod.union([zod.object({
   "id": zod.int(),
   "number": zod.string(),
-  "status": zod.string()
-}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+  "status": zod.string(),
+  "delivery_status": zod.string(),
+  "version": zod.int()
+}).describe('The client\'s BL made from the load (D-160): validated at the load, then delivered by the driver (D-178).'),zod.null()])
 }).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
@@ -16001,8 +16572,10 @@ export const GetTransferResponse = zod.object({
   "delivery_note": zod.union([zod.object({
   "id": zod.int(),
   "number": zod.string(),
-  "status": zod.string()
-}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+  "status": zod.string(),
+  "delivery_status": zod.string(),
+  "version": zod.int()
+}).describe('The client\'s BL made from the load (D-160): validated at the load, then delivered by the driver (D-178).'),zod.null()])
 }).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
@@ -16126,8 +16699,10 @@ export const UpdateTransferResponse = zod.object({
   "delivery_note": zod.union([zod.object({
   "id": zod.int(),
   "number": zod.string(),
-  "status": zod.string()
-}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+  "status": zod.string(),
+  "delivery_status": zod.string(),
+  "version": zod.int()
+}).describe('The client\'s BL made from the load (D-160): validated at the load, then delivered by the driver (D-178).'),zod.null()])
 }).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
@@ -16211,8 +16786,10 @@ export const CancelTransferResponse = zod.object({
   "delivery_note": zod.union([zod.object({
   "id": zod.int(),
   "number": zod.string(),
-  "status": zod.string()
-}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+  "status": zod.string(),
+  "delivery_status": zod.string(),
+  "version": zod.int()
+}).describe('The client\'s BL made from the load (D-160): validated at the load, then delivered by the driver (D-178).'),zod.null()])
 }).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 
@@ -16298,8 +16875,10 @@ export const ValidateTransferResponse = zod.object({
   "delivery_note": zod.union([zod.object({
   "id": zod.int(),
   "number": zod.string(),
-  "status": zod.string()
-}).describe('The client\'s BL made from the load: a draft until the delivery (D-160).'),zod.null()])
+  "status": zod.string(),
+  "delivery_status": zod.string(),
+  "version": zod.int()
+}).describe('The client\'s BL made from the load (D-160): validated at the load, then delivered by the driver (D-178).'),zod.null()])
 }).describe('One client of a load: where it goes, their boxes, and their BL once the load is validated.'))
 })
 

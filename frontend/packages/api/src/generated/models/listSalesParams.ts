@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ListSalesDeliveryStatus } from './listSalesDeliveryStatus';
 import type { ListSalesStatus } from './listSalesStatus';
 
 export type ListSalesParams = {
@@ -13,6 +14,14 @@ export type ListSalesParams = {
 customer?: number;
 date_from?: string;
 date_to?: string;
+/**
+ * * `to_deliver` - À livrer
+ * * `delivered` - Livré
+ * * `partial` - Livré en partie
+ * * `cancelled` - Non livré
+ * @minLength 1
+ */
+delivery_status?: ListSalesDeliveryStatus;
 /**
  * Nombre de résultats à retourner par page.
  */

@@ -4,6 +4,8 @@ import {
   collectMyBoxes,
   collectMyPayment,
   createSale,
+  deliverMyDelivery,
+  notDeliveredMyDelivery,
   reportMyLoss,
   reportSyncProblem,
 } from "@frutti/api";
@@ -82,6 +84,8 @@ function sendItem(item: QueuedItem, options: RequestInit): Promise<unknown> {
   if (item.kind === "payment") return collectMyPayment({ ...item.data, made_at: madeAt }, options);
   if (item.kind === "pickup") return collectMyBoxes({ ...item.data, made_at: madeAt }, options);
   if (item.kind === "purchase") return sendPurchase({ ...item.data, made_at: madeAt }, item.paper, options);
+  if (item.kind === "delivery") return deliverMyDelivery(item.saleId, item.data, options);
+  if (item.kind === "not_delivered") return notDeliveredMyDelivery(item.saleId, item.data, options);
   return reportMyLoss({ ...item.data, made_at: madeAt }, options);
 }
 

@@ -370,7 +370,7 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
               <Td>{problem.driver_name}</Td>
               <Td>
                 {t(
-                  `admin.dayClosings.problems.kinds.${problem.kind as "sale" | "expense" | "loss" | "payment" | "pickup" | "purchase"}`,
+                  `admin.dayClosings.problems.kinds.${problem.kind as "sale" | "expense" | "loss" | "payment" | "pickup" | "purchase" | "delivery" | "not_delivered"}`,
                 )}{" "}
                 · {problem.label}
               </Td>

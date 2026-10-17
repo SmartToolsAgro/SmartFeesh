@@ -35,6 +35,7 @@ from .models import (
     CreditNoteLine,
     CreditNoteLineBatch,
     CustomerPayment,
+    DeliveryStatus,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -47,6 +48,7 @@ from .models import (
     Sale,
     SaleLine,
     SaleLineBatch,
+    SaleRevision,
     SaleStatus,
 )
 
@@ -189,6 +191,7 @@ def sales_of(
     date_to: dt.date | None = None,
     search: str = "",
     uninvoiced: bool = False,
+    delivery_status: str | None = None,
 ) -> QuerySet[Sale]:
     """Sales newest first, each with `line_count`, its customer, place, quote and lines (product, batches).
     Days are those of `sold_at` in local time, both included; `search` matches the number and the
@@ -212,6 +215,7 @@ def sales_of(
             "credit_decided_by",
         )
         .prefetch_related(Prefetch("lines", queryset=lines), "box_lines")
+        .prefetch_related(Prefetch("revisions", queryset=SaleRevision.objects.select_related("actor").order_by("id")))
         .prefetch_related(
             Prefetch(
                 "invoices",
@@ -224,6 +228,9 @@ def sales_of(
     )
     if status:
         sales = sales.filter(status=status)
+    if delivery_status:
+        # The BL of the truck loads only, by where their delivery stands (D-178).
+        sales = sales.filter(delivery_status=delivery_status)
     if customer_id is not None:
         sales = sales.filter(customer_id=customer_id)
     if location_id is not None:
@@ -736,6 +743,12 @@ _SALE_TONES: dict[str, Tone] = {
     SaleStatus.CONFIRMED: "done",
     SaleStatus.CANCELLED: "cancelled",
 }
+_DELIVERY_TONES: dict[str, Tone] = {
+    DeliveryStatus.TO_DELIVER: "waiting",
+    DeliveryStatus.DELIVERED: "done",
+    DeliveryStatus.PARTIAL: "done",
+    DeliveryStatus.CANCELLED: "cancelled",
+}
 _INVOICE_TONES: dict[str, Tone] = {
     InvoiceStatus.DRAFT: "draft",
     InvoiceStatus.ISSUED: "done",
@@ -828,8 +841,12 @@ def document_rows(organization: Organization, filters: DocumentFilters, *, may_w
         for sale in _search(_days(sales, "sold_at__date", filters), "customer", filters):
             sale_status = SaleStatus(sale.status)
             actions = []
+            delivery = DeliveryStatus(sale.delivery_status) if sale.delivery_status else None
             if may_write:
-                if sale_status == SaleStatus.DRAFT:
+                if delivery == DeliveryStatus.TO_DELIVER:
+                    # The driver delivers it (D-178); the office marks it delivered from its page, after a question.
+                    actions = ["edit", "cancel"]
+                elif sale_status == SaleStatus.DRAFT:
                     actions = ["edit", "confirm", "cancel"]
                 elif sale_status == SaleStatus.CONFIRMED:
                     actions = [] if sale.live_invoices else ["to_invoice"]
@@ -846,12 +863,13 @@ def document_rows(organization: Organization, filters: DocumentFilters, *, may_w
                     date=timezone.localtime(sale.sold_at).date(),
                     amount=sale.total,
                     status=sale_status.value,
-                    status_label=str(sale_status.label),
-                    tone=_SALE_TONES[sale_status],
+                    status_label=str(delivery.label) if delivery is not None else str(sale_status.label),
+                    tone=_DELIVERY_TONES[delivery] if delivery is not None else _SALE_TONES[sale_status],
                     parents=[document_key("DV", sale.quote_id)] if sale.quote_id else [],
                     actions=actions,
-                    # A BL exists once the sale was validated, even if it was cancelled afterwards.
-                    pdf="delivery_note" if sale.confirmed_at is not None else "",
+                    # A BL exists once the sale was validated, even if it was cancelled afterwards; the BL of a load
+                    # from the load on (D-178).
+                    pdf="delivery_note" if sale.confirmed_at is not None or sale.issued_at is not None else "",
                 )
             )
 

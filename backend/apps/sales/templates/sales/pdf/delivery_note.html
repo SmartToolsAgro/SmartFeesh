@@ -1,7 +1,7 @@
 {% extends "documents/pdf_base.html" %}{% load pdf_format %}
 {% block heading %}Bon de livraison{% endblock %}
-{% block banner %}{% if cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉ</span></p>{% elif provisional %}<p class="fa-cancelled"><span class="banner">PROVISOIRE</span></p>{% endif %}{% endblock %}
-{% block head_meta %}<p class="fa-meta">Au départ de {{ location.name }}</p>{% endblock %}
+{% block banner %}{% if not_delivered %}<p class="fa-cancelled"><span class="banner">NON LIVRÉ</span></p>{% elif cancelled %}<p class="fa-cancelled"><span class="banner">ANNULÉ</span></p>{% elif provisional %}<p class="fa-cancelled"><span class="banner">PROVISOIRE</span></p>{% endif %}{% endblock %}
+{% block head_meta %}<p class="fa-meta">Au départ de {{ location.name }}{% if version %} · Version {{ version }} · {{ delivery_label }}{% endif %}</p>{% endblock %}
 {% block body %}
 <div class="parties">
   <div>
@@ -9,37 +9,51 @@
     {% if deliver_to %}<p><b>Livré à :</b> {{ deliver_to }}</p>{% endif %}
     <p>Prix en dinars tunisiens (DT), par kilo, hors TVA.</p>
     {% if provisional %}<p class="muted small">Bon préparé au chargement : il devient définitif quand la livraison est validée.</p>
+    {% elif to_deliver %}<p class="muted small">À livrer. Si le client prend moins ou plus, le livreur écrit les kg livrés dans la colonne « Livré » et le client signe ; le bureau imprime ensuite le bon corrigé.</p>
+    {% elif delivered %}<p class="muted small">Ce bon fait foi des quantités livrées et des montants dus : le client doit seulement ce qui a été livré.</p>
     {% else %}<p class="muted small">Ce bon fait foi des quantités livrées et des montants dus. La facture est établie à la demande.</p>{% endif %}
   </div>
 </div>
 
 <table class="lines">
   <thead>
-    <tr><th>Désignation</th><th class="r">Qté (kg)</th><th class="r">P.U. (DT/kg)</th>{% if has_discount %}<th class="r">Remise</th>{% endif %}<th class="r">Montant HT</th></tr>
+    <tr><th>Désignation</th>{% if to_deliver or delivered %}<th class="r">Commandé (kg)</th><th class="r">Livré (kg)</th>{% else %}<th class="r">Qté (kg)</th>{% endif %}<th class="r">P.U. (DT/kg)</th>{% if has_discount %}<th class="r">Remise</th>{% endif %}<th class="r">Montant HT</th></tr>
   </thead>
   <tbody>
     {% for line in lines %}
     <tr>
       <td>{{ line.product.name }}</td>
-      <td class="r num">{{ line.quantity|kilos }}</td>
+      {% if to_deliver %}<td class="r num">{{ line.quantity|kilos }}</td><td class="r num">&nbsp;</td>
+      {% elif delivered %}<td class="r num">{% if line.ordered_quantity is not None %}{{ line.ordered_quantity|kilos }}{% else %}{{ line.quantity|kilos }}{% endif %}</td><td class="r num">{{ line.quantity|kilos }}</td>
+      {% else %}<td class="r num">{{ line.quantity|kilos }}</td>{% endif %}
       <td class="r num">{{ line.unit_price|money }}</td>
       {% if has_discount %}<td class="r num">{% if line.discount_rate %}{{ line.discount_rate|percent }}{% endif %}</td>{% endif %}
       <td class="r num">{{ line.amount|money }}</td>
     </tr>
     {% endfor %}
+    {% if delivered %}{% for row in removed %}
+    <tr>
+      <td>{{ row.name }} <span class="muted small">(non livré)</span></td>
+      <td class="r num">{{ row.ordered|kilos }}</td><td class="r num">0,000</td>
+      <td class="r num">{{ row.unit_price|money }}</td>
+      {% if has_discount %}<td></td>{% endif %}
+      <td class="r num">0,000</td>
+    </tr>
+    {% endfor %}{% endif %}
   </tbody>
 </table>
 
 <div class="totals num">
-  <div><span>Poids total</span><span>{{ total_kg|kilos }} kg</span></div>
+  <div><span>{% if to_deliver %}Poids commandé{% else %}Poids total{% endif %}</span><span>{{ total_kg|kilos }} kg</span></div>
   {% if sale.discount_total %}<div><span>Total avant remise</span><span>{{ sale.subtotal|money }}</span></div>
   <div><span>Remises</span><span>− {{ sale.discount_total|money }}</span></div>{% endif %}
-  <div class="grand"><span>Total HT</span><span>{{ sale.total|money }} DT</span></div>
+  <div class="grand"><span>{% if to_deliver %}Total HT si tout est livré{% else %}Total HT{% endif %}</span><span>{{ sale.total|money }} DT</span></div>
   {% if sale.amount_paid %}<div><span>Payé à la livraison</span><span>{{ sale.amount_paid|money }}</span></div>
   <div><span>Reste dû</span><span>{{ sale.amount_due|money }} DT</span></div>{% endif %}
 </div>
 
 {% if boxes %}<div class="note"><h2>Caisses laissées chez le client</h2><p>{% for label, count in boxes %}{{ label }} : {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}</p></div>{% endif %}
+{% if sale.delivery_note %}<div class="note"><h2>Note du livreur</h2><p>{{ sale.delivery_note }}</p></div>{% endif %}
 {% if sale.notes %}<div class="note"><h2>Remarques</h2><p>{{ sale.notes|linebreaksbr }}</p></div>{% endif %}
 <div class="parties" style="margin-top: 14mm">
   <div><h2>Le livreur</h2><p>&nbsp;</p></div>

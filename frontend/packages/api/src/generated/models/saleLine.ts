@@ -32,4 +32,9 @@ export interface SaleLine {
   readonly cost_amount: string | null;
   /** @nullable */
   readonly batches: readonly SaleLineBatch[] | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,9}(?:\.\d{0,3})?$
+     */
+  readonly ordered_quantity: string | null;
 }
