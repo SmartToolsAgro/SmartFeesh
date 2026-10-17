@@ -8,7 +8,7 @@ export function OfflineBanner() {
   const online = useOnline();
   if (online) return null;
   return (
-    <p role="status" className="mb-4 rounded-control bg-warn-soft px-3 py-2 text-warn">
+    <p role="status" className="rounded-control bg-warn-soft px-3 py-2 text-warn">
       {t("truck.offline.banner")}
     </p>
   );

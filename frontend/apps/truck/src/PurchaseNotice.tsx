@@ -13,7 +13,7 @@ export function PurchaseNotice({ enabled }: { enabled: boolean }) {
   const decisions = usePurchaseDecisions(enabled ? purchases.data : undefined);
   if (decisions.length === 0) return null;
   return (
-    <Card role="alert" className="mb-4 space-y-3 border-warn">
+    <Card role="alert" className="space-y-3 border-warn">
       <ul className="space-y-3">
         {decisions.map((purchase) => (
           <li key={purchase.id} className="space-y-1">

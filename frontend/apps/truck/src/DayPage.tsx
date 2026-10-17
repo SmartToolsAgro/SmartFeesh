@@ -12,12 +12,13 @@ import {
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Field, Input, toast } from "@frutti/ui";
+import { Button, Card, cn, EmptyState, Field, Icon, type IconName, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
 
 import { formatBoxCount } from "./boxes";
+import { FoldCard } from "./FoldCard";
 import { TodayAtAGlance } from "./TodayAtAGlance";
 
 // "Ma journée", three steps and nothing else: pick the truck, check the load, start the day.
@@ -69,9 +70,10 @@ function PickTruck() {
 // The boxes of today per box type: what came, what the clients kept, what came back, and what should be on the truck.
 function BoxDayCard({ day }: { day: MyBoxDay }) {
   const { t } = useTranslation();
+  const typeName = (box: string) => (box === "small" ? t("truck.boxes.small") : t("truck.boxes.big"));
+  const summary = day.lines.map((line) => `${typeName(line.box_type)} ${formatBoxCount(line.expected)}`).join(" · ");
   return (
-    <Card>
-      <h2 className="mb-3">{t("truck.boxes.dayTitle")}</h2>
+    <FoldCard title={t("truck.boxes.dayTitle")} summary={summary}>
       <ul className="divide-y divide-line">
         {day.lines.map((line) => (
           <li key={line.box_type} className="space-y-1 py-3">
@@ -91,7 +93,7 @@ function BoxDayCard({ day }: { day: MyBoxDay }) {
           </li>
         ))}
       </ul>
-    </Card>
+    </FoldCard>
   );
 }
 
@@ -150,6 +152,29 @@ function PurchaseFloat({ amount }: { amount: string }) {
   );
 }
 
+interface TileProps {
+  to: string;
+  icon: IconName;
+  label: string;
+  primary?: boolean;
+}
+
+// One road task as a tile, two to a row: the day's menu takes one screen, not a scroll (D-168).
+function DayTile({ to, icon, label, primary = false }: TileProps) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        "flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-card border p-3 text-center font-semibold",
+        primary ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink",
+      )}
+    >
+      <Icon name={icon} className="size-6" />
+      <span>{label}</span>
+    </Link>
+  );
+}
+
 function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -174,6 +199,8 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
     loadedToday.length > 0
       ? loadedToday.map((line) => ({ ...line, quantity: line.loaded }))
       : (stock.data ?? []).filter((line) => Number(line.quantity) > 0);
+  // Millimes, as the other sums of kilos in this app.
+  const loadMillimes = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * 1000), 0);
   const running = day.data !== undefined && day.data.ended_at === null;
   // The day's closing was sent: it is closed until the office loads the truck again (D-134).
   const ended = day.data !== undefined && day.data.ended_at !== null;
@@ -194,60 +221,12 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
           </Card>
         </Link>
       )}
-      <Card>
+      <Card className="p-4">
         <p className="text-sm text-ink-2">{t("truck.day.yourTruck")}</p>
         <p className="text-2xl font-bold">{truck.name}</p>
         <p className="text-ink-2">{truck.plate}</p>
       </Card>
-      <TodayAtAGlance enabled={running} />
-      {load.isLoading || stock.isLoading ? null : lines.length === 0 ? (
-        <EmptyState illustration="fridge" title={t("truck.day.nothingLoaded")}>
-          {t("truck.day.nothingLoadedBody")}
-        </EmptyState>
-      ) : (
-        <Card>
-          <h2 className="mb-3">{t(loadedToday.length > 0 ? "truck.day.loaded" : "truck.day.inTruck")}</h2>
-          <ul className="divide-y divide-line">
-            {lines.map((line) => (
-              <li key={line.product_id} className="flex items-center justify-between gap-3 py-3">
-                <span className="text-lg font-semibold">{line.product_name}</span>
-                <span className="text-end">
-                  <span className="block text-xl font-bold">{formatQuantity(line.quantity)}</span>
-                  {line.unit_price === null ? null : (
-                    <span className="text-sm text-ink-2">{formatMoney(line.unit_price)} / kg</span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-      {boxes.data === undefined ? null : <BoxDayCard day={boxes.data} />}
-      {canBuy ? (
-        <>
-          <Button asChild size="lg" variant="primary" className="py-4 text-lg">
-            <Link to="/achat">{t("truck.purchase.add")}</Link>
-          </Button>
-          <Button asChild size="lg" className="py-4 text-lg">
-            <Link to="/achats">{t("truck.purchase.mine")}</Link>
-          </Button>
-        </>
-      ) : null}
-      <Button asChild size="lg" variant="primary" className="py-4 text-lg">
-        <Link to="/livraisons">{t("truck.deliveries.open")}</Link>
-      </Button>
-      <Button asChild size="lg" className="py-4 text-lg">
-        <Link to="/reprise">{t("truck.boxes.pickupAdd")}</Link>
-      </Button>
-      <Button asChild size="lg" className="py-4 text-lg">
-        <Link to="/depense">{t("truck.expense.add")}</Link>
-      </Button>
-      <Button asChild size="lg" className="py-4 text-lg">
-        <Link to="/encaissement">{t("truck.payment.add")}</Link>
-      </Button>
-      <Button asChild size="lg" className="py-4 text-lg">
-        <Link to="/perte">{t("truck.loss.add")}</Link>
-      </Button>
+      {/* Until the day starts, the cash form is the first thing here, not at the bottom (D-168). */}
       {day.isLoading ? null : running ? (
         <Card>
           <p className="text-lg font-semibold">{t(reopened ? "truck.history.reopened" : "truck.day.started")}</p>
@@ -302,9 +281,50 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
           </Button>
         </Card>
       )}
-      <Button asChild size="lg" className="py-4 text-lg">
-        <Link to="/historique">{t("truck.history.open")}</Link>
-      </Button>
+      <TodayAtAGlance enabled={running} />
+      {load.isLoading || stock.isLoading ? null : lines.length === 0 ? (
+        <EmptyState illustration="fridge" title={t("truck.day.nothingLoaded")}>
+          {t("truck.day.nothingLoadedBody")}
+        </EmptyState>
+      ) : (
+        <FoldCard
+          defaultOpen
+          title={t(loadedToday.length > 0 ? "truck.day.loaded" : "truck.day.inTruck")}
+          summary={t("truck.day.loadSummary", {
+            count: lines.length,
+            kg: formatQuantity((loadMillimes / 1000).toFixed(3)),
+          })}
+        >
+          <ul className="divide-y divide-line">
+            {lines.map((line) => (
+              <li key={line.product_id} className="flex items-center justify-between gap-3 py-3">
+                <span className="text-lg font-semibold">{line.product_name}</span>
+                <span className="text-end">
+                  <span className="block text-xl font-bold">{formatQuantity(line.quantity)}</span>
+                  {line.unit_price === null ? null : (
+                    <span className="text-sm text-ink-2">{formatMoney(line.unit_price)} / kg</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </FoldCard>
+      )}
+      {boxes.data === undefined ? null : <BoxDayCard day={boxes.data} />}
+      <div className="grid grid-cols-2 gap-2.5">
+        {canBuy ? (
+          <>
+            <DayTile to="/achat" icon="cart" label={t("truck.purchase.add")} primary />
+            <DayTile to="/achats" icon="receipt" label={t("truck.purchase.mine")} />
+          </>
+        ) : null}
+        <DayTile to="/livraisons" icon="truck" label={t("truck.deliveries.open")} primary />
+        <DayTile to="/reprise" icon="box" label={t("truck.boxes.pickupAdd")} />
+        <DayTile to="/depense" icon="wallet" label={t("truck.expense.add")} />
+        <DayTile to="/encaissement" icon="cash" label={t("truck.payment.add")} />
+        <DayTile to="/perte" icon="trash" label={t("truck.loss.add")} />
+        <DayTile to="/historique" icon="calcheck" label={t("truck.history.open")} />
+      </div>
     </div>
   );
 }

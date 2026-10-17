@@ -50,6 +50,8 @@ export const ar: PartialTranslation = {
   truck: {
     deliveries: {
       open: "توصيلاتي",
+      summary_one: "{{count}} منتج · {{total}}",
+      summary_other: "{{count}} منتجات · {{total}}",
       title: "تسليمات حمولة الشاحنة",
       empty: "لا توجد تسليمات",
       emptyBody: "تظهر هنا أذونات التسليم التي أُعدّت مع حمولة الشاحنة، إذن لكل حريف.",
@@ -73,6 +75,8 @@ export const ar: PartialTranslation = {
     sale: {
       needTruck: "اختر شاحنتك أولًا من « يومي ».",
       whoFor: "لأي حريف؟",
+      recent: "الأخيرون",
+      others: "حرفاء آخرون",
       search: "ابحث عن حريف",
       customer: "الحريف",
       change: "تغيير",
@@ -337,6 +341,8 @@ export const ar: PartialTranslation = {
     },
     day: {
       yourTruck: "شاحنتك اليوم",
+      loadSummary_one: "{{count}} منتج · {{kg}} كغ",
+      loadSummary_other: "{{count}} منتجات · {{kg}} كغ",
       noTruck: "لا توجد شاحنة اليوم",
       noTruckBody: "لا توجد شاحنة متاحة. اتصل بالمكتب.",
       pickTruck: "أي شاحنة تأخذ اليوم؟",
