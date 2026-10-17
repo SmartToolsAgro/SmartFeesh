@@ -23767,6 +23767,11 @@ components:
           - $ref: '#/components/schemas/DriverRef'
           readOnly: true
           nullable: true
+        driver_today:
+          allOf:
+          - $ref: '#/components/schemas/DriverRef'
+          nullable: true
+          readOnly: true
         location_id:
           type: integer
           readOnly: true
@@ -23784,6 +23789,7 @@ components:
       required:
       - condition
       - driver
+      - driver_today
       - id
       - is_active
       - location_id

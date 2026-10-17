@@ -228,7 +228,7 @@ export function LocationsPage() {
                   <PlaceCard
                     key={truck.id}
                     illustration="truck"
-                    title={truck.driver ? `${truck.name} · ${truck.driver.name}` : truck.name}
+                    title={truck.driver_today ? `${truck.name} · ${truck.driver_today.name}` : truck.name}
                     subtitle={truck.plate}
                     stock={stockLine(truck.location_id)}
                     numeric
@@ -238,7 +238,9 @@ export function LocationsPage() {
                         {truck.is_active && truck.condition !== "ok" && (
                           <Pill tone="bad">{t(`admin.locations.conditions.${truck.condition}`)}</Pill>
                         )}
-                        {!truck.driver && truck.is_active && <Pill tone="warn">{t("admin.locations.noDriver")}</Pill>}
+                        {!truck.driver_today && truck.is_active && truck.condition === "ok" && (
+                          <Pill tone="warn">{t("admin.locations.noDriverToday")}</Pill>
+                        )}
                         {archivedPill(truck.is_active)}
                       </>
                     }

@@ -502,6 +502,7 @@ export const fr = {
       },
       counterSales: "Vente au comptoir",
       noDriver: "Sans chauffeur",
+      noDriverToday: "Sans chauffeur aujourd’hui",
       conditions: {
         ok: "En service",
         maintenance: "En maintenance",
