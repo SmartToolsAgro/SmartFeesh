@@ -504,3 +504,25 @@ def unexplained_cash_differences(organization: Organization) -> list[CashDiffere
         )
         for row in rows
     ]
+
+
+# A sale or payment made this long before or after a stop is put down to it.
+VISIT_MARGIN = dt.timedelta(minutes=10)
+
+
+def day_route(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
+    """The route of a driver's day for the office map (D-167): the GPS points, the last position, and the stops
+    with how long the truck stayed and the customers served around them (sales and payments made then)."""
+    route = fleet.route_of_day(driver_day)
+    activity = day_activity(organization, driver_day)
+    moments = [(sale["sold_at"], sale["customer_name"]) for sale in [*activity["sales"], *activity["deliveries"]]]
+    moments += [(payment["made_at"], payment["customer_name"]) for payment in activity["payments"]]
+    stops = fleet.stops_of_route(route["points"])
+    for stop in stops:
+        names = [
+            name
+            for when, name in sorted(moments)
+            if stop["started_at"] - VISIT_MARGIN <= when <= stop["ended_at"] + VISIT_MARGIN
+        ]
+        stop["customers"] = list(dict.fromkeys(names))
+    return {**route, "stops": stops}

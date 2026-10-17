@@ -355,8 +355,21 @@ class RoutePointSerializer(serializers.Serializer[Any]):
     accuracy = serializers.FloatField(read_only=True, allow_null=True)
 
 
+class RouteStopSerializer(serializers.Serializer[Any]):
+    """Where the truck stayed five minutes or more."""
+
+    started_at = serializers.DateTimeField(read_only=True)
+    ended_at = serializers.DateTimeField(read_only=True)
+    minutes = serializers.IntegerField(read_only=True)
+    latitude = serializers.FloatField(read_only=True)
+    longitude = serializers.FloatField(read_only=True)
+    # The customers whose sale or payment was made during or just around the stop.
+    customers = serializers.ListField(child=serializers.CharField(), read_only=True)
+
+
 class DayRouteSerializer(serializers.Serializer[Any]):
     """The GPS route of one driver's day, in time order; `last` is where the truck was last seen."""
 
     points = RoutePointSerializer(many=True, read_only=True)
     last = RoutePointSerializer(read_only=True, allow_null=True)
+    stops = RouteStopSerializer(many=True, read_only=True)

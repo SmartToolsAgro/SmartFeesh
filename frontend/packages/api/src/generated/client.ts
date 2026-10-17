@@ -4938,7 +4938,7 @@ export const getGetDayRouteUrl = (dayId: number,) => {
 }
 
 /**
- * The GPS route of one driver's day for the map: the points in time order and the last one (D-166).
+ * The GPS route of one driver's day for the map: the points in time order and the last one (D-167).
  */
 export const getDayRoute = async (dayId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayRoute> => {
 

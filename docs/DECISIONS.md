@@ -2459,3 +2459,9 @@ client's record but may be changed on this BL only.
 - `GET /day-overview/<day id>/route` (office roles): the day's GPS points in time order and the last one. The dialog has a
   "Parcours" section: OpenStreetMap tiles with Leaflet 1.9.4 (no API key), the line of the route, a green start point and a red
   last position; it refreshes every 30 s while the day runs, and warns when the last point is older than 10 minutes.
+
+**D-167 · Stops on the route: 5 minutes within 50 m (P3-T13c)** · accepted · 2026-10-17
+- `fleet/trail.py` (pure): a stop starts at a GPS point and takes the next ones within 50 m, with no gap above 15 min; it counts
+  from 5 min (first to last point); its place is the average of its points. The route endpoint returns the stops; each lists
+  the customers whose sale, delivery or payment was made from 10 min before to 10 min after the stop (`dayclose.day_route`).
+- Customer coordinates are not stored yet (T13d): a stop is named by the sales made then, not by distance to a known place.

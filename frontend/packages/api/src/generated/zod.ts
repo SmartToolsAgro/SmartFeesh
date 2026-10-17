@@ -2638,7 +2638,7 @@ export const GetDayOverviewResponse = zod.object({
 
 
 /**
- * The GPS route of one driver's day for the map: the points in time order and the last one (D-166).
+ * The GPS route of one driver's day for the map: the points in time order and the last one (D-167).
  */
 export const GetDayRouteParams = zod.object({
   "day_id": zod.int()
@@ -2656,7 +2656,15 @@ export const GetDayRouteResponse = zod.object({
   "latitude": zod.number(),
   "longitude": zod.number(),
   "accuracy": zod.number().nullable()
-}),zod.null()])
+}),zod.null()]),
+  "stops": zod.array(zod.object({
+  "started_at": zod.iso.datetime({"offset":true}),
+  "ended_at": zod.iso.datetime({"offset":true}),
+  "minutes": zod.int(),
+  "latitude": zod.number(),
+  "longitude": zod.number(),
+  "customers": zod.array(zod.string())
+}).describe('Where the truck stayed five minutes or more.'))
 }).describe('The GPS route of one driver\'s day, in time order; `last` is where the truck was last seen.')
 
 
