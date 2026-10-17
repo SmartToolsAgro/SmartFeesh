@@ -4,8 +4,10 @@ _Last updated: 2026-10-17 (notifications office ⇄ drivers with a tone, P3-T15 
 
 ## Where we are
 
-- **P3-T15 / D-175 (branch driver-admin-notifications):** a bell in both apps; a driver's action notifies the office,
-  the office's action notifies the driver, with a tone and a toast (polling every 20 s). Awaits CI, then check on staging.
+- **D-177 (branch load-bl-print-provisional):** a load's draft BL prints provisional from the sale page; validating it
+  there asks "Marquer livré ?". Before, printing from that page confirmed it (= delivered). Awaits CI.
+- **P3-T15 / D-175 (on main):** a bell in both apps; a driver's action notifies the office,
+  the office's action notifies the driver, with a tone and a toast (polling every 20 s). Check on staging.
 - **D-173 (on main):** the new receipt's product lines are a bordered spreadsheet table. Check on staging.
 - **Phase 1:** done except P1-T14 (returnable boxes; owner decisions 2–4 are open). **Phase 2:** mostly done.
 - **Phase 3:** T01–T07d and T11–T12c are done; open: T08 field test, T09 Arabic review, T10 printing.
