@@ -48,3 +48,20 @@ export async function openPdf(kind: PdfKind, id: number): Promise<void> {
     throw error;
   }
 }
+
+/** Opens the PDF made on the spot by the server in a new tab (the tab is opened at the click, so it is not blocked). */
+export async function openStatement(url: string): Promise<void> {
+  const tab = window.open("", "_blank");
+  try {
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const address = URL.createObjectURL(await response.blob());
+    if (tab) tab.location.href = address;
+    else window.location.href = address;
+    // Kept for a minute: the tab needs the address to load it.
+    setTimeout(() => URL.revokeObjectURL(address), 60_000);
+  } catch (error) {
+    tab?.close();
+    throw error;
+  }
+}

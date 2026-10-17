@@ -137,6 +137,46 @@ def driver_days_of(organization: Organization, *, driver_id: int) -> QuerySet[Dr
     )
 
 
+def driver_days_between(
+    organization: Organization,
+    *,
+    driver_id: int | None = None,
+    truck_id: int | None = None,
+    date_from: date_type | None = None,
+    date_to: date_type | None = None,
+) -> QuerySet[DriverDay]:
+    """The office's view of the days drivers opened, newest first, whether they are running or sent; filtered by
+    driver, truck and dates (both included)."""
+    days = (
+        DriverDay.objects.for_organization(organization)
+        .select_related("truck__location", "driver", "closing")
+        .order_by("-date", "truck__location__name", "id")
+    )
+    if driver_id is not None:
+        days = days.filter(driver_id=driver_id)
+    if truck_id is not None:
+        days = days.filter(truck_id=truck_id)
+    if date_from is not None:
+        days = days.filter(date__gte=date_from)
+    if date_to is not None:
+        days = days.filter(date__lte=date_to)
+    return days
+
+
+def drivers_with_days(organization: Organization) -> list[dict[str, object]]:
+    """The drivers who opened at least one day: `{id, name}`, by name."""
+    drivers = {
+        day.driver_id: day.driver.get_full_name() or day.driver.username
+        for day in DriverDay.objects.for_organization(organization).select_related("driver").order_by("id")
+    }
+    return [{"id": pk, "name": name} for pk, name in sorted(drivers.items(), key=lambda item: item[1].lower())]
+
+
+def driver_day_by_id(organization: Organization, day_id: int) -> DriverDay:
+    """One driver's day with its truck and driver. Raises DriverDay.DoesNotExist outside the organization."""
+    return driver_days_between(organization).get(pk=day_id)
+
+
 def day_window(driver_day: DriverDay) -> tuple[datetime, datetime]:
     """The moments a driver's day covers, `start` included and `end` excluded (D-134): its date, up to the
     moment its closing was sent. A day that runs (not sent yet, or opened again by a new load), or one closed

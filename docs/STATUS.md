@@ -19,7 +19,10 @@ _Last updated: 2026-10-16 (client-by-client truck loads, P2-T13 / D-160; D-159 i
 - **Working rule (owner, 2026-10-16):** do not run tests locally; commit and let CI check, then fix reported failures.
   One branch and one PR per task; merge only after CI passes.
 
-- **D-162 (branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
+- **D-161 (PR load-print-fiche):** the validated load page has a banner and a "Fiche client" button per client.
+
+- **D-162 (PR #163):** Journées des chauffeurs has a live follow-up tab per driver, truck and day; awaits CI, then check on staging.
+- **D-163 (PR #164, branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
   truck condition, partnership edits, XLS tables, frozen header). CI must pass before merge; then check on staging.
 
 ## Next step

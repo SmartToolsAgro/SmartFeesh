@@ -27,7 +27,7 @@ class Truck(OrganizationScopedModel, TimeStampedModel):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="trucks"
     )
     is_active = models.BooleanField(default=True)
-    # A truck in maintenance or broken down cannot be taken by a driver (D-162).
+    # A truck in maintenance or broken down cannot be taken by a driver (D-163).
     condition = models.CharField(max_length=12, choices=TruckCondition.choices, default=TruckCondition.OK)
 
     class Meta:
@@ -47,7 +47,7 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
     """
 
     truck = models.ForeignKey(Truck, on_delete=models.PROTECT, related_name="assignments")
-    # Empty: the truck is left free that day, also for its usual driver (D-162).
+    # Empty: the truck is left free that day, also for its usual driver (D-163).
     driver = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="truck_assignments"
     )

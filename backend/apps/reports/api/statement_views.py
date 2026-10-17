@@ -12,7 +12,9 @@ from rest_framework import serializers
 from rest_framework.request import Request
 
 from apps.documents import services as documents
+from apps.inventory import selectors as inventory
 from apps.reports import statements
+from apps.sales import selectors as sales
 
 from .views import ReportView
 
@@ -88,3 +90,28 @@ class SupplierStatementPdfView(StatementView):
         except ObjectDoesNotExist:
             raise Http404 from None
         return _pdf(document, self.organization)
+
+
+class LoadPrintPackView(ReportView):
+    @extend_schema(operation_id="getLoadPrintPackPdf", responses={(200, "application/pdf"): OpenApiTypes.BINARY})
+    def get(self, request: Request, transfer_id: int) -> HttpResponse:
+        """Everything to hand out after a truck load (D-161): for each client, their BL then their statement up to
+        today, in one PDF, each document starting on its own page. Office roles."""
+        try:
+            transfer = inventory.transfer_of(self.organization, transfer_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        notes = sales.load_delivery_notes(self.organization, transfer.pk)
+        if not notes:
+            raise Http404
+        today = timezone.localdate()
+        pack: list[documents.Printable] = []
+        for sale_id, customer_id in notes:
+            pack.append(documents.printable(self.organization, "delivery_note", sale_id))
+            pack.append(
+                statements.customer_statement_printable(self.organization, customer_id, date_from=None, date_to=today)
+            )
+        response = HttpResponse(documents.render_pack_pdf(pack, self.organization), content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="chargement-{transfer.number}.pdf"'
+        response["Cache-Control"] = "private, no-store"
+        return response

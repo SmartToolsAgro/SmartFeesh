@@ -312,7 +312,7 @@ def test_assignments_of_another_organization_are_invisible(organization, actor, 
     assert posted.status_code == 400
 
 
-# ---- maintenance, breakdown and a truck left free (D-162) ----
+# ---- maintenance, breakdown and a truck left free (D-163) ----
 
 
 def test_a_truck_in_maintenance_is_not_taken_and_loses_its_coming_days(organization, actor, today):

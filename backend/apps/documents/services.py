@@ -101,6 +101,11 @@ def render_pdf(document: Printable, organization: Organization) -> bytes:
     return rendering.html_to_pdf(render_html(document, organization))
 
 
+def render_pack_pdf(pack: list[Printable], organization: Organization) -> bytes:
+    """One PDF holding several documents one after the other, each starting on its own page."""
+    return rendering.htmls_to_pdf([render_html(document, organization) for document in pack])
+
+
 def file_version(organization: Organization, document: Printable) -> str:
     """The document's version plus the logo's: a new logo makes the stored files stale (D-125)."""
     if not organization.logo:

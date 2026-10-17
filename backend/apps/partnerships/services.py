@@ -227,7 +227,7 @@ def update_partnership(
     loss_rate: Any = None,
     notes: str | None = None,
 ) -> LotPartnership:
-    """Change the terms of an open partnership, until its lot is closed (D-162). A changed partner capital
+    """Change the terms of an open partnership, until its lot is closed (D-163). A changed partner capital
     posts a correction (the difference) on the capital ledger; the ledger itself is never rewritten."""
     partnership = _locked(partnership)
     organization = partnership.organization

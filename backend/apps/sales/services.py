@@ -228,7 +228,7 @@ def _checked_lines(
 
     Each line also says where its price comes from (`price_source`) and whether it is below the product's
     minimum price (`below_minimum`). A price once the discount is taken off may not go under that minimum: the
-    line is refused (D-162)."""
+    line is refused (D-163)."""
     checked_lines: list[dict[str, Any]] = []
     seen: set[int] = set()
     for index, line in enumerate(lines):

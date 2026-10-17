@@ -60,6 +60,9 @@ import type {
   DayLabourWrite,
   DayLabourer,
   DayLabourerWrite,
+  DayOverviewDetail,
+  DayOverviewDriver,
+  DayOverviewRow,
   DocumentList,
   DriverDay,
   DriverDayOpen,
@@ -123,6 +126,7 @@ import type {
   ListDayClosingsParams,
   ListDayLabourParams,
   ListDayLabourersParams,
+  ListDayOverviewParams,
   ListDocumentsParams,
   ListEmployeesParams,
   ListExpenseCategoriesParams,
@@ -4717,6 +4721,308 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getUpdateDayLabourerMutationOptions(options), queryClient);
     }
+
+export const getListDayOverviewUrl = (params?: ListDayOverviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/day-overview?${stringifiedParams}` : `/api/v1/day-overview`
+}
+
+/**
+ * The drivers' days as they stand, running or sent (the last 100 matching): money, sales and deliveries.
+ * Filter by driver, truck and dates.
+ */
+export const listDayOverview = async (params?: ListDayOverviewParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewRow[]> => {
+
+  return apiFetch<DayOverviewRow[]>(getListDayOverviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDayOverviewQueryKey = (params?: ListDayOverviewParams,) => {
+    return [
+    `/api/v1/day-overview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDayOverviewQueryOptions = <TData = Awaited<ReturnType<typeof listDayOverview>>, TError = unknown>(params?: ListDayOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDayOverviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDayOverview>>> = ({ signal }) => listDayOverview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDayOverview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDayOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof listDayOverview>>>
+export type ListDayOverviewQueryError = unknown
+
+
+export function useListDayOverview<TData = Awaited<ReturnType<typeof listDayOverview>>, TError = unknown>(
+ params: undefined |  ListDayOverviewParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayOverview>>,
+          TError,
+          Awaited<ReturnType<typeof listDayOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayOverview<TData = Awaited<ReturnType<typeof listDayOverview>>, TError = unknown>(
+ params?: ListDayOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayOverview>>,
+          TError,
+          Awaited<ReturnType<typeof listDayOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayOverview<TData = Awaited<ReturnType<typeof listDayOverview>>, TError = unknown>(
+ params?: ListDayOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDayOverview<TData = Awaited<ReturnType<typeof listDayOverview>>, TError = unknown>(
+ params?: ListDayOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDayOverviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDayOverviewUrl = (dayId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}`
+}
+
+/**
+ * One driver's day: figures, sales, deliveries to do and done, payments collected and expenses.
+ */
+export const getDayOverview = async (dayId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+
+  return apiFetch<DayOverviewDetail>(getGetDayOverviewUrl(dayId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDayOverviewQueryKey = (dayId: number,) => {
+    return [
+    `/api/v1/day-overview/${dayId}`
+    ] as const;
+    }
+
+
+export const getGetDayOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getDayOverview>>, TError = unknown>(dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayOverview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDayOverviewQueryKey(dayId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDayOverview>>> = ({ signal }) => getDayOverview(dayId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: dayId !== null && dayId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDayOverview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDayOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getDayOverview>>>
+export type GetDayOverviewQueryError = unknown
+
+
+export function useGetDayOverview<TData = Awaited<ReturnType<typeof getDayOverview>>, TError = unknown>(
+ dayId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayOverview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getDayOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayOverview<TData = Awaited<ReturnType<typeof getDayOverview>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayOverview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getDayOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayOverview<TData = Awaited<ReturnType<typeof getDayOverview>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayOverview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDayOverview<TData = Awaited<ReturnType<typeof getDayOverview>>, TError = unknown>(
+ dayId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayOverview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDayOverviewQueryOptions(dayId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDayOverviewDriversUrl = () => {
+
+
+
+
+  return `/api/v1/day-overview/drivers`
+}
+
+/**
+ * The drivers who opened at least one day, by name: the choices of the driver filter.
+ */
+export const listDayOverviewDrivers = async ( options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDriver[]> => {
+
+  return apiFetch<DayOverviewDriver[]>(getListDayOverviewDriversUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDayOverviewDriversQueryKey = () => {
+    return [
+    `/api/v1/day-overview/drivers`
+    ] as const;
+    }
+
+
+export const getListDayOverviewDriversQueryOptions = <TData = Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDayOverviewDriversQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDayOverviewDrivers>>> = ({ signal }) => listDayOverviewDrivers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDayOverviewDriversQueryResult = NonNullable<Awaited<ReturnType<typeof listDayOverviewDrivers>>>
+export type ListDayOverviewDriversQueryError = unknown
+
+
+export function useListDayOverviewDrivers<TData = Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayOverviewDrivers>>,
+          TError,
+          Awaited<ReturnType<typeof listDayOverviewDrivers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayOverviewDrivers<TData = Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDayOverviewDrivers>>,
+          TError,
+          Awaited<ReturnType<typeof listDayOverviewDrivers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDayOverviewDrivers<TData = Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDayOverviewDrivers<TData = Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDayOverviewDrivers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDayOverviewDriversQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListDocumentsUrl = (params?: ListDocumentsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -20326,6 +20632,105 @@ export function useGetCustomerStatementPdf<TData = Awaited<ReturnType<typeof get
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetCustomerStatementPdfQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetLoadPrintPackPdfUrl = (transferId: number,) => {
+
+
+
+
+  return `/api/v1/reports/load-print-pack/${transferId}/pdf`
+}
+
+/**
+ * Everything to hand out after a truck load (D-161): for each client, their BL then their statement up to
+ * today, in one PDF, each document starting on its own page. Office roles.
+ */
+export const getLoadPrintPackPdf = async (transferId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetLoadPrintPackPdfUrl(transferId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLoadPrintPackPdfQueryKey = (transferId: number,) => {
+    return [
+    `/api/v1/reports/load-print-pack/${transferId}/pdf`
+    ] as const;
+    }
+
+
+export const getGetLoadPrintPackPdfQueryOptions = <TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLoadPrintPackPdfQueryKey(transferId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoadPrintPackPdf>>> = ({ signal }) => getLoadPrintPackPdf(transferId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: transferId !== null && transferId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLoadPrintPackPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getLoadPrintPackPdf>>>
+export type GetLoadPrintPackPdfQueryError = unknown
+
+
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>,
+          TError,
+          Awaited<ReturnType<typeof getLoadPrintPackPdf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLoadPrintPackPdf<TData = Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError = unknown>(
+ transferId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadPrintPackPdf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLoadPrintPackPdfQueryOptions(transferId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
