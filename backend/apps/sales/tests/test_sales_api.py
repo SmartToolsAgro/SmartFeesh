@@ -443,8 +443,9 @@ def test_a_driver_loaded_for_clients_is_offered_only_those_clients_and_the_walk_
     manager, organization, customer, crevette, driver_with_truck
 ):
     driver, truck_place = driver_with_truck
-    partners.ensure_walk_in_customer(organization=organization)
+    # The factory's references come from a sequence: the walk-in one takes the next free reference after them.
     CustomerFactory.create(organization=organization, name="Hôtel Marina")
+    partners.ensure_walk_in_customer(organization=organization)
     phone = client_for(driver)
     before = phone.get(reverse("my-customers")).json()
     cold_room = StockLocationFactory.create(organization=organization, name="Chambre froide 1")
