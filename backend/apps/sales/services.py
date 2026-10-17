@@ -997,19 +997,19 @@ def deliver_sale(
     removed = [line for line in current if delivered[line.pk] == 0]
     partial = any(delivered[line.pk] < _written(line) for line in current)
     changed = any(delivered[line.pk] != _written(line) for line in current)
+    kept = [(line, delivered[line.pk]) for line in current if delivered[line.pk] > 0]
     for line in removed:
         line.delete()
-    kept = [line for line in current if delivered[line.pk] > 0]
-    for line in kept:
-        if delivered[line.pk] != line.quantity:
-            line.quantity = delivered[line.pk]
+    for line, quantity in kept:
+        if quantity != line.quantity:
+            line.quantity = quantity
             priced = priced_line(line.quantity, line.unit_price, line.discount_rate)
             line.gross_amount = priced["gross_amount"]
             line.discount_amount = priced["discount_amount"]
             line.amount = priced["amount"]
             line.save(update_fields=["quantity", "gross_amount", "discount_amount", "amount"])
-    sale.subtotal = sum((line.gross_amount for line in kept), Decimal("0.000"))
-    sale.discount_total = sum((line.discount_amount for line in kept), Decimal("0.000"))
+    sale.subtotal = sum((line.gross_amount for line, _kg in kept), Decimal("0.000"))
+    sale.discount_total = sum((line.discount_amount for line, _kg in kept), Decimal("0.000"))
     sale.total_excl_tax = sale.subtotal - sale.discount_total
     sale.total = sale.total_excl_tax
     paid = _checked_payment(sale.total, payment or {}, errors)
