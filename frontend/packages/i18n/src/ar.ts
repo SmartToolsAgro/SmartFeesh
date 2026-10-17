@@ -263,6 +263,10 @@ export const ar: PartialTranslation = {
     offline: {
       banner: "لا توجد شبكة: الأرقام المعروضة من آخر اتصال.",
     },
+    tracking: {
+      denied: "تم رفض الموقع: لا يمكن للمكتب متابعة الجولة. اسمح بالموقع لهذا الموقع في إعدادات المتصفح.",
+      unavailable: "تعذر تحديد الموقع: تأكد من تشغيل GPS في الهاتف.",
+    },
     closing: {
       notStarted: "لم يبدأ اليوم",
       notStartedBody: "ابدأ يومك أولًا من « يومي ».",

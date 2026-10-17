@@ -161,6 +161,8 @@ import type {
   ListTruckAssignmentsParams,
   ListTrucksParams,
   LocationBatch,
+  LocationPingBatch,
+  LocationPingSaved,
   LocationStock,
   Login,
   LossDetail,
@@ -13798,6 +13800,92 @@ export function useGetMyDaySummary<TData = Awaited<ReturnType<typeof getMyDaySum
 
 
 
+
+export const getRecordMyLocationsUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/locations`
+}
+
+/**
+ * The GPS points of the driver's phone for today's day, up to 200 at a time (D-164). A resent point is
+ * stored once; points after the sent closing are dropped. 404 until the day is started.
+ */
+export const recordMyLocations = async (locationPingBatch: LocationPingBatch, options?: Parameters<typeof apiFetch>[1]): Promise<LocationPingSaved> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LocationPingSaved>(getRecordMyLocationsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(locationPingBatch)
+  }
+);}
+
+
+
+
+
+export const getRecordMyLocationsMutationKey = () => ['recordMyLocations'] as const;
+
+export const getRecordMyLocationsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMyLocations>>, TError,RecordMyLocationsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordMyLocations>>, TError,RecordMyLocationsMutationVariables, TContext> => {
+
+const mutationKey = getRecordMyLocationsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordMyLocations>>, RecordMyLocationsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordMyLocations(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordMyLocationsMutationResult = NonNullable<Awaited<ReturnType<typeof recordMyLocations>>>
+    export type RecordMyLocationsMutationBody = LocationPingBatch
+    export type RecordMyLocationsMutationError = unknown
+    export type RecordMyLocationsMutationVariables = {data: LocationPingBatch}
+
+    export const useRecordMyLocations = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMyLocations>>, TError,RecordMyLocationsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordMyLocations>>,
+        TError,
+        RecordMyLocationsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordMyLocationsMutationOptions(options), queryClient);
+    }
 
 export const getSetMyPurchaseFloatUrl = () => {
 

@@ -7,6 +7,7 @@ import {
   useLogout,
   useSession,
 } from "@frutti/auth";
+import { useGetMyDay } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import { Sprite, Toaster, TruckShell, type TruckTab, useFavicon } from "@frutti/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -34,6 +35,7 @@ import { SalePage } from "./SalePage";
 import { ScreenError } from "./ScreenError";
 import { StockPage } from "./StockPage";
 import { SyncStatus } from "./SyncStatus";
+import { forgetPoints, useLocationTracking } from "./tracking";
 
 const queryClient = createQueryClient();
 // Without signal, ask anyway: the phone answers from what it saved (public/sw.js) instead of waiting forever.
@@ -125,6 +127,9 @@ function Shell({ session }: { session: Session }) {
   // The prices are watched on every screen, so a change is announced wherever the driver is (P3-T02).
   const stock = useTruckStock(session.truck !== null);
   usePriceWatch(stock.data);
+  // The phone follows the day's position while the day runs (D-164).
+  const day = useGetMyDay({ query: { retry: false, enabled: session.truck !== null } });
+  const tracking = useLocationTracking(day.data !== undefined && day.data.ended_at === null);
   return (
     <TruckShell
       tabs={tabs}
@@ -133,11 +138,17 @@ function Shell({ session }: { session: Session }) {
       title={t("truck.hello", { name: session.user.first_name || session.user.username })}
       onLogout={() => {
         void forgetSavedData();
+        forgetPoints();
         logout.mutate();
       }}
     >
       <LanguageSwitch className="mb-3 self-end" />
       <OfflineBanner />
+      {(tracking === "denied" || tracking === "unavailable") && (
+        <p role="status" className="mb-4 rounded-control bg-warn-soft px-3 py-2 text-warn">
+          {t(`truck.tracking.${tracking}`)}
+        </p>
+      )}
       <PriceNotice />
       {/* The office's decisions on the driver's purchases at the port, for a driver who buys (D-158). */}
       <PurchaseNotice enabled={session.can_buy} />

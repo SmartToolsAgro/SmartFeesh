@@ -10,7 +10,7 @@ from django.utils import timezone
 from apps.core.models import Membership, Organization, Role
 from apps.core.session import TruckRef
 
-from .models import DriverDay, Truck, TruckAssignment, TruckCondition
+from .models import DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
 
 type TruckStatus = Literal["active", "archived", "all"]
 
@@ -229,3 +229,8 @@ def drivers_by_truck_day(
         .order_by("id")
     )
     return {(row.truck.location_id, row.date): row.driver.get_full_name() or row.driver.username for row in rows}
+
+
+def pings_of_day(driver_day: DriverDay) -> QuerySet[LocationPing]:
+    """The GPS points of a driver's day, in the order they were taken (D-164)."""
+    return LocationPing.objects.for_organization(driver_day.organization).filter(driver_day=driver_day)
