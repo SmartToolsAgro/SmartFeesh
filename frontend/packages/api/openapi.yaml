@@ -3746,6 +3746,49 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/me/notifications:
+    get:
+      operationId: listMyNotifications
+      description: The newest notifications of the logged-in person, newest first,
+        and how many they have not read.
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationList'
+          description: ''
+  /api/v1/me/notifications/read:
+    post:
+      operationId: markMyNotificationsRead
+      description: Some notifications (`ids`), or all of them (`all`), are read by
+        the logged-in person.
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkRead'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MarkRead'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkRead'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unread'
+          description: ''
   /api/v1/me/password:
     post:
       operationId: changeMyPassword
@@ -16226,6 +16269,19 @@ components:
       - name
       - product_id
       - quantity
+    MarkRead:
+      type: object
+      description: Either the ids seen, or `all` for everything shown.
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          maxItems: 200
+        all:
+          type: boolean
+          default: false
     Member:
       type: object
       properties:
@@ -17267,6 +17323,46 @@ components:
       required:
       - id
       - name
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          type: string
+          maxLength: 50
+        params:
+          type: object
+          additionalProperties:
+            type: string
+        link:
+          type: string
+          maxLength: 200
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        read:
+          type: boolean
+      required:
+      - created_at
+      - id
+      - kind
+      - params
+      - read
+    NotificationList:
+      type: object
+      properties:
+        unread:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+      required:
+      - results
+      - unread
     NumberRef:
       type: object
       properties:
@@ -24145,6 +24241,13 @@ components:
       required:
       - rows
       - total
+    Unread:
+      type: object
+      properties:
+        unread:
+          type: integer
+      required:
+      - unread
     User:
       type: object
       properties:

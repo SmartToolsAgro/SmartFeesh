@@ -7478,6 +7478,46 @@ export const RemoveMyAvatarResponse = zod.void()
 
 
 /**
+ * The newest notifications of the logged-in person, newest first, and how many they have not read.
+ */
+export const listMyNotificationsResponseResultsItemKindMax = 50;
+
+export const listMyNotificationsResponseResultsItemLinkMax = 200;
+
+
+
+export const ListMyNotificationsResponse = zod.object({
+  "unread": zod.int(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string().max(listMyNotificationsResponseResultsItemKindMax),
+  "params": zod.record(zod.string(), zod.string()),
+  "link": zod.string().max(listMyNotificationsResponseResultsItemLinkMax).optional(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "read": zod.boolean()
+}))
+})
+
+
+/**
+ * Some notifications (`ids`), or all of them (`all`), are read by the logged-in person.
+ */
+
+export const markMyNotificationsReadBodyIdsMax = 200;
+
+export const markMyNotificationsReadBodyAllDefault = false;
+
+export const MarkMyNotificationsReadBody = zod.object({
+  "ids": zod.array(zod.int().min(1)).max(markMyNotificationsReadBodyIdsMax).optional(),
+  "all": zod.boolean().default(markMyNotificationsReadBodyAllDefault)
+}).describe('Either the ids seen, or `all` for everything shown.')
+
+export const MarkMyNotificationsReadResponse = zod.object({
+  "unread": zod.int()
+})
+
+
+/**
  * A user changes their own password; the old one proves it is really them (no email reset exists, D-123).
  */
 export const changeMyPasswordBodyOldPasswordMax = 128;

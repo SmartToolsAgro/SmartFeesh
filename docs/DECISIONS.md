@@ -2531,3 +2531,21 @@ client's record but may be changed on this BL only.
   header row and bordered cells (product, ordered or remaining, invoiced, accepted, cost, amount, use-by, partner, remove),
   not a card per line. Cells are borderless fields filling the cell; the last cost hint sits under the cost. The table
   scrolls sideways on a phone instead of stacking each line.
+
+**D-174 · Notifications between the office and the drivers, read from the audit trail, with a tone (P3-T15)** · accepted · 2026-10-17
+- New app `apps.notifications` (`Notification`, `NotificationRead`). A `post_save` receiver on `AuditLog` maps the
+  audited action (`rules.RULES`) to a notification, in the action's own transaction (a refused action tells nobody)
+  but inside its own savepoint: a failing notification is logged and never refuses the action. No service changed.
+- Driver → office (owner and managers; the accountant is told nothing): day started, day sent or sent again, sale
+  confirmed, credit asked, payment collected, road expense, loss (waiting or not), port purchase sent or changed, new
+  customer, refused phone send, stock returned to the cold room. Only when the actor is a driver.
+- Office → driver: load validated into the truck the driver has that day (`fleet.selectors.driver_of_location`), day
+  approved / justification asked / reopened, port purchase validated / refused / changed, loss and expense decided,
+  truck assigned for today or later, refused send dealt with. Only when the actor is not a driver.
+- Text is not stored: `kind` + `params` (strings, values as they were), translated in each app (`notifications.kinds`,
+  French and provisional Arabic). Shown 14 days, newest 40; each office reader marks read for themselves; nobody is
+  told of their own action.
+- Both apps poll `GET /me/notifications` every 20 s (also in a background tab). A notification newer than the last one
+  this device saw (localStorage, per user) plays a two-note Web Audio tone (no sound file; vibration on a phone) and a
+  toast; the first visit on a device rings for nothing old. Tone on by default, switch in the bell's panel. Push
+  notifications to a closed app (Web Push) are not done: they would need a service-worker subscription and VAPID keys.

@@ -1,10 +1,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { Button } from "./components/button";
 import { useFavicon } from "./favicon";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "./components/dialog";
+import { NotificationBell } from "./components/notification-bell";
 import { Pill } from "./components/pill";
 import { ICON_NAMES, ILLUSTRATION_NAMES } from "./icon-names";
 import { Icon, Sprite } from "./icons";
@@ -118,4 +119,30 @@ test("the uploaded logo replaces the default mark and the tab icon, and the defa
   expect(container.querySelector("img")).toBeNull();
   expect(icon?.getAttribute("href")).toBe("/favicon.svg");
   expect(icon?.getAttribute("type")).toBe("image/svg+xml");
+});
+
+test("the bell counts the unread notifications and opens the one clicked", async () => {
+  const user = userEvent.setup();
+  const onOpen = vi.fn();
+  const onReadAll = vi.fn();
+  render(
+    <NotificationBell
+      unread={1}
+      items={[
+        { id: 2, text: "Sami a envoyé sa clôture", time: "17/10/2026 18:05", read: false },
+        { id: 1, text: "Sami a commencé sa journée", time: "17/10/2026 07:30", read: true },
+      ]}
+      onOpen={onOpen}
+      onReadAll={onReadAll}
+      soundOn
+      onToggleSound={() => undefined}
+    />,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Notifications : 1 non lue" }));
+  expect(screen.getByRole("button", { name: "Son : activé" }).getAttribute("aria-pressed")).toBe("true");
+  await user.click(screen.getByRole("button", { name: "Tout marquer lu" }));
+  expect(onReadAll).toHaveBeenCalledOnce();
+  await user.click(screen.getByText("Sami a envoyé sa clôture"));
+  expect(onOpen).toHaveBeenCalledWith(2);
 });

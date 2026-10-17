@@ -49,6 +49,33 @@ export const ar: PartialTranslation = {
     accountant: "المحاسب",
     driver: "السائق",
   },
+  // Provisional, like the rest of this file (D-103, D-174).
+  notifications: {
+    title: "الإشعارات",
+    open: "الإشعارات",
+    ...plural("openUnread", "الإشعارات: {{count}} غير مقروءة"),
+    empty: "لا توجد إشعارات حاليًا.",
+    readAll: "تعليم الكل كمقروء",
+    soundOn: "الصوت: مفعّل",
+    soundOff: "الصوت: مغلق",
+    ...plural("more", "و{{count}} إشعارات أخرى"),
+    unknown: "إشعار جديد",
+    kinds: {
+      load_validated: "شحنة جديدة {{number}} تم تأكيدها على {{truck}}",
+      day_approved: "تمت الموافقة على يوم {{date}}",
+      day_justification: "المكتب يطلب تبريرًا ليوم {{date}}: {{reason}}",
+      day_reopened: "تمت إعادة فتح يوم {{date}}: أرسل الإغلاق في آخر اليوم",
+      purchase_validated: "تم قبول الشراء {{number}}",
+      purchase_refused: "تم رفض الشراء {{number}}: {{note}}",
+      purchase_changed: "المكتب عدّل الشراء {{number}}",
+      loss_approved: "تم قبول الخسارة {{number}} ({{product}})",
+      loss_rejected: "تم رفض الخسارة {{number}} ({{product}}): {{reason}}",
+      expense_approved: "تم قبول المصروف {{number}} ({{amount}})",
+      expense_rejected: "تم رفض المصروف {{number}} ({{amount}}): {{reason}}",
+      truck_assigned: "المكتب أعطاك {{truck}} ليوم {{date}}",
+      sync_resolved: "المكتب عالج الإرسال المرفوض: {{label}}",
+    },
+  },
   truck: {
     deliveries: {
       open: "توصيلاتي",

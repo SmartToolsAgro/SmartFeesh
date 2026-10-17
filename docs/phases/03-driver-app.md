@@ -164,3 +164,11 @@ do the stock, the supplier debt and the payment count.
 - [x] Sale: one line per product; recent customers first (kept on the phone, cleared at logout); one line per customer.
 - [x] Deliveries: each client folds; the confirm button sits inside its fold.
 - [ ] Check on a real phone with a driver (with P3-T08): the folds and tiles read well, the sticky bar hides no field.
+
+**P3-T15 · Notifications between the office and the drivers, with a tone (D-174) · M** _(owner's request of 2026-10-17)_
+- [x] Server: a notification is written from the audit entry of each action (`apps.notifications`): a driver's action
+      tells the owner and the managers, the office's action on a driver's day, load, purchase, loss, expense or truck
+      tells that driver. `GET /me/notifications`, `POST /me/notifications/read`.
+- [x] Both apps: a bell in the header with the unread count and the list; new ones play a short tone (and vibrate a
+      phone) and show as a toast; a click opens the right screen. The tone can be turned off per device.
+- [ ] Check on staging: a driver's sale rings the office within 20 s; a validated load rings the driver's phone.
