@@ -66,7 +66,8 @@ class TruckListView(TruckView):
         if self.membership.role not in selectors.OFFICE_ROLES:
             own = selectors.truck_of_driver(self.membership)
             trucks = trucks.filter(pk=own.pk) if own else trucks.none()
-        return Response(TruckSerializer(trucks, many=True).data)
+        drivers = selectors.drivers_of_day(self.organization, timezone.localdate())
+        return Response(TruckSerializer(trucks, many=True, context={"drivers_today": drivers}).data)
 
     @extend_schema(operation_id="createTruck", request=TruckWriteSerializer, responses={201: TruckSerializer})
     def post(self, request: Request) -> Response:

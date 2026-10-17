@@ -16134,6 +16134,11 @@ export const ListTrucksResponseItem = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()
 }),zod.null()]),
+  "driver_today": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
@@ -16165,6 +16170,11 @@ export const CreateTruckResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()
 }),zod.null()]),
+  "driver_today": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
@@ -16180,6 +16190,11 @@ export const GetTruckResponse = zod.object({
   "name": zod.string(),
   "plate": zod.string(),
   "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "driver_today": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()
@@ -16218,6 +16233,11 @@ export const UpdateTruckResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()
 }),zod.null()]),
+  "driver_today": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
@@ -16240,6 +16260,11 @@ export const ArchiveTruckResponse = zod.object({
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()
 }),zod.null()]),
+  "driver_today": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
   "location_id": zod.int(),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
@@ -16255,6 +16280,11 @@ export const RestoreTruckResponse = zod.object({
   "name": zod.string(),
   "plate": zod.string(),
   "driver": zod.union([zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "name": zod.string()
+}),zod.null()]),
+  "driver_today": zod.union([zod.object({
   "id": zod.int(),
   "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
   "name": zod.string()

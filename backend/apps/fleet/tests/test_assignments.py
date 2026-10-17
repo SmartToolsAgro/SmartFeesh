@@ -310,3 +310,28 @@ def test_assignments_of_another_organization_are_invisible(organization, actor, 
     assert client.delete(reverse("truck-assignment-detail", args=[assignment.pk])).status_code == 404
     posted = client.post(reverse("truck-assignment-list"), {"truck": truck.pk, "driver": driver.user.pk}, format="json")
     assert posted.status_code == 400
+
+
+def test_drivers_of_day_follows_the_assignment_over_the_usual_driver(organization, actor, today):
+    usual, other = driver_of(organization), driver_of(organization)
+    truck = new_truck(organization, actor, 1, driver=usual.user)
+    lonely = new_truck(organization, actor, 2)
+    assign(organization, actor, truck, other, today)
+
+    drivers = selectors.drivers_of_day(organization, today)
+
+    assert drivers[truck.id] == other.user
+    assert lonely.id not in drivers
+
+
+def test_drivers_of_day_keeps_the_usual_driver_unless_assigned_elsewhere(organization, actor, today):
+    usual = driver_of(organization)
+    truck = new_truck(organization, actor, 1, driver=usual.user)
+    second = new_truck(organization, actor, 2)
+
+    assert selectors.drivers_of_day(organization, today)[truck.id] == usual.user
+
+    assign(organization, actor, second, usual, today)
+    drivers = selectors.drivers_of_day(organization, today)
+    assert drivers[second.id] == usual.user
+    assert truck.id not in drivers

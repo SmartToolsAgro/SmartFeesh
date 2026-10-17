@@ -2426,3 +2426,8 @@ client's record but may be changed on this BL only.
 - Endpoints (office roles, read-only): `GET /day-overview`, `/day-overview/<day id>`, `/day-overview/drivers`. Figures are
   `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
   is the day. `phase` = `running` or the closing status.
+
+**D-163 · The truck cards show who has the truck today, not who usually drives it** · accepted · 2026-10-17
+- `GET /trucks` adds `driver_today` (`selectors.drivers_of_day`): the driver who started today's day on the truck, else
+  today's assignment, else the usual driver unless assigned to another truck today. `driver` stays the usual driver (truck
+  form). The card badge reads "Sans chauffeur aujourd'hui".

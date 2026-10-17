@@ -502,6 +502,7 @@ export const fr = {
       },
       counterSales: "Vente au comptoir",
       noDriver: "Sans chauffeur",
+      noDriverToday: "Sans chauffeur aujourd’hui",
       archived: "Archivé",
       readOnly: "Consultation seule : seuls le propriétaire et le gestionnaire modifient les emplacements.",
       form: {
