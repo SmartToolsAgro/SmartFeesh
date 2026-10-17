@@ -40,6 +40,8 @@ export const ar: PartialTranslation = {
     submitting: "جارٍ الدخول…",
     tooManyAttempts: "محاولات كثيرة. أعد المحاولة بعد دقيقة.",
     networkError: "تعذّر الاتصال. تحقق من الشبكة ثم أعد المحاولة.",
+    showPassword: "إظهار",
+    hidePassword: "إخفاء",
   },
   roles: {
     owner: "المالك",
