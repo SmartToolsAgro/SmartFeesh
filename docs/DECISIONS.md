@@ -2491,7 +2491,7 @@ client's record but may be changed on this BL only.
   the customers whose sale, delivery or payment was made from 10 min before to 10 min after the stop (`dayclose.day_route`).
 - Customer coordinates are not stored yet (T13d): a stop is named by the sales made then, not by distance to a known place.
 
-**D-168 · The driver's phone scrolls less (P3-T14)** · accepted · 2026-10-17
+**D-171 · The driver's phone scrolls less (P3-T14)** · accepted · 2026-10-17
 - Ma journée: while the day is not started, the cash form sits right under the truck card; the day's menu is a
   two-column grid of tiles (the history is one of them), not eight full-width buttons. The load and the boxes are
   folding cards (`FoldCard`): the load opens, the boxes stay closed; each shows a summary line (products and kilos,

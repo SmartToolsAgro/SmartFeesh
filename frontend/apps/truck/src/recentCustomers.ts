@@ -1,7 +1,7 @@
 const KEY = "frutti-truck-recent-customers";
 const KEPT = 5;
 
-/** The customers this phone sold to most recently, newest first. Kept on this phone only (D-168). */
+/** The customers this phone sold to most recently, newest first. Kept on this phone only (D-171). */
 export function recentCustomerIds(): number[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");

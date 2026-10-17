@@ -271,7 +271,7 @@ export function PickCustomer({ onPick }: { onPick: (customer: CustomerChoice) =>
   const [adding, setAdding] = useState(false);
   const online = useOnline();
   const customers = useListMyCustomers({ search: search.trim() });
-  // A customer picked goes to the top of the recent list (D-168).
+  // A customer picked goes to the top of the recent list (D-171).
   const pick = (customer: CustomerChoice) => {
     rememberCustomer(customer.id);
     onPick(customer);

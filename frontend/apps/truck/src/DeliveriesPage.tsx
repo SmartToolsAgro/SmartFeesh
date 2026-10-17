@@ -10,7 +10,7 @@ import { sendError } from "./sendError";
 
 // "Mes livraisons": the BL the office prepared with the truck's load, one per client (D-160). Delivering one confirms
 // it: the kilos leave the truck, the client owes the amount and the boxes are counted to them. Each delivery opens on
-// tap, so the list shows every client on one screen (D-168).
+// tap, so the list shows every client on one screen (D-171).
 export function DeliveriesPage() {
   const { t } = useTranslation();
   const deliveries = useListMyDeliveries({ query: { retry: false } });
