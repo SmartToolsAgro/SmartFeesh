@@ -69,6 +69,8 @@ def _day_sent(entry: AuditLog) -> None:
 
 def _sale_confirmed(entry: AuditLog) -> None:
     sale = cast("Sale", entry.target)
+    if entry.action == "sale.confirmed" and sale.delivery_status:
+        return  # the BL of a load: its delivery tells the office (`_delivered`)
     kind = "sale_confirmed" if entry.action == "sale.confirmed" else "credit_requested"
     params = {"number": sale.number, "customer": sale.customer.name, "total": _amount(sale.total)}
     _office(entry, kind, params, f"/ventes/{sale.pk}")
@@ -108,6 +110,42 @@ def _customer_created(entry: AuditLog) -> None:
 def _sync_problem(entry: AuditLog) -> None:
     problem = cast("SyncProblem", entry.target)
     _office(entry, "sync_problem", {"label": problem.label}, "/journees")
+
+
+def _delivered(entry: AuditLog) -> None:
+    sale = cast("Sale", entry.target)
+    kind = "delivery_partial" if sale.delivery_status == "partial" else "delivery_done"
+    params = {
+        "number": sale.number,
+        "customer": sale.customer.name,
+        "total": _amount(sale.total),
+        "note": sale.delivery_note,
+    }
+    _office(entry, kind, params, f"/ventes/{sale.pk}")
+
+
+def _load_bl_driver(entry: AuditLog, sale: "Sale") -> User | None:
+    """The driver who has the truck of a load's BL on the day it was loaded (D-178)."""
+    return fleet.driver_of_location(
+        entry.organization, location_id=sale.location_id, on=timezone.localtime(sale.sold_at).date()
+    )
+
+
+def _sale_cancelled(entry: AuditLog) -> None:
+    sale = cast("Sale", entry.target)
+    if not sale.delivery_status:
+        return
+    params = {"number": sale.number, "customer": sale.customer.name, "note": sale.delivery_note}
+    # The driver gave it up at the client's (or at the end of the day): the office hears; the office gave it up:
+    # the driver hears. Each `tell_*` checks who acted.
+    _office(entry, "delivery_cancelled", params, f"/ventes/{sale.pk}")
+    _driver(entry, _load_bl_driver(entry, sale), "bl_cancelled", params, "/livraisons")
+
+
+def _bl_changed(entry: AuditLog) -> None:
+    sale = cast("Sale", entry.target)
+    params = {"number": sale.number, "customer": sale.customer.name, "version": str(sale.version)}
+    _driver(entry, _load_bl_driver(entry, sale), "bl_changed", params, "/livraisons")
 
 
 # ---- What the office does, told to the driver ----
@@ -190,6 +228,9 @@ RULES: dict[str, Callable[[AuditLog], None]] = {
     "day_closing.resubmitted": _day_sent,
     "sale.confirmed": _sale_confirmed,
     "sale.credit_approval_requested": _sale_confirmed,
+    "sale.delivered": _delivered,
+    "sale.cancelled": _sale_cancelled,
+    "sale.delivery_changed": _bl_changed,
     "customer_payment.recorded": _payment_recorded,
     "expense.created": _expense_created,
     "loss.recorded": _loss_recorded,

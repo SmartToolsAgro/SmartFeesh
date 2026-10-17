@@ -81,6 +81,12 @@ export const fr = {
       expense_rejected: "La dépense {{number}} ({{amount}}) est refusée : {{reason}}",
       truck_assigned: "Le bureau vous a confié {{truck}} pour le {{date}}",
       sync_resolved: "Le bureau a traité l'envoi refusé : {{label}}",
+      // The BL of a load (D-178)
+      delivery_done: "{{driver}} a livré {{number}} à {{customer}} : {{total}}",
+      delivery_partial: "{{driver}} a livré {{number}} en partie à {{customer}} : {{total}}. {{note}}",
+      delivery_cancelled: "{{number}} non livré à {{customer}}. {{note}}",
+      bl_changed: "Le bureau a modifié le bon {{number}} de {{customer}} (version {{version}})",
+      bl_cancelled: "Le bureau a annulé le bon {{number}} de {{customer}}",
     },
   },
   admin: {
@@ -879,6 +885,8 @@ export const fr = {
           payment: "Encaissement",
           pickup: "Reprise de caisses",
           purchase: "Achat au port",
+          delivery: "Livraison",
+          not_delivered: "Bon non livré",
         },
         done: "Traité",
         handled: "Marqué comme traité.",
@@ -1560,6 +1568,21 @@ export const fr = {
         confirmed: "Confirmée",
         cancelled: "Annulée",
       },
+      // The BL of a truck load (D-178)
+      deliveryFilter: "Livraison des bons du chargement",
+      allDeliveries: "Toutes livraisons",
+      deliveryStatuses: {
+        to_deliver: "À livrer",
+        delivered: "Livré",
+        partial: "Livré en partie",
+        cancelled: "Non livré",
+      },
+      revisionKinds: {
+        issued: "validé au chargement",
+        edited: "modifié par le bureau",
+        delivered: "livraison",
+        cancelled: "non livré",
+      },
       methods: {
         cash: "Espèces",
         cheque: "Chèque",
@@ -1635,6 +1658,16 @@ export const fr = {
         markDeliveredBody:
           "À faire seulement si la marchandise est déjà livrée et que le chauffeur ne peut pas le valider : les kilos sortent du camion, le client doit le montant, et le bon disparaît des livraisons du chauffeur.",
         markDeliveredConfirm: "Oui, c'est livré",
+        printBl: "Imprimer le BL",
+        toDeliverNote:
+          "BL validé avec le chargement {{load}} (version {{version}}) : le chauffeur le livre depuis son téléphone, en entier, en partie ou non livré. Le client doit seulement ce qui est livré. Une modification ici fait une nouvelle version et prévient le chauffeur ; réimprimez le bon.",
+        deliveredNote: "{{status}} par {{by}} le {{at}} (version {{version}}).",
+        ordered: "Commandé (kg)",
+        delivered: "Livré (kg)",
+        revisions: "Versions du bon",
+        revisionTitle: "Version {{version}} · {{kind}}",
+        revisionLine: "{{name}} : {{kilos}}",
+        revisionDelivered: "{{name}} : {{ordered}} sur le bon, {{delivered}} livré",
         cancel: "Annuler la vente",
         cancelTitle: "Annuler la vente {{number}} ?",
         cancelDraftBody: "Le brouillon reste dans la liste, annulé. Rien ne bouge dans le stock.",
@@ -2707,7 +2740,7 @@ export const fr = {
       deliveries: {
         title: "Bons de livraison par client",
         intro:
-          "Un brouillon de bon par client, prêt à imprimer. La livraison le valide : le stock sort du camion et le client doit le montant.",
+          "Un bon de livraison validé par client, prêt à imprimer et à emporter. Le chauffeur le livre en entier, en partie ou pas du tout : seul ce qui est livré sort du camion et est dû par le client.",
         client: "Client",
         address: "Livré à",
         boxes: "Caisses",
@@ -4002,10 +4035,34 @@ export const fr = {
       emptyBody: "Les bons préparés avec le chargement du camion apparaissent ici, un par client.",
       failed: "Les livraisons n'ont pas pu être chargées.",
       total: "Total",
-      confirm: "Livré : valider le bon",
-      confirming: "Validation…",
-      failedConfirm: "Le bon n'a pas pu être validé. Réessayez.",
-      offline: "Pas de réseau : la livraison se valide quand le téléphone est en ligne.",
+      confirm: "Livré comme écrit",
+      confirmChanged: "Livré avec ces quantités",
+      confirming: "Envoi…",
+      failedConfirm: "La livraison n'a pas pu être enregistrée. Réessayez.",
+      offline: "Pas de réseau : la livraison est gardée sur le téléphone et envoyée dès que le réseau revient.",
+      // Delivering the BL of a load, as written or changed at the client's (D-178)
+      bl: "{{number}} · version {{version}}",
+      written: "Sur le bon : {{kilos}} · livré :",
+      takenOff: "Non livré : ce produit reste dans le camion.",
+      boxesWritten: "Sur le bon : {{small}} petite(s), {{big}} grande(s)",
+      newTotal: "Nouveau total",
+      paid: "Encaissé maintenant (DT)",
+      paidTooMuch: "Plus que le total livré.",
+      note: "Note (facultatif)",
+      paperHint:
+        "Écrivez aussi les kg livrés sur le bon papier et faites-le signer : le bureau imprimera le bon corrigé.",
+      done: "Livraison enregistrée : {{number}}.",
+      kept: "Livraison gardée sur le téléphone : elle part dès que le réseau revient.",
+      notDelivered: "Non livré",
+      notDeliveredAsk:
+        "Le client ne prend rien ? La marchandise reste dans le camion et revient au stock avec le retour. La note est facultative.",
+      notDeliveredConfirm: "Oui, non livré",
+      notDeliveredDone: "{{number}} : non livré.",
+      back: "Retour",
+      closingWarning_one:
+        "{{count}} livraison n'est pas faite : à l'envoi de la clôture, elle sera « non livré » et la marchandise revient au stock.",
+      closingWarning_other:
+        "{{count}} livraisons ne sont pas faites : à l'envoi de la clôture, elles seront « non livré » et la marchandise revient au stock.",
     },
     appName: "Chauffeur",
     navigation: "Navigation camion",

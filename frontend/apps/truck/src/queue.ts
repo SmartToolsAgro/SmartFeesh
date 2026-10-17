@@ -1,6 +1,8 @@
 import type {
+  Deliver,
   MyBoxPickupWrite,
   MyFieldPurchaseCreate,
+  NotDelivered,
   RoadExpenseWrite,
   RoadLossWrite,
   RoadPaymentWrite,
@@ -66,7 +68,31 @@ export interface QueuedPurchase extends Waiting {
   paper?: File;
 }
 
-export type QueuedItem = QueuedSale | QueuedExpense | QueuedLoss | QueuedPayment | QueuedPickup | QueuedPurchase;
+/** The delivery of a BL of the load (D-178): the `client_uuid` in the data records it once. */
+export interface QueuedDelivery extends Waiting {
+  kind: "delivery";
+  saleId: number;
+  data: Deliver;
+  /** Kilos per product that leave the truck with it, for the stock shown meanwhile. */
+  kilos: Record<number, number>;
+}
+
+/** A BL of the load not delivered (D-178): nothing leaves the truck. */
+export interface QueuedNotDelivered extends Waiting {
+  kind: "not_delivered";
+  saleId: number;
+  data: NotDelivered;
+}
+
+export type QueuedItem =
+  | QueuedSale
+  | QueuedExpense
+  | QueuedLoss
+  | QueuedPayment
+  | QueuedPickup
+  | QueuedPurchase
+  | QueuedDelivery
+  | QueuedNotDelivered;
 
 const DATABASE = "frutti-truck";
 const STORE = "sales";
@@ -152,7 +178,7 @@ export function madeAtOf(sale: QueuedSale): string {
   return sale.data.sold_at ?? sale.createdAt;
 }
 
-/** Kilos per product already promised by waiting sales and losses: they are no longer in the truck. */
+/** Kilos per product already promised by waiting sales, deliveries and losses: they are no longer in the truck. */
 export function pendingKilos(queue: QueuedItem[]): Record<number, number> {
   const kilos: Record<number, number> = {};
   for (const item of queue) {
@@ -161,6 +187,9 @@ export function pendingKilos(queue: QueuedItem[]): Record<number, number> {
       for (const line of item.data.lines) kilos[line.product] = (kilos[line.product] ?? 0) + Number(line.quantity);
     } else if (item.kind === "loss") {
       kilos[item.data.product] = (kilos[item.data.product] ?? 0) + Number(item.data.quantity);
+    } else if (item.kind === "delivery") {
+      for (const [product, kg] of Object.entries(item.kilos))
+        kilos[Number(product)] = (kilos[Number(product)] ?? 0) + kg;
     }
   }
   return kilos;

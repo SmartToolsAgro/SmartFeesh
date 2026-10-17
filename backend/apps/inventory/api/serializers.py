@@ -245,11 +245,14 @@ class TransferSerializer(serializers.ModelSerializer[Transfer]):
 
 
 class DeliveryNoteRefSerializer(serializers.Serializer[Any]):
-    """The client's BL made from the load: a draft until the delivery (D-160)."""
+    """The client's BL made from the load (D-160): validated at the load, then delivered by the driver (D-178)."""
 
     id = serializers.IntegerField(read_only=True)
     number = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
+    # "to_deliver", "delivered", "partial" or "cancelled" (not delivered); empty for a BL made before D-178.
+    delivery_status = serializers.CharField(read_only=True)
+    version = serializers.IntegerField(read_only=True)
 
 
 class TransferDeliverySerializer(serializers.Serializer[Any]):
@@ -270,10 +273,10 @@ class TransferDeliverySerializer(serializers.Serializer[Any]):
 
     @extend_schema_field(DeliveryNoteRefSerializer(allow_null=True))
     def get_delivery_note(self, delivery: TransferDelivery) -> dict[str, Any] | None:
-        for sale in delivery.transfer.delivery_notes.all():
-            if sale.customer_id == delivery.customer_id and sale.status != "cancelled":
-                return dict(DeliveryNoteRefSerializer(sale).data)
-        return None
+        own = [sale for sale in delivery.transfer.delivery_notes.all() if sale.customer_id == delivery.customer_id]
+        # The live BL; once not delivered (D-178), the last one, so the office sees what became of it.
+        live = [sale for sale in own if sale.status != "cancelled"] or [sale for sale in own if sale.delivery_status]
+        return dict(DeliveryNoteRefSerializer(max(live, key=lambda sale: sale.pk)).data) if live else None
 
 
 class TransferDetailSerializer(TransferSerializer):

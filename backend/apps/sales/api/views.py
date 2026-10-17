@@ -26,13 +26,14 @@ from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.sales import selectors, services
-from apps.sales.models import CreditNote, Invoice, PriceSource, Quote, Sale, SaleStatus
+from apps.sales.models import CreditNote, DeliveryStatus, Invoice, PriceSource, Quote, Sale, SaleStatus
 
 from .serializers import (
     BatchSalesSerializer,
     CreditNoteFilterSerializer,
     CreditNoteSerializer,
     CreditNoteWriteSerializer,
+    DeliverSerializer,
     FinanceSettingsOverviewSerializer,
     FinanceSettingsWriteSerializer,
     InvoiceChoicesSerializer,
@@ -40,6 +41,7 @@ from .serializers import (
     InvoiceDetailSerializer,
     InvoiceFilterSerializer,
     InvoiceSerializer,
+    NotDeliveredSerializer,
     QuoteConvertSerializer,
     QuoteDetailSerializer,
     QuoteFilterSerializer,
@@ -351,6 +353,7 @@ class SaleListView(SaleView, ListAPIView[Sale]):
             customer_id=filters.validated_data.get("customer"),
             location_id=filters.validated_data.get("location"),
             uninvoiced=filters.validated_data["uninvoiced"],
+            delivery_status=filters.validated_data.get("delivery_status"),
             created_by_id=self.membership.user_id if self.is_driver else None,
             load_location_id=self.driver_truck_location(),
             date_from=filters.validated_data.get("date_from"),
@@ -727,18 +730,91 @@ class MyDeliveriesView(APIView):
 
     @extend_schema(operation_id="listMyDeliveries", responses=SaleDetailSerializer(many=True))
     def get(self, request: Request) -> Response:
-        """The BL prepared for the driver's truck with its load, still to deliver (drafts), oldest first, each with
-        its client, address, products and boxes. Confirming one (`confirmSale`) is the delivery (D-160)."""
+        """The BL prepared for the driver's truck with its load, still to deliver, oldest first, each with its
+        client, address, products and boxes. Delivering one (`deliverMyDelivery`) is the sale (D-160, D-178)."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         truck = fleet.truck_of_driver(membership)
         if truck is None:
             raise Http404
-        sales = (
-            selectors.sales_of(
-                membership.organization, status=SaleStatus.DRAFT, load_location_id=None, location_id=truck.location_id
-            )
-            .filter(transfer__isnull=False)
-            .order_by("sold_at", "id")
-        )
+        sales = selectors.sales_of(
+            membership.organization,
+            status=SaleStatus.DRAFT,
+            delivery_status=DeliveryStatus.TO_DELIVER,
+            location_id=truck.location_id,
+        ).order_by("sold_at", "id")
         return Response(SaleDetailSerializer(sales, many=True, context={"show_costs": False}).data)
+
+
+class MyDeliveryView(APIView):
+    """One BL of the driver's truck to deliver (D-178); a retry finds the delivery it already recorded."""
+
+    permission_classes = (IsDriver,)
+
+    def delivery(self, membership: Membership, sale_id: int, client_uuid: Any) -> tuple[Sale, bool]:
+        """The BL, and whether this request was already recorded (a retry of the phone)."""
+        recorded = services.delivery_by_uuid(membership.organization, client_uuid)
+        if recorded is not None and recorded.pk == sale_id:
+            return recorded, True
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise Http404
+        try:
+            sale = selectors.sales_of(membership.organization, location_id=truck.location_id).get(
+                pk=sale_id, transfer__isnull=False
+            )
+        except Sale.DoesNotExist:
+            raise Http404 from None
+        # A day already sent or approved takes nothing more (D-134, D-094).
+        dayclose.refuse_sale_outside_day(membership, None)
+        return sale, False
+
+    def answer(self, membership: Membership, sale_id: int) -> Response:
+        sale = selectors.sale_of(membership.organization, sale_id)
+        return Response(SaleDetailSerializer(sale, context={"show_costs": False}).data)
+
+
+class MyDeliveryDeliverView(MyDeliveryView):
+    @extend_schema(operation_id="deliverMyDelivery", request=DeliverSerializer, responses=SaleDetailSerializer)
+    def post(self, request: Request, sale_id: int) -> Response:
+        """Deliver a BL of the load: send only the lines that changed (`lines`: kg delivered, zero takes the
+        product off), the boxes left and what the client paid. Only the kg delivered leave the truck and are owed;
+        the rest stays on the truck. Nothing delivered is "not delivered". Errors of a line come back on
+        `lines.<index>.<field>`."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = DeliverSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        sale, recorded = self.delivery(membership, sale_id, data["client_uuid"])
+        if not recorded:
+            services.deliver_sale(
+                sale=sale,
+                actor=membership.user,
+                lines=data["lines"],
+                boxes=data["boxes"],
+                note=data["note"],
+                payment=_payment(data),
+                delivery_uuid=data["client_uuid"],
+            )
+        return self.answer(membership, sale_id)
+
+
+class MyDeliveryNotDeliveredView(MyDeliveryView):
+    @extend_schema(
+        operation_id="notDeliveredMyDelivery", request=NotDeliveredSerializer, responses=SaleDetailSerializer
+    )
+    def post(self, request: Request, sale_id: int) -> Response:
+        """The BL is not delivered (refused, closed): nothing is sold, the goods and boxes stay on the truck and go
+        back to the cold room with the return. The note is optional."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = NotDeliveredSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        sale, recorded = self.delivery(membership, sale_id, data["client_uuid"])
+        if not recorded:
+            services.cancel_delivery(
+                sale=sale, actor=membership.user, note=data["note"], delivery_uuid=data["client_uuid"]
+            )
+        return self.answer(membership, sale_id)

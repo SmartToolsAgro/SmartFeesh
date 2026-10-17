@@ -8,10 +8,12 @@ import type { QuoteRef } from './quoteRef';
 import type { SaleCustomer } from './saleCustomer';
 import type { SaleDetailBoxes } from './saleDetailBoxes';
 import type { SaleDetailCreditStatus } from './saleDetailCreditStatus';
+import type { SaleDetailDeliveryStatus } from './saleDetailDeliveryStatus';
 import type { SaleDetailPaymentMethod } from './saleDetailPaymentMethod';
 import type { SaleInvoiceRef } from './saleInvoiceRef';
 import type { SaleLine } from './saleLine';
 import type { SaleLocation } from './saleLocation';
+import type { SaleRevision } from './saleRevision';
 import type { SaleStatusEnum } from './saleStatusEnum';
 
 export interface SaleDetail {
@@ -71,6 +73,15 @@ export interface SaleDetail {
   readonly credit_decided_by: string;
   /** @nullable */
   readonly credit_decided_at: string | null;
+  readonly delivery_status: typeof SaleDetailDeliveryStatus[keyof typeof SaleDetailDeliveryStatus];
+  /** @nullable */
+  readonly issued_at: string | null;
+  readonly version: number;
+  /** @nullable */
+  readonly delivered_at: string | null;
+  readonly delivered_by: string;
+  readonly delivery_note: string;
   readonly lines: readonly SaleLine[];
   readonly boxes: SaleDetailBoxes;
+  readonly revisions: readonly SaleRevision[];
 }

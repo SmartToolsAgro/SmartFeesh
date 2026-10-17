@@ -17,7 +17,17 @@ from apps.core.models import Organization
 from apps.documents import services as documents
 
 from . import selectors
-from .models import CreditNoteKind, CreditNoteStock, InvoiceStatus, QuoteStatus, SalePaymentMethod, SaleStatus
+from .models import (
+    CreditNoteKind,
+    CreditNoteStock,
+    DeliveryStatus,
+    InvoiceStatus,
+    QuoteStatus,
+    Sale,
+    SalePaymentMethod,
+    SaleRevisionKind,
+    SaleStatus,
+)
 from .payment_selectors import customer_payment_of
 
 
@@ -231,13 +241,29 @@ def receipt_printable(organization: Organization, payment_id: int) -> documents.
     )
 
 
+def _removed_at_delivery(sale: Sale) -> list[dict[str, Any]]:
+    """The products the BL of a load had and the driver did not deliver at all (D-178): from its delivery version."""
+    revision = sale.revisions.filter(kind=SaleRevisionKind.DELIVERED).order_by("-id").first()
+    if revision is None:
+        return []
+    kept = {line.product_id for line in sale.lines.all()}
+    return [
+        {"name": row["name"], "ordered": Decimal(row["ordered"]), "unit_price": Decimal(row["unit_price"])}
+        for row in revision.lines
+        if row["product"] not in kept
+    ]
+
+
 def delivery_note_printable(organization: Organization, sale_id: int) -> documents.Printable:
     """The BL of a validated sale (D-095): what left, at what price, and what the customer owes for it."""
     sale = selectors.sale_of(organization, sale_id)
-    # A draft made for a client when a truck was loaded travels with the goods (D-160): it prints as a provisional
-    # BL, under its draft number, and becomes the real one when the delivery is validated.
-    provisional = sale.confirmed_at is None and sale.transfer_id is not None and sale.status == SaleStatus.DRAFT
-    if sale.confirmed_at is None and not provisional:
+    # The BL of a truck load is validated at the load, with its number (D-178): it prints as the real BL to take on
+    # the road, with a column for the kg delivered. One made before that (D-160) still prints as provisional.
+    issued = sale.issued_at is not None
+    provisional = (
+        not issued and sale.confirmed_at is None and sale.transfer_id is not None and sale.status == SaleStatus.DRAFT
+    )
+    if sale.confirmed_at is None and not provisional and not issued:
         # A draft (or a draft given up) has no BL number and moves nothing: validating the sale is what makes the BL.
         raise ValidationError(_("Une vente en brouillon n'a pas de bon de livraison : validez-la d'abord."))
     lines = list(sale.lines.all())
@@ -255,6 +281,12 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
         "total_kg": sum((line.quantity for line in lines), Decimal("0.000")),
         "cancelled": sale.status == SaleStatus.CANCELLED,
         "provisional": provisional,
+        "to_deliver": sale.delivery_status == DeliveryStatus.TO_DELIVER,
+        "delivered": sale.delivery_status in (DeliveryStatus.DELIVERED, DeliveryStatus.PARTIAL),
+        "not_delivered": sale.delivery_status == DeliveryStatus.CANCELLED,
+        "version": sale.version if sale.delivery_status else None,
+        "delivery_label": str(DeliveryStatus(sale.delivery_status).label) if sale.delivery_status else "",
+        "removed": _removed_at_delivery(sale),
         "deliver_to": sale.delivery_address or _address(sale.customer.address, sale.customer.city),
         "boxes": [(str(box_services.BoxType(line.box_type).label), line.count) for line in sale.box_lines.all()],
     }

@@ -247,6 +247,8 @@ class SyncProblemWriteSerializer(serializers.Serializer[Any]):
             ("payment", "payment"),
             ("pickup", "pickup"),
             ("purchase", "purchase"),
+            ("delivery", "delivery"),
+            ("not_delivered", "not_delivered"),
         ]
     )
     # What the driver would call it: the customer, the category, the product.

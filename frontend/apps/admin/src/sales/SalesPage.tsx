@@ -1,4 +1,4 @@
-import { createInvoice, type SaleStatusEnum, useListSales } from "@frutti/api";
+import { createInvoice, type DeliveryStatusEnum, type SaleStatusEnum, useListSales } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, useTranslation } from "@frutti/i18n";
 import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
@@ -8,7 +8,10 @@ import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
-import { canSell, SALE_STATUSES, STATUS_TONES } from "./shared";
+import { canSell, DELIVERY_TONES, SALE_STATUSES, STATUS_TONES } from "./shared";
+
+// The BL of the truck loads by where their delivery stands (D-178).
+const DELIVERY_FILTERS: DeliveryStatusEnum[] = ["to_deliver", "partial", "delivered", "cancelled"];
 
 const PAGE_SIZE = 50;
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
@@ -21,6 +24,7 @@ export function SalesPage() {
   const canWrite = canSell(session);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<SaleStatusEnum | "">("");
+  const [delivery, setDelivery] = useState<DeliveryStatusEnum | "">("");
   const [offset, setOffset] = useState(0);
   // "À facturer": the BL still to invoice, which can be ticked to make one invoice (D-096).
   const [uninvoiced, setUninvoiced] = useState(false);
@@ -33,6 +37,7 @@ export function SalesPage() {
       limit: PAGE_SIZE,
       offset,
       ...(status ? { status } : {}),
+      ...(delivery ? { delivery_status: delivery } : {}),
       ...(query ? { search: query } : {}),
       ...(uninvoiced ? { uninvoiced: true } : {}),
     },
@@ -40,7 +45,7 @@ export function SalesPage() {
   );
   const page = sales.data;
   const list = page?.results ?? [];
-  const filtering = query !== "" || status !== "" || uninvoiced;
+  const filtering = query !== "" || status !== "" || delivery !== "" || uninvoiced;
   const chosenIds = Object.keys(chosen).map(Number);
 
   const groupInvoice = useMutation({
@@ -115,6 +120,29 @@ export function SalesPage() {
         >
           {statusButton("", t("admin.sales.allStatuses"))}
           {SALE_STATUSES.map((value) => statusButton(value, t(`admin.sales.statuses.${value}`)))}
+        </div>
+        <div
+          role="group"
+          aria-label={t("admin.sales.deliveryFilter")}
+          className="flex flex-wrap rounded-control bg-surface-2 p-1"
+        >
+          {(["", ...DELIVERY_FILTERS] as const).map((value) => (
+            <button
+              key={value || "all"}
+              type="button"
+              aria-pressed={delivery === value}
+              onClick={() => {
+                setDelivery(value);
+                setOffset(0);
+              }}
+              className={cn(
+                "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
+                delivery === value && "bg-surface text-ink shadow-card",
+              )}
+            >
+              {value ? t(`admin.sales.deliveryStatuses.${value}`) : t("admin.sales.allDeliveries")}
+            </button>
+          ))}
         </div>
         <button
           type="button"
@@ -202,9 +230,15 @@ export function SalesPage() {
                     >
                       {sale.number}
                     </Link>
-                    <Pill className="ms-2" tone={STATUS_TONES[sale.status]}>
-                      {t(`admin.sales.statuses.${sale.status}`)}
-                    </Pill>
+                    {sale.delivery_status ? (
+                      <Pill className="ms-2" tone={DELIVERY_TONES[sale.delivery_status]}>
+                        {t(`admin.sales.deliveryStatuses.${sale.delivery_status}`)}
+                      </Pill>
+                    ) : (
+                      <Pill className="ms-2" tone={STATUS_TONES[sale.status]}>
+                        {t(`admin.sales.statuses.${sale.status}`)}
+                      </Pill>
+                    )}
                   </Td>
                   <Td className="num whitespace-nowrap">{formatDateTime(sale.sold_at)}</Td>
                   <Td>

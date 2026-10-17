@@ -4,6 +4,12 @@ from . import driver_payment_views, payment_views, views
 
 urlpatterns = [
     path("my-deliveries", views.MyDeliveriesView.as_view(), name="my-deliveries"),
+    path("my-deliveries/<int:sale_id>/deliver", views.MyDeliveryDeliverView.as_view(), name="my-delivery-deliver"),
+    path(
+        "my-deliveries/<int:sale_id>/not-delivered",
+        views.MyDeliveryNotDeliveredView.as_view(),
+        name="my-delivery-not-delivered",
+    ),
     path("my-payments", driver_payment_views.MyPaymentsView.as_view(), name="my-payments"),
     # P2-T03 · quotes
     path("quotes", views.QuoteListView.as_view(), name="quote-list"),

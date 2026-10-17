@@ -1,4 +1,4 @@
-import type { SalePaymentMethodEnum, SaleStatusEnum } from "@frutti/api";
+import type { DeliveryStatusEnum, SalePaymentMethodEnum, SaleStatusEnum } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -32,6 +32,14 @@ export const STATUS_TONES = {
   confirmed: "good",
   cancelled: "bad",
 } as const satisfies Record<SaleStatusEnum, string>;
+
+/** Where the BL of a truck load stands (D-178). */
+export const DELIVERY_TONES = {
+  to_deliver: "warn",
+  delivered: "good",
+  partial: "sea",
+  cancelled: "bad",
+} as const satisfies Record<DeliveryStatusEnum, string>;
 
 /** "2026-10-11T10:30" typed in a date-time input (local time) → the moment the API expects, or null. */
 export function momentOf(localValue: string): string | null {

@@ -1,7 +1,9 @@
-"""A truck load split by client leaves a draft BL for each of them (D-160)."""
+"""A truck load split by client leaves a BL for each of them (D-160), validated at the load and delivered by the
+driver, in full, in part or not at all (D-178)."""
 
 import datetime as dt
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -18,7 +20,7 @@ from apps.inventory.models import LocationKind, MovementKind, StockOnHand
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import printing, selectors, services
-from apps.sales.models import Sale, SaleStatus
+from apps.sales.models import DeliveryStatus, Sale, SaleRevisionKind, SaleStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -221,7 +223,7 @@ def test_changing_the_lines_of_a_draft_bl_keeps_its_address_and_boxes(
     assert restaurant.address == "Avenue Hédi Chaker"
 
 
-def test_the_draft_bl_prints_as_provisional_with_its_address_and_boxes(
+def test_the_bl_of_a_load_prints_as_the_real_bl_to_deliver_with_its_address_and_boxes(
     organization, actor, cold_room, truck, dorade, restaurant, stocked
 ):
     transfer = load(
@@ -231,7 +233,10 @@ def test_the_draft_bl_prints_as_provisional_with_its_address_and_boxes(
 
     printable = printing.delivery_note_printable(organization, sale.pk)
 
-    assert printable.context["provisional"] is True
+    assert printable.context["provisional"] is False
+    assert printable.context["to_deliver"] is True
+    assert printable.context["version"] == 1
+    assert printable.context["number"].startswith("BL-")
     assert printable.context["deliver_to"] == "Quai 3"
     assert printable.context["boxes"] == [("Grande caisse", 2)]
 
@@ -386,3 +391,237 @@ def test_the_clients_of_the_days_load_are_the_drivers_customers(
         selectors.load_customer_ids(organization, location_id=truck.pk, day=timezone.localdate() - dt.timedelta(days=1))
         == []
     )
+
+
+# ---- Delivered by the driver: in full, in part, or not at all (D-178) ----
+
+
+@pytest.fixture
+def loup(organization, cold_room):
+    product = ProductFactory.create(organization=organization, name="Loup de mer", reference="LO-004")
+    ProductPriceFactory.create(
+        product=product, price=Decimal("30.000"), valid_from=timezone.now() - dt.timedelta(days=3)
+    )
+    batch = BatchFactory.create(organization=organization, product=product, received_on=timezone.localdate())
+    inventory_services.post_movement(
+        organization=organization,
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=batch,
+        quantity=Decimal("20"),
+        to_location=cold_room,
+    )
+    return product
+
+
+def two_products(customer, dorade, loup, *, boxes=None):
+    return {
+        "customer": customer,
+        "delivery_address": "",
+        "lines": [{"product": dorade, "quantity": "10"}, {"product": loup, "quantity": "5"}],
+        "boxes": boxes or {},
+    }
+
+
+def test_the_bl_of_a_load_is_validated_with_its_number_and_nothing_is_sold_yet(
+    organization, actor, cold_room, truck, dorade, restaurant, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "10")])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+
+    assert sale.number == f"BL-{timezone.localdate().year}-0001"
+    assert (sale.status, sale.delivery_status, sale.version) == (SaleStatus.DRAFT, DeliveryStatus.TO_DELIVER, 1)
+    assert sale.issued_at is not None
+    assert [line.ordered_quantity for line in sale.lines.all()] == [Decimal("10.000")]
+    assert [revision.kind for revision in sale.revisions.all()] == [SaleRevisionKind.ISSUED]
+    # Nothing is owed nor to invoice before the delivery.
+    assert selectors.sales_of(organization, uninvoiced=True).count() == 0
+
+
+def test_a_bl_delivered_as_written_keeps_its_number_and_version(
+    organization, actor, cold_room, truck, dorade, restaurant, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "10", boxes={"small": 2})])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+    number = sale.number
+
+    delivered = services.deliver_sale(sale=sale, actor=actor)
+
+    assert (delivered.status, delivered.delivery_status, delivered.version) == (
+        SaleStatus.CONFIRMED,
+        DeliveryStatus.DELIVERED,
+        1,
+    )
+    assert delivered.number == number
+    assert delivered.amount_due == Decimal("280.000")
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("0.000")
+
+
+def test_a_part_delivery_sells_only_what_was_delivered_and_the_rest_stays_on_the_truck(
+    organization, actor, cold_room, truck, dorade, loup, restaurant, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [two_products(restaurant, dorade, loup, boxes={"big": 3})])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+    dorade_line, loup_line = sale.lines.order_by("id")
+
+    delivered = services.deliver_sale(
+        sale=sale,
+        actor=actor,
+        lines=[{"line": dorade_line.pk, "quantity": "8"}, {"line": loup_line.pk, "quantity": "0"}],
+        boxes={"big": 2},
+        note="Pas de loup aujourd'hui",
+        payment={"amount_paid": "100.000", "payment_method": "cash"},
+    )
+
+    assert (delivered.status, delivered.delivery_status, delivered.version) == (
+        SaleStatus.CONFIRMED,
+        DeliveryStatus.PARTIAL,
+        2,
+    )
+    (line,) = delivered.lines.all()
+    assert (line.product, line.ordered_quantity, line.quantity, line.amount) == (
+        dorade,
+        Decimal("10.000"),
+        Decimal("8.000"),
+        Decimal("224.000"),
+    )
+    assert (delivered.total, delivered.amount_paid, delivered.amount_due) == (
+        Decimal("224.000"),
+        Decimal("100.000"),
+        Decimal("124.000"),
+    )
+    # 2 kg of dorade and the 5 kg of loup are still on the truck, for the road or the return.
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk, product_id=dorade.pk) == Decimal("2.000")
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk, product_id=loup.pk) == Decimal("5.000")
+    holder = BoxHolder.objects.get(organization=organization, customer=restaurant)
+    assert box_selectors.balance_of(organization, holder, "big") == 2
+    revision = delivered.revisions.order_by("-id").first()
+    assert revision is not None
+    assert (revision.kind, revision.version, revision.note) == (
+        SaleRevisionKind.DELIVERED,
+        2,
+        "Pas de loup aujourd'hui",
+    )
+    assert {row["name"]: (row["ordered"], row["delivered"]) for row in revision.lines} == {
+        "Dorade royale": ("10.000", "8.000"),
+        "Loup de mer": ("5.000", "0.000"),
+    }
+    printable = printing.delivery_note_printable(organization, delivered.pk)
+    assert printable.context["delivered"] is True
+    assert [row["name"] for row in printable.context["removed"]] == ["Loup de mer"]
+
+
+def test_more_than_written_is_the_weight_at_the_client(
+    organization, actor, cold_room, truck, dorade, restaurant, stocked
+):
+    transfer = load(
+        organization,
+        actor,
+        cold_room,
+        truck,
+        [part(restaurant, dorade, "10")],
+        lines=[{"product": dorade, "quantity": "1"}],
+    )
+    (sale,) = Sale.objects.filter(transfer=transfer)
+    (line,) = sale.lines.all()
+
+    delivered = services.deliver_sale(sale=sale, actor=actor, lines=[{"line": line.pk, "quantity": "10.400"}])
+
+    assert (delivered.delivery_status, delivered.version, delivered.total) == (
+        DeliveryStatus.DELIVERED,
+        2,
+        Decimal("291.200"),
+    )
+
+
+def test_a_bl_not_delivered_sells_nothing_and_cannot_be_delivered_again(
+    organization, actor, cold_room, truck, dorade, restaurant, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "10", boxes={"small": 2})])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+
+    gone = services.cancel_delivery(sale=sale, actor=actor, note="Restaurant fermé")
+
+    assert (gone.status, gone.delivery_status, gone.delivery_note) == (
+        SaleStatus.CANCELLED,
+        DeliveryStatus.CANCELLED,
+        "Restaurant fermé",
+    )
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("10.000")
+    with pytest.raises(ValidationError):
+        services.deliver_sale(sale=gone, actor=actor)
+
+
+def test_all_lines_at_zero_is_not_delivered(organization, actor, cold_room, truck, dorade, restaurant, stocked):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "10")])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+    (line,) = sale.lines.all()
+
+    gone = services.deliver_sale(sale=sale, actor=actor, lines=[{"line": line.pk, "quantity": "0"}])
+
+    assert gone.delivery_status == DeliveryStatus.CANCELLED
+
+
+def test_a_retry_of_the_phone_records_one_delivery(organization, actor, cold_room, truck, dorade, restaurant, stocked):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "10")])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+    (line,) = sale.lines.all()
+    key = uuid4()
+
+    first = services.deliver_sale(sale=sale, actor=actor, lines=[{"line": line.pk, "quantity": "6"}], delivery_uuid=key)
+    again = services.deliver_sale(sale=sale, actor=actor, lines=[{"line": line.pk, "quantity": "6"}], delivery_uuid=key)
+
+    assert first.pk == again.pk
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("4.000")
+
+
+def test_the_office_changing_the_bl_on_the_road_makes_a_new_version(
+    organization, actor, cold_room, truck, dorade, restaurant, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "10")])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+
+    services.update_sale(
+        sale=sale,
+        actor=actor,
+        customer=restaurant,
+        location=truck,
+        lines=[{"product": dorade, "quantity": "7", "unit_price": "28.000"}],
+    )
+
+    sale.refresh_from_db()
+    assert (sale.version, sale.delivery_status) == (2, DeliveryStatus.TO_DELIVER)
+    assert [line.ordered_quantity for line in sale.lines.all()] == [Decimal("7.000")]
+    assert [revision.kind for revision in sale.revisions.order_by("id")] == [
+        SaleRevisionKind.ISSUED,
+        SaleRevisionKind.EDITED,
+    ]
+
+
+def test_the_office_marking_it_delivered_delivers_it_as_written(
+    organization, actor, cold_room, truck, dorade, restaurant, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "10")])
+    (sale,) = Sale.objects.filter(transfer=transfer)
+
+    confirmed = services.confirm_sale(sale=sale, actor=actor)
+
+    assert (confirmed.delivery_status, confirmed.delivered_by) == (DeliveryStatus.DELIVERED, actor)
+    last = confirmed.revisions.order_by("-id").first()
+    assert last is not None
+    assert last.kind == SaleRevisionKind.DELIVERED
+
+
+def test_the_bl_still_to_deliver_at_the_end_of_the_day_are_not_delivered(
+    organization, actor, cold_room, truck, dorade, restaurant, hotel, stocked
+):
+    transfer = load(organization, actor, cold_room, truck, [part(restaurant, dorade, "5"), part(hotel, dorade, "6")])
+    corail, thyna = Sale.objects.filter(transfer=transfer).order_by("id")
+    services.deliver_sale(sale=corail, actor=actor)
+
+    gone = services.cancel_undelivered(organization=organization, location_id=truck.pk, actor=actor)
+
+    assert [sale.pk for sale in gone] == [thyna.pk]
+    thyna.refresh_from_db()
+    assert thyna.delivery_status == DeliveryStatus.CANCELLED
+    assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("6.000")

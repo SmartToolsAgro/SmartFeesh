@@ -39,6 +39,7 @@ import { fieldErrors } from "../lib/errors";
 import { openStatement } from "../lib/pdf";
 import { PdfButton } from "../lib/PdfButton";
 import { todayInTunis } from "../receipts/shared";
+import { DELIVERY_TONES } from "../sales/shared";
 import { canRecordTransfers, isZero, KIND_ICONS, refreshAfterTransfer, STATUS_TONES } from "./shared";
 
 function Detail({ label, children, numeric = false }: { label: string; children: ReactNode; numeric?: boolean }) {
@@ -135,6 +136,8 @@ const NOTE_TONES = { draft: "warn", confirmed: "good", cancelled: "neutral" } as
 
 const isNoteStatus = (status: string): status is keyof typeof NOTE_TONES => status in NOTE_TONES;
 
+const isDeliveryStatus = (status: string): status is keyof typeof DELIVERY_TONES => status in DELIVERY_TONES;
+
 /** The clients of a load: where each goes, what they buy, their boxes and their BL (D-160). */
 function DeliveryCards({ transfer, lineErrors }: { transfer: TransferDetail; lineErrors: Record<string, string> }) {
   const { t } = useTranslation();
@@ -163,9 +166,15 @@ function DeliveryCards({ transfer, lineErrors }: { transfer: TransferDetail; lin
               </CardTitle>
               {note ? (
                 <>
-                  <Pill tone={NOTE_TONES[noteStatus]}>
-                    {note.number} · {t(`admin.transfers.deliveries.status.${noteStatus}`)}
-                  </Pill>
+                  {isDeliveryStatus(note.delivery_status) ? (
+                    <Pill tone={DELIVERY_TONES[note.delivery_status]}>
+                      {note.number} · v{note.version} · {t(`admin.sales.deliveryStatuses.${note.delivery_status}`)}
+                    </Pill>
+                  ) : (
+                    <Pill tone={NOTE_TONES[noteStatus]}>
+                      {note.number} · {t(`admin.transfers.deliveries.status.${noteStatus}`)}
+                    </Pill>
+                  )}
                   <span className="ms-auto flex gap-2">
                     <Link to={`/ventes/${note.id}`} className="text-[0.85rem] font-semibold text-sea hover:underline">
                       {t("admin.transfers.deliveries.open")}

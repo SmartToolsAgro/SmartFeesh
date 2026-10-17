@@ -13,6 +13,7 @@ from apps.sales.models import (
     CreditNoteStock,
     CreditPolicy,
     CreditStatus,
+    DeliveryStatus,
     EInvoiceStatus,
     FinanceSettings,
     Invoice,
@@ -27,6 +28,8 @@ from apps.sales.models import (
     SaleLine,
     SaleLineBatch,
     SalePaymentMethod,
+    SaleRevision,
+    SaleRevisionKind,
     SaleStatus,
     WithholdingCertificate,
 )
@@ -290,6 +293,8 @@ class SaleLineSerializer(serializers.ModelSerializer[SaleLine]):
             "amount",
             "cost_amount",
             "batches",
+            # On the BL of a truck load: the kg written on the printed BL; `quantity` is what was delivered (D-178).
+            "ordered_quantity",
         )
         read_only_fields: tuple[str, ...] = fields
 
@@ -326,6 +331,9 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     # manager), approved or warned.
     credit_status = serializers.ChoiceField(choices=CreditStatus.choices, read_only=True, allow_blank=True)
     credit_decided_by = serializers.SerializerMethodField()
+    # The BL of a truck load (D-178): to deliver, delivered, delivered in part, or not delivered. Empty otherwise.
+    delivery_status = serializers.ChoiceField(choices=DeliveryStatus.choices, read_only=True, allow_blank=True)
+    delivered_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -364,8 +372,17 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "credit_over_by",
             "credit_decided_by",
             "credit_decided_at",
+            "delivery_status",
+            "issued_at",
+            "version",
+            "delivered_at",
+            "delivered_by",
+            "delivery_note",
         )
         read_only_fields: tuple[str, ...] = fields
+
+    def get_delivered_by(self, sale: Sale) -> str:
+        return person_name(sale.delivered_by)
 
     def get_credit_decided_by(self, sale: Sale) -> str:
         return person_name(sale.credit_decided_by)
@@ -396,13 +413,42 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
         return data if self.context.get("show_costs", True) else _without_costs(data)
 
 
+class SaleRevisionLineSerializer(serializers.Serializer[Any]):
+    product = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    # The kg written on the BL of this version, and, for the delivery, the kg delivered (null before).
+    ordered = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    delivered = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True, allow_null=True)
+    unit_price = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class SaleRevisionSerializer(serializers.ModelSerializer[SaleRevision]):
+    """One version of the BL of a truck load, as it was then (D-178)."""
+
+    kind = serializers.ChoiceField(choices=SaleRevisionKind.choices, read_only=True)
+    lines = SaleRevisionLineSerializer(many=True, read_only=True)
+    boxes = serializers.DictField(child=serializers.IntegerField(), read_only=True)
+    actor = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SaleRevision
+        fields = ("id", "version", "kind", "lines", "boxes", "total", "note", "actor", "created_at")
+        read_only_fields = fields
+
+    def get_actor(self, revision: SaleRevision) -> str:
+        return person_name(revision.actor)
+
+
 class SaleDetailSerializer(SaleSerializer):
     lines = SaleLineSerializer(many=True, read_only=True)
     # The returnable boxes left with the client, per box type ("small", "big").
     boxes = serializers.SerializerMethodField()
+    # Every version of the BL of a truck load, oldest first (D-178); empty for any other sale.
+    revisions = SaleRevisionSerializer(many=True, read_only=True)
 
     class Meta(SaleSerializer.Meta):
-        fields = (*SaleSerializer.Meta.fields, "lines", "boxes")
+        fields = (*SaleSerializer.Meta.fields, "lines", "boxes", "revisions")
         read_only_fields = fields
 
     @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
@@ -462,6 +508,32 @@ class QuoteConvertSerializer(SalePaymentWriteSerializer):
     lines = QuoteDeliveryLineSerializer(many=True, required=False, allow_null=True, default=None)
 
 
+class DeliveredLineSerializer(serializers.Serializer[Any]):
+    line = serializers.IntegerField(min_value=1)
+    # The kg delivered, as a string ("9.800"): zero takes the product off the BL.
+    quantity = serializers.CharField(max_length=20)
+
+
+class DeliverSerializer(SalePaymentWriteSerializer):
+    """The delivery of the BL of a truck load, from the driver's phone (D-178)."""
+
+    # Only the lines that changed; a line left out is delivered as written.
+    lines = DeliveredLineSerializer(many=True, required=False, default=list)
+    # The boxes left with the client, per box type. Left out: as written on the BL.
+    boxes = serializers.DictField(
+        child=serializers.IntegerField(min_value=0), required=False, allow_null=True, default=None
+    )
+    note = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+    # Sent by the phone, which may send again: the same value records one delivery.
+    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+
+
+class NotDeliveredSerializer(serializers.Serializer[Any]):
+    # Why, if the driver says (optional).
+    note = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+
+
 class SaleConfirmSerializer(serializers.Serializer[Any]):
     # Accept going above the customer's credit limit (owner or manager only, when the company asks for
     # approval).
@@ -474,6 +546,8 @@ class SaleCancelSerializer(serializers.Serializer[Any]):
 
 class SaleFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=SaleStatus.choices, required=False)
+    # The BL of the truck loads by where their delivery stands (D-178).
+    delivery_status = serializers.ChoiceField(choices=DeliveryStatus.choices, required=False)
     customer = serializers.IntegerField(required=False, min_value=1)
     location = serializers.IntegerField(required=False, min_value=1)
     # True: only the BL still to invoice (confirmed, named customer, on no live invoice).

@@ -33,7 +33,7 @@ import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
 import { PdfButton } from "../lib/PdfButton";
 import { openPdf } from "../lib/pdf";
-import { canSell, refreshAfterSale, STATUS_TONES } from "./shared";
+import { canSell, DELIVERY_TONES, refreshAfterSale, STATUS_TONES } from "./shared";
 
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
 
@@ -153,14 +153,27 @@ export function SaleDetailPage() {
   const hasDiscount = !isZero(data.discount_total);
   const showCosts = data.cost_total !== null;
   const fromLoad = data.transfer !== null;
+  // The BL of a load (D-178): validated at the load, delivered by the driver. An older one (D-160) has no number yet.
+  const delivery = data.delivery_status === "" ? null : data.delivery_status;
+  const toDeliver = data.status === "draft" && delivery === "to_deliver";
+  const issued = data.issued_at !== null;
+  const showOrdered = data.lines.some((line) => line.ordered_quantity !== null && delivery !== "to_deliver");
 
   return (
     <>
       {back}
       <PageHeader eyebrow={t("admin.sales.title")} title={data.number}>
-        <Pill tone={STATUS_TONES[data.status]}>{t(`admin.sales.statuses.${data.status}`)}</Pill>
+        {delivery ? (
+          <Pill tone={DELIVERY_TONES[delivery]}>{t(`admin.sales.deliveryStatuses.${delivery}`)}</Pill>
+        ) : (
+          <Pill tone={STATUS_TONES[data.status]}>{t(`admin.sales.statuses.${data.status}`)}</Pill>
+        )}
         {data.status === "draft" && fromLoad && (
-          <PdfButton kind="delivery_note" id={data.id} label={t("admin.sales.detail.printProvisional")} />
+          <PdfButton
+            kind="delivery_note"
+            id={data.id}
+            label={t(issued ? "admin.sales.detail.printBl" : "admin.sales.detail.printProvisional")}
+          />
         )}
         {canWrite && data.status === "draft" && fromLoad && (
           <>
@@ -214,7 +227,21 @@ export function SaleDetailPage() {
 
       {data.status === "draft" && fromLoad && (
         <p role="note" className="rounded-chip bg-surface-2 px-3 py-2 text-[0.9rem]">
-          {t("admin.sales.detail.fromLoadNote", { load: data.transfer?.number ?? "" })}
+          {t(toDeliver && issued ? "admin.sales.detail.toDeliverNote" : "admin.sales.detail.fromLoadNote", {
+            load: data.transfer?.number ?? "",
+            version: data.version,
+          })}
+        </p>
+      )}
+      {delivery && delivery !== "to_deliver" && (
+        <p role="note" className="rounded-chip bg-surface-2 px-3 py-2 text-[0.9rem]">
+          {t("admin.sales.detail.deliveredNote", {
+            status: t(`admin.sales.deliveryStatuses.${delivery}`).toLowerCase(),
+            by: data.delivered_by || none,
+            at: data.delivered_at ? formatDateTime(data.delivered_at) : none,
+            version: data.version,
+          })}
+          {data.delivery_note ? ` « ${data.delivery_note} »` : ""}
         </p>
       )}
       {data.credit_status === "pending" && (
@@ -246,7 +273,8 @@ export function SaleDetailPage() {
             <thead>
               <tr>
                 <Th>{t("admin.sales.detail.product")}</Th>
-                <Th numeric>{t("admin.sales.detail.quantity")}</Th>
+                {showOrdered && <Th numeric>{t("admin.sales.detail.ordered")}</Th>}
+                <Th numeric>{t(showOrdered ? "admin.sales.detail.delivered" : "admin.sales.detail.quantity")}</Th>
                 <Th numeric>{t("admin.sales.detail.price")}</Th>
                 {hasDiscount && <Th numeric>{t("admin.sales.detail.discount")}</Th>}
                 <Th numeric>{t("admin.sales.detail.amount")}</Th>
@@ -282,6 +310,11 @@ export function SaleDetailPage() {
                       </ul>
                     )}
                   </Td>
+                  {showOrdered && (
+                    <Td numeric className="whitespace-nowrap text-ink-2">
+                      {line.ordered_quantity ? formatQuantity(line.ordered_quantity) : none}
+                    </Td>
+                  )}
                   <Td numeric className="whitespace-nowrap">
                     {formatQuantity(line.quantity)}
                   </Td>
@@ -409,6 +442,43 @@ export function SaleDetailPage() {
           </dl>
         </Card>
       </div>
+
+      {data.revisions.length > 0 && (
+        <Card role="region" aria-label={t("admin.sales.detail.revisions")}>
+          <CardTitle>{t("admin.sales.detail.revisions")}</CardTitle>
+          <ol className="flex flex-col gap-3">
+            {data.revisions.map((revision) => (
+              <li key={revision.id} className="border-b border-line pb-3 last:border-b-0 last:pb-0">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="font-semibold">
+                    {t("admin.sales.detail.revisionTitle", {
+                      version: revision.version,
+                      kind: t(`admin.sales.revisionKinds.${revision.kind}`),
+                    })}
+                  </span>
+                  <span className="text-[0.85rem] text-ink-2">
+                    {formatDateTime(revision.created_at)} · {revision.actor || none} · {formatMoney(revision.total)}
+                  </span>
+                </div>
+                <ul className="mt-1 text-[0.85rem] text-ink-2">
+                  {revision.lines.map((line) => (
+                    <li key={line.product}>
+                      {line.delivered === null
+                        ? t("admin.sales.detail.revisionLine", { name: line.name, kilos: formatQuantity(line.ordered) })
+                        : t("admin.sales.detail.revisionDelivered", {
+                            name: line.name,
+                            ordered: formatQuantity(line.ordered),
+                            delivered: formatQuantity(line.delivered),
+                          })}
+                    </li>
+                  ))}
+                </ul>
+                {revision.note && <p className="mt-1 text-[0.85rem]">« {revision.note} »</p>}
+              </li>
+            ))}
+          </ol>
+        </Card>
+      )}
 
       <Dialog open={delivering} onOpenChange={setDelivering}>
         <DialogContent>
