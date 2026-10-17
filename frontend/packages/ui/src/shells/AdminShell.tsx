@@ -57,7 +57,10 @@ function BackLink({ nav }: { nav: AdminNavGroup[] }) {
   );
 }
 
-/** Back-office frame: sticky top bar, module sidebar (a scrolling strip on small screens), page area. */
+/**
+ * Back-office frame: sticky top bar, module sidebar, page area. On wide screens the sidebar is pinned under the bar and
+ * scrolls on its own; its scrolling never moves the page. On small screens it is a scrolling strip.
+ */
 export function AdminShell({ nav, user, logoUrl, onLogout, children }: Props) {
   const { t } = useTranslation();
   return (
@@ -103,7 +106,7 @@ export function AdminShell({ nav, user, logoUrl, onLogout, children }: Props) {
       <div className="grid min-h-[calc(100dvh-62px)] grid-cols-[232px_minmax(0,1fr)] max-[860px]:grid-cols-1 print:block">
         <nav
           aria-label={t("admin.modules")}
-          className="flex flex-col gap-0.5 border-e border-line bg-surface px-3 py-[18px] print:hidden max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-e-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
+          className="flex flex-col gap-0.5 border-e border-line bg-surface px-3 py-[18px] print:hidden min-[861px]:sticky min-[861px]:top-[62px] min-[861px]:h-[calc(100dvh-62px)] min-[861px]:self-start min-[861px]:overflow-y-auto min-[861px]:overscroll-contain max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-e-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
         >
           {nav.map((group) => (
             <div key={group.label} className="contents">
