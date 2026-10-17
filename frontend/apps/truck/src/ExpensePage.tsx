@@ -1,7 +1,7 @@
 import { addMyExpense, ApiError, useListMyExpenses, useListRoadCategories } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Input, toast } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -118,15 +118,17 @@ export function ExpensePage() {
           />
         </div>
         {error === "" ? null : <p className="text-bad">{error}</p>}
-        <Button
+        <ConfirmButton
           size="lg"
           variant="primary"
           className="py-4 text-lg"
           disabled={!ready || saving}
-          onClick={() => void save()}
+          title={categories.data?.find((item) => item.id === category)?.name}
+          rows={[[t("truck.expense.amount"), formatMoney(amountValue ?? "0")]]}
+          onConfirm={() => void save()}
         >
           {t("truck.expense.save")}
-        </Button>
+        </ConfirmButton>
       </Card>
       {(expenses.data ?? []).length === 0 ? null : (
         <Card>

@@ -7,7 +7,7 @@ import {
   useListMyDeliveries,
 } from "@frutti/api";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Input, toast } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -270,17 +270,22 @@ export function Delivery({ sale }: { sale: SaleDetail }) {
           </div>
         ) : (
           <>
-            <Button
+            <ConfirmButton
               size="lg"
               variant="primary"
               className="w-full py-4 text-lg"
               disabled={busy || invalid || counts === null || paidValue === null || tooMuch}
-              onClick={() => void deliver()}
+              title={sale.customer.name}
+              rows={[
+                [t(changed ? "truck.deliveries.newTotal" : "truck.deliveries.total"), formatMoney(totalText)],
+                [t("truck.deliveries.paid"), formatMoney(paidValue ?? "0")],
+              ]}
+              onConfirm={() => void deliver()}
             >
               {busy
                 ? t("truck.deliveries.confirming")
                 : t(changed ? "truck.deliveries.confirmChanged" : "truck.deliveries.confirm")}
-            </Button>
+            </ConfirmButton>
             <Button size="lg" variant="ghost" className="w-full" disabled={busy} onClick={() => setRefusing(true)}>
               {t("truck.deliveries.notDelivered")}
             </Button>

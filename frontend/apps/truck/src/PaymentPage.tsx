@@ -1,7 +1,7 @@
 import { ApiError, collectMyPayment, type CustomerChoice, useListMyCustomers, useListMyPayments } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Input, toast } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -134,15 +134,17 @@ export function PaymentPage() {
             />
           </div>
           {error === "" ? null : <p className="text-bad">{error}</p>}
-          <Button
+          <ConfirmButton
             size="lg"
             variant="primary"
             className="py-4 text-lg"
             disabled={!ready || saving}
-            onClick={() => void save()}
+            title={customer?.name}
+            rows={[[t("truck.payment.amount"), formatMoney(amountValue ?? "0")]]}
+            onConfirm={() => void save()}
           >
             {t("truck.payment.save")}
-          </Button>
+          </ConfirmButton>
         </Card>
       )}
       {(today.data ?? []).length === 0 ? null : (

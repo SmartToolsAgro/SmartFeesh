@@ -2,6 +2,7 @@ export { BRAND } from "./brand";
 export { Button } from "./components/button";
 export { Card, CardTitle } from "./components/card";
 export { Combobox, type ComboboxOption } from "./components/combobox";
+export { ConfirmButton } from "./components/confirm-button";
 export {
   Dialog,
   DialogClose,

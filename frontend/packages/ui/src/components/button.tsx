@@ -26,7 +26,7 @@ const buttonVariants = cva(
   },
 );
 
-type ButtonProps = ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean };
+export type ButtonProps = ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean };
 
 /** `asChild` styles the child element instead (a link that looks like a button). */
 export function Button({ className, variant, size, asChild = false, type, ...props }: ButtonProps) {

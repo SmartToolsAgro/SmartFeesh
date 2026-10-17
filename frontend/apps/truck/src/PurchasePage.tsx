@@ -15,6 +15,7 @@ import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@fru
 import {
   Button,
   Card,
+  ConfirmButton,
   EmptyState,
   Field,
   Input,
@@ -458,9 +459,20 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
       {purchase !== undefined && !online ? <p className="text-warn">{t("truck.purchase.needNetwork")}</p> : null}
       {error === "" ? null : <p className="text-bad">{error}</p>}
       <StickyAction>
-        <Button size="lg" variant="primary" className="py-4 text-lg" disabled={!ready} onClick={() => void save()}>
+        <ConfirmButton
+          size="lg"
+          variant="primary"
+          className="py-4 text-lg"
+          disabled={!ready}
+          rows={[
+            [t("truck.purchase.total"), formatMoney(totals.total)],
+            [t("truck.purchase.paid"), formatMoney(totals.paid)],
+            [t("truck.purchase.rest"), formatMoney(totals.rest)],
+          ]}
+          onConfirm={() => void save()}
+        >
           {purchase ? t("truck.purchase.save") : t("truck.purchase.send")}
-        </Button>
+        </ConfirmButton>
       </StickyAction>
     </div>
   );
