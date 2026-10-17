@@ -36,6 +36,7 @@ import { useState } from "react";
 import { useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
+import { DaysOverview } from "./DaysOverview";
 
 const STATUSES = ["submitted", "justification", "reopened", "approved"] as const;
 const TONES = { submitted: "warn", justification: "bad", reopened: "sea", approved: "good" } as const;
@@ -386,8 +387,38 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
   );
 }
 
-/** "Journées des chauffeurs": the days drivers sent, to check and approve (P3-T06), and their history (D-134). */
+/** "Journées des chauffeurs": what each driver is doing now, and the days they sent, to check and approve. */
 export function DayClosingsPage() {
+  const { t } = useTranslation();
+  const [view, setView] = useState<"overview" | "closings">("overview");
+  const tab = (value: typeof view, label: string) => (
+    <button
+      key={value}
+      type="button"
+      aria-pressed={view === value}
+      onClick={() => setView(value)}
+      className={cn(
+        "rounded-[7px] px-4 py-1.5 text-[0.9rem] font-semibold text-ink-2",
+        view === value && "bg-surface text-ink shadow-card",
+      )}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <>
+      <PageHeader eyebrow={t("admin.groups.goods")} title={t("admin.dayClosings.title")} />
+      <div className="mb-4 flex w-fit rounded-control bg-surface-2 p-1">
+        {tab("overview", t("admin.dayOverview.tabs.overview"))}
+        {tab("closings", t("admin.dayOverview.tabs.closings"))}
+      </div>
+      {view === "overview" ? <DaysOverview /> : <ClosingsList />}
+    </>
+  );
+}
+
+/** The days drivers sent, to check and approve (P3-T06), and their history (D-134). */
+function ClosingsList() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const canDecide = session.role === "owner" || session.role === "manager";
@@ -423,7 +454,6 @@ export function DayClosingsPage() {
 
   return (
     <>
-      <PageHeader eyebrow={t("admin.groups.goods")} title={t("admin.dayClosings.title")} />
       <SyncProblems canDecide={canDecide} />
       <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
         <div
