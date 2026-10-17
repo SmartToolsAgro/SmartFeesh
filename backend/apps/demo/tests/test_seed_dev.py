@@ -63,6 +63,7 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert (truck.location.name, truck.plate) == ("Camion 1", "101 TU 2001")
     # Today's truck of the day (D-046), written once although the seed ran twice.
     (assignment,) = fleet.assignments_of(organization)
+    assert assignment.driver is not None
     assert (assignment.truck, assignment.driver.username) == (truck, "driver")
 
     batches = inventory.batches_of(organization)
