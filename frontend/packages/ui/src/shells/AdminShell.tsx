@@ -19,6 +19,8 @@ interface Props {
   user: { name: string; role: string; avatarUrl?: string | null };
   /** The company logo from Paramètres; the default mark without one. */
   logoUrl?: string | null;
+  /** Shown in the top bar before the theme switch, e.g. the notification bell (D-175). */
+  actions?: ReactNode;
   onLogout: () => void;
   children: ReactNode;
 }
@@ -61,13 +63,14 @@ function BackLink({ nav }: { nav: AdminNavGroup[] }) {
  * Back-office frame: sticky top bar, module sidebar, page area. On wide screens the sidebar is pinned under the bar and
  * scrolls on its own; its scrolling never moves the page. On small screens it is a scrolling strip.
  */
-export function AdminShell({ nav, user, logoUrl, onLogout, children }: Props) {
+export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: Props) {
   const { t } = useTranslation();
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-20 print:hidden flex flex-wrap items-center gap-4 border-b border-line bg-surface/90 px-5 py-3 backdrop-blur-md max-sm:gap-2.5 max-sm:px-4 max-sm:py-2.5">
         <Brand logoUrl={logoUrl} />
         <div className="flex-1" />
+        {actions}
         <ThemeToggle />
         <div className="flex items-center gap-2.5">
           <NavLink

@@ -58,6 +58,7 @@ backend/
     partnerships/         partnership lots, capital ledger
     closing/              lot costs and results, lot settlements, monthly closing (D-040)
     reporting/            read-only report queries and exports
+    notifications/        office ⇄ driver notifications, written from audit entries (D-175)
     demo/                 seed_dev: demo organization, logins and catalogue (may call every app)
   manage.py
 frontend/

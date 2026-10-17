@@ -22,12 +22,14 @@ interface Props {
   logoUrl?: string | null;
   /** Shown at the start of the header instead of the logo, e.g. the way back to Ma journée (D-171). */
   leading?: ReactNode;
+  /** Shown before the logout button, e.g. the notification bell (D-175). */
+  actions?: ReactNode;
   onLogout: () => void;
   children: ReactNode;
 }
 
 /** Driver frame: one phone-width column with a blue header, a scrolling body and a bottom tab bar. */
-export function TruckShell({ tabs, eyebrow, title, chips = [], logoUrl, leading, onLogout, children }: Props) {
+export function TruckShell({ tabs, eyebrow, title, chips = [], logoUrl, leading, actions, onLogout, children }: Props) {
   const { t } = useTranslation();
   return (
     <div className="mx-auto flex h-dvh w-full max-w-[480px] flex-col bg-bg min-[481px]:border-x min-[481px]:border-line">
@@ -45,6 +47,7 @@ export function TruckShell({ tabs, eyebrow, title, chips = [], logoUrl, leading,
             <span className="eyebrow text-[#9fd0e0]">{eyebrow}</span>
             <h2 className="truncate text-[1.1rem] text-white">{title}</h2>
           </div>
+          {actions}
           <button
             type="button"
             onClick={onLogout}

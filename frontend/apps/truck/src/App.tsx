@@ -2,6 +2,7 @@ import {
   createQueryClient,
   LanguageSwitch,
   LoginPage,
+  NotificationCenter,
   RequireRole,
   type Session,
   useLogout,
@@ -137,6 +138,7 @@ function Shell({ session }: { session: Session }) {
       leading={location.pathname === "/" ? undefined : <BackToDay />}
       eyebrow={session.truck?.name ?? session.organization.name}
       title={t("truck.hello", { name: session.user.first_name || session.user.username })}
+      actions={<NotificationCenter userId={session.user.id} tone="dark" />}
       onLogout={() => {
         void forgetSavedData();
         forgetPoints();

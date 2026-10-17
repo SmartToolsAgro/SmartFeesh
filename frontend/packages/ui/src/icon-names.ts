@@ -23,6 +23,7 @@ export const ICON_NAMES = [
   "trash",
   "pin",
   "fuel",
+  "bell",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 

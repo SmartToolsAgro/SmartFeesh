@@ -1,4 +1,4 @@
-import { createQueryClient, LoginPage, RequireRole, type Session, useLogout } from "@frutti/auth";
+import { createQueryClient, LoginPage, NotificationCenter, RequireRole, type Session, useLogout } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import {
   type AdminNavGroup,
@@ -188,6 +188,7 @@ function Shell({ session }: { session: Session }) {
       nav={nav}
       user={{ name: displayName(session), role: t(`roles.${session.role}`), avatarUrl: session.user.avatar_url }}
       logoUrl={session.organization.logo_url}
+      actions={<NotificationCenter userId={session.user.id} />}
       onLogout={() => logout.mutate()}
     >
       <Outlet context={session} />

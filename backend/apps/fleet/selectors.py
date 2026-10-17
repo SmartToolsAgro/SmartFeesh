@@ -83,6 +83,12 @@ def drivers_of_day(organization: Organization, day: date_type) -> dict[int, User
     return found
 
 
+def driver_of_location(organization: Organization, *, location_id: int, on: date_type) -> User | None:
+    """Who has the truck of this stock location on a day (`drivers_of_day`); None for a place that is no truck."""
+    truck = Truck.objects.for_organization(organization).filter(location_id=location_id).first()
+    return None if truck is None else drivers_of_day(organization, on).get(truck.pk)
+
+
 def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truck | None:
     """The active truck this member drives on a day (today by default), if they are a driver and have one.
 

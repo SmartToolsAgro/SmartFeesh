@@ -12,6 +12,7 @@ export {
   DialogTrigger,
 } from "./components/dialog";
 export { EmptyState } from "./components/empty-state";
+export { type BellItem, NotificationBell } from "./components/notification-bell";
 export { Field, Input, Label } from "./components/input";
 export { Pill } from "./components/pill";
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/select";
@@ -25,5 +26,6 @@ export { type AdminNavGroup, AdminShell, PageHeader } from "./shells/AdminShell"
 export { Brand, BrandMark } from "./shells/Brand";
 export { ThemeToggle } from "./shells/ThemeToggle";
 export { TruckShell, type TruckTab } from "./shells/TruckShell";
+export { isSoundOn, playChime, setSoundOn, unlockSound } from "./sound";
 export { initTheme, type Theme, useTheme } from "./theme";
 export { toast } from "sonner";
