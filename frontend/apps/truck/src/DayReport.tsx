@@ -48,6 +48,7 @@ function purchasesOf(summary: DaySummary) {
     cash: kept.purchases_cash ?? "0.000",
     other: kept.purchases_other ?? "0.000",
     fromSales: kept.purchases_from_sales ?? "0.000",
+    owed: kept.owed_to_driver ?? "0.000",
     expected: kept.expected_purchase_cash ?? "0.000",
   };
 }
@@ -65,6 +66,9 @@ function PurchaseFigures({ summary }: { summary: DaySummary }) {
       <Row label={t("truck.purchase.closingOther")} value={formatMoney(purchases.other)} />
       {Number(purchases.fromSales) === 0 ? null : (
         <Row label={t("truck.purchase.closingFromSales")} value={formatMoney(purchases.fromSales)} />
+      )}
+      {Number(purchases.owed) === 0 ? null : (
+        <Row label={t("truck.purchase.closingOwed")} value={formatMoney(purchases.owed)} />
       )}
       <Row label={t("truck.purchase.closingExpected")} value={formatMoney(purchases.expected)} strong />
     </Card>
