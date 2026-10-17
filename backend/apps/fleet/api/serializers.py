@@ -33,7 +33,15 @@ class TruckSerializer(serializers.ModelSerializer[Truck]):
     class Meta:
         model = Truck
         fields = (
-            "id", "name", "plate", "driver", "driver_today", "location_id", "is_active", "condition", "updated_at",
+            "id",
+            "name",
+            "plate",
+            "driver",
+            "driver_today",
+            "location_id",
+            "is_active",
+            "condition",
+            "updated_at",
         )
         read_only_fields = fields
 
