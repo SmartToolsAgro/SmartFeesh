@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-17 (P3-T14 driver app with less scrolling, D-171; client-by-client truck loads, P2-T13 / D-160)_
+_Last updated: 2026-10-17 (receipt lines as a spreadsheet grid, D-173; P3-T14 driver app with less scrolling, D-171; client-by-client truck loads, P2-T13 / D-160)_
 
 ## Where we are
 
+- **D-173 (branch receipt-spreadsheet-grid):** the new receipt's product lines are a bordered spreadsheet table, like the
+  other XLS tables. Awaits CI, then check on staging.
 - **Phase 1:** done except P1-T14 (returnable boxes; owner decisions 2–4 are open). **Phase 2:** mostly done.
 - **Phase 3:** T01–T07d and T11–T12c are done; open: T08 field test, T09 Arabic review, T10 printing.
 - **P2-T13 / D-160:** load parts, draft BL per client, provisional PDF and driver-phone "Mes livraisons" are implemented

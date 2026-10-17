@@ -2525,3 +2525,9 @@ client's record but may be changed on this BL only.
   Nothing is learned silently: a wrong sale time could otherwise put a customer at the wrong place.
 - A stop within 75 m of a saved place is named after that customer, also when no sale was made there (`dayclose.day_route`); the
   stop's customers are `{id, name, has_place}`.
+
+**D-173 · The "Produits reçus" lines of a receipt are a spreadsheet grid** · accepted · 2026-10-17
+- The client's XLS look (D-162) also applies to the new receipt form: the product lines are one table with a shaded
+  header row and bordered cells (product, ordered or remaining, invoiced, accepted, cost, amount, use-by, partner, remove),
+  not a card per line. Cells are borderless fields filling the cell; the last cost hint sits under the cost. The table
+  scrolls sideways on a phone instead of stacking each line.

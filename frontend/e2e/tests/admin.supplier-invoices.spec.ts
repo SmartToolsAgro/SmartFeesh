@@ -19,7 +19,7 @@ async function recordReceipt(page: Page, deliveryNote: string): Promise<string> 
   await page.getByRole("combobox", { name: "Fournisseur" }).click();
   await page.getByRole("option", { name: "Aqua Monastir" }).click();
   await page.getByLabel("N° du bon de livraison ou de la facture").fill(deliveryNote);
-  const line = page.getByRole("group", { name: "Produit 1" });
+  const line = page.getByRole("row").nth(1);
   await line.getByRole("combobox", { name: "Produit" }).click();
   // Not loup de mer: the receipts test expects the demo's last cost for it.
   await page.getByRole("option", { name: "Dorade royale · DO-003" }).click();
