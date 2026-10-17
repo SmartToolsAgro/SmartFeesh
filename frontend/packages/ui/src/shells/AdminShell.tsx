@@ -109,7 +109,7 @@ export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: 
       <div className="grid min-h-[calc(100dvh-62px)] grid-cols-[232px_minmax(0,1fr)] max-[860px]:grid-cols-1 print:block">
         <nav
           aria-label={t("admin.modules")}
-          className="flex flex-col gap-0.5 border-e border-line bg-surface px-3 py-[18px] print:hidden min-[861px]:sticky min-[861px]:top-[62px] min-[861px]:h-[calc(100dvh-62px)] min-[861px]:self-start min-[861px]:overflow-y-auto min-[861px]:overscroll-contain max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-e-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
+          className="flex flex-col gap-0.5 border-e border-line bg-surface px-3 py-[18px] print:hidden min-[861px]:sticky min-[861px]:top-[62px] min-[861px]:h-[calc(100dvh-62px)] min-[861px]:self-start min-[861px]:overflow-y-auto min-[861px]:overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[860px]:flex-row max-[860px]:gap-1.5 max-[860px]:overflow-x-auto max-[860px]:border-e-0 max-[860px]:border-b max-[860px]:px-4 max-[860px]:py-2.5"
         >
           {nav.map((group) => (
             <div key={group.label} className="contents">
