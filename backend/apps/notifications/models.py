@@ -13,7 +13,7 @@ class Audience(models.TextChoices):
 
 
 class Notification(OrganizationScopedModel):
-    """Something a driver did, told to the office, or something the office did for one driver, told to them (D-174).
+    """Something a driver did, told to the office, or something the office did for one driver, told to them (D-175).
 
     Written from the audit entry of the action, in the same transaction: a refused action tells nobody. The words
     are not stored: `kind` names the message and `params` holds its values as they were then, so each app shows

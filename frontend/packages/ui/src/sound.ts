@@ -1,4 +1,4 @@
-// The tone of a new notification (D-174): two short notes made by the browser, so no sound file is downloaded.
+// The tone of a new notification (D-175): two short notes made by the browser, so no sound file is downloaded.
 // Browsers only let a page make sound after the person touched it once: `unlockSound` waits for that first touch.
 
 const SOUND_KEY = "frutti-sound";

@@ -103,7 +103,7 @@ function writeSeen(userId: number, id: number): void {
 }
 
 /**
- * The bell of the header, in both apps (D-174). It asks the server every few seconds; a notification that came since
+ * The bell of the header, in both apps (D-175). It asks the server every few seconds; a notification that came since
  * the last look plays the tone and shows as a toast. A click marks it read and opens where it says.
  */
 export function NotificationCenter({ userId, tone }: { userId: number; tone?: "light" | "dark" }) {

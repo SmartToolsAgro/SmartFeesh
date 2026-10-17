@@ -915,6 +915,19 @@ def document_rows(organization: Organization, filters: DocumentFilters, *, may_w
     return rows
 
 
+def load_customer_ids(organization: Organization, *, location_id: int, day: dt.date) -> list[int]:
+    """The clients a truck was loaded for on a day (their BL made from a load of that day, D-160), delivered or not;
+    a cancelled BL leaves its client out. Empty when the day's loads named no client."""
+    return list(
+        Sale.objects.for_organization(organization)
+        .filter(location_id=location_id, transfer__isnull=False, transfer__transferred_on=day)
+        .exclude(status=SaleStatus.CANCELLED)
+        .order_by("customer_id")
+        .values_list("customer_id", flat=True)
+        .distinct()
+    )
+
+
 def recent_customer_ids(organization: Organization, *, user_id: int, limit: int = 8) -> list[int]:
     """The customers this person sold to most recently, most recent first (the walk-in customer included)."""
     seen: list[int] = []

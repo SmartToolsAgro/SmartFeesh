@@ -19,7 +19,7 @@ interface Props {
   user: { name: string; role: string; avatarUrl?: string | null };
   /** The company logo from Paramètres; the default mark without one. */
   logoUrl?: string | null;
-  /** Shown in the top bar before the theme switch, e.g. the notification bell (D-174). */
+  /** Shown in the top bar before the theme switch, e.g. the notification bell (D-175). */
   actions?: ReactNode;
   onLogout: () => void;
   children: ReactNode;

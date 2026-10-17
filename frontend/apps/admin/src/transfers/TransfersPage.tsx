@@ -143,7 +143,10 @@ export function TransfersPage() {
                     </span>
                   </Td>
                   <Td>
-                    {t("admin.transfers.route", { from: transfer.from_location.name, to: transfer.to_location.name })}
+                    {t("admin.transfers.route", {
+                      from: transfer.from_cold_rooms ? t("admin.transfers.coldRooms") : transfer.from_location.name,
+                      to: transfer.to_location.name,
+                    })}
                   </Td>
                   <Td className="whitespace-nowrap text-ink-2 max-[720px]:hidden">
                     {t("admin.transfers.linesCount", { count: transfer.lines.length })}

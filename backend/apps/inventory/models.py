@@ -264,6 +264,9 @@ class Transfer(OrganizationScopedModel, TimeStampedModel):
     status = models.CharField(max_length=20, choices=TransferStatus.choices, default=TransferStatus.DRAFT)
     from_location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="transfers_out")
     to_location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="transfers_in")
+    # A load "from the cold rooms" (D-174): each line takes its kg from whichever cold rooms hold them, the first room
+    # by id first; `from_location` is then one of the cold rooms, the one the boxes leave from.
+    from_cold_rooms = models.BooleanField(default=False)
     # The working day it belongs to: the truck's day for a load or a return.
     transferred_on = models.DateField()
     notes = models.TextField(blank=True)

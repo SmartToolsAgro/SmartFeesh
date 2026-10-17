@@ -165,7 +165,7 @@ do the stock, the supplier debt and the payment count.
 - [x] Deliveries: each client folds; the confirm button sits inside its fold.
 - [ ] Check on a real phone with a driver (with P3-T08): the folds and tiles read well, the sticky bar hides no field.
 
-**P3-T15 · Notifications between the office and the drivers, with a tone (D-174) · M** _(owner's request of 2026-10-17)_
+**P3-T15 · Notifications between the office and the drivers, with a tone (D-175) · M** _(owner's request of 2026-10-17)_
 - [x] Server: a notification is written from the audit entry of each action (`apps.notifications`): a driver's action
       tells the owner and the managers, the office's action on a driver's day, load, purchase, loss, expense or truck
       tells that driver. `GET /me/notifications`, `POST /me/notifications/read`.

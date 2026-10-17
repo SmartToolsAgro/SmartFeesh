@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-10-17 (notifications office ⇄ drivers with a tone, P3-T15 / D-174; receipt grid, D-173)_
+_Last updated: 2026-10-17 (notifications office ⇄ drivers with a tone, P3-T15 / D-175; receipt grid, D-173)_
 
 ## Where we are
 
-- **P3-T15 / D-174 (branch driver-admin-notifications):** a bell in both apps; a driver's action notifies the office,
+- **P3-T15 / D-175 (branch driver-admin-notifications):** a bell in both apps; a driver's action notifies the office,
   the office's action notifies the driver, with a tone and a toast (polling every 20 s). Awaits CI, then check on staging.
 - **D-173 (on main):** the new receipt's product lines are a bordered spreadsheet table. Check on staging.
 - **Phase 1:** done except P1-T14 (returnable boxes; owner decisions 2–4 are open). **Phase 2:** mostly done.
@@ -29,6 +29,9 @@ _Last updated: 2026-10-17 (notifications office ⇄ drivers with a tone, P3-T15 
 - **D-162 (PR #163):** Journées des chauffeurs has a live follow-up tab per driver, truck and day; awaits CI, then check on staging.
 - **D-163 (PR #164, branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
   truck condition, partnership edits, XLS tables, frozen header). CI must pass before merge; then check on staging.
+
+- **P2-T14 / D-174 (branch transfer-load-grid):** transfer form as a spreadsheet grid per client, "Chambres froides
+  (toutes)" as the source, driver "Vente" lists only the load's clients. CI must pass, then check on staging.
 
 ## Next step
 

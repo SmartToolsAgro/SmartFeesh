@@ -348,7 +348,9 @@ export function TransferDetailPage() {
       <Card>
         <CardTitle>{t("admin.transfers.detail.transfer")}</CardTitle>
         <dl className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-3">
-          <Detail label={t("admin.transfers.detail.from")}>{data.from_location.name}</Detail>
+          <Detail label={t("admin.transfers.detail.from")}>
+            {data.from_cold_rooms ? t("admin.transfers.coldRooms") : data.from_location.name}
+          </Detail>
           <Detail label={t("admin.transfers.detail.to")}>
             <span className="inline-flex items-center gap-1.5">
               <Icon name={KIND_ICONS[data.kind]} />

@@ -38,7 +38,7 @@ export const fr = {
     accountant: "Comptable",
     driver: "Chauffeur",
   },
-  // The bell of both apps (D-174): what a driver did, told to the office, and what the office did, told to the driver.
+  // The bell of both apps (D-175): what a driver did, told to the office, and what the office did, told to the driver.
   notifications: {
     title: "Notifications",
     open: "Notifications",
@@ -2578,6 +2578,7 @@ export const fr = {
         cancelled: "Annulé",
       },
       route: "{{from}} → {{to}}",
+      coldRooms: "Chambres froides",
       columns: {
         number: "N°",
         date: "Jour",
@@ -2689,6 +2690,10 @@ export const fr = {
         clientBoxesTitle: "Caisses pour ce client",
         clientBoxesHint: "Les caisses qu'il garde : elles lui sont comptées quand la livraison est validée.",
         keptLines: "Gardé sur le camion, sans client",
+        keptHint: "Ce qui n'est pour aucun client : le chauffeur le vend sur la route (client de passage).",
+        // ---- A transfer typed like a spreadsheet, from the cold rooms together (D-174) ----
+        coldRooms: "Chambres froides (toutes)",
+        clientLines: "Produits de {{name}}",
       },
       deliveries: {
         title: "Bons de livraison par client",
@@ -4008,6 +4013,12 @@ export const fr = {
       whoFor: "Pour quel client ?",
       recent: "Récents",
       others: "Autres clients",
+      // Today's load names its clients: only they are sold to, plus the walk-in customer (D-174)
+      loadClients: "Clients de votre chargement",
+      toDeliver: "BL à livrer",
+      delivered: "Livré",
+      deliveredDone: "Livraison validée.",
+      sellMore: "Vendre autre chose à ce client",
       search: "Chercher un client",
       customer: "Client",
       change: "Changer",

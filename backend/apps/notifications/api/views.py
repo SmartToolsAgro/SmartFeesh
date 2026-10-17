@@ -10,7 +10,7 @@ from .serializers import MarkReadSerializer, NotificationListSerializer, UnreadS
 
 
 class MyNotificationsView(APIView):
-    """What the office or a driver is told (D-174): both apps ask for it every few seconds."""
+    """What the office or a driver is told (D-175): both apps ask for it every few seconds."""
 
     permission_classes = (IsMember,)
 

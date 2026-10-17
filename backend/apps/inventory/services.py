@@ -596,9 +596,14 @@ def moment_of(day: dt.date) -> dt.datetime:
 
 
 def _transfer_header_errors(
-    organization: Organization, from_location: StockLocation, to_location: StockLocation
+    organization: Organization,
+    from_location: StockLocation,
+    to_location: StockLocation,
+    from_cold_rooms: bool = False,
 ) -> dict[str, str]:
     errors: dict[str, str] = {}
+    if from_cold_rooms and (from_location.kind != LocationKind.COLD_ROOM or to_location.kind != LocationKind.TRUCK):
+        errors["from_location"] = _("Seul un chargement de camion part des chambres froides ensemble.")
     for field, location in (("from_location", from_location), ("to_location", to_location)):
         if location.organization_id != organization.pk:
             errors[field] = _("Emplacement inconnu.")
@@ -680,6 +685,7 @@ def _transfer_snapshot(transfer: Transfer) -> dict[str, Any]:
         "status": transfer.status,
         "from_location": transfer.from_location.name,
         "to_location": transfer.to_location.name,
+        "from_cold_rooms": transfer.from_cold_rooms,
         "transferred_on": transfer.transferred_on.isoformat(),
         "lines": [
             {
@@ -770,10 +776,11 @@ def _prepared_transfer(
     lines: Sequence[TransferLineFields],
     boxes: Mapping[str, int] | None,
     deliveries: Sequence[TransferDeliveryFields] = (),
+    from_cold_rooms: bool = False,
 ) -> tuple[str, list[dict[str, Any]], dict[str, int], list[dict[str, Any]]]:
     """The kind, the checked lines, the box counts and the client parts of a transfer, or a ValidationError
     with every problem. `lines` and `boxes` are the part not given to a client (kept on the truck)."""
-    errors = _transfer_header_errors(organization, from_location, to_location)
+    errors = _transfer_header_errors(organization, from_location, to_location, from_cold_rooms)
     if not lines and not deliveries:
         errors["lines"] = _("Ajoutez au moins un produit.")
     kind = transfer_kind(from_location, to_location)
@@ -833,6 +840,7 @@ def create_transfer(
     validate: bool = False,
     boxes: Mapping[str, int] | None = None,
     deliveries: Sequence[TransferDeliveryFields] = (),
+    from_cold_rooms: bool = False,
 ) -> Transfer:
     """Prepare a transfer as a draft; with `validate`, also move the stock at once (one transaction).
 
@@ -840,20 +848,22 @@ def create_transfer(
     takes the sale price in force. A load may carry returnable boxes (`boxes`, per box type): they move
     with the stock when it is validated. A load may be split by client (`deliveries`, D-160): each client's kg and
     boxes, with `lines` and `boxes` left for the part kept on the truck; validating it makes a draft BL per
-    client. A `client_uuid` already used returns that transfer.
+    client. With `from_cold_rooms` a load takes each line from the cold rooms together (D-174). A `client_uuid`
+    already used returns that transfer.
     """
     if client_uuid is not None:
         existing = Transfer.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
         if existing is not None:
             return existing
     kind, checked_lines, box_counts, checked_deliveries = _prepared_transfer(
-        organization, from_location, to_location, transferred_on, lines, boxes, deliveries
+        organization, from_location, to_location, transferred_on, lines, boxes, deliveries, from_cold_rooms
     )
     transfer = Transfer.objects.create(
         organization=organization,
         number=_next_document_number(organization, TRANSFER_SERIES),
         kind=kind,
         from_location=from_location,
+        from_cold_rooms=from_cold_rooms,
         to_location=to_location,
         transferred_on=transferred_on,
         notes=notes.strip(),
@@ -902,6 +912,7 @@ def update_transfer(
     validate: bool = False,
     boxes: Mapping[str, int] | None = None,
     deliveries: Sequence[TransferDeliveryFields] = (),
+    from_cold_rooms: bool = False,
 ) -> Transfer:
     """Change a draft: its places, day, notes, lines, boxes and client parts (all replaced). With `validate`,
     validate it too."""
@@ -909,10 +920,11 @@ def update_transfer(
     organization = transfer.organization
     before = _transfer_snapshot(transfer)
     kind, checked_lines, box_counts, checked_deliveries = _prepared_transfer(
-        organization, from_location, to_location, transferred_on, lines, boxes, deliveries
+        organization, from_location, to_location, transferred_on, lines, boxes, deliveries, from_cold_rooms
     )
     transfer.kind = kind
     transfer.from_location = from_location
+    transfer.from_cold_rooms = from_cold_rooms
     transfer.to_location = to_location
     transfer.transferred_on = transferred_on
     transfer.notes = notes.strip()
@@ -934,6 +946,58 @@ def update_transfer(
     if validate:
         return validate_transfer(transfer=transfer, actor=actor)
     return transfer
+
+
+def _cold_rooms(organization: Organization) -> list[StockLocation]:
+    """The active cold rooms, by id: a load "from the cold rooms" empties the first one first (D-174)."""
+    return list(
+        StockLocation.objects.for_organization(organization)
+        .filter(kind=LocationKind.COLD_ROOM, is_active=True)
+        .order_by("id")
+    )
+
+
+def _post_line_from(
+    rooms: Sequence[StockLocation],
+    line: TransferLine,
+    transfer: Transfer,
+    actor: User | None,
+    occurred_at: dt.datetime,
+) -> None:
+    """Move one line's kg out of `rooms`, the first one first: one place as before, or the cold rooms together
+    (D-174). Refused as a whole when they hold less than the line together."""
+    portions: list[tuple[StockLocation, Decimal]] = [(rooms[0], line.quantity)] if rooms else []
+    if len(rooms) > 1:
+        day = timezone.localtime(occurred_at).date()
+        held = selectors.held_by_location(
+            transfer.organization, product_id=line.product_id, location_ids=[room.pk for room in rooms], day=day
+        )
+        left = line.quantity
+        portions = []
+        for room in rooms:
+            taken = min(left, held.get(room.pk, Decimal("0.000")))
+            if taken > 0:
+                portions.append((room, taken))
+                left -= taken
+        if left > 0:
+            raise ValidationError(
+                {
+                    "quantity": _("Stock insuffisant : %(available)s kg dans les chambres froides.")
+                    % {"available": line.quantity - left}
+                }
+            )
+    for room, quantity in portions:
+        post_fifo_movements(
+            organization=transfer.organization,
+            actor=actor,
+            kind=MovementKind.TRANSFER,
+            product_id=line.product_id,
+            quantity=quantity,
+            from_location=room,
+            to_location=transfer.to_location,
+            source=line,
+            occurred_at=occurred_at,
+        )
 
 
 def _box_totals(box_lines: Sequence[TransferBoxLine]) -> dict[str, int]:
@@ -973,7 +1037,9 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
     """
     transfer = _locked_draft(transfer)
     organization = transfer.organization
-    errors = _transfer_header_errors(organization, transfer.from_location, transfer.to_location)
+    errors = _transfer_header_errors(
+        organization, transfer.from_location, transfer.to_location, transfer.from_cold_rooms
+    )
     if transfer.transferred_on > timezone.localdate():
         errors["transferred_on"] = _("Un transfert d'un jour à venir se valide ce jour-là.")
     if errors:
@@ -981,19 +1047,11 @@ def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
     occurred_at = moment_of(transfer.transferred_on)
     lines = list(transfer.lines.order_by("id"))
     keys = _line_keys(transfer, lines)
+    rooms = _cold_rooms(organization) if transfer.from_cold_rooms else [transfer.from_location]
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
-            post_fifo_movements(
-                organization=organization,
-                actor=actor,
-                kind=MovementKind.TRANSFER,
-                product_id=line.product_id,
-                quantity=line.quantity,
-                from_location=transfer.from_location,
-                to_location=transfer.to_location,
-                source=line,
-                occurred_at=occurred_at,
-            )
+            with transaction.atomic():
+                _post_line_from(rooms, line, transfer, actor, occurred_at)
         except ValidationError as error:
             # The line's own savepoint is rolled back; the other lines are still checked, then all is refused.
             for field, messages in getattr(error, "message_dict", {"lines": error.messages}).items():

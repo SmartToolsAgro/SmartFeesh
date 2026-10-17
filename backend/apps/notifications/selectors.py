@@ -1,4 +1,4 @@
-"""Reusable read queries of notifications (D-174)."""
+"""Reusable read queries of notifications (D-175)."""
 
 import datetime as dt
 

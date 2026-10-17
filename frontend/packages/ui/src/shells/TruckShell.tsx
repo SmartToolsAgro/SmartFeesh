@@ -22,7 +22,7 @@ interface Props {
   logoUrl?: string | null;
   /** Shown at the start of the header instead of the logo, e.g. the way back to Ma journée (D-171). */
   leading?: ReactNode;
-  /** Shown before the logout button, e.g. the notification bell (D-174). */
+  /** Shown before the logout button, e.g. the notification bell (D-175). */
   actions?: ReactNode;
   onLogout: () => void;
   children: ReactNode;

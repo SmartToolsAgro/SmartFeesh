@@ -49,7 +49,7 @@ export const ar: PartialTranslation = {
     accountant: "المحاسب",
     driver: "السائق",
   },
-  // Provisional, like the rest of this file (D-103, D-174).
+  // Provisional, like the rest of this file (D-103, D-175).
   notifications: {
     title: "الإشعارات",
     open: "الإشعارات",
@@ -106,6 +106,11 @@ export const ar: PartialTranslation = {
       whoFor: "لأي حريف؟",
       recent: "الأخيرون",
       others: "حرفاء آخرون",
+      loadClients: "حرفاء حمولتك",
+      toDeliver: "إذن للتسليم",
+      delivered: "تم التسليم",
+      deliveredDone: "تم تأكيد التسليم.",
+      sellMore: "بيع شيء آخر لهذا الحريف",
       search: "ابحث عن حريف",
       customer: "الحريف",
       change: "تغيير",

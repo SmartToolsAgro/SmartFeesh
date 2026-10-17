@@ -207,6 +207,7 @@ class TransferSerializer(serializers.ModelSerializer[Transfer]):
             "kind",
             "status",
             "from_location",
+            "from_cold_rooms",
             "to_location",
             "transferred_on",
             "notes",
@@ -311,6 +312,9 @@ class TransferDeliveryWriteSerializer(serializers.Serializer[Any]):
 
 class TransferWriteSerializer(serializers.Serializer[Any]):
     from_location = serializers.IntegerField(min_value=1)
+    # A load from the cold rooms together (D-174): `from_location` is then a cold room (the boxes leave from it) and
+    # each line takes its kg from whichever cold rooms hold them.
+    from_cold_rooms = serializers.BooleanField(required=False, default=False)
     to_location = serializers.IntegerField(min_value=1)
     transferred_on = serializers.DateField()
     notes = serializers.CharField(required=False, allow_blank=True, default="")

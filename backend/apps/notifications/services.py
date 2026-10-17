@@ -1,4 +1,4 @@
-"""Every write on notifications goes through these functions (ARCHITECTURE §3, D-174)."""
+"""Every write on notifications goes through these functions (ARCHITECTURE §3, D-175)."""
 
 from collections.abc import Sequence
 from typing import Any

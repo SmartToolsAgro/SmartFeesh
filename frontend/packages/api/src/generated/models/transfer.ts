@@ -15,6 +15,7 @@ export interface Transfer {
   readonly kind: TransferKindEnum;
   readonly status: TransferStatusEnum;
   readonly from_location: Place;
+  readonly from_cold_rooms: boolean;
   readonly to_location: Place;
   readonly transferred_on: string;
   readonly notes: string;

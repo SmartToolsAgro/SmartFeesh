@@ -43,7 +43,7 @@ export function DeliveriesPage() {
   );
 }
 
-function Delivery({ sale }: { sale: SaleDetail }) {
+export function Delivery({ sale }: { sale: SaleDetail }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [error, setError] = useState("");

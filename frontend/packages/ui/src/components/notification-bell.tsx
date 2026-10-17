@@ -25,7 +25,7 @@ interface Props {
   tone?: "light" | "dark";
 }
 
-/** The bell of the header (D-174): the count of unread notifications, and the list under it. */
+/** The bell of the header (D-175): the count of unread notifications, and the list under it. */
 export function NotificationBell({ items, unread, onOpen, onReadAll, soundOn, onToggleSound, tone = "light" }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);

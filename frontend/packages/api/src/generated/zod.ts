@@ -8453,7 +8453,8 @@ export const GetMyBoxDayResponse = zod.object({
 
 /**
  * Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
- * the walk-in customer last. Filter with `search`. At most 30 rows.
+ * the walk-in customer last. Filter with `search`. At most 30 rows. When today's load of the driver's truck
+ * names clients, only those clients and the walk-in customer are listed (D-174).
  */
 export const listMyCustomersQuerySearchDefault = ``;
 export const listMyCustomersQuerySearchMax = 100;
@@ -8467,14 +8468,15 @@ export const ListMyCustomersQueryParams = zod.object({
 })
 
 export const listMyCustomersResponseOwesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
+export const listMyCustomersResponseOnLoadDefault = false;
 
 export const ListMyCustomersResponseItem = zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "city": zod.string(),
   "is_walk_in": zod.boolean(),
-  "owes": zod.stringFormat('decimal', listMyCustomersResponseOwesRegExp)
+  "owes": zod.stringFormat('decimal', listMyCustomersResponseOwesRegExp),
+  "on_load": zod.boolean().default(listMyCustomersResponseOnLoadDefault)
 }).describe('The little a driver needs to pick a customer.')
 export const ListMyCustomersResponse = zod.array(ListMyCustomersResponseItem)
 
@@ -8500,14 +8502,15 @@ export const CreateMyCustomerBody = zod.object({
 }).describe('What a driver types to add a customer: a name, and a phone and a city when they know them.')
 
 export const createMyCustomerResponseOwesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
+export const createMyCustomerResponseOnLoadDefault = false;
 
 export const CreateMyCustomerResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "city": zod.string(),
   "is_walk_in": zod.boolean(),
-  "owes": zod.stringFormat('decimal', createMyCustomerResponseOwesRegExp)
+  "owes": zod.stringFormat('decimal', createMyCustomerResponseOwesRegExp),
+  "on_load": zod.boolean().default(createMyCustomerResponseOnLoadDefault)
 }).describe('The little a driver needs to pick a customer.')
 
 
@@ -15757,6 +15760,7 @@ export const ListTransfersResponse = zod.object({
   "name": zod.string(),
   "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
 }),
+  "from_cold_rooms": zod.boolean(),
   "to_location": zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -15801,7 +15805,7 @@ export const ListTransfersResponse = zod.object({
  * takes the sale price in force. Errors of a line come back on `lines.<index>.<field>`.
  */
 
-
+export const createTransferBodyFromColdRoomsDefault = false;
 export const createTransferBodyNotesDefault = ``;
 export const createTransferBodyValidateNowDefault = false;
 export const createTransferBodyBoxesMinOne = 0;
@@ -15817,6 +15821,7 @@ export const createTransferBodyDeliveriesItemBoxesMinOne = 0;
 
 export const CreateTransferBody = zod.object({
   "from_location": zod.int().min(1),
+  "from_cold_rooms": zod.boolean().default(createTransferBodyFromColdRoomsDefault),
   "to_location": zod.int().min(1),
   "transferred_on": zod.iso.date(),
   "notes": zod.string().default(createTransferBodyNotesDefault),
@@ -15857,6 +15862,7 @@ export const CreateTransferResponse = zod.object({
   "name": zod.string(),
   "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
 }),
+  "from_cold_rooms": zod.boolean(),
   "to_location": zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -15941,6 +15947,7 @@ export const GetTransferResponse = zod.object({
   "name": zod.string(),
   "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
 }),
+  "from_cold_rooms": zod.boolean(),
   "to_location": zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -16008,7 +16015,7 @@ export const UpdateTransferParams = zod.object({
 })
 
 
-
+export const updateTransferBodyFromColdRoomsDefault = false;
 export const updateTransferBodyNotesDefault = ``;
 export const updateTransferBodyValidateNowDefault = false;
 export const updateTransferBodyBoxesMinOne = 0;
@@ -16024,6 +16031,7 @@ export const updateTransferBodyDeliveriesItemBoxesMinOne = 0;
 
 export const UpdateTransferBody = zod.object({
   "from_location": zod.int().min(1),
+  "from_cold_rooms": zod.boolean().default(updateTransferBodyFromColdRoomsDefault),
   "to_location": zod.int().min(1),
   "transferred_on": zod.iso.date(),
   "notes": zod.string().default(updateTransferBodyNotesDefault),
@@ -16064,6 +16072,7 @@ export const UpdateTransferResponse = zod.object({
   "name": zod.string(),
   "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
 }),
+  "from_cold_rooms": zod.boolean(),
   "to_location": zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -16148,6 +16157,7 @@ export const CancelTransferResponse = zod.object({
   "name": zod.string(),
   "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
 }),
+  "from_cold_rooms": zod.boolean(),
   "to_location": zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -16234,6 +16244,7 @@ export const ValidateTransferResponse = zod.object({
   "name": zod.string(),
   "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
 }),
+  "from_cold_rooms": zod.boolean(),
   "to_location": zod.object({
   "id": zod.int(),
   "name": zod.string(),
