@@ -4095,6 +4095,11 @@ export const fr = {
     offline: {
       banner: "Pas de réseau : les chiffres affichés datent de la dernière connexion.",
     },
+    tracking: {
+      denied:
+        "Position refusée : le bureau ne peut pas suivre la tournée. Autorisez la position pour ce site dans les réglages du navigateur.",
+      unavailable: "Position introuvable : vérifiez que le GPS du téléphone est activé.",
+    },
     closing: {
       notStarted: "La journée n'a pas commencé",
       notStartedBody: "Commencez d'abord votre journée dans « Ma journée ».",
