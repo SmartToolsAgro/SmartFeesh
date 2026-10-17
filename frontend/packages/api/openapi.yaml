@@ -1020,6 +1020,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomerBalance'
           description: ''
+  /api/v1/customers/{customer_id}/location:
+    put:
+      operationId: setCustomerLocation
+      description: Save where the customer is (owner or manager), from a stop of a
+        driver's route; empty values forget it.
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerLocation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerLocation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerLocation'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
   /api/v1/customers/{customer_id}/restore:
     post:
       operationId: restoreCustomer
@@ -10336,6 +10370,18 @@ components:
         notes:
           type: string
           readOnly: true
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          readOnly: true
+          nullable: true
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          readOnly: true
+          nullable: true
         credit_limit:
           type: string
           format: decimal
@@ -10369,6 +10415,8 @@ components:
       - is_active
       - is_walk_in
       - kind
+      - latitude
+      - longitude
       - name
       - notes
       - payment_terms_days
@@ -10603,6 +10651,22 @@ components:
       - d60_plus
       - name
       - overdue
+    CustomerLocation:
+      type: object
+      properties:
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+      required:
+      - latitude
+      - longitude
     CustomerPayment:
       type: object
       properties:
@@ -20950,7 +21014,7 @@ components:
         customers:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/RouteStopCustomer'
           readOnly: true
       required:
       - customers
@@ -20959,6 +21023,22 @@ components:
       - longitude
       - minutes
       - started_at
+    RouteStopCustomer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        has_place:
+          type: boolean
+          readOnly: true
+      required:
+      - has_place
+      - id
+      - name
     SalaryAdjustment:
       type: object
       properties:

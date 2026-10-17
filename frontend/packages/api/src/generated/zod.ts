@@ -1194,6 +1194,8 @@ export const ListCustomersQueryParams = zod.object({
   "status": zod.enum(['active', 'archived', 'all']).default(listCustomersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
 })
 
+export const listCustomersResponseLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const listCustomersResponseLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
 export const listCustomersResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listCustomersResponseContactsItemNameMax = 150;
 
@@ -1221,6 +1223,8 @@ export const ListCustomersResponseItem = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "latitude": zod.stringFormat('decimal', listCustomersResponseLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', listCustomersResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', listCustomersResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "contacts": zod.array(zod.object({
@@ -1304,6 +1308,8 @@ export const CreateCustomerBody = zod.object({
 })).optional()
 })
 
+export const createCustomerResponseLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const createCustomerResponseLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
 export const createCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createCustomerResponseContactsItemNameMax = 150;
 
@@ -1331,6 +1337,8 @@ export const CreateCustomerResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "latitude": zod.stringFormat('decimal', createCustomerResponseLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', createCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', createCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "contacts": zod.array(zod.object({
@@ -1349,6 +1357,8 @@ export const GetCustomerParams = zod.object({
   "customer_id": zod.int()
 })
 
+export const getCustomerResponseLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const getCustomerResponseLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
 export const getCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getCustomerResponseContactsItemNameMax = 150;
 
@@ -1376,6 +1386,8 @@ export const GetCustomerResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "latitude": zod.stringFormat('decimal', getCustomerResponseLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', getCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', getCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "contacts": zod.array(zod.object({
@@ -1462,6 +1474,8 @@ export const UpdateCustomerBody = zod.object({
 })).optional()
 })
 
+export const updateCustomerResponseLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const updateCustomerResponseLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
 export const updateCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateCustomerResponseContactsItemNameMax = 150;
 
@@ -1489,6 +1503,8 @@ export const UpdateCustomerResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "latitude": zod.stringFormat('decimal', updateCustomerResponseLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', updateCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', updateCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "contacts": zod.array(zod.object({
@@ -1510,6 +1526,8 @@ export const ArchiveCustomerParams = zod.object({
   "customer_id": zod.int()
 })
 
+export const archiveCustomerResponseLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const archiveCustomerResponseLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
 export const archiveCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const archiveCustomerResponseContactsItemNameMax = 150;
 
@@ -1537,6 +1555,8 @@ export const ArchiveCustomerResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "latitude": zod.stringFormat('decimal', archiveCustomerResponseLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', archiveCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', archiveCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "contacts": zod.array(zod.object({
@@ -1625,10 +1645,73 @@ export const GetCustomerBalanceResponse = zod.object({
 })
 
 
+/**
+ * Save where the customer is (owner or manager), from a stop of a driver's route; empty values forget it.
+ */
+export const SetCustomerLocationParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const setCustomerLocationBodyLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const setCustomerLocationBodyLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+
+
+export const SetCustomerLocationBody = zod.object({
+  "latitude": zod.stringFormat('decimal', setCustomerLocationBodyLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', setCustomerLocationBodyLongitudeRegExp).nullable()
+})
+
+export const setCustomerLocationResponseLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const setCustomerLocationResponseLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const setCustomerLocationResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const setCustomerLocationResponseContactsItemNameMax = 150;
+
+export const setCustomerLocationResponseContactsItemRoleDefault = ``;
+export const setCustomerLocationResponseContactsItemRoleMax = 100;
+
+export const setCustomerLocationResponseContactsItemPhoneDefault = ``;
+export const setCustomerLocationResponseContactsItemPhoneMax = 30;
+
+export const setCustomerLocationResponseContactsItemEmailOneDefault = ``;
+export const setCustomerLocationResponseContactsItemEmailOneMax = 254;
+
+export const setCustomerLocationResponseContactsItemEmailTwoMax = 0;
+
+
+
+export const SetCustomerLocationResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string(),
+  "latitude": zod.stringFormat('decimal', setCustomerLocationResponseLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', setCustomerLocationResponseLongitudeRegExp).nullable(),
+  "credit_limit": zod.stringFormat('decimal', setCustomerLocationResponseCreditLimitRegExp),
+  "payment_terms_days": zod.int(),
+  "contacts": zod.array(zod.object({
+  "name": zod.string().max(setCustomerLocationResponseContactsItemNameMax),
+  "role": zod.string().max(setCustomerLocationResponseContactsItemRoleMax).default(setCustomerLocationResponseContactsItemRoleDefault),
+  "phone": zod.string().max(setCustomerLocationResponseContactsItemPhoneMax).default(setCustomerLocationResponseContactsItemPhoneDefault),
+  "email": zod.union([zod.email().max(setCustomerLocationResponseContactsItemEmailOneMax).default(setCustomerLocationResponseContactsItemEmailOneDefault),zod.string().max(setCustomerLocationResponseContactsItemEmailTwoMax)]).optional()
+})),
+  "is_walk_in": zod.boolean(),
+  "is_active": zod.boolean(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
 export const RestoreCustomerParams = zod.object({
   "customer_id": zod.int()
 })
 
+export const restoreCustomerResponseLatitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
+export const restoreCustomerResponseLongitudeRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,6})?$');
 export const restoreCustomerResponseCreditLimitRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const restoreCustomerResponseContactsItemNameMax = 150;
 
@@ -1656,6 +1739,8 @@ export const RestoreCustomerResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "latitude": zod.stringFormat('decimal', restoreCustomerResponseLatitudeRegExp).nullable(),
+  "longitude": zod.stringFormat('decimal', restoreCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', restoreCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "contacts": zod.array(zod.object({
@@ -2678,7 +2763,11 @@ export const GetDayRouteResponse = zod.object({
   "minutes": zod.int(),
   "latitude": zod.number(),
   "longitude": zod.number(),
-  "customers": zod.array(zod.string())
+  "customers": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "has_place": zod.boolean()
+}))
 }).describe('Where the truck stayed five minutes or more.'))
 }).describe('The GPS route of one driver\'s day, in time order; `last` is where the truck was last seen.')
 
