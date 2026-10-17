@@ -78,7 +78,8 @@ def drivers_of_day(organization: Organization, day: date_type) -> dict[int, User
     for driver_day in days:
         found.setdefault(driver_day.truck_id, driver_day.driver)
     for assignment in assignments_on(organization, day):
-        found.setdefault(assignment.truck_id, assignment.driver)
+        if assignment.driver is not None:
+            found.setdefault(assignment.truck_id, assignment.driver)
     return found
 
 

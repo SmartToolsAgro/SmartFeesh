@@ -47,7 +47,7 @@ class TruckSerializer(serializers.ModelSerializer[Truck]):
 
     @extend_schema_field(DriverRefSerializer(allow_null=True))
     def get_driver_today(self, truck: Truck) -> dict[str, Any] | None:
-        drivers: dict[int, User] = self.context.get("drivers_today")  # type: ignore[assignment]
+        drivers: dict[int, User] | None = self.context.get("drivers_today")
         if drivers is None:
             drivers = selectors.drivers_of_day(truck.organization, timezone.localdate())
         driver = drivers.get(truck.id) if truck.is_active else None
