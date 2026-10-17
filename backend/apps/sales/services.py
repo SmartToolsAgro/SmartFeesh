@@ -227,7 +227,8 @@ def _checked_lines(
     """The lines' values once checked and priced; each problem is added to `errors` under the line's keys.
 
     Each line also says where its price comes from (`price_source`) and whether it is below the product's
-    minimum price (`below_minimum`, a warning only, D-049)."""
+    minimum price (`below_minimum`). A price once the discount is taken off may not go under that minimum: the
+    line is refused (D-162)."""
     checked_lines: list[dict[str, Any]] = []
     seen: set[int] = set()
     for index, line in enumerate(lines):
@@ -259,6 +260,13 @@ def _checked_lines(
                 "Indiquez une remise en %, de 0 à 100, avec 2 décimales au plus."
             )
         checked["discount_rate"] = rate
+        if rate is not None and "unit_price" in checked and product is not None and product.min_price is not None:
+            net = checked["unit_price"] * (100 - rate) / 100
+            if net < product.min_price:
+                key = line_error_key(index, "discount_rate" if rate > 0 else "unit_price")
+                errors[key] = _("Le prix après remise ({net} DT/kg) est sous le minimum ({minimum} DT/kg).").format(
+                    net=money(net), minimum=product.min_price
+                )
         if "quantity" in checked and "unit_price" in checked and rate is not None:
             checked.update(priced_line(checked["quantity"], checked["unit_price"], rate))
         checked_lines.append(checked)

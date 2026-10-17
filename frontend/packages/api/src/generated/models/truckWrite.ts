@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ConditionEnum } from './conditionEnum';
 
 export interface TruckWrite {
   /** @maxLength 100 */
@@ -12,4 +13,5 @@ export interface TruckWrite {
   plate: string;
   /** @nullable */
   driver?: number | null;
+  condition?: ConditionEnum;
 }

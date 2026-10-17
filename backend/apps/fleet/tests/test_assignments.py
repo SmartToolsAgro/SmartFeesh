@@ -324,14 +324,47 @@ def test_drivers_of_day_follows_the_assignment_over_the_usual_driver(organizatio
     assert lonely.id not in drivers
 
 
-def test_drivers_of_day_keeps_the_usual_driver_unless_assigned_elsewhere(organization, actor, today):
+def test_drivers_of_day_ignores_the_usual_driver(organization, actor, today):
     usual = driver_of(organization)
     truck = new_truck(organization, actor, 1, driver=usual.user)
-    second = new_truck(organization, actor, 2)
 
-    assert selectors.drivers_of_day(organization, today)[truck.id] == usual.user
+    assert truck.id not in selectors.drivers_of_day(organization, today)
 
-    assign(organization, actor, second, usual, today)
-    drivers = selectors.drivers_of_day(organization, today)
-    assert drivers[second.id] == usual.user
-    assert truck.id not in drivers
+
+# ---- maintenance, breakdown and a truck left free (D-162) ----
+
+
+def test_a_truck_in_maintenance_is_not_taken_and_loses_its_coming_days(organization, actor, today):
+    truck, driver = new_truck(organization, actor, driver=None), driver_of(organization)
+    assign(organization, actor, truck, driver, today)
+
+    services.update_truck(truck=truck, actor=actor, condition="maintenance")
+
+    assert not TruckAssignment.objects.filter(truck=truck).exists()
+    with pytest.raises(ValidationError):
+        assign(organization, actor, truck, driver, today)
+    services.update_truck(truck=truck, actor=actor, condition="ok")
+    assert assign(organization, actor, truck, driver, today).truck == truck
+
+
+def test_a_truck_in_breakdown_is_not_the_usual_trucks_of_its_driver(organization, actor):
+    driver = driver_of(organization)
+    truck = new_truck(organization, actor, driver=driver.user)
+    assert selectors.truck_of_driver(driver) == truck
+
+    services.update_truck(truck=truck, actor=actor, condition="breakdown")
+
+    assert selectors.truck_of_driver(driver) is None
+
+
+def test_a_truck_left_free_has_no_driver_that_day_and_a_driver_can_take_it(organization, actor, today):
+    usual = driver_of(organization)
+    other = driver_of(organization)
+    truck = new_truck(organization, actor, driver=usual.user)
+
+    freed = services.assign_truck(organization=organization, actor=actor, truck=truck, driver=None, date=today)
+
+    assert freed.driver is None
+    assert selectors.truck_of_driver(usual) is None
+    taken = assign(organization, actor, truck, other, today)
+    assert (taken.pk, taken.driver) == (freed.pk, other.user)

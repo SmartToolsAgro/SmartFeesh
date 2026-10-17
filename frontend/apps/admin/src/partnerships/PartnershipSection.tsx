@@ -37,9 +37,8 @@ export function PartnershipSection({
   const detail = useGetPartnership(summary?.id ?? 0, { query: { enabled: summary !== undefined } });
   const partnership = summary ? detail.data : undefined;
   const canWrite = canWriteResults(session);
-  // Terms are fixed at the lot's first sale, unless they were never filled in (partner named at the receipt, D-100).
-  const editable =
-    partnership !== undefined && partnership.status === "open" && (!partnership.has_sold || partnership.terms_pending);
+  // Terms change until the lot is closed, even after sales (D-162).
+  const editable = partnership !== undefined && partnership.status === "open";
 
   return (
     <section aria-labelledby="lot-partnership" className="flex flex-col gap-2">
@@ -99,7 +98,7 @@ export function PartnershipSection({
               </p>
             )}
             {partnership.notes && <p className="text-ink-2">{partnership.notes}</p>}
-            {partnership.status === "open" && partnership.has_sold && !partnership.terms_pending && (
+            {partnership.status !== "open" && (
               <p className="text-[0.85rem] text-ink-2">{t("admin.partnerships.section.fixed")}</p>
             )}
             <div className="flex flex-col gap-1">

@@ -26,6 +26,7 @@ urlpatterns = [
     path("day-labour/<int:entry_id>", views.DayLabourDetailView.as_view(), name="day-labour-detail"),
     # P5-T02 · cold-room cost per day
     path("cold-room-weights", cost_views.ColdRoomWeightListView.as_view(), name="cold-room-weight-list"),
+    path("cold-room-shares", cost_views.ColdRoomSharesView.as_view(), name="cold-room-shares"),
     path(
         "cold-room-weights/<int:location_id>",
         cost_views.ColdRoomWeightDetailView.as_view(),

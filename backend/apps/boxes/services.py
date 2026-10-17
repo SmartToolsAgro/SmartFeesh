@@ -32,6 +32,7 @@ _HOLDER_KINDS: dict[str, tuple[str | None, str | None]] = {
     BoxMovementKind.RETURN: ("location", "supplier"),
     BoxMovementKind.TRUCK_RETURN: ("location", "location"),
     BoxMovementKind.WRITE_OFF: ("location", None),
+    BoxMovementKind.PURCHASE: (None, "location"),
 }
 
 
@@ -257,3 +258,37 @@ def post_box_counts(
         for box_type, count in counts.items()
         if count
     ]
+
+
+@transaction.atomic
+def adjust_boxes(
+    *,
+    organization: Organization,
+    actor: User | None,
+    location: "StockLocation",
+    kind: str,
+    box_type: str,
+    count: int,
+    reason: str = "",
+) -> BoxMovement:
+    """The office changes the boxes a cold room or a truck holds: boxes bought (they come in) or boxes lost or
+    broken (they go out, with the reason). The cost of bought boxes is an expense entered on its own."""
+    if kind not in (BoxMovementKind.PURCHASE, BoxMovementKind.WRITE_OFF):
+        raise ValidationError({"kind": _("Indiquez un achat ou une casse ou perte.")})
+    if location.organization_id != organization.pk or location.kind not in ("cold_room", "truck"):
+        raise ValidationError({"location": _("Choisissez une chambre froide ou un camion.")})
+    holder = holder_for(organization=organization, location=location)
+    try:
+        return post_box_movement(
+            organization=organization,
+            actor=actor,
+            kind=kind,
+            box_type=box_type,
+            count=count,
+            from_holder=holder if kind == BoxMovementKind.WRITE_OFF else None,
+            to_holder=holder if kind == BoxMovementKind.PURCHASE else None,
+            reason=reason,
+        )
+    except ValidationError as failure:
+        field = "reason" if kind == BoxMovementKind.WRITE_OFF and not reason.strip() else "count"
+        raise ValidationError({field: failure.messages}) from None

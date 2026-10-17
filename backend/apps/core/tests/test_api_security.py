@@ -130,6 +130,7 @@ OWNER_MONEY = (
 OWNER_ONLY_WRITES = (
     "/api/v1/expense-categories",
     "/api/v1/cold-room-weights",
+    "/api/v1/cold-room-shares",
     "/api/v1/recurring-costs",
     "/api/v1/finance-settings",
     "/api/v1/stock-settings",

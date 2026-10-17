@@ -8,6 +8,7 @@
 export interface PartnershipBatch {
   readonly id: number;
   readonly number: string;
+  readonly product_id: number;
   readonly product_name: string;
   readonly received_on: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

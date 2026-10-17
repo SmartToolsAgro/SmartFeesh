@@ -1,7 +1,14 @@
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
+
+
+class TruckCondition(models.TextChoices):
+    OK = "ok", _("En service")
+    MAINTENANCE = "maintenance", _("En maintenance")
+    BREAKDOWN = "breakdown", _("En panne")
 
 
 class Truck(OrganizationScopedModel, TimeStampedModel):
@@ -20,6 +27,8 @@ class Truck(OrganizationScopedModel, TimeStampedModel):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="trucks"
     )
     is_active = models.BooleanField(default=True)
+    # A truck in maintenance or broken down cannot be taken by a driver (D-162).
+    condition = models.CharField(max_length=12, choices=TruckCondition.choices, default=TruckCondition.OK)
 
     class Meta:
         ordering = ["location__name", "id"]
@@ -38,7 +47,10 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
     """
 
     truck = models.ForeignKey(Truck, on_delete=models.PROTECT, related_name="assignments")
-    driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="truck_assignments")
+    # Empty: the truck is left free that day, also for its usual driver (D-162).
+    driver = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="truck_assignments"
+    )
     date = models.DateField()
 
     class Meta:
@@ -49,7 +61,7 @@ class TruckAssignment(OrganizationScopedModel, TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.date} · {self.truck.location.name} · {self.driver.username}"
+        return f"{self.date} · {self.truck.location.name} · {self.driver.username if self.driver else '-'}"
 
 
 class DriverDay(OrganizationScopedModel, TimeStampedModel):

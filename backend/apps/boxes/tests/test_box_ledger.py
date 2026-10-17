@@ -426,3 +426,47 @@ def test_movements_are_append_only(organization, cold_room, supplier):
         BoxMovement.objects.for_organization(organization).update(count=5)
     with pytest.raises(TypeError):
         BoxMovement.objects.for_organization(organization).delete()
+
+
+def test_the_office_buys_boxes_into_a_place_and_writes_off_lost_ones(organization, cold_room):
+    holder = _holder(organization, location=cold_room)
+
+    bought = services.adjust_boxes(
+        organization=organization,
+        actor=None,
+        location=cold_room,
+        kind=BoxMovementKind.PURCHASE,
+        box_type=BoxType.BIG,
+        count=20,
+    )
+    lost = services.adjust_boxes(
+        organization=organization,
+        actor=None,
+        location=cold_room,
+        kind=BoxMovementKind.WRITE_OFF,
+        box_type=BoxType.BIG,
+        count=3,
+        reason="Cassées au déchargement",
+    )
+
+    assert (bought.to_holder, lost.from_holder) == (holder, holder)
+    assert _balance(organization, holder, BoxType.BIG) == 17
+    with pytest.raises(ValidationError):
+        services.adjust_boxes(
+            organization=organization,
+            actor=None,
+            location=cold_room,
+            kind=BoxMovementKind.WRITE_OFF,
+            box_type=BoxType.BIG,
+            count=1,
+        )
+    with pytest.raises(ValidationError):
+        services.adjust_boxes(
+            organization=organization,
+            actor=None,
+            location=cold_room,
+            kind=BoxMovementKind.WRITE_OFF,
+            box_type=BoxType.BIG,
+            count=100,
+            reason="Trop",
+        )

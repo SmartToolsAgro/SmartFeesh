@@ -151,25 +151,43 @@ def test_a_sale_of_an_earlier_moment_takes_the_price_then(organization, actor, c
     assert now.lines.get().unit_price == Decimal("45.000")
 
 
-def test_a_typed_price_is_kept_and_a_price_below_the_minimum_is_only_flagged(
+def test_a_price_under_the_minimum_is_refused_with_or_without_a_discount(
     organization, actor, customer, counter, crevette
 ):
     crevette.min_price = Decimal("40.000")
     crevette.save()
     receive(organization, crevette, counter, "5")
 
-    confirmed = sale(
+    with pytest.raises(ValidationError) as typed:
+        sale(
+            organization,
+            actor,
+            customer,
+            counter,
+            [{"product": crevette, "quantity": "1", "unit_price": "38.000"}],
+            confirm=True,
+        )
+    with pytest.raises(ValidationError) as discounted:
+        sale(
+            organization,
+            actor,
+            customer,
+            counter,
+            [{"product": crevette, "quantity": "1", "unit_price": "42.000", "discount_rate": "10.00"}],
+            confirm=True,
+        )
+    at_the_minimum = sale(
         organization,
         actor,
         customer,
         counter,
-        [{"product": crevette, "quantity": "1", "unit_price": "38.000"}],
+        [{"product": crevette, "quantity": "1", "unit_price": "44.445", "discount_rate": "10.00"}],
         confirm=True,
     )
 
-    line = confirmed.lines.get()
-    assert (line.unit_price, line.price_source, line.below_minimum) == (Decimal("38.000"), PriceSource.TYPED, True)
-    assert AuditLog.objects.filter(action="sale.price_below_minimum", target_id=str(confirmed.pk)).exists()
+    assert "lines.0.unit_price" in typed.value.message_dict
+    assert "lines.0.discount_rate" in discounted.value.message_dict
+    assert at_the_minimum.lines.get().amount == Decimal("40.000")
 
 
 def test_every_problem_comes_back_at_once_on_its_own_field(organization, actor, customer, crevette):

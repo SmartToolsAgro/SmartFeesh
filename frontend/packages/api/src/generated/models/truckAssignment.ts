@@ -12,5 +12,5 @@ export interface TruckAssignment {
   readonly truck_id: number;
   readonly truck_name: string;
   readonly plate: string;
-  readonly driver: DriverRef;
+  readonly driver: DriverRef | null;
 }

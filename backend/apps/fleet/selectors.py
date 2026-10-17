@@ -10,7 +10,7 @@ from django.utils import timezone
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.session import TruckRef
 
-from .models import DriverDay, Truck, TruckAssignment
+from .models import DriverDay, Truck, TruckAssignment, TruckCondition
 
 type TruckStatus = Literal["active", "archived", "all"]
 
@@ -64,9 +64,9 @@ def day_on_truck_of_another(
 
 
 def drivers_of_day(organization: Organization, day: date_type) -> dict[int, User]:
-    """Who has each truck on a day, by truck id: the driver who started the day on it (a running day before a
-    sent one), else the day's assignment, else the driver who usually drives it, unless that driver was
-    assigned to another truck that day. A truck nobody has is missing."""
+    """Who really has each truck on a day, by truck id: the driver who started the day on it (a running day
+    before a sent one), else the driver assigned to it that day. The usual driver is not counted: it says who
+    normally drives the truck, not who has it now. A truck nobody has is missing."""
     found: dict[int, User] = {}
     days = (
         DriverDay.objects.for_organization(organization)
@@ -76,13 +76,8 @@ def drivers_of_day(organization: Organization, day: date_type) -> dict[int, User
     )
     for driver_day in days:
         found.setdefault(driver_day.truck_id, driver_day.driver)
-    assigned_elsewhere = set()
     for assignment in assignments_on(organization, day):
         found.setdefault(assignment.truck_id, assignment.driver)
-        assigned_elsewhere.add(assignment.driver_id)
-    for truck in trucks_of(organization):
-        if truck.id not in found and truck.driver is not None and truck.driver_id not in assigned_elsewhere:
-            found[truck.id] = truck.driver
     return found
 
 
@@ -97,9 +92,12 @@ def truck_of_driver(membership: Membership, on: date_type | None = None) -> Truc
     day = on or timezone.localdate()
     assigned = assignments_on(membership.organization, day).filter(driver_id=membership.user_id).first()
     if assigned is not None:
-        return assigned.truck if assigned.truck.is_active else None
+        return assigned.truck if assigned.truck.is_active and assigned.truck.condition == TruckCondition.OK else None
     return (
-        trucks_of(membership.organization).filter(driver_id=membership.user_id).exclude(assignments__date=day).first()
+        trucks_of(membership.organization)
+        .filter(driver_id=membership.user_id, condition=TruckCondition.OK)
+        .exclude(assignments__date=day)
+        .first()
     )
 
 
