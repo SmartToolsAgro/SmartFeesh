@@ -37,7 +37,7 @@ test("the owner records a receipt; the last cost is suggested and the change sho
   await expect(page.getByRole("combobox", { name: "Reçu dans" })).toContainText("Chambre froide 1 (frais)");
   await page.getByLabel("N° du bon de livraison ou de la facture").fill(deliveryNote);
 
-  const line = page.getByRole("group", { name: "Produit 1" });
+  const line = page.getByRole("row").nth(1);
   await line.getByRole("combobox", { name: "Produit" }).click();
   await page.getByRole("option", { name: "Loup de mer · LO-004" }).click();
   // Aqua Monastir last sold loup de mer at 21.500 DT/kg (demo batches).
@@ -68,7 +68,7 @@ test("a receipt without weights is refused on the line's own fields", async ({ p
 
   await page.getByRole("button", { name: "Enregistrer la réception" }).click();
 
-  const line = page.getByRole("group", { name: "Produit 1" });
+  const line = page.getByRole("row").nth(1);
   await expect(line.getByText("Obligatoire.")).toBeVisible();
   await expect(line.getByText("Poids en kg, 3 décimales au plus.").first()).toBeVisible();
   await expect(page).toHaveURL(/\/achats\/nouvelle$/);
