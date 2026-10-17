@@ -45,6 +45,8 @@ export interface DayOverviewRow {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly purchases_from_sales: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly owed_to_driver: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_purchase_cash: string;
   readonly products: readonly DayProduct[];
   readonly id: number;

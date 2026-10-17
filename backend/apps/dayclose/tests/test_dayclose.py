@@ -370,6 +370,29 @@ def test_a_cash_difference_nobody_explained_is_an_alert(day):
     assert dashboard["cash_differences"][0]["difference"] == "-10.000"
 
 
+def test_the_monthly_closing_sees_cash_differences_and_days_never_sent(day):
+    from apps.dayclose import selectors
+    from apps.fleet.models import DriverDay
+
+    organization = day["truck"].organization
+    today = timezone.localdate()
+    sell(day, "5", "100.000")  # expected cash: 50 + 100 = 150
+    day["api"].post(reverse("my-day-closing"), {"counted_cash": "140.000"}, format="json")
+
+    found = selectors.period_days(organization, date_from=today, date_to=today)
+    assert (found.difference_count, found.difference_amount) == (1, Decimal("-10.000"))
+
+    closing = selectors.closings_of(organization).get()
+    day["office"].post(reverse("day-closing-approve", args=[closing.pk]))
+    assert selectors.period_days(organization, date_from=today, date_to=today).difference_count == 0
+
+    # A past day whose closing was never sent: its figures were never counted.
+    yesterday = today - dt.timedelta(days=1)
+    DriverDay.objects.filter(pk=closing.driver_day_id).update(date=yesterday, ended_at=None)
+    found = selectors.period_days(organization, date_from=yesterday, date_to=yesterday)
+    assert found.unsent_count == 1
+
+
 def test_an_explained_or_exact_day_is_not_an_alert(day):
     from apps.dayclose import selectors
 

@@ -238,6 +238,12 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                   value={formatMoney(data.summary.purchases_from_sales)}
                 />
               )}
+              {Number(data.summary.owed_to_driver) > 0 && (
+                <Line
+                  label={t("admin.dayClosings.purchases.owed")}
+                  value={formatMoney(data.summary.owed_to_driver)}
+                />
+              )}
               <Line
                 label={t("admin.dayClosings.purchases.expected")}
                 value={formatMoney(data.expected_purchase_cash)}

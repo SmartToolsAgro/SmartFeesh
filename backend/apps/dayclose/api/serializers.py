@@ -54,6 +54,8 @@ class DaySummarySerializer(serializers.Serializer[Any]):
     purchases_cash = _purchase_figure()
     purchases_other = _purchase_figure()
     purchases_from_sales = _purchase_figure()
+    # Of that, what the cash in hand could not cover: paid by the driver out of pocket, owed back by the office.
+    owed_to_driver = _purchase_figure()
     expected_purchase_cash = _purchase_figure()
     products = DayProductSerializer(many=True, read_only=True)
 

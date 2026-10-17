@@ -258,6 +258,16 @@ def test_cash_beyond_the_purchase_money_comes_from_the_sales_cash(setup):
     assert figures["expected_cash"] == "20.000"
 
 
+def test_cash_the_driver_paid_out_of_pocket_is_owed_back_not_a_gap(setup):
+    send(setup, payments=[{"method": "cash", "amount": "1100"}])  # 100 beyond the float, 50 in hand
+
+    figures = summary(setup)
+
+    assert figures["purchases_from_sales"] == "100.000"
+    assert figures["owed_to_driver"] == "50.000"
+    assert figures["expected_cash"] == "0.000"
+
+
 def test_a_refused_purchase_gives_its_money_back(setup):
     send(setup)
     services.refuse_field_purchase(purchase=FieldPurchase.objects.get(), actor=None, revision=1, note="Doublon.")
