@@ -1005,7 +1005,7 @@ def allocate_payment(
     return payment
 
 
-# ---- Buying at the port, the "achat terrain" (P3-T12, D-157) ----
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-175) ----
 # A driver's purchase counts only once the owner or the manager validates it: then it becomes a receipt (stock),
 # a posted invoice (what is owed for the kg received, due by the deal) and payments (what was given at the port).
 
@@ -1551,7 +1551,7 @@ def receive_and_invoice(
     boxes: Mapping[str, int] | None = None,
 ) -> GoodsReceipt:
     """Record goods received and, in the same step, what is owed for them (D-159): a posted supplier invoice for the
-    receipt, due by the deal made for this delivery, as a purchase at the port is (D-157). The debt starts at the
+    receipt, due by the deal made for this delivery, as a purchase at the port is (D-175). The debt starts at the
     reception; a paper invoice of the supplier, if one comes, is only matched by its number."""
     errors: dict[str, str] = {}
     if terms not in PaymentTerms.values:

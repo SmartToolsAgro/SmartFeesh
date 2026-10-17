@@ -86,7 +86,7 @@ function valuesOf(product: Product): FormValues {
 }
 
 /** Create a product (`product` absent) or change one. Owners and managers only; the server checks it too.
- * `startName` fills a new product's name, e.g. the one a driver typed at the port (D-157). */
+ * `startName` fills a new product's name, e.g. the one a driver typed at the port (D-175). */
 export function ProductDialog({
   product,
   startName,
