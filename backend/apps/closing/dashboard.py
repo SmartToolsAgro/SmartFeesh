@@ -98,7 +98,7 @@ class Dashboard:
     # Lots whose partner was named at the receipt and whose capital and rates are not filled in (D-100).
     pending_terms: tuple[PendingTermsRow, ...]
     pending_terms_count: int
-    # Purchases at the port waiting for the office, and those of them sent more than 24 hours ago (D-175).
+    # Purchases at the port waiting for the office, and those of them sent more than 24 hours ago (D-176).
     field_purchases_waiting: int
     field_purchases_late: int
 

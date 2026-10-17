@@ -495,7 +495,7 @@ def supplier_statement(
     return statements.supplier_statement(organization, supplier_id, date_from=date_from, date_to=date_to)
 
 
-# ---- Buying at the port, the "achat terrain" (P3-T12, D-175) ----
+# ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----
 
 type FieldPurchaseStatusFilter = Literal["submitted", "validated", "refused"]
 

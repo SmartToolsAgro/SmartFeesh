@@ -27,7 +27,7 @@ export const STATUS_TONE: Record<FieldPurchaseStatusEnum, "warn" | "good" | "neu
   refused: "neutral",
 };
 
-/** The due date of a deal, as the server computes it (D-175): the day itself, N days later, or the end of the
+/** The due date of a deal, as the server computes it (D-176): the day itself, N days later, or the end of the
  * month + N days. Calendar dates only, no time zone. */
 export function dueDateOf(boughtOn: string, terms: PaymentTermsEnum, days: number): string {
   const [year, month, day] = boughtOn.split("-").map(Number);

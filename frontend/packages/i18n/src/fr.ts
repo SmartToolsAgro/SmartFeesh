@@ -2006,7 +2006,7 @@ export const fr = {
         amount: "Montant",
       },
     },
-    // ---- Buying at the port, the "achat terrain" (P3-T12a, D-175) ----
+    // ---- Buying at the port, the "achat terrain" (P3-T12a, D-176) ----
     fieldPurchases: {
       title: "Achats terrain",
       intro:
