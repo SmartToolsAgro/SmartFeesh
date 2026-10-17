@@ -89,11 +89,46 @@ function Line({
   );
 }
 
+// Where to go to fix each check.
+const CHECK_LINK: Record<CheckCode, string> = {
+  expenses_approved: "/charges",
+  payroll_approved: "/salaires",
+  losses_decided: "/stock/pertes",
+  sales_confirmed: "/ventes",
+  cogs_matches_ledger: "/stock/mouvements",
+  cash_differences: "/journees",
+  driver_days_closed: "/journees",
+};
+
 function Checks({ view }: { view: MonthView }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<CheckCode | null>(null);
+  const openCheck = view.report.checks.find((check) => check.code === open);
   return (
     <Card className="flex flex-col gap-1 p-4">
       <CardTitle>{t("admin.monthClosing.checks.title")}</CardTitle>
+      {open && openCheck && (
+        <Dialog open onOpenChange={(isOpen) => !isOpen && setOpen(null)}>
+          <DialogContent>
+            <DialogTitle>{t(`admin.monthClosing.checks.codes.${open}`)}</DialogTitle>
+            <DialogDescription>
+              {openCheck.ok ? t("admin.monthClosing.checks.nothingToDo") : t(`admin.monthClosing.checks.todo.${open}`)}
+            </DialogDescription>
+            {!openCheck.ok && openCheck.count !== null && openCheck.count > 0 && (
+              <p className="num text-ink-2">
+                {t("admin.monthClosing.checks.remaining", { number: openCheck.count })}
+                {openCheck.amount && Number(openCheck.amount) !== 0 ? ` · ${formatMoney(openCheck.amount)}` : ""}
+              </p>
+            )}
+            <DialogFooter>
+              <Button onClick={() => setOpen(null)}>{t("admin.monthClosing.checks.close")}</Button>
+              <Link to={CHECK_LINK[open]}>
+                <Button variant="primary">{t("admin.monthClosing.checks.goTo")}</Button>
+              </Link>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       <ul className="flex flex-col gap-1">
         {view.report.checks.map((check) => (
           <li key={check.code} className="flex flex-wrap items-baseline gap-2">
@@ -104,7 +139,13 @@ function Checks({ view }: { view: MonthView }) {
                   ? t("admin.monthClosing.checks.blocking")
                   : t("admin.monthClosing.checks.warning")}
             </Pill>
-            <span>{t(`admin.monthClosing.checks.codes.${check.code as CheckCode}`)}</span>
+            <button
+              type="button"
+              className="text-start hover:underline"
+              onClick={() => setOpen(check.code as CheckCode)}
+            >
+              {t(`admin.monthClosing.checks.codes.${check.code as CheckCode}`)}
+            </button>
             {!check.ok && check.count !== null && check.count > 0 && (
               <span className="num text-ink-2">
                 {check.count}

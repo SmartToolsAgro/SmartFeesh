@@ -3755,6 +3755,26 @@ export const fr = {
           cash_differences: "Aucun écart de caisse non approuvé dans les journées des chauffeurs",
           driver_days_closed: "Toutes les journées des chauffeurs sont envoyées (clôturées)",
         },
+        todo: {
+          expenses_approved:
+            "Ouvrez les charges du mois, vérifiez chaque dépense en attente puis approuvez-la (ou corrigez-la) pour qu'elle compte dans le résultat.",
+          payroll_approved:
+            "Ouvrez les salaires du mois et approuvez chaque fiche de paie encore en brouillon : un salaire en brouillon n'est pas encore une charge.",
+          losses_decided:
+            "Ouvrez les pertes et faites décider chaque perte en attente par le propriétaire (accepter ou refuser). Tant qu'elle attend, le mois est bloqué.",
+          sales_confirmed:
+            "Ouvrez les ventes du mois et confirmez chaque vente en brouillon (ou supprimez-la). Un brouillon n'a pas encore quitté le stock.",
+          cogs_matches_ledger:
+            "Le coût des ventes diffère entre les ventes et le stock. Consultez les mouvements de stock du mois pour trouver la vente ou le retour concerné et signalez l'écart au propriétaire.",
+          cash_differences:
+            "Ouvrez les journées des chauffeurs : un écart de caisse envoyé n'est pas encore approuvé. Ouvrez la journée concernée et approuvez l'écart (ou expliquez-le).",
+          driver_days_closed:
+            "Ouvrez les journées des chauffeurs : une journée du mois n'a jamais été envoyée. Demandez au chauffeur de l'envoyer depuis son téléphone.",
+        },
+        nothingToDo: "Rien à faire : ce contrôle est en ordre.",
+        remaining: "{{number}} à traiter",
+        goTo: "Ouvrir la page",
+        close: "Fermer",
       },
       reopen: {
         title: "Rouvrir le mois",

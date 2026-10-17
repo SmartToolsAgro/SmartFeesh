@@ -2461,6 +2461,11 @@ client's record but may be changed on this BL only.
   `day_answer` (as sent once sent, live while it runs). Deliveries are the sales with `transfer` on the truck whose load date
   is the day. `phase` = `running` or the closing status.
 
+**D-170 · Each check of the month closing opens a dialog saying what to do** · accepted · 2026-10-17
+- On "Clôture du mois", a check label is a button: the dialog gives the instruction, the number left (and amount), and a link
+  to the page where it is fixed (charges, salaires, pertes, ventes, mouvements, journées). Links go to the full list, not
+  filtered by month. Texts: `admin.monthClosing.checks.todo.*`.
+
 **D-168 · The truck cards show who really has the truck today, not who usually drives it** · accepted · 2026-10-17
 - `GET /trucks` adds `driver_today` (`selectors.drivers_of_day`): the driver who started today's day on the truck, else
   today's assignment. The usual driver is not counted (owner, 2026-10-17: real activity only); `driver` stays the usual
