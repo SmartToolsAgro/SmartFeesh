@@ -264,3 +264,84 @@ class SyncProblemSerializer(serializers.ModelSerializer[SyncProblem]):
     def get_driver_name(self, problem: SyncProblem) -> str:
         driver = problem.driver
         return f"{driver.first_name} {driver.last_name}".strip() or driver.username
+
+
+_STATES = [("running", "running"), *DayClosingStatus.choices]
+
+
+def _money() -> Any:
+    return serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class DayOverviewRowSerializer(DaySummarySerializer):
+    """One driver's day for the office, running or sent: its money, its sales and how many deliveries are done."""
+
+    id = serializers.IntegerField(read_only=True)
+    phase = serializers.ChoiceField(choices=_STATES, read_only=True)
+    deliveries_done = serializers.IntegerField(read_only=True)
+    deliveries_todo = serializers.IntegerField(read_only=True)
+    # The closing the driver sent, to check it on the page of the closings; null while the day runs.
+    closing_id = serializers.IntegerField(read_only=True, allow_null=True)
+
+    class Meta:
+        ref_name = "DayOverviewRow"
+
+
+class DayOverviewSaleSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    customer_name = serializers.CharField(read_only=True)
+    delivery_address = serializers.CharField(read_only=True)
+    sold_at = serializers.DateTimeField(read_only=True)
+    total = _money()
+    amount_paid = _money()
+    amount_due = _money()
+    payment_method = serializers.CharField(read_only=True)
+    # The BL of a truck load (D-160), not a sale made on the road.
+    from_load = serializers.BooleanField(read_only=True)
+    products = serializers.CharField(read_only=True)
+
+
+class DayOverviewPaymentSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    customer_name = serializers.CharField(read_only=True)
+    method = serializers.CharField(read_only=True)
+    amount = _money()
+    made_at = serializers.DateTimeField(read_only=True)
+
+
+class DayOverviewExpenseSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    category_name = serializers.CharField(read_only=True)
+    description = serializers.CharField(read_only=True)
+    amount = _money()
+    status = serializers.CharField(read_only=True)
+    payment_method = serializers.CharField(read_only=True)
+    made_at = serializers.DateTimeField(read_only=True)
+
+
+class DayOverviewDetailSerializer(DayOverviewRowSerializer):
+    closing = DayClosingStateSerializer(read_only=True, allow_null=True)
+    sales = DayOverviewSaleSerializer(many=True, read_only=True)
+    deliveries = DayOverviewSaleSerializer(many=True, read_only=True)
+    payments = DayOverviewPaymentSerializer(many=True, read_only=True)
+    expenses = DayOverviewExpenseSerializer(many=True, read_only=True)
+
+    class Meta:
+        ref_name = "DayOverviewDetail"
+
+
+class DayOverviewFilterSerializer(serializers.Serializer[Any]):
+    driver_id = serializers.IntegerField(required=False)
+    truck_id = serializers.IntegerField(required=False)
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+
+
+class DayOverviewDriverSerializer(serializers.Serializer[Any]):
+    """A driver who opened days, for the filter."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)

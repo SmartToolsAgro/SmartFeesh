@@ -44,6 +44,11 @@ urlpatterns = [
         name="report-customer-statement",
     ),
     path(
+        "reports/load-print-pack/<int:transfer_id>/pdf",
+        statement_views.LoadPrintPackView.as_view(),
+        name="report-load-print-pack",
+    ),
+    path(
         "reports/supplier-statement/<int:supplier_id>/pdf",
         statement_views.SupplierStatementPdfView.as_view(),
         name="report-supplier-statement",

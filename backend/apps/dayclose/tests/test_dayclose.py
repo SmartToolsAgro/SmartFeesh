@@ -551,3 +551,21 @@ def test_a_loss_reported_late_leaves_the_stock_at_the_moment_it_was_made(day):
     assert lost.status_code == 201
     loss_movement = StockMovement.objects.filter(kind=MovementKind.LOSS).get()
     assert loss_movement.occurred_at == parse_datetime(moment)
+
+
+def test_the_office_follows_a_running_day_and_filters_it(day):
+    sell(day, "5", "100.000")
+
+    rows = day["office"].get(reverse("day-overview-list")).json()
+    other_driver = day["office"].get(reverse("day-overview-list"), {"driver_id": 0}).json()
+    detail = day["office"].get(reverse("day-overview-detail", args=[rows[0]["id"]])).json()
+    drivers = day["office"].get(reverse("day-overview-drivers")).json()
+
+    assert len(rows) == 1
+    assert (rows[0]["phase"], rows[0]["sales_count"], rows[0]["sales_total"]) == ("running", 1, "140.000")
+    assert (rows[0]["deliveries_done"], rows[0]["deliveries_todo"]) == (0, 0)
+    assert other_driver == []
+    assert len(detail["sales"]) == 1
+    assert detail["expenses"] == []
+    assert len(drivers) == 1
+    assert day["api"].get(reverse("day-overview-list")).status_code == 403

@@ -1398,6 +1398,84 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayLabourer'
           description: ''
+  /api/v1/day-overview:
+    get:
+      operationId: listDayOverview
+      description: |-
+        The drivers' days as they stand, running or sent (the last 100 matching): money, sales and deliveries.
+        Filter by driver, truck and dates.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: driver_id
+        schema:
+          type: integer
+      - in: query
+        name: truck_id
+        schema:
+          type: integer
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayOverviewRow'
+          description: ''
+  /api/v1/day-overview/{day_id}:
+    get:
+      operationId: getDayOverview
+      description: 'One driver''s day: figures, sales, deliveries to do and done,
+        payments collected and expenses.'
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/drivers:
+    get:
+      operationId: listDayOverviewDrivers
+      description: 'The drivers who opened at least one day, by name: the choices
+        of the driver filter.'
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayOverviewDriver'
+          description: ''
   /api/v1/document-index:
     get:
       operationId: listDocuments
@@ -6323,6 +6401,30 @@ paths:
           type: string
           format: date
         description: 'Last day, inclusive (default: today).'
+      tags:
+      - reports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/load-print-pack/{transfer_id}/pdf:
+    get:
+      operationId: getLoadPrintPackPdf
+      description: |-
+        Everything to hand out after a truck load (D-161): for each client, their BL then their statement up to
+        today, in one PDF, each document starting on its own page. Office roles.
+      parameters:
+      - in: path
+        name: transfer_id
+        schema:
+          type: integer
+        required: true
       tags:
       - reports
       security:
@@ -11280,6 +11382,478 @@ components:
           default: true
       required:
       - name
+    DayOverviewDetail:
+      type: object
+      description: 'One driver''s day for the office, running or sent: its money,
+        its sales and how many deliveries are done.'
+      properties:
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        sales_count:
+          type: integer
+          readOnly: true
+        sales_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payments_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        other_payments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        on_credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expenses_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        handed_over:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_count:
+          type: integer
+          readOnly: true
+          default: 0
+        purchases_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_other:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_from_sales:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProduct'
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        phase:
+          allOf:
+          - $ref: '#/components/schemas/PhaseEnum'
+          readOnly: true
+        deliveries_done:
+          type: integer
+          readOnly: true
+        deliveries_todo:
+          type: integer
+          readOnly: true
+        closing_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        closing:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingState'
+          readOnly: true
+          nullable: true
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayOverviewSale'
+          readOnly: true
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayOverviewSale'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayOverviewPayment'
+          readOnly: true
+        expenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayOverviewExpense'
+          readOnly: true
+      required:
+      - cash_received
+      - closing
+      - closing_id
+      - date
+      - deliveries
+      - deliveries_done
+      - deliveries_todo
+      - driver_name
+      - expected_cash
+      - expected_purchase_cash
+      - expenses
+      - expenses_total
+      - handed_over
+      - id
+      - on_credit
+      - opening_cash
+      - other_payments
+      - payments
+      - payments_cash
+      - phase
+      - products
+      - purchase_float
+      - purchases_cash
+      - purchases_count
+      - purchases_from_sales
+      - purchases_other
+      - purchases_total
+      - sales
+      - sales_count
+      - sales_total
+      - truck_name
+    DayOverviewDriver:
+      type: object
+      description: A driver who opened days, for the filter.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    DayOverviewExpense:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        payment_method:
+          type: string
+          readOnly: true
+        made_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - category_name
+      - description
+      - id
+      - made_at
+      - payment_method
+      - status
+    DayOverviewPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        method:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        made_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - customer_name
+      - id
+      - made_at
+      - method
+      - number
+    DayOverviewRow:
+      type: object
+      description: 'One driver''s day for the office, running or sent: its money,
+        its sales and how many deliveries are done.'
+      properties:
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        sales_count:
+          type: integer
+          readOnly: true
+        sales_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash_received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payments_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        other_payments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        on_credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expenses_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        handed_over:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_count:
+          type: integer
+          readOnly: true
+          default: 0
+        purchases_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_other:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        purchases_from_sales:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProduct'
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        phase:
+          allOf:
+          - $ref: '#/components/schemas/PhaseEnum'
+          readOnly: true
+        deliveries_done:
+          type: integer
+          readOnly: true
+        deliveries_todo:
+          type: integer
+          readOnly: true
+        closing_id:
+          type: integer
+          readOnly: true
+          nullable: true
+      required:
+      - cash_received
+      - closing_id
+      - date
+      - deliveries_done
+      - deliveries_todo
+      - driver_name
+      - expected_cash
+      - expected_purchase_cash
+      - expenses_total
+      - handed_over
+      - id
+      - on_credit
+      - opening_cash
+      - other_payments
+      - payments_cash
+      - phase
+      - products
+      - purchase_float
+      - purchases_cash
+      - purchases_count
+      - purchases_from_sales
+      - purchases_other
+      - purchases_total
+      - sales_count
+      - sales_total
+      - truck_name
+    DayOverviewSale:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        delivery_address:
+          type: string
+          readOnly: true
+        sold_at:
+          type: string
+          format: date-time
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_due:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        payment_method:
+          type: string
+          readOnly: true
+        from_load:
+          type: boolean
+          readOnly: true
+        products:
+          type: string
+          readOnly: true
+      required:
+      - amount_due
+      - amount_paid
+      - customer_name
+      - delivery_address
+      - from_load
+      - id
+      - number
+      - payment_method
+      - products
+      - sold_at
+      - status
+      - total
     DayProduct:
       type: object
       properties:
@@ -18007,6 +18581,20 @@ components:
       - batch_number
       - partner_name
       - partnership_id
+    PhaseEnum:
+      enum:
+      - running
+      - submitted
+      - justification
+      - approved
+      - reopened
+      type: string
+      description: |-
+        * `running` - running
+        * `submitted` - À vérifier
+        * `justification` - Justification demandée
+        * `approved` - Approuvée
+        * `reopened` - Rouverte
     PhotoUpload:
       type: object
       properties:
