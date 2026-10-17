@@ -8,5 +8,6 @@
 export interface TruckAssignmentWrite {
   truck: number;
   driver?: number;
+  free?: boolean;
   date?: string;
 }

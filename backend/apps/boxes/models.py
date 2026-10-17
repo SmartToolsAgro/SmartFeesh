@@ -33,6 +33,9 @@ class BoxMovementKind(models.TextChoices):
     # A truck gives its boxes back to a cold room, with a stock transfer (P1-T14e, D-124).
     TRUCK_RETURN = "truck_return", _("Retour du camion en chambre froide")
     WRITE_OFF = "write_off", _("Casse ou perte")
+    # Boxes the company bought: they enter a location from outside it, like an opening stock. The cost is an
+    # expense of its own.
+    PURCHASE = "purchase", _("Achat de caisses")
 
 
 class BoxHolder(OrganizationScopedModel, TimeStampedModel):

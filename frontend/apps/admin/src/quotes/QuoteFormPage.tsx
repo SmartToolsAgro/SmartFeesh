@@ -49,6 +49,7 @@ import {
 } from "../lib/lines";
 import { LinesGrid } from "../lib/LinesGrid";
 import { placesOf, totalsOf, usePlacesStock, usePlacesStockLoaded } from "../lib/placeStock";
+import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { todayInTunis } from "../receipts/shared";
 import { canWriteQuotes, refreshAfterQuote } from "./shared";
 
@@ -135,6 +136,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
     [locations.data],
   );
   const placesOfProduct = useMemo(() => placesOf(byPlace, placeNames), [byPlace, placeNames]);
+  const partnerProducts = usePartnerProducts(session);
   const dailyPrice = useMemo(() => {
     const byProduct = new Map<string, string | null>();
     for (const product of products.data ?? []) byProduct.set(String(product.id), product.current_price);
@@ -329,6 +331,7 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
             proposedPrice={proposedPrice}
             stock={locations.data ? availableOf : undefined}
             places={placesLoaded ? placesOfProduct : undefined}
+            partners={partnerProducts}
             errors={errors}
             discount
             hint={priceHint}

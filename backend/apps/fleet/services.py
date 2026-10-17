@@ -16,7 +16,7 @@ from apps.core.models import Membership, Organization, Role, User
 from apps.inventory import services as inventory
 from apps.inventory.services import LocationKind
 
-from .models import DriverDay, Truck, TruckAssignment
+from .models import DriverDay, Truck, TruckAssignment, TruckCondition
 
 
 class _Unchanged:
@@ -36,6 +36,7 @@ def _snapshot(truck: Truck) -> dict[str, Any]:
         "name": truck.location.name,
         "plate": truck.plate,
         "driver": truck.driver.username if truck.driver else None,
+        "condition": truck.condition,
     }
 
 
@@ -61,10 +62,16 @@ def _clean_truck(truck: Truck) -> None:
 
 @transaction.atomic
 def create_truck(
-    *, organization: Organization, actor: User | None, name: str, plate: str, driver: User | None = None
+    *,
+    organization: Organization,
+    actor: User | None,
+    name: str,
+    plate: str,
+    driver: User | None = None,
+    condition: str = TruckCondition.OK,
 ) -> Truck:
     """A new truck, with the stock location that holds its goods."""
-    truck = Truck(organization=organization, plate=plate, driver=driver)
+    truck = Truck(organization=organization, plate=plate, driver=driver, condition=condition)
     _clean_truck(truck)
     truck.location = inventory.create_location(
         organization=organization, actor=actor, kind=LocationKind.TRUCK, name=name
@@ -82,14 +89,24 @@ def update_truck(
     name: str | None = None,
     plate: str | None = None,
     driver: User | _Unchanged | None = UNCHANGED,
+    condition: str | None = None,
 ) -> Truck:
-    """Rename a truck, change its plate, or give it to another driver (`driver=None` takes it back)."""
+    """Rename a truck, change its plate, give it to another driver (`driver=None` takes it back), or put it in
+    maintenance or break it down (a driver cannot take it then, D-162)."""
     truck = Truck.objects.select_for_update().select_related("location").get(pk=truck.pk)
     before = _snapshot(truck)
     if plate is not None:
         truck.plate = plate
     if not isinstance(driver, _Unchanged):
         truck.driver = driver
+    if condition is not None and condition != truck.condition:
+        if condition not in TruckCondition.values:
+            raise ValidationError({"condition": _("État du camion inconnu.")})
+        truck.condition = condition
+        if condition != TruckCondition.OK:
+            # Days still to come lose their assignment; a past day keeps its own.
+            for assignment in truck.assignments.filter(date__gte=timezone.localdate()):
+                _delete_assignment(assignment=assignment, actor=actor)
     _clean_truck(truck)
     if name is not None:
         truck.location = inventory.update_location(location=truck.location, actor=actor, name=name)
@@ -143,7 +160,7 @@ def _person(user: User) -> str:
 def _assignment_snapshot(assignment: TruckAssignment) -> dict[str, Any]:
     return {
         "truck": assignment.truck.location.name,
-        "driver": assignment.driver.username,
+        "driver": assignment.driver.username if assignment.driver else None,
         "date": assignment.date.isoformat(),
     }
 
@@ -165,11 +182,12 @@ def assign_truck(
     organization: Organization,
     actor: User | None,
     truck: Truck,
-    driver: User,
+    driver: User | None,
     date: date_type,
     replace: bool = False,
 ) -> TruckAssignment:
-    """Say that `driver` takes `truck` on `date` (D-046).
+    """Say that `driver` takes `truck` on `date` (D-046). No driver leaves the truck free that day, also for its
+    usual driver (D-162); a driver may then take it.
 
     One driver per truck and one truck per driver each day: a second claim is refused with a clear message.
     With `replace`, the driver's other truck of that day is swapped for this one (a driver changing their
@@ -179,7 +197,17 @@ def assign_truck(
     errors: dict[str, str] = {}
     if not truck.is_active:
         errors["truck"] = _("Ce camion est archivé.")
-    if not Membership.objects.filter(organization=organization, user=driver, role=Role.DRIVER, is_active=True).exists():
+    elif truck.condition != TruckCondition.OK:
+        errors["truck"] = _("%(truck)s est %(condition)s : il ne se prend pas.") % {
+            "truck": truck.location.name,
+            "condition": str(TruckCondition(truck.condition).label).lower(),
+        }
+    if (
+        driver is not None
+        and not Membership.objects.filter(
+            organization=organization, user=driver, role=Role.DRIVER, is_active=True
+        ).exists()
+    ):
         errors["driver"] = _("Ce compte n'est pas un chauffeur de la société.")
     if errors:
         raise ValidationError(errors)
@@ -187,11 +215,13 @@ def assign_truck(
     # Locking the truck above serializes claims on one truck; the unique constraints back up the driver side.
     day = TruckAssignment.objects.for_organization(organization).filter(date=date).select_related("truck__location")
     on_truck = day.filter(truck=truck).select_related("driver").first()
-    of_driver = day.filter(driver=driver).first()
     shown_date = date.strftime("%d/%m/%Y")
+    if driver is None:
+        return _free_truck(organization, actor, truck=truck, date=date, on_truck=on_truck)
+    of_driver = day.filter(driver=driver).first()
     if on_truck is not None and on_truck.driver_id == driver.pk:
         return on_truck
-    if on_truck is not None:
+    if on_truck is not None and on_truck.driver is not None:
         raise ValidationError(
             {
                 "truck": _("%(truck)s est déjà attribué à %(driver)s le %(date)s.")
@@ -205,6 +235,21 @@ def assign_truck(
                 % {"driver": _person(driver), "truck": of_driver.truck.location.name, "date": shown_date}
             }
         )
+    if on_truck is not None:
+        # The truck was left free that day: the driver takes it (their other truck of the day, if any, is let go).
+        if of_driver is not None:
+            _delete_assignment(assignment=of_driver, actor=actor)
+        on_truck.driver = driver
+        on_truck.save(update_fields=["driver", "updated_at"])
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="truck_assignment.changed",
+            target=on_truck,
+            before={"driver": None},
+            after={"driver": driver.username},
+        )
+        return on_truck
     if of_driver is not None:
         before = of_driver.truck.location.name
         of_driver.truck = truck
@@ -227,6 +272,40 @@ def assign_truck(
         after=_assignment_snapshot(assignment),
     )
     return assignment
+
+
+def _free_truck(
+    organization: Organization,
+    actor: User | None,
+    *,
+    truck: Truck,
+    date: date_type,
+    on_truck: TruckAssignment | None,
+) -> TruckAssignment:
+    """Leave a truck without any driver on a date, whoever its usual driver is."""
+    if on_truck is None:
+        assignment = TruckAssignment.objects.create(organization=organization, truck=truck, driver=None, date=date)
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="truck_assignment.created",
+            target=assignment,
+            after=_assignment_snapshot(assignment),
+        )
+        return assignment
+    if on_truck.driver_id is not None:
+        before = on_truck.driver.username if on_truck.driver else None
+        on_truck.driver = None
+        on_truck.save(update_fields=["driver", "updated_at"])
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="truck_assignment.changed",
+            target=on_truck,
+            before={"driver": before},
+            after={"driver": None},
+        )
+    return on_truck
 
 
 @transaction.atomic
@@ -258,6 +337,8 @@ def open_driver_day(
     existing = DriverDay.objects.for_organization(organization).filter(driver=actor, date=date).first()
     if existing is not None:
         return existing
+    if truck.condition != TruckCondition.OK:
+        raise ValidationError({"truck": _("Ce camion n'est pas disponible : demandez au bureau.")})
     day = DriverDay.objects.create(
         organization=organization,
         truck=truck,

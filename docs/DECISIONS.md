@@ -2411,6 +2411,24 @@ client's record but may be changed on this BL only.
   `confirmSale`, online only: offline confirmation, a quantity changed on the spot and payment from the card are later.
 - The new delivery screen has provisional Arabic translations; native-speaker review remains part of P3-T09.
 
+**D-162 · Client remarks of 2026-10-17: shares in %, a hard price floor, boxes bought or lost, trucks out of service** · accepted · 2026-10-17
+- **Electricity shares.** The owner types each cold room's share in %, all rooms at once; the total must be exactly 100
+  (`PUT /cold-room-shares`, `set_cold_room_shares`). A share is stored as the room's weight, so the split stays
+  proportional and a new room is added by lowering the others. The single-room weight endpoint stays for now.
+- **Price floor.** A quote or sale line is refused when its price after the discount is under the product's minimum
+  price (error on the discount field, or on the price when there is no discount). The daily price board still only
+  warns. Older lines already flagged `below_minimum` keep their flag.
+- **Boxes.** New movement kind `purchase` (boxes bought enter a cold room or a truck; the price is an expense on its own)
+  and `POST /boxes/adjustments` (purchase or write-off with reason, owner or manager).
+- **Trucks.** `Truck.condition` (`ok`, `maintenance`, `breakdown`): not proposed to drivers, refused by `assign_truck` and
+  `open_driver_day`, its coming assignments removed. `TruckAssignment.driver` may be empty: the truck is left free that day,
+  also for its usual driver, and a driver may then take it. Trucks out of service are red in the list and the day panel.
+- **Partnership terms** (owner capital, partner capital, shares) change until the lot is closed, also after sales; a
+  changed partner capital posts a correction. Cancelling is still refused once the lot has sold.
+- **UI.** Every table has cell borders and a shaded header (spreadsheet look); `Table frozen` keeps the header in view
+  while the table scrolls (price board). The sale, quote and counter-sale grids show, under the product, the places holding
+  it and its open partnership (coloured). A transfer goes from a cold room or a truck into a truck, never into itself.
+  The lot page no longer shows the stock tabs. The month closing opens on the current month.
 **D-161 · After a load is validated, the page offers each client's BL and fiche (P2-T13)** · accepted · 2026-10-17
 - The validated load page shows a banner and, on each client card, "Imprimer le bon" (the draft BL, D-160) and "Fiche client"
   (the customer statement PDF of D-156 up to today, which includes the BL's sale once the draft exists). No new endpoint.

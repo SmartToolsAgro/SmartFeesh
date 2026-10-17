@@ -37,7 +37,8 @@ import { subtract, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { pickable } from "../lib/pickable";
-import { choosePlace, type Need, needsOf, totalsOf, usePlacesStock } from "../lib/placeStock";
+import { choosePlace, type Need, needsOf, placesOf, totalsOf, usePlacesStock } from "../lib/placeStock";
+import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import {
   amountsOf,
   asTyped,
@@ -126,6 +127,9 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   const places = (locations.data ?? []).filter((option) => option.sells);
   const byPlace = usePlacesStock(places.map((option) => option.id));
   const totals = useMemo(() => totalsOf(byPlace), [byPlace]);
+  const placeNames = useMemo(() => new Map(places.map((option) => [option.id, option.name])), [places]);
+  const placesOfProduct = useMemo(() => placesOf(byPlace, placeNames), [byPlace, placeNames]);
+  const partnerProducts = usePartnerProducts(session);
   // Where the sale leaves from, as the rows are typed: shown under each product.
   const shipFrom = choosePlace(needsOf(filled(lines)), byPlace);
   const shipFromName = places.find((option) => option.id === shipFrom)?.name;
@@ -334,6 +338,8 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             proposedPrice={proposedPrice}
             stock={places.length > 0 ? totals : undefined}
             origin={origin}
+            places={placesOfProduct}
+            partners={partnerProducts}
             errors={errors}
             discount
             hint={priceHint}

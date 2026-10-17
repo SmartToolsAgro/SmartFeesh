@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import IsDriver, membership_of
 from apps.fleet import selectors, services
-from apps.fleet.models import Truck, TruckAssignment
+from apps.fleet.models import Truck, TruckAssignment, TruckCondition
 
 from .permissions import AssignmentsOfficeOrOwnDriver, OwnTruckOrOffice
 from .serializers import (
@@ -185,10 +185,15 @@ class TruckAssignmentListView(TruckAssignmentView):
         self.refuse_open_day(day, keeping=data["truck"])
         self.refuse_truck_in_use(day, data["truck"])
         driver = data.get("driver")
+        free = data["free"]
+        if free and self.is_driver:
+            raise exceptions.PermissionDenied(_("Seul le bureau libère un camion."))
         if self.is_driver:
             if driver is not None and driver.pk != self.membership.user_id:
                 raise exceptions.PermissionDenied(_("Un chauffeur ne choisit le camion que pour lui-même."))
             driver = self.membership.user
+        elif free:
+            driver = None
         elif driver is None:
             raise exceptions.ValidationError({"driver": _("Choisissez un chauffeur.")})
         try:
@@ -235,11 +240,12 @@ class MyTruckChoicesView(APIView):
         taken = set(
             selectors.assignments_on(organization, timezone.localdate())
             .exclude(driver_id=membership.user_id)
+            .exclude(driver__isnull=True)
             .values_list("truck_id", flat=True)
         )
         trucks = [
             {"id": t.pk, "location": t.location, "plate": t.plate, "taken": t.pk in taken}
-            for t in selectors.trucks_of(organization)
+            for t in selectors.trucks_of(organization).filter(condition=TruckCondition.OK)
         ]
         return Response(TruckChoiceSerializer(trucks, many=True).data)
 

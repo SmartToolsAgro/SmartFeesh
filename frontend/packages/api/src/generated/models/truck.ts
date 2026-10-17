@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ConditionEnum } from './conditionEnum';
 import type { DriverRef } from './driverRef';
 
 export interface Truck {
@@ -13,5 +14,6 @@ export interface Truck {
   readonly driver: DriverRef | null;
   readonly location_id: number;
   readonly is_active: boolean;
+  readonly condition: ConditionEnum;
   readonly updated_at: string;
 }

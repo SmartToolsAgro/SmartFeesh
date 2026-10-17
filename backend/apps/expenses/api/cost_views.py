@@ -23,6 +23,7 @@ from apps.inventory import selectors as inventory
 from .cost_serializers import (
     ColdRoomMonthFilterSerializer,
     ColdRoomMonthSerializer,
+    ColdRoomSharesWriteSerializer,
     ColdRoomWeightSerializer,
     ColdRoomWeightWriteSerializer,
     ElectricityBillSerializer,
@@ -74,6 +75,26 @@ class ColdRoomWeightListView(OfficeView):
     def get(self, request: Request) -> Response:
         """The active cold rooms with their weight in the split of the electricity bill (equal, 1, unless
         the owner set another) and the share it gives."""
+        return Response(ColdRoomWeightSerializer(_weight_rows(self.organization), many=True).data)
+
+
+class ColdRoomSharesView(OfficeView):
+    @extend_schema(
+        operation_id="updateColdRoomShares",
+        request=ColdRoomSharesWriteSerializer,
+        responses=ColdRoomWeightSerializer(many=True),
+    )
+    def put(self, request: Request) -> Response:
+        """Set every active cold room's share of the electricity bill in %, adding up to 100 (owner only):
+        used by the bills approved from now on."""
+        _require_owner(self.membership)
+        serializer = ColdRoomSharesWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rows = serializer.validated_data["shares"]
+        shares = {row["location_id"]: row["percent"] for row in rows}
+        if len(shares) != len(rows):
+            raise DjangoValidationError({"shares": _("Une chambre froide n'apparaît qu'une fois.")})
+        services.set_cold_room_shares(organization=self.organization, actor=self.membership.user, shares=shares)
         return Response(ColdRoomWeightSerializer(_weight_rows(self.organization), many=True).data)
 
 

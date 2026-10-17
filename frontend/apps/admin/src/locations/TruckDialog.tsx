@@ -1,4 +1,12 @@
-import { archiveTruck, createTruck, restoreTruck, type Truck, updateTruck, useListMembers } from "@frutti/api";
+import {
+  archiveTruck,
+  type ConditionEnum,
+  createTruck,
+  restoreTruck,
+  type Truck,
+  updateTruck,
+  useListMembers,
+} from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -35,13 +43,19 @@ export function TruckDialog({ truck, onDone }: { truck?: Truck; onDone: () => vo
   const [name, setName] = useState(truck?.name ?? "");
   const [plate, setPlate] = useState(truck?.plate ?? "");
   const [driver, setDriver] = useState(truck?.driver ? String(truck.driver.id) : NO_DRIVER);
+  const [condition, setCondition] = useState<ConditionEnum>(truck?.condition ?? "ok");
   const [errors, setErrors] = useState<Errors>({});
 
   const drivers = (members.data ?? []).filter((member) => member.role === "driver" && member.is_active);
 
   const save = useMutation({
     mutationFn: () => {
-      const payload = { name: name.trim(), plate: plate.trim(), driver: driver === NO_DRIVER ? null : Number(driver) };
+      const payload = {
+        name: name.trim(),
+        plate: plate.trim(),
+        driver: driver === NO_DRIVER ? null : Number(driver),
+        condition,
+      };
       return truck ? updateTruck(truck.id, payload) : createTruck(payload);
     },
     onSuccess: async () => {
@@ -132,6 +146,21 @@ export function TruckDialog({ truck, onDone }: { truck?: Truck; onDone: () => vo
             </SelectContent>
           </Select>
           <p className="text-[0.8rem] text-ink-2">{t("admin.locations.form.driverHint")}</p>
+        </Field>
+        <Field label={t("admin.locations.form.condition")} htmlFor={`${formId}-condition`}>
+          <Select value={condition} onValueChange={(value) => setCondition(value as ConditionEnum)}>
+            <SelectTrigger id={`${formId}-condition`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(["ok", "maintenance", "breakdown"] as const).map((value) => (
+                <SelectItem key={value} value={value}>
+                  {t(`admin.locations.conditions.${value}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[0.8rem] text-ink-2">{t("admin.locations.form.conditionHint")}</p>
         </Field>
       </form>
 

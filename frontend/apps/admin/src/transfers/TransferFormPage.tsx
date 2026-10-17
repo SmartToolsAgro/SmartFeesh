@@ -291,12 +291,21 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
       </Select>
     </Field>
   );
-  const placeOptions = places
-    .filter((place) => place.is_active || String(place.id) === from || String(place.id) === to)
-    .map((place) => ({
-      value: String(place.id),
-      label: place.is_active ? place.name : t("admin.transfers.form.archivedPlace", { name: place.name }),
-    }));
+  // Goods leave a cold room or a truck and go into a truck; a place never goes into itself (a truck picked on one
+  // side is missing from the other).
+  const placeOption = (place: StockLocation) => ({
+    value: String(place.id),
+    label: place.is_active ? place.name : t("admin.transfers.form.archivedPlace", { name: place.name }),
+  });
+  const usable = (place: StockLocation, chosen: string) => place.is_active || String(place.id) === chosen;
+  const fromOptions = places
+    .filter((place) => (place.kind === "cold_room" || place.kind === "truck") && usable(place, from))
+    .filter((place) => String(place.id) !== to)
+    .map(placeOption);
+  const toOptions = places
+    .filter((place) => place.kind === "truck" && usable(place, to))
+    .filter((place) => String(place.id) !== from)
+    .map(placeOption);
   const back = draft ? `/stock/transferts/${draft.id}` : "/stock/transferts";
 
   return (
@@ -313,8 +322,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
 
       <form id={formId} onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <Card className="grid grid-cols-3 gap-4 max-[800px]:grid-cols-1">
-          {select("from_location", t("admin.transfers.form.from"), from, setFrom, placeOptions)}
-          {select("to_location", t("admin.transfers.form.to"), to, setTo, placeOptions)}
+          {select("from_location", t("admin.transfers.form.from"), from, setFrom, fromOptions)}
+          {select("to_location", t("admin.transfers.form.to"), to, setTo, toOptions)}
           <Field label={t("admin.transfers.form.date")} htmlFor={id("transferred_on")} error={errors.transferred_on}>
             <Input
               id={id("transferred_on")}

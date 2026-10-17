@@ -50,3 +50,12 @@ class BoxMovementFilterSerializer(serializers.Serializer[Any]):
     # A holder's id, as the balances list gives it: its movements on either side.
     holder = serializers.IntegerField(required=False, min_value=1)
     box_type = serializers.ChoiceField(choices=BoxType.choices, required=False)
+
+
+class BoxAdjustmentWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    box_type = serializers.ChoiceField(choices=BoxType.choices)
+    kind = serializers.ChoiceField(choices=[BoxMovementKind.PURCHASE.value, BoxMovementKind.WRITE_OFF.value])
+    count = serializers.IntegerField(min_value=1, max_value=100000)
+    # Required for a loss or a breakage; a free note for a purchase.
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=300)

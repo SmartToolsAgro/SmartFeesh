@@ -36,6 +36,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useOutletContext } from "react-router";
 
+import { currentMonth } from "../hr/shared";
 import { fieldErrors } from "../lib/errors";
 import { canReadResults, canWriteResults } from "../partnerships/shared";
 import { monthKey, monthLabel, monthRange } from "./month";
@@ -464,8 +465,13 @@ export function MonthClosingPage() {
     );
   }
   const rows: readonly MonthRow[] = months.data ?? [];
-  // The latest month that is over, unless the person chose another.
-  const selected = chosen ?? monthKey((rows.find((row) => row.is_over) ?? rows[0])?.month ?? "");
+  // This month, unless the person chose another (the latest finished month when this one is not listed).
+  const thisMonth = monthKey(currentMonth());
+  const selected =
+    chosen ??
+    (rows.some((row) => monthKey(row.month) === thisMonth)
+      ? thisMonth
+      : monthKey((rows.find((row) => row.is_over) ?? rows[0])?.month ?? ""));
   return (
     <>
       <PageHeader eyebrow={t("admin.monthClosing.eyebrow")} title={t("admin.monthClosing.title")} />

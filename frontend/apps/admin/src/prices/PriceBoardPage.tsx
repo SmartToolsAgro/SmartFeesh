@@ -130,7 +130,7 @@ export function PriceBoardPage() {
         </EmptyState>
       ) : (
         <Card className="p-2">
-          <Table>
+          <Table frozen>
             <thead>
               <tr>
                 <Th>{t("admin.priceBoard.columns.product")}</Th>

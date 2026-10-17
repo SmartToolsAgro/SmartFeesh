@@ -104,13 +104,16 @@ def test_changing_the_capital_posts_a_correction_never_an_edit(organization, act
         CapitalEntry.objects.filter(partnership=created).delete()
 
 
-def test_terms_are_fixed_once_the_lot_sold(organization, actor, cold_room, partner):
+def test_terms_change_after_a_sale_until_the_lot_is_closed_but_the_partnership_cannot_be_cancelled(
+    organization, actor, cold_room, partner
+):
     batch = receive(organization, cold_room, "10.000")
     created = partnership(organization, actor, batch, partner)
     sell(organization, actor, cold_room, batch, "1.000", "30.000")
 
-    with pytest.raises(ValidationError):
-        services.update_partnership(partnership=created, actor=actor, profit_rate="50")
+    changed = services.update_partnership(partnership=created, actor=actor, profit_rate="50")
+
+    assert changed.profit_rate == D("50")
     with pytest.raises(ValidationError):
         services.cancel_partnership(partnership=created, actor=actor, reason="Erreur")
 
@@ -266,8 +269,6 @@ def test_filling_the_terms_clears_the_pending_flag_even_after_a_sale(organizatio
 
     assert (filled.terms_pending, filled.partner_capital) == (False, D("500.000"))
     assert entries(filled) == [(CapitalEntryKind.CONTRIBUTION, D("500.000"))]
-    with pytest.raises(ValidationError):  # fixed now, as any partnership once the lot sold
-        services.update_partnership(partnership=filled, actor=actor, profit_rate="50")
 
 
 def test_a_lot_whose_partnership_terms_are_pending_cannot_close(organization, actor, cold_room, partner):

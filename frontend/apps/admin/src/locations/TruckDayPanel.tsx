@@ -12,6 +12,7 @@ import {
   Card,
   Field,
   Input,
+  Pill,
   Select,
   SelectContent,
   SelectItem,
@@ -27,8 +28,10 @@ import { useId, useState } from "react";
 
 import { fieldErrors } from "../lib/errors";
 
-// Radix Select cannot hold an empty value: this one stands for "nobody assigned".
+// Radix Select cannot hold an empty value: this one stands for "nobody assigned" (the usual driver, if any, drives it).
 const NOBODY = "none";
+// The truck is left free that day, even for its usual driver.
+const FREE = "free";
 
 /** Today's date in the browser, as the `YYYY-MM-DD` the date input and the API use. */
 function todayIso(): string {
@@ -60,24 +63,43 @@ export function TruckDayPanel({ canEdit }: { canEdit: boolean }) {
   const drivers = (members.data ?? []).filter((member) => member.role === "driver" && member.is_active);
   const rows = assignments.data ?? [];
   const ofTruck = new Map<number, TruckAssignment>(rows.map((row) => [row.truck_id, row]));
-  const truckOfDriver = new Map<number, string>(rows.map((row) => [row.driver.id, row.truck_name]));
+  const truckOfDriver = new Map<number, string>(
+    rows.flatMap((row) => (row.driver ? [[row.driver.id, row.truck_name] as [number, string]] : [])),
+  );
 
   const change = useMutation({
     mutationFn: async ({ truck, driver }: { truck: Truck; driver: string }) => {
       const current = ofTruck.get(truck.id);
+      if (driver === FREE) {
+        await assignTruck({ truck: truck.id, free: true, date });
+        return;
+      }
       if (current) await unassignTruck(current.id);
       if (driver === NOBODY) return;
       try {
         await assignTruck({ truck: truck.id, driver: Number(driver), date });
       } catch (error) {
         // The truck must not end up without its driver because the new choice was refused.
-        if (current) await assignTruck({ truck: truck.id, driver: current.driver.id, date });
+        if (current)
+          await assignTruck({
+            truck: truck.id,
+            ...(current.driver ? { driver: current.driver.id } : { free: true }),
+            date,
+          });
         throw error;
       }
     },
     onSuccess: async (_unused, { driver }) => {
       setFailure(null);
-      toast.success(t(driver === NOBODY ? "admin.truckDay.removed" : "admin.truckDay.assigned"));
+      toast.success(
+        t(
+          driver === NOBODY
+            ? "admin.truckDay.removed"
+            : driver === FREE
+              ? "admin.truckDay.freed"
+              : "admin.truckDay.assigned",
+        ),
+      );
       await refreshAssignments(queryClient);
     },
     onError: async (error) => {
@@ -123,17 +145,23 @@ export function TruckDayPanel({ canEdit }: { canEdit: boolean }) {
             <tbody>
               {list.map((truck) => {
                 const assignment = ofTruck.get(truck.id);
-                const value = assignment ? String(assignment.driver.id) : NOBODY;
+                const value = assignment ? (assignment.driver ? String(assignment.driver.id) : FREE) : NOBODY;
+                const unavailable = truck.condition !== "ok";
                 return (
-                  <tr key={truck.id}>
+                  <tr key={truck.id} className={unavailable ? "bg-bad-soft" : undefined}>
                     <Td>
                       <span className="font-semibold">{truck.name}</span>{" "}
                       <span className="num text-[0.82rem] text-ink-2">{truck.plate}</span>
+                      {unavailable && (
+                        <Pill tone="bad" className="ms-2">
+                          {t(`admin.locations.conditions.${truck.condition}`)}
+                        </Pill>
+                      )}
                     </Td>
                     <Td>
                       <Select
                         value={value}
-                        disabled={!canEdit || change.isPending}
+                        disabled={!canEdit || change.isPending || unavailable}
                         onValueChange={(driver) => change.mutate({ truck, driver })}
                       >
                         <SelectTrigger aria-label={t("admin.truckDay.driverOf", { truck: truck.name })}>
@@ -145,10 +173,11 @@ export function TruckDayPanel({ canEdit }: { canEdit: boolean }) {
                               ? t("admin.truckDay.usual", { name: truck.driver.name })
                               : t("admin.truckDay.nobody")}
                           </SelectItem>
+                          <SelectItem value={FREE}>{t("admin.truckDay.free")}</SelectItem>
                           {drivers.map(({ user }) => {
                             const fullName = `${user.first_name} ${user.last_name}`.trim() || user.username;
                             const elsewhere = truckOfDriver.get(user.id);
-                            const onThisTruck = assignment?.driver.id === user.id;
+                            const onThisTruck = assignment?.driver?.id === user.id;
                             return (
                               <SelectItem key={user.id} value={String(user.id)}>
                                 {elsewhere && !onThisTruck

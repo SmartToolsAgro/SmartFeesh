@@ -2,10 +2,12 @@ import type { ComponentProps } from "react";
 
 import { cn } from "../lib/cn";
 
-/** Wraps the table so a wide one scrolls inside its card instead of stretching the page. */
-export function Table({ className, ...props }: ComponentProps<"table">) {
+/** Wraps the table so a wide one scrolls inside its card instead of stretching the page. Every table looks like
+ * a spreadsheet (a border around each cell, a shaded header row). `frozen` keeps the header row in view while a
+ * long table scrolls inside its own frame. */
+export function Table({ className, frozen = false, ...props }: ComponentProps<"table"> & { frozen?: boolean }) {
   return (
-    <div className="overflow-x-auto">
+    <div className={cn("overflow-x-auto", frozen && "max-h-[70vh] overflow-y-auto")}>
       <table className={cn("w-full border-collapse text-[0.9rem]", className)} {...props} />
     </div>
   );
@@ -15,7 +17,7 @@ export function Th({ className, numeric = false, ...props }: ComponentProps<"th"
   return (
     <th
       className={cn(
-        "border-b border-line px-2.5 py-2 text-[0.72rem] font-semibold tracking-[0.07em] text-ink-2 uppercase",
+        "sticky top-0 z-[1] border border-line bg-surface-2 px-2.5 py-2 text-[0.72rem] font-semibold tracking-[0.07em] text-ink-2 uppercase",
         numeric ? "text-end" : "text-start",
         className,
       )}
@@ -28,11 +30,7 @@ export function Th({ className, numeric = false, ...props }: ComponentProps<"th"
 export function Td({ className, numeric = false, ...props }: ComponentProps<"td"> & { numeric?: boolean }) {
   return (
     <td
-      className={cn(
-        "border-b border-line px-2.5 py-[11px] align-middle [tr:last-child>&]:border-b-0",
-        numeric && "num text-end",
-        className,
-      )}
+      className={cn("border border-line px-2.5 py-[9px] align-middle", numeric && "num text-end", className)}
       {...props}
     />
   );

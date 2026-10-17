@@ -1,18 +1,26 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
+from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.boxes import selectors
+from apps.boxes import selectors, services
 from apps.boxes.models import BoxHolder, BoxMovement
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
+from apps.inventory import selectors as inventory
 
-from .serializers import BoxBalanceSerializer, BoxMovementFilterSerializer, BoxMovementSerializer
+from .serializers import (
+    BoxAdjustmentWriteSerializer,
+    BoxBalanceSerializer,
+    BoxMovementFilterSerializer,
+    BoxMovementSerializer,
+)
 
 
 # Office reads only (owners, managers, accountant): drivers get 403 (D-023). Rows come from the user's
@@ -59,3 +67,31 @@ class BoxMovementListView(BoxOfficeView, ListAPIView[BoxMovement]):
         """The box history, newest first, paginated (`limit`, `offset`). Filter by one holder (either side
         of the movement) and by box type."""
         return super().get(request, *args, **kwargs)
+
+
+class BoxAdjustmentView(BoxOfficeView):
+    @extend_schema(
+        operation_id="adjustBoxes",
+        request=BoxAdjustmentWriteSerializer,
+        responses={201: BoxMovementSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Boxes bought (they come into a cold room or a truck) or lost or broken (they leave it, with the
+        reason). Owners and managers; a mistake is corrected by a new adjustment."""
+        serializer = BoxAdjustmentWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            location = inventory.location_of(self.organization, data["location"])
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        movement = services.adjust_boxes(
+            organization=self.organization,
+            actor=self.membership.user,
+            location=location,
+            kind=data["kind"],
+            box_type=data["box_type"],
+            count=data["count"],
+            reason=data["reason"],
+        )
+        return Response(BoxMovementSerializer(movement).data, status=status.HTTP_201_CREATED)
