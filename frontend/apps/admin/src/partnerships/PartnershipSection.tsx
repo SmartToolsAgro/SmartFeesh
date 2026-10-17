@@ -37,7 +37,7 @@ export function PartnershipSection({
   const detail = useGetPartnership(summary?.id ?? 0, { query: { enabled: summary !== undefined } });
   const partnership = summary ? detail.data : undefined;
   const canWrite = canWriteResults(session);
-  // Terms change until the lot is closed, even after sales (D-162).
+  // Terms change until the lot is closed, even after sales (D-163).
   const editable = partnership !== undefined && partnership.status === "open";
 
   return (

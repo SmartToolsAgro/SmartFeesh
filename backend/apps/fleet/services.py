@@ -93,7 +93,7 @@ def update_truck(
     condition: str | None = None,
 ) -> Truck:
     """Rename a truck, change its plate, give it to another driver (`driver=None` takes it back), or put it in
-    maintenance or break it down (a driver cannot take it then, D-162)."""
+    maintenance or break it down (a driver cannot take it then, D-163)."""
     truck = Truck.objects.select_for_update().select_related("location").get(pk=truck.pk)
     before = _snapshot(truck)
     if plate is not None:
@@ -188,7 +188,7 @@ def assign_truck(
     replace: bool = False,
 ) -> TruckAssignment:
     """Say that `driver` takes `truck` on `date` (D-046). No driver leaves the truck free that day, also for its
-    usual driver (D-162); a driver may then take it.
+    usual driver (D-163); a driver may then take it.
 
     One driver per truck and one truck per driver each day: a second claim is refused with a clear message.
     With `replace`, the driver's other truck of that day is swapped for this one (a driver changing their

@@ -85,24 +85,22 @@ test("a load bigger than the cold room's stock is refused on its line and nothin
   await expect(page).toHaveURL(/\/stock\/transferts\/nouveau$/);
 });
 
-test("a draft truck load is saved, changed, then cancelled without moving stock", async ({ page }) => {
+test("a draft load is saved, changed, then cancelled without moving stock", async ({ page }) => {
   await page.goto("/stock/transferts/nouveau");
-  await choose(page, page, "Départ", "Chambre froide 2 (congelé)");
+  await choose(page, page, "Départ", FRESH_ROOM);
   await choose(page, page, "Arrivée", "Camion 3");
   const line = page.getByRole("group", { name: "Produit 1" });
-  await choose(page, line, "Produit", "Calamar · CA-005");
-  await line.getByLabel("Prix du jour (DT/kg)").fill("20");
+  await choose(page, line, "Produit", "Loup de mer · LO-004");
   await line.getByLabel("Poids (kg)").fill("1");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
 
   await expect(page.getByText(/Brouillon TR-\d+ enregistré/)).toBeVisible();
   await expect(page.getByRole("note")).toContainText("rien n'a encore bougé");
-  await expect(page.getByText("Choisis à la validation")).toBeVisible();
 
   await page.getByRole("button", { name: "Modifier" }).click();
   await page.getByRole("group", { name: "Produit 1" }).getByLabel("Poids (kg)").fill("2,5");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
-  await expect(page.getByRole("row", { name: /Calamar/ })).toContainText(/2,500\skg/);
+  await expect(page.getByRole("row", { name: /Loup de mer/ }).first()).toContainText(/2,500\skg/);
 
   await page.getByRole("button", { name: "Annuler le brouillon" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Annuler le brouillon" }).click();

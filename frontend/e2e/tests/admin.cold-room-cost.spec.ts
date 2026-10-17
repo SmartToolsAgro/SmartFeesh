@@ -6,7 +6,7 @@ import { OWNER_STATE } from "./owner";
 // -20 degree room weighing 2; rent, accountant and a 12-month insurance generated for this month.
 test.use({ storageState: OWNER_STATE });
 
-test("cold-room cost shows the approved bill of last month, the room weights and an estimated month", async ({
+test("cold-room cost shows the approved bill of last month, the room shares and an estimated month", async ({
   page,
 }) => {
   test.slow();
@@ -21,7 +21,7 @@ test("cold-room cost shows the approved bill of last month, the room weights and
   await expect(rooms.getByRole("row", { name: /Chambre froide 2 \(congelé\)/ })).toContainText("Réel");
 
   const shares = page.getByRole("region", { name: "Part de chaque chambre" });
-  await expect(shares.getByLabel("Part de Chambre froide 2 (congelé) (%)")).toBeVisible();
+  await expect(shares.getByLabel("Part de Chambre froide 2 (congelé) (%)")).toHaveValue(/^\d+,\d+$/);
 
   // The month after is estimated at last month's daily rate.
   await page.getByRole("button", { name: "Mois suivant" }).click();
