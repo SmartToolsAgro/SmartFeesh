@@ -2659,7 +2659,20 @@ export const fr = {
       columns: {
         holder: "Nom",
       },
-      supplierNote: "Chiffres = caisses dues au fournisseur (il nous les a prêtées).",
+      kindNotes: {
+        location: "Chiffres = caisses présentes ici, à nous ou prêtées par un fournisseur.",
+        customer: "Chiffres = caisses laissées chez le client, à récupérer.",
+        supplier: "Chiffres = caisses prêtées par le fournisseur, à lui rendre.",
+      },
+      summary: {
+        title: "Bilan des caisses",
+        hint: "Les caisses se ressemblent : on ne sait pas laquelle est à qui, on les compte. À nous = en main + chez les clients − à rendre aux fournisseurs.",
+        boxType: "Type de caisse",
+        inHand: "En main (froid et camions)",
+        atCustomers: "Chez les clients (à récupérer)",
+        owedToSuppliers: "Aux fournisseurs (à rendre)",
+        own: "À nous",
+      },
       noHolders: "Aucune caisse pour le moment.",
       unnamed: "Sans nom",
       outside: "Hors stock",

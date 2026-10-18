@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import {
   boxCountsFromInputs,
   boxInputsFromCounts,
+  boxSummary,
   customerBoxCounts,
   formatBoxCount,
   holdersFromBalances,
@@ -54,6 +55,44 @@ describe("holdersFromBalances", () => {
     ]);
 
     expect(holdersOfKind(holders, "supplier").map((holder) => holder.id)).toEqual([2]);
+  });
+});
+
+describe("boxSummary", () => {
+  test("own boxes = in hand + at clients − owed to suppliers, per box type", () => {
+    // The owner's screen of 2026-10-18: 50 small and 50 big of the company's own.
+    const holders = holdersFromBalances([
+      row(1, "location", "Chambre froide 1", "small", 39),
+      row(1, "location", "Chambre froide 1", "big", 55),
+      row(2, "location", "ISUZI 2", "big", 15),
+      row(3, "customer", "Marée du Sud", "small", 10),
+      row(3, "customer", "Marée du Sud", "big", 12),
+      row(4, "customer", "Poissonnerie El Bahr", "big", 10),
+      row(5, "customer", "Restaurant Le Corail", "small", 2),
+      row(5, "customer", "Restaurant Le Corail", "big", 18),
+      row(6, "supplier", "Mareyeur Port de Sfax", "small", 1),
+      row(6, "supplier", "Mareyeur Port de Sfax", "big", 10),
+      row(7, "supplier", "Surgelés du Sahel", "big", 50),
+    ]);
+
+    expect(boxSummary(holders)).toEqual({
+      small: { inHand: 39, atCustomers: 12, owedToSuppliers: 1, own: 50 },
+      big: { inHand: 70, atCustomers: 40, owedToSuppliers: 60, own: 50 },
+    });
+  });
+
+  test("no holders: every figure is 0", () => {
+    const empty = { inHand: 0, atCustomers: 0, owedToSuppliers: 0, own: 0 };
+    expect(boxSummary([])).toEqual({ small: empty, big: empty });
+  });
+
+  test("own goes below 0 when more boxes are owed than we have", () => {
+    const holders = holdersFromBalances([
+      row(1, "location", "Froid", "big", 3),
+      row(2, "supplier", "Fournisseur", "big", 5),
+    ]);
+
+    expect(boxSummary(holders).big.own).toBe(-2);
   });
 });
 

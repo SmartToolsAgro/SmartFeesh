@@ -1,7 +1,7 @@
 import { type BoxMovement, type BoxTypeEnum, useListBoxBalances, useListBoxMovements } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, Dialog, EmptyState, Icon, Pill, PageHeader, Table, Td, Th } from "@frutti/ui";
+import { Button, Card, CardTitle, Dialog, EmptyState, Icon, Pill, PageHeader, Table, Td, Th, cn } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router";
@@ -15,6 +15,7 @@ import {
   type HolderCounts,
   type HolderKind,
   HOLDER_KINDS,
+  boxSummary,
   formatBoxCount,
   holdersFromBalances,
   holdersOfKind,
@@ -34,6 +35,7 @@ const KIND_TONES = {
   write_off: "bad",
   purchase: "good",
 } as const;
+const SUMMARY_COLUMNS = ["inHand", "atCustomers", "owedToSuppliers"] as const;
 
 /** The returnable boxes (caisses): what each holder has now, and the history of moves (P1-T14). Read only. */
 export function BoxesPage() {
@@ -92,15 +94,58 @@ export function BoxesPage() {
       ) : balances.isPending ? (
         <p className="text-ink-2">{t("common.loading")}</p>
       ) : (
-        <div className="grid items-start gap-4 min-[960px]:grid-cols-3">
-          {HOLDER_KINDS.map((kind) => (
-            <BalanceTable key={kind} kind={kind} holders={holdersOfKind(holders, kind)} />
-          ))}
-        </div>
+        <>
+          {holders.length > 0 && <SummaryCard holders={holders} />}
+          <div className="grid items-start gap-4 min-[960px]:grid-cols-3">
+            {HOLDER_KINDS.map((kind) => (
+              <BalanceTable key={kind} kind={kind} holders={holdersOfKind(holders, kind)} />
+            ))}
+          </div>
+        </>
       )}
 
       <BoxHistory holders={holders} />
     </>
+  );
+}
+
+/** Whose boxes are whose, from the three lists below: ours, to collect from clients, to give back to suppliers (D-187). */
+function SummaryCard({ holders }: { holders: HolderCounts[] }) {
+  const { t } = useTranslation();
+  const summary = boxSummary(holders);
+  return (
+    <Card className="min-w-0" data-testid="boxes-summary">
+      <CardTitle>{t("admin.boxes.summary.title")}</CardTitle>
+      <p className="mb-3 text-[0.85rem] text-ink-2">{t("admin.boxes.summary.hint")}</p>
+      <Table>
+        <thead>
+          <tr>
+            <Th>{t("admin.boxes.summary.boxType")}</Th>
+            {SUMMARY_COLUMNS.map((column) => (
+              <Th key={column} numeric>
+                {t(`admin.boxes.summary.${column}`)}
+              </Th>
+            ))}
+            <Th numeric>{t("admin.boxes.summary.own")}</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {BOX_TYPES.map((boxType) => (
+            <tr key={boxType}>
+              <Td className="font-semibold">{t(`admin.boxes.types.${boxType}`)}</Td>
+              {SUMMARY_COLUMNS.map((column) => (
+                <Td key={column} numeric>
+                  {formatBoxCount(summary[boxType][column])}
+                </Td>
+              ))}
+              <Td numeric className={cn("font-bold", summary[boxType].own < 0 && "text-bad")}>
+                {formatBoxCount(summary[boxType].own)}
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </Card>
   );
 }
 
@@ -109,7 +154,7 @@ function BalanceTable({ kind, holders }: { kind: HolderKind; holders: HolderCoun
   return (
     <Card className="min-w-0">
       <CardTitle>{t(`admin.boxes.kinds.${kind}`)}</CardTitle>
-      {kind === "supplier" && <p className="mb-3 text-[0.85rem] text-ink-2">{t("admin.boxes.supplierNote")}</p>}
+      <p className="mb-3 text-[0.85rem] text-ink-2">{t(`admin.boxes.kindNotes.${kind}`)}</p>
       {holders.length === 0 ? (
         <p className="text-ink-2">{t("admin.boxes.noHolders")}</p>
       ) : (

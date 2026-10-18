@@ -22,6 +22,21 @@ _Last updated: 2026-10-18 (public site: phone set in the office app, domain www.
   so the stock table fits without a side scroll bar. Check on staging.
 - **D-183 (on main, #194):** in "Nouvelle réception" the product cell is an empty box: typing a code,
   name, Arabic name or category lists the matching products, as in a quote or a sale. Check on staging.
+_Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are whose, D-187)_
+
+## Where we are
+
+- **D-187 (branch box-summary):** Stock › Caisses opens with a "Bilan des caisses": per box type, in hand, at clients
+  (to collect), owed to suppliers (to give back) and ours; each list has a one-line note. Awaits CI.
+- **D-184 (branch sale-empty-truck):** the driver's "Vente" tab shows only "Le camion est vide" when nothing is left
+  on the truck, no client list. Awaits CI, then check on staging with a driver whose truck is empty.
+- **D-185 (branch day-figures-load-bl):** a driver's day (Suivi des chauffeurs, closing) now counts the load BLs
+  delivered (sales, cash at the door, kg sold); delivering sets `sold_at` to the delivery moment. Awaits CI.
+- **D-182 (branch purchase-cash-split):** cash given at the port beyond the purchase money is split into "payé avec
+  l'argent des ventes" and "avancé de sa poche", never both; old sent days are corrected by migration. Awaits CI.
+- **Branch wide-closing-dialog:** the closing window of Journées des chauffeurs › Clôtures is 1 100 px wide, so the stock table fits without a side scroll bar. Awaits CI, then check on staging.
+- **D-183 (branch receipt-product-search):** in "Nouvelle réception" the product cell is an empty box: typing a code,
+  name, Arabic name or category lists the matching products, as in a quote or a sale. Awaits CI, then check on staging.
 - **D-181 (branch field-purchase-paid-limit):** a port purchase whose sums given exceed its amount is refused (server,
   phone and office form); a lot counted lighter at the office still turns the extra into an advance. Awaits CI.
 - **D-180 (on main):** the "Parcours" map and the phone's GPS tracking are switched off (flags, code kept). Check on staging.
@@ -60,6 +75,9 @@ _Last updated: 2026-10-18 (public site: phone set in the office app, domain www.
    the logo, the product photos, the phone in the header and footer, send an order with a wrong then a right phone, see the bell and "Demandes du site". Then add
    the site to the uptime watch. Ask the owner to read the page's texts (D-186, provisional).
 0. D-183: on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
+0. D-187: merge after green CI; on staging open Stock › Caisses: with the demo data, "À nous" shows 50 small and
+   50 big (the opening stock), and "Aux fournisseurs (à rendre)" equals the Fournisseurs list added up.
+0. D-183: merge after green CI; on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
    "Dorade royale" with Enter: the cursor moves to the next weight and the last cost appears.
 0. D-181: merge after green CI; on staging, on the phone type more cash than the total (the "Envoyer" button stays off
    with a red line), and on the office check page lower a price below what was given (error on the last payment).

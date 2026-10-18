@@ -162,3 +162,5 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
       and 50 big boxes in `seed_dev` (D-135).
 - [ ] Open: opening balance for boxes already at a client or owed to a supplier; a screen or command to type an
       opening stock on a real database (D-135).
+- [x] "Bilan des caisses" on the Caisses page: in hand, at clients (to collect), owed to suppliers (to give back),
+      and the company's own boxes; a one-line note on each of the three lists (D-187).
