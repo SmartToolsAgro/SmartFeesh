@@ -219,13 +219,14 @@ function DayDialog({ id }: { id: number }) {
               {Number(d.purchases_from_sales) > 0 && (
                 <MoneyLine label={t(`${k}.purchases`)} value={`− ${formatMoney(d.purchases_from_sales)}`} />
               )}
-              {Number(d.owed_to_driver) > 0 && (
-                <MoneyLine label={t(`${k}.owed`)} value={`+ ${formatMoney(d.owed_to_driver)}`} />
-              )}
               {Number(d.handed_over) > 0 && (
                 <MoneyLine label={t(`${k}.handedOver`)} value={`− ${formatMoney(d.handed_over)}`} />
               )}
               <MoneyLine strong label={t(`${k}.expected`)} value={formatMoney(d.expected_cash)} />
+              {/* Paid out of pocket at the port: owed by the office, not in the cash the driver holds (D-182). */}
+              {Number(d.owed_to_driver) > 0 && (
+                <MoneyLine label={t(`${k}.owed`)} value={formatMoney(d.owed_to_driver)} />
+              )}
               {d.closing && (
                 <>
                   <MoneyLine label={t(`${k}.counted`)} value={formatMoney(d.closing.counted_cash)} />
