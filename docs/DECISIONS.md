@@ -2602,7 +2602,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **From now on:** any new screen that records money (driver or admin) uses `ConfirmButton`. The admin app's existing
   money forms are not yet converted.
 
-**D-183 · A load's BL counts in the day of the driver who delivered it, at the moment of the delivery** · accepted · 2026-10-17
+**D-185 · A load's BL counts in the day of the driver who delivered it, at the moment of the delivery** · accepted · 2026-10-17
 
 - **Bug (owner's screenshot, 2026-10-17):** "Suivi des chauffeurs" showed 4 / 4 deliveries done but 0 DT of sales and
   0 DT in hand. The day's figures took only sales `created_by` the driver, and a load's BL is made by the office.

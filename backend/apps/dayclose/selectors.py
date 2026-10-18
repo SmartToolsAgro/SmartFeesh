@@ -46,7 +46,7 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
     def inside(moment: dt.datetime) -> bool:
         return start <= moment < end
 
-    # The BL of a truck load is made by the office and delivered by the driver (D-178, D-183): it is the day of
+    # The BL of a truck load is made by the office and delivered by the driver (D-178, D-185): it is the day of
     # the driver who delivered it, or of the truck's driver when the office marked it delivered.
     other_drivers = fleet.drivers_on_truck(organization, location_id=location_id, on=day) - {driver_day.driver_id}
 
