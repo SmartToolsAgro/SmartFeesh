@@ -2659,3 +2659,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   or loss waiting on the phone (`truckIsEmpty`), it shows only "Le camion est vide · Il n'y a plus rien à vendre dans
   ce camion." Phone screen only; the server already refuses a sale beyond the stock.
 - Without an answer about the stock (offline and never loaded), the client list still shows, so a sale is not blocked.
+
+**D-187 · The Caisses page says whose boxes are whose ("Bilan des caisses")** · accepted · 2026-10-18
+
+- **Owner question (2026-10-18):** "how can I know which boxes belong to us, to the supplier, to the client: what we
+  own and what we should return". The three lists showed where boxes are, but not whose they are.
+- Boxes are alike and are not tracked one by one (D-124), so ownership is a count: **à nous = en main (froid et
+  camions) + chez les clients − à rendre aux fournisseurs**. Only the opening stock, a purchase and a write-off change
+  it; a receipt or a return moves a location and a supplier by the same count, a load, a delivery or a pickup moves
+  boxes between our places and clients.
+- A "Bilan des caisses" card above the three lists, one row per box type: in hand, at clients (to collect), owed to
+  suppliers (to give back), ours (red when below 0: more boxes owed than we have, e.g. supplier boxes lost). Worked out
+  in the browser from the balances the page already loads (`boxSummary` in `boxes/shared.ts`); no API change.
+- Each list has a one-line note: locations hold ours or lent ones, clients' boxes are to collect, suppliers' are to
+  give back (`kindNotes`, replaces `supplierNote`).

@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-18 (driver "Vente": an empty truck shows no client, D-184)_
+_Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are whose, D-187)_
 
 ## Where we are
 
+- **D-187 (branch box-summary):** Stock › Caisses opens with a "Bilan des caisses": per box type, in hand, at clients
+  (to collect), owed to suppliers (to give back) and ours; each list has a one-line note. Awaits CI.
 - **D-184 (branch sale-empty-truck):** the driver's "Vente" tab shows only "Le camion est vide" when nothing is left
   on the truck, no client list. Awaits CI, then check on staging with a driver whose truck is empty.
 - **D-185 (branch day-figures-load-bl):** a driver's day (Suivi des chauffeurs, closing) now counts the load BLs
@@ -52,6 +54,8 @@ _Last updated: 2026-10-18 (driver "Vente": an empty truck shows no client, D-184
 
 ## Next step
 
+0. D-187: merge after green CI; on staging open Stock › Caisses: with the demo data, "À nous" shows 50 small and
+   50 big (the opening stock), and "Aux fournisseurs (à rendre)" equals the Fournisseurs list added up.
 0. D-183: merge after green CI; on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
    "Dorade royale" with Enter: the cursor moves to the next weight and the last cost appears.
 0. D-181: merge after green CI; on staging, on the phone type more cash than the total (the "Envoyer" button stays off
