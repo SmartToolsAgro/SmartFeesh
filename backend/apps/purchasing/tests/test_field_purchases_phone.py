@@ -137,6 +137,7 @@ def test_a_new_supplier_and_product_by_name(setup):
         proposed_supplier="Hédi, barque bleue",
         proposed_supplier_phone="98 123 456",
         lines=[{"proposed_product": "Pageot", "declared_quantity": "6.5", "unit_cost": "16"}],
+        payments=[{"method": "cash", "amount": "104"}],
     )
     assert sent.status_code == 201, sent.json()
     assert sent.json()["supplier"] is None
