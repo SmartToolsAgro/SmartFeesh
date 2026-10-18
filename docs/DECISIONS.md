@@ -2674,8 +2674,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Backend app `storefront`. **No login on the site:** `GET /site/catalog`, `GET /site/products/<id>/photo`,
   `POST /site/requests` have no session, no CSRF, and are throttled per address (120/min, 10 requests/hour) with a
   hidden "website" field for robots. The company served is `PUBLIC_SITE_ORGANIZATION_ID`, else the oldest active one.
-- **What the site shows is chosen by the office** (`SiteProduct`: product, `is_published`, `web_price`, description,
-  position), in "Site web → Produits du site" (owner and manager write, accountant reads). The **web price is the site's
+- **Every active product of the application is on the site, with its photo** (owner, 2026-10-18: "list all products
+  with their photo from the application"); a new product shows at once. The office's choices per product are a
+  `SiteProduct` row, made on the first change (`is_published`, `web_price`, description, position), in "Site web →
+  Produits du site", which lists every active product with its photo and day's price (owner and manager write,
+  accountant reads). Hiding replaces removing. A product without its own photo gets an Artlist picture by name/kind. The **web price is the site's
   alone**: it never changes the day's price (D-020), the price lists or a sale; empty = "prix sur demande". Archived
   products never show. The day's price, costs and stock are never sent to visitors.
 - A request (`WebRequest`, number `W-00012`) is a lead, not a sale: nothing moves stock or money. The phone is
@@ -2693,4 +2696,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   nginx blocks (port 80 for the challenge and the redirect, 443 to the web container's 8083), `SITE_HOST` in
   `DJANGO_ALLOWED_HOSTS` and the CSRF origins, and the health check of each deploy. The deploy adds both names to the
   `frutti-staging` certificate itself the first time (certbot webroot, `--expand`); a failure only warns.
-- _Provisional:_ the marketing texts of the page (values, story) are generic and must be checked by the owner.
+- The site shows the **company logo** uploaded in Paramètres (D-125) in its header, footer and browser tab, through a
+  public `site/logo` (no login), on a white tile so a dark logo stays readable.
+- Owner review of the page (2026-10-18): only the "Aube" and "Pro" value cards are kept, and the site says "Sfax"
+  instead of "Sakiet Ezzit".
+- _Provisional:_ the other marketing texts of the page (story) are generic and must be checked by the owner.

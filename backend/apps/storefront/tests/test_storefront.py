@@ -40,7 +40,8 @@ def shop(settings):
     octopus = ProductFactory.create(organization=organization, name="Poulpe", illustration="octopus")
     archived = ProductFactory.create(organization=organization, name="Ancien produit")
     change = functools.partial(services.update_site_product, organization=organization, actor=owner.user)
-    change(product_id=dorade.pk, changes={"web_price": Decimal("29.500"), "description": "Pêchée à Sfax", "position": 0})
+    dorade_site = {"web_price": Decimal("29.500"), "description": "Pêchée à Sfax", "position": 0}
+    change(product_id=dorade.pk, changes=dorade_site)
     change(product_id=bass.pk, changes={"web_price": Decimal("31.000"), "is_published": False})
     change(product_id=archived.pk, changes={"web_price": Decimal("10.000")})
     archived.is_active = False

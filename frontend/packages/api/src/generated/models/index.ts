@@ -559,7 +559,6 @@ export * from './siteCatalog';
 export * from './siteCategory';
 export * from './siteContact';
 export * from './siteProduct';
-export * from './siteProductCreate';
 export * from './siteRequest';
 export * from './siteRequestLine';
 export * from './siteRequestReceived';

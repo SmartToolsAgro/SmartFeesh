@@ -15058,78 +15058,36 @@ export const ConfirmSaleResponse = zod.object({
 
 
 /**
- * Every product put on the public site, shown or hidden, in the site's order.
+ * Every active product of the application, in the site's order, with its photo, its day's price and what
+ * the site shows of it. A product the office never changed is shown, without a web price.
  */
+export const listSiteProductsResponseDayPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSiteProductsResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListSiteProductsResponseItem = zod.object({
-  "id": zod.int(),
   "product": zod.int(),
   "product_name": zod.string(),
   "product_reference": zod.string(),
   "category_name": zod.string(),
   "unit": zod.string(),
-  "product_active": zod.boolean(),
   "illustration": zod.string(),
   "photo_url": zod.string().nullable(),
+  "day_price": zod.stringFormat('decimal', listSiteProductsResponseDayPriceRegExp).nullable(),
   "is_published": zod.boolean(),
   "web_price": zod.stringFormat('decimal', listSiteProductsResponseWebPriceRegExp).nullable(),
   "description": zod.string(),
-  "position": zod.int(),
-  "updated_at": zod.iso.datetime({"offset":true})
-})
+  "position": zod.int()
+}).describe('One active product of the application as the office sees it on the site screen: its photo, its day\'s price\nfor comparison, and the site\'s settings (defaults when the office never changed them).')
 export const ListSiteProductsResponse = zod.array(ListSiteProductsResponseItem)
 
 
 /**
- * Put an active product on the site, with its own web price. The day's price and price lists do not
- * change.
- */
-
-export const addSiteProductBodyWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const addSiteProductBodyDescriptionDefault = ``;
-export const addSiteProductBodyDescriptionMax = 300;
-
-export const addSiteProductBodyIsPublishedDefault = true;
-export const addSiteProductBodyPositionMin = 0;
-
-
-
-export const AddSiteProductBody = zod.object({
-  "product": zod.int().min(1),
-  "web_price": zod.stringFormat('decimal', addSiteProductBodyWebPriceRegExp).nullish(),
-  "description": zod.string().max(addSiteProductBodyDescriptionMax).default(addSiteProductBodyDescriptionDefault),
-  "is_published": zod.boolean().default(addSiteProductBodyIsPublishedDefault),
-  "position": zod.int().min(addSiteProductBodyPositionMin).nullish()
-})
-
-export const addSiteProductResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
-
-export const AddSiteProductResponse = zod.object({
-  "id": zod.int(),
-  "product": zod.int(),
-  "product_name": zod.string(),
-  "product_reference": zod.string(),
-  "category_name": zod.string(),
-  "unit": zod.string(),
-  "product_active": zod.boolean(),
-  "illustration": zod.string(),
-  "photo_url": zod.string().nullable(),
-  "is_published": zod.boolean(),
-  "web_price": zod.stringFormat('decimal', addSiteProductResponseWebPriceRegExp).nullable(),
-  "description": zod.string(),
-  "position": zod.int(),
-  "updated_at": zod.iso.datetime({"offset":true})
-})
-
-
-/**
- * Change the web price (null: "prix sur demande"), the text, the order, or hide the product.
+ * Hide or show a product on the site, set its web price (null: "prix sur demande"), its text or its
+ * place. The day's price and the price lists do not change.
  */
 export const UpdateSiteProductParams = zod.object({
-  "site_product_id": zod.int()
+  "product_id": zod.int()
 })
 
 export const updateSiteProductBodyWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15146,35 +15104,24 @@ export const UpdateSiteProductBody = zod.object({
   "position": zod.int().min(updateSiteProductBodyPositionMin).optional()
 }).describe('Only the fields sent change; `web_price: null` means "prix sur demande".')
 
+export const updateSiteProductResponseDayPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSiteProductResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const UpdateSiteProductResponse = zod.object({
-  "id": zod.int(),
   "product": zod.int(),
   "product_name": zod.string(),
   "product_reference": zod.string(),
   "category_name": zod.string(),
   "unit": zod.string(),
-  "product_active": zod.boolean(),
   "illustration": zod.string(),
   "photo_url": zod.string().nullable(),
+  "day_price": zod.stringFormat('decimal', updateSiteProductResponseDayPriceRegExp).nullable(),
   "is_published": zod.boolean(),
   "web_price": zod.stringFormat('decimal', updateSiteProductResponseWebPriceRegExp).nullable(),
   "description": zod.string(),
-  "position": zod.int(),
-  "updated_at": zod.iso.datetime({"offset":true})
-})
-
-
-/**
- * Take the product off the site. The product, its prices and the requests already received stay.
- */
-export const RemoveSiteProductParams = zod.object({
-  "site_product_id": zod.int()
-})
-
-export const RemoveSiteProductResponse = zod.void()
+  "position": zod.int()
+}).describe('One active product of the application as the office sees it on the site screen: its photo, its day\'s price\nfor comparison, and the site\'s settings (defaults when the office never changed them).')
 
 
 /**

@@ -5,24 +5,30 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * One active product of the application as the office sees it on the site screen: its photo, its day's price
+ * for comparison, and the site's settings (defaults when the office never changed them).
+ */
 export interface OfficeSiteProduct {
-  readonly id: number;
   product: number;
   product_name: string;
   product_reference: string;
   category_name: string;
   unit: string;
-  product_active: boolean;
   illustration: string;
   /** @nullable */
   readonly photo_url: string | null;
-  readonly is_published: boolean;
   /**
      * @nullable
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
      */
-  readonly web_price: string | null;
-  readonly description: string;
-  readonly position: number;
-  readonly updated_at: string;
+  day_price: string | null;
+  is_published: boolean;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  web_price: string | null;
+  description: string;
+  position: number;
 }

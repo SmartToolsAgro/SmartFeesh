@@ -293,7 +293,6 @@ import type {
   SetPrices,
   SettleLot,
   SiteCatalog,
-  SiteProductCreate,
   SiteRequest,
   SiteRequestReceived,
   SiteSettings,
@@ -24784,7 +24783,8 @@ export const getListSiteProductsUrl = () => {
 }
 
 /**
- * Every product put on the public site, shown or hidden, in the site's order.
+ * Every active product of the application, in the site's order, with its photo, its day's price and what
+ * the site shows of it. A product the office never changed is shown, without a web price.
  */
 export const listSiteProducts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<OfficeSiteProduct[]> => {
 
@@ -24873,104 +24873,19 @@ export function useListSiteProducts<TData = Awaited<ReturnType<typeof listSitePr
 
 
 
-export const getAddSiteProductUrl = () => {
+export const getUpdateSiteProductUrl = (productId: number,) => {
 
 
 
 
-  return `/api/v1/site-products`
+  return `/api/v1/site-products/${productId}`
 }
 
 /**
- * Put an active product on the site, with its own web price. The day's price and price lists do not
- * change.
+ * Hide or show a product on the site, set its web price (null: "prix sur demande"), its text or its
+ * place. The day's price and the price lists do not change.
  */
-export const addSiteProduct = async (siteProductCreate: SiteProductCreate, options?: Parameters<typeof apiFetch>[1]): Promise<OfficeSiteProduct> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<OfficeSiteProduct>(getAddSiteProductUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(siteProductCreate)
-  }
-);}
-
-
-
-
-
-export const getAddSiteProductMutationKey = () => ['addSiteProduct'] as const;
-
-export const getAddSiteProductMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSiteProduct>>, TError,AddSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof addSiteProduct>>, TError,AddSiteProductMutationVariables, TContext> => {
-
-const mutationKey = getAddSiteProductMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addSiteProduct>>, AddSiteProductMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  addSiteProduct(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AddSiteProductMutationResult = NonNullable<Awaited<ReturnType<typeof addSiteProduct>>>
-    export type AddSiteProductMutationBody = SiteProductCreate
-    export type AddSiteProductMutationError = unknown
-    export type AddSiteProductMutationVariables = {data: SiteProductCreate}
-
-    export const useAddSiteProduct = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSiteProduct>>, TError,AddSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof addSiteProduct>>,
-        TError,
-        AddSiteProductMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAddSiteProductMutationOptions(options), queryClient);
-    }
-
-export const getUpdateSiteProductUrl = (siteProductId: number,) => {
-
-
-
-
-  return `/api/v1/site-products/${siteProductId}`
-}
-
-/**
- * Change the web price (null: "prix sur demande"), the text, the order, or hide the product.
- */
-export const updateSiteProduct = async (siteProductId: number,
+export const updateSiteProduct = async (productId: number,
     patchedSiteProductUpdate?: PatchedSiteProductUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<OfficeSiteProduct> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -24987,7 +24902,7 @@ export const updateSiteProduct = async (siteProductId: number,
     }
     return headers;
   };
-return apiFetch<OfficeSiteProduct>(getUpdateSiteProductUrl(siteProductId),
+return apiFetch<OfficeSiteProduct>(getUpdateSiteProductUrl(productId),
   {
     ...options,
     method: 'PATCH',
@@ -25017,9 +24932,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSiteProduct>>, UpdateSiteProductMutationVariables> = (props) => {
-          const {siteProductId,data} = props ?? {};
+          const {productId,data} = props ?? {};
 
-          return  updateSiteProduct(siteProductId,data,requestOptions)
+          return  updateSiteProduct(productId,data,requestOptions)
         }
 
 
@@ -25032,7 +24947,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateSiteProductMutationResult = NonNullable<Awaited<ReturnType<typeof updateSiteProduct>>>
     export type UpdateSiteProductMutationBody = PatchedSiteProductUpdate | undefined
     export type UpdateSiteProductMutationError = unknown
-    export type UpdateSiteProductMutationVariables = {siteProductId: number;data?: PatchedSiteProductUpdate}
+    export type UpdateSiteProductMutationVariables = {productId: number;data?: PatchedSiteProductUpdate}
 
     export const useUpdateSiteProduct = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSiteProduct>>, TError,UpdateSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -25043,77 +24958,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateSiteProductMutationOptions(options), queryClient);
-    }
-
-export const getRemoveSiteProductUrl = (siteProductId: number,) => {
-
-
-
-
-  return `/api/v1/site-products/${siteProductId}`
-}
-
-/**
- * Take the product off the site. The product, its prices and the requests already received stay.
- */
-export const removeSiteProduct = async (siteProductId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
-
-  return apiFetch<void>(getRemoveSiteProductUrl(siteProductId),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-
-export const getRemoveSiteProductMutationKey = () => ['removeSiteProduct'] as const;
-
-export const getRemoveSiteProductMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSiteProduct>>, TError,RemoveSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof removeSiteProduct>>, TError,RemoveSiteProductMutationVariables, TContext> => {
-
-const mutationKey = getRemoveSiteProductMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeSiteProduct>>, RemoveSiteProductMutationVariables> = (props) => {
-          const {siteProductId} = props ?? {};
-
-          return  removeSiteProduct(siteProductId,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RemoveSiteProductMutationResult = NonNullable<Awaited<ReturnType<typeof removeSiteProduct>>>
-
-    export type RemoveSiteProductMutationError = unknown
-    export type RemoveSiteProductMutationVariables = {siteProductId: number}
-
-    export const useRemoveSiteProduct = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSiteProduct>>, TError,RemoveSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof removeSiteProduct>>,
-        TError,
-        RemoveSiteProductMutationVariables,
-        TContext
-      > => {
-      return useMutation(getRemoveSiteProductMutationOptions(options), queryClient);
     }
 
 export const getGetSiteSettingsUrl = () => {
