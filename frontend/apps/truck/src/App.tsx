@@ -36,7 +36,7 @@ import { SalePage } from "./SalePage";
 import { ScreenError } from "./ScreenError";
 import { StockPage } from "./StockPage";
 import { SyncStatus } from "./SyncStatus";
-import { forgetPoints, useLocationTracking } from "./tracking";
+import { forgetPoints, TRACKING_ENABLED, useLocationTracking } from "./tracking";
 
 const queryClient = createQueryClient();
 // Without signal, ask anyway: the phone answers from what it saved (public/sw.js) instead of waiting forever.
@@ -128,9 +128,9 @@ function Shell({ session }: { session: Session }) {
   // The prices are watched on every screen, so a change is announced wherever the driver is (P3-T02).
   const stock = useTruckStock(session.truck !== null);
   usePriceWatch(stock.data);
-  // The phone follows the day's position while the day runs (D-164).
+  // The phone follows the day's position while the day runs (D-164); switched off for now (D-180).
   const day = useGetMyDay({ query: { retry: false, enabled: session.truck !== null } });
-  const tracking = useLocationTracking(day.data !== undefined && day.data.ended_at === null);
+  const tracking = useLocationTracking(TRACKING_ENABLED && day.data !== undefined && day.data.ended_at === null);
   return (
     <TruckShell
       tabs={tabs}

@@ -2601,3 +2601,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   day (opening cash, purchase float), changing the float, and sending the closing (counted cash).
 - **From now on:** any new screen that records money (driver or admin) uses `ConfirmButton`. The admin app's existing
   money forms are not yet converted.
+
+**D-180 · The route map and the phone's GPS tracking are switched off, not removed** · accepted · 2026-10-18
+
+- **Owner request (2026-10-18):** disable the map feature without deleting it.
+- `ROUTE_MAP_ENABLED = false` (`admin/src/dayclose/RouteMap.tsx`) hides the "Parcours" section of a driver's day;
+  `TRACKING_ENABLED = false` (`truck/src/tracking.ts`) stops the phone asking for and sending its position, so no GPS warning
+  shows either. The backend (points, route, stops, customer places of D-164/D-172) is unchanged; set both flags to `true`
+  to bring the feature back.

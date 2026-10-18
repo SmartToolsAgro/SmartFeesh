@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-17 (money actions ask Annuler / Confirmer, D-179; load BL delivery, P2-T15 / D-178)_
+_Last updated: 2026-10-18 (route map and GPS tracking switched off, D-180)_
 
 ## Where we are
 
+- **D-180 (branch disable-route-map):** the "Parcours" map in Journées des chauffeurs is hidden and the driver phone no
+  longer tracks its position (flags `ROUTE_MAP_ENABLED` / `TRACKING_ENABLED`, code kept). Awaits CI, then check on staging.
 - **D-179 (branch money-confirm-popup):** every money action of the driver app (delivery, sale, payment, expense,
   purchase, opening cash and float, closing) opens an "Annuler / Confirmer" window with the amounts. Awaits CI.
   Admin money forms are not converted yet; new money screens must use `ConfirmButton`.
