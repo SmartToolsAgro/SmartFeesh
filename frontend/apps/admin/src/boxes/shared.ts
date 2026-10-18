@@ -41,6 +41,34 @@ export function holdersOfKind(holders: HolderCounts[], kind: HolderKind): Holder
   return holders.filter((holder) => holder.kind === kind);
 }
 
+/** Where the boxes of one type stand, and how many are the company's own (D-187). */
+export interface BoxSummary {
+  /** In the cold rooms and trucks, whoever owns them. */
+  inHand: number;
+  /** Left at clients: to collect. */
+  atCustomers: number;
+  /** Lent by suppliers: to give back. */
+  owedToSuppliers: number;
+  /** The company's own boxes: in hand + at clients − owed to suppliers. Boxes are alike, so this is a count only. */
+  own: number;
+}
+
+/**
+ * Adds up the holders per kind for each box type. Only buying boxes, a write-off and the opening stock change
+ * `own`: a receipt or a return moves a location and a supplier by the same count, and a load, a delivery or a
+ * pickup only moves boxes between our places and clients.
+ */
+export function boxSummary(holders: HolderCounts[]): Record<BoxTypeEnum, BoxSummary> {
+  const summaryOf = (boxType: BoxTypeEnum): BoxSummary => {
+    const total = (kind: HolderKind) => holdersOfKind(holders, kind).reduce((sum, holder) => sum + holder[boxType], 0);
+    const inHand = total("location");
+    const atCustomers = total("customer");
+    const owedToSuppliers = total("supplier");
+    return { inHand, atCustomers, owedToSuppliers, own: inHand + atCustomers - owedToSuppliers };
+  };
+  return { small: summaryOf("small"), big: summaryOf("big") };
+}
+
 export interface CustomerBoxCounts {
   small: number;
   big: number;
