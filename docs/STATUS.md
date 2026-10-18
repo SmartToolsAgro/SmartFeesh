@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-18 (route map and GPS tracking switched off, D-180)_
+_Last updated: 2026-10-18 (wider day-closing window)_
 
 ## Where we are
 
+- **Branch wide-closing-dialog:** the closing window of Journées des chauffeurs › Clôtures is 1 100 px wide, so the
+  stock table fits without a side scroll bar. Awaits CI, then check on staging.
 - **D-180 (branch disable-route-map):** the "Parcours" map in Journées des chauffeurs is hidden and the driver phone no
   longer tracks its position (flags `ROUTE_MAP_ENABLED` / `TRACKING_ENABLED`, code kept). Awaits CI, then check on staging.
 - **D-179 (branch money-confirm-popup):** every money action of the driver app (delivery, sale, payment, expense,
