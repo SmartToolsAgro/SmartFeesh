@@ -247,6 +247,25 @@ export function FieldPurchaseForm({
       reference: payment.reference.trim(),
       cash_on: payment.cash_on || null,
     }));
+    // More given than the purchase is worth is refused, as on the server: the bigger of the driver's kg and the kg
+    // received per line, so a lot counted lighter keeps what was really given (the rest becomes an advance).
+    if (Object.keys(found).length === 0 && payloadPayments.length > 0) {
+      const ceiling = sum(
+        payloadLines.map((line) => {
+          const kilos =
+            line.received_quantity && !subtract(line.received_quantity, line.declared_quantity).startsWith("-")
+              ? line.received_quantity
+              : line.declared_quantity;
+          return lineTotal(kilos, line.unit_cost);
+        }),
+      );
+      const given = sum(payloadPayments.map((payment) => payment.amount));
+      if (subtract(ceiling, given).startsWith("-"))
+        found[paymentKey(payloadPayments.length - 1, "amount")] = t("admin.fieldPurchases.form.overpaid", {
+          paid: formatMoney(given),
+          total: formatMoney(ceiling),
+        });
+    }
     const boxCounts = boxCountsFromInputs(boxes);
     for (const boxType of boxCounts.invalid) found[`boxes.${boxType}`] = t("admin.boxes.form.invalid");
     setErrors(found);
