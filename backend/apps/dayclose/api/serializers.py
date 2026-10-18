@@ -47,14 +47,15 @@ class DaySummarySerializer(serializers.Serializer[Any]):
     expected_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # Purchases at the port, counted apart (D-158); zero in a closing sent before them. The money the office gave
     # for them, the purchases (count, what they owe), what was given in cash and otherwise (cheques, traites), the
-    # cash paid beyond the purchase money (taken from the sales cash), and the purchase money that should be left.
+    # part of the cash beyond the purchase money that the sales cash paid, and the purchase money that should be left.
     purchase_float = _purchase_figure()
     purchases_count = serializers.IntegerField(read_only=True, required=False, default=0)
     purchases_total = _purchase_figure()
     purchases_cash = _purchase_figure()
     purchases_other = _purchase_figure()
     purchases_from_sales = _purchase_figure()
-    # Of that, what the cash in hand could not cover: paid by the driver out of pocket, owed back by the office.
+    # The rest of the cash beyond the purchase money, which the sales cash could not cover: paid by the driver out of
+    # pocket, owed back by the office. With `purchases_from_sales` it adds up to the cash beyond the purchase money.
     owed_to_driver = _purchase_figure()
     expected_purchase_cash = _purchase_figure()
     products = DayProductSerializer(many=True, read_only=True)

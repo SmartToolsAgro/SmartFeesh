@@ -132,17 +132,18 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         left = figures["opening"] + figures["loaded"] - figures["returned"] - figures["sold"] - figures["lost"]
         products.append({**figures, "unexplained": figures["remaining"] - left})
     # Purchases at the port (D-158): the cash given comes out of the purchase money first, kept apart; what goes
-    # beyond it was paid with the sales cash. Cheques and traites are not cash.
+    # beyond it is paid with the sales cash, as far as there is some. Cheques and traites are not cash.
     bought = purchasing.purchases_paid_between(organization, buyer_id=driver_day.driver_id, start=start, end=end)
     purchase_money = driver_day.purchase_float - handed_over_purchase_of(driver_day)
-    from_sales = max(bought.cash - purchase_money, ZERO)
+    beyond_purchase_money = max(bought.cash - purchase_money, ZERO)
     driver = driver_day.driver
     handed_over = handed_over_of(driver_day)
     # Cash in hand before the purchases took theirs. What the cash in hand could not cover was paid by the driver
-    # out of pocket: the office owes it to them (a reimbursement), it is not a gap in the count.
+    # out of pocket: the office owes it to them (a reimbursement), it is not a gap in the count. The two parts add
+    # up to what went beyond the purchase money, never counted twice (D-182).
     in_hand = driver_day.opening_cash + cash + payments_cash - spent - handed_over
-    paid_from_hand = min(from_sales, max(in_hand, ZERO))
-    owed_to_driver = from_sales - paid_from_hand
+    paid_from_hand = min(beyond_purchase_money, max(in_hand, ZERO))
+    owed_to_driver = beyond_purchase_money - paid_from_hand
     return {
         "date": day,
         "truck_name": driver_day.truck.location.name,
@@ -162,7 +163,7 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         "purchases_total": bought.total,
         "purchases_cash": bought.cash,
         "purchases_other": bought.other,
-        "purchases_from_sales": from_sales,
+        "purchases_from_sales": paid_from_hand,
         "owed_to_driver": owed_to_driver,
         "expected_purchase_cash": max(purchase_money - bought.cash, ZERO),
         "products": products,
