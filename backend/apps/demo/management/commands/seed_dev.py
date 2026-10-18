@@ -128,4 +128,4 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"{partnerships} new partnership lots, {partnership_costs} new costs on them")
         )
-        self.stdout.write(self.style.SUCCESS(f"{site_products} new products on the public site"))
+        self.stdout.write(self.style.SUCCESS(f"{site_products} new web prices on the public site"))

@@ -38,6 +38,9 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Personnel & salaires",
     "Partage des bénéfices",
     "Clôture mensuelle",
+    "Demandes du site",
+    "Produits du site",
+    "Paramètres du site",
     "Import de données",
     "Paramètres",
   ]);

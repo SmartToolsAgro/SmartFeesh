@@ -1,11 +1,12 @@
 import type { WebRequestKindEnum } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
-import { Sprite, Toaster } from "@frutti/ui";
+import { Sprite, Toaster, useFavicon } from "@frutti/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useSiteCatalog } from "./api";
 import { addToCart, type CartLine, loadCart, saveCart } from "./cart";
+import { CallButton } from "./Contact";
 import { Header } from "./Header";
 import { Hero } from "./Hero";
 import { Products } from "./Products";
@@ -34,6 +35,10 @@ function Site() {
   useEffect(() => saveCart(cart), [cart]);
   // Products the site no longer shows (removed or hidden by the office since the last visit) are left out.
   const offered = catalog.data?.products;
+  // The phone and details the office set in "Paramètres du site" (D-186); empty fields are not shown.
+  const contact = catalog.data?.contact;
+  // The company logo from the office app's Paramètres, also as the browser tab's icon.
+  useFavicon(catalog.data?.logo_url);
   const shownCart = useMemo(() => {
     if (!offered) return cart;
     const ids = new Set(offered.map((product) => product.id));
@@ -57,9 +62,20 @@ function Site() {
       >
         {t("site.skip")}
       </a>
-      <Header basketCount={shownCart.length} bump={bump} onBasket={() => goToForm("order")} />
+      <Header
+        basketCount={shownCart.length}
+        bump={bump}
+        logoUrl={catalog.data?.logo_url}
+        company={catalog.data?.company}
+        phone={contact?.phone ?? ""}
+        onBasket={() => goToForm("order")}
+      />
       <main>
-        <Hero onOrder={() => document.getElementById("produits")?.scrollIntoView()} onQuote={() => goToForm("quote")} />
+        <Hero
+          phone={contact?.phone ?? ""}
+          onOrder={() => document.getElementById("produits")?.scrollIntoView()}
+          onQuote={() => goToForm("quote")}
+        />
         <Marquee />
         <Values />
         <Products catalog={catalog} cart={shownCart} onAdd={add} />
@@ -70,9 +86,11 @@ function Site() {
           cart={cart}
           onCart={setCart}
           products={catalog.data?.products ?? []}
+          phone={contact?.phone ?? ""}
         />
       </main>
-      <Footer company={catalog.data?.company} />
+      <Footer company={catalog.data?.company} logoUrl={catalog.data?.logo_url} contact={contact} />
+      <CallButton contact={contact} />
     </>
   );
 }

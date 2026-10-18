@@ -29,6 +29,7 @@ PUBLIC = {
     "/api/v1/auth/csrf",
     "/api/v1/auth/login",
     "/api/v1/site/catalog",
+    "/api/v1/site/logo",
     "/api/v1/site/products/<int:product_id>/photo",
     "/api/v1/site/requests",
 }

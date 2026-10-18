@@ -2,8 +2,10 @@ import { useTranslation } from "@frutti/i18n";
 import { Icon } from "@frutti/ui";
 import { type CSSProperties, useEffect, useRef } from "react";
 
+import { PhoneIcon } from "./Contact";
 import { HERO } from "./media";
 import { prefersLessMotion, useParallax } from "./motion";
+import { shownPhone, telHref } from "./phone";
 
 // Ice flakes and bubbles: fixed sizes and timings, so every visit looks the same and nothing is random.
 const BUBBLES = Array.from({ length: 16 }, (_, index) => ({
@@ -24,7 +26,7 @@ function Words({ text, offset, shine = false }: { text: string; offset: number; 
 }
 
 /** Full-screen dawn over the port: a 10-second loop made with Artlist, its still as the poster. */
-export function Hero({ onOrder, onQuote }: { onOrder: () => void; onQuote: () => void }) {
+export function Hero({ phone, onOrder, onQuote }: { phone: string; onOrder: () => void; onQuote: () => void }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const backdrop = useParallax<HTMLDivElement>(0.3);
@@ -110,6 +112,16 @@ export function Hero({ onOrder, onQuote }: { onOrder: () => void; onQuote: () =>
             {t("site.hero.quote")}
           </button>
         </div>
+        {phone && (
+          <a
+            href={telHref(phone)}
+            className="rise mt-5 inline-flex items-center gap-2 text-[1rem] font-semibold text-white/85 hover:text-white"
+            style={{ "--i": 10 } as CSSProperties}
+          >
+            <PhoneIcon className="size-4" />
+            {t("site.hero.callUs")} <span className="num font-bold text-white">{shownPhone(phone)}</span>
+          </a>
+        )}
       </div>
 
       <a

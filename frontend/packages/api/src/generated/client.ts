@@ -296,6 +296,7 @@ import type {
   SiteProductCreate,
   SiteRequest,
   SiteRequestReceived,
+  SiteSettings,
   SlowReport,
   StockCheckHealth,
   StockLocation,
@@ -25115,6 +25116,189 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRemoveSiteProductMutationOptions(options), queryClient);
     }
 
+export const getGetSiteSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/site-settings`
+}
+
+/**
+ * The phone, WhatsApp, e-mail, address and hours the public site shows (empty until saved once).
+ */
+export const getSiteSettings = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SiteSettings> => {
+
+  return apiFetch<SiteSettings>(getGetSiteSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSiteSettingsQueryKey = () => {
+    return [
+    `/api/v1/site-settings`
+    ] as const;
+    }
+
+
+export const getGetSiteSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSiteSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSiteSettings>>> = ({ signal }) => getSiteSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSiteSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getSiteSettings>>>
+export type GetSiteSettingsQueryError = unknown
+
+
+export function useGetSiteSettings<TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSiteSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getSiteSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSiteSettings<TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSiteSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getSiteSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSiteSettings<TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSiteSettings<TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSiteSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveSiteSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/site-settings`
+}
+
+/**
+ * Replace the site's contact details. The numbers are checked and written one way ("+216 74 123 456").
+ */
+export const saveSiteSettings = async (siteSettings?: SiteSettings, options?: Parameters<typeof apiFetch>[1]): Promise<SiteSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SiteSettings>(getSaveSiteSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(siteSettings)
+  }
+);}
+
+
+
+
+
+export const getSaveSiteSettingsMutationKey = () => ['saveSiteSettings'] as const;
+
+export const getSaveSiteSettingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSiteSettings>>, TError,SaveSiteSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSiteSettings>>, TError,SaveSiteSettingsMutationVariables, TContext> => {
+
+const mutationKey = getSaveSiteSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSiteSettings>>, SaveSiteSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveSiteSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSiteSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof saveSiteSettings>>>
+    export type SaveSiteSettingsMutationBody = SiteSettings | undefined
+    export type SaveSiteSettingsMutationError = unknown
+    export type SaveSiteSettingsMutationVariables = {data?: SiteSettings}
+
+    export const useSaveSiteSettings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSiteSettings>>, TError,SaveSiteSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveSiteSettings>>,
+        TError,
+        SaveSiteSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveSiteSettingsMutationOptions(options), queryClient);
+    }
+
 export const getGetSiteCatalogUrl = () => {
 
 
@@ -25124,8 +25308,8 @@ export const getGetSiteCatalogUrl = () => {
 }
 
 /**
- * What the public site offers: the company's name, its categories and the products the office put on the
- * site, with their web price (or none: "prix sur demande").
+ * What the public site offers: the company's name and contact details, its categories and the products
+ * the office put on the site, with their web price (or none: "prix sur demande").
  */
 export const getSiteCatalog = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SiteCatalog> => {
 

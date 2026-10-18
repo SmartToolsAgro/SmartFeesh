@@ -6,12 +6,36 @@ from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import QuantityField
 
 
-class SiteProduct(OrganizationScopedModel, TimeStampedModel):
-    """A product shown on the public site, with its own price (D-186).
+class SiteSettings(OrganizationScopedModel, TimeStampedModel):
+    """How a visitor reaches the company, as the public site shows it (D-186), set in the office app.
 
+    One row per organization, made on the first save. An empty field is not shown on the site. The phone is
+    stored written one way (`services.normalize_phone`), so the site can make a "call" link of it.
+    """
+
+    phone = models.CharField(max_length=30, blank=True)
+    whatsapp = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.CharField(max_length=250, blank=True)
+    opening_hours = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        verbose_name_plural = "site settings"
+        constraints = [
+            models.UniqueConstraint(fields=["organization"], name="one_site_settings_per_organization"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Site · {self.organization_id}"
+
+
+class SiteProduct(OrganizationScopedModel, TimeStampedModel):
+    """The office's choices for one product on the public site (D-186).
+
+    Every active product of the application is on the site, with its photo; a row exists only once the office
+    changes something for it: hides it (`is_published` off), gives it a web price, a text or a place in the list.
     The web price is the site's alone: it never changes the day's price (`ProductPrice`), the price lists or a
-    sale. Empty: the site shows "prix sur demande". A product leaves the site when its row is removed, or for a
-    while with `is_published` off; an archived product never shows.
+    sale. Empty: the site shows "prix sur demande". An archived product never shows.
     """
 
     product = models.ForeignKey("catalog.Product", on_delete=models.CASCADE, related_name="+")

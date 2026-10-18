@@ -17,7 +17,7 @@ from apps.core import audit
 from apps.core.models import Organization, User
 
 from . import selectors
-from .models import SiteProduct, WebRequest, WebRequestKind, WebRequestLine, WebRequestStatus
+from .models import SiteProduct, SiteSettings, WebRequest, WebRequestKind, WebRequestLine, WebRequestStatus
 
 MAX_LINES = 30
 # A line above this is a typing slip, not a restaurant's order.
@@ -88,7 +88,7 @@ def submit_web_request(
     if wanted_on is not None and wanted_on < timezone.localdate():
         errors["wanted_on"] = _("La date souhaitée est déjà passée.")
 
-    offered = {row.product_id: row for row in selectors.site_products(organization)}
+    offered = {offer.product_id: offer for offer in selectors.site_products(organization)}
     seen: set[int] = set()
     for line in lines:
         if line.quantity <= 0 or line.quantity > MAX_LINE_QUANTITY:
@@ -183,59 +183,28 @@ def _site_values(site_product: SiteProduct) -> dict[str, object]:
     }
 
 
+SITE_FIELDS = frozenset({"web_price", "description", "is_published", "position"})
+
+
 @transaction.atomic
-def add_site_product(
-    *,
-    organization: Organization,
-    actor: User,
-    product_id: int,
-    web_price: Decimal | None = None,
-    description: str = "",
-    is_published: bool = True,
-    position: int | None = None,
+def update_site_product(
+    *, organization: Organization, actor: User, product_id: int, changes: Mapping[str, Any]
 ) -> SiteProduct:
-    """Put an active product of the company on the public site, at the end of the list unless a position is given.
-    The web price is the site's alone: the day's price and the price lists stay as they are."""
+    """Change what the site shows of one active product: hide or show it, its web price (None: "prix sur
+    demande"), its text or its place. Only the fields named in `changes` change; the product itself, its day's
+    price and its price lists stay as they are."""
+    unknown = set(changes) - SITE_FIELDS
+    if unknown:
+        raise ValidationError({"detail": _("Champ inconnu : %(fields)s.") % {"fields": ", ".join(sorted(unknown))}})
     try:
         product = catalog.product_of(organization, product_id)
     except ObjectDoesNotExist:
         raise ValidationError({"product": _("Produit inconnu.")}) from None
     if not product.is_active:
-        raise ValidationError({"product": _("Ce produit est archivé.")})
-    if SiteProduct.objects.for_organization(organization).filter(product=product).exists():
-        raise ValidationError({"product": _("Ce produit est déjà sur le site.")})
-    if position is None:
-        last = selectors.site_products_of(organization).order_by("-position").first()
-        position = last.position + 1 if last else 0
-    site_product = SiteProduct.objects.create(
-        organization=organization,
-        product=product,
-        web_price=_checked_web_price(web_price),
-        description=description.strip(),
-        is_published=is_published,
-        position=position,
+        raise ValidationError({"product": _("Ce produit est archivé : il n'est pas montré sur le site.")})
+    site_product, _created = SiteProduct.objects.select_for_update().get_or_create(
+        organization=organization, product=product, defaults={"position": selectors.UNORDERED}
     )
-    audit.record(
-        organization=organization,
-        actor=actor,
-        action="site_product.added",
-        target=site_product,
-        after={"product": product.name, **_site_values(site_product)},
-    )
-    return site_product
-
-
-SITE_FIELDS = frozenset({"web_price", "description", "is_published", "position"})
-
-
-@transaction.atomic
-def update_site_product(*, site_product: SiteProduct, actor: User, changes: Mapping[str, Any]) -> SiteProduct:
-    """Change what the site shows of one product: its web price (None: "prix sur demande"), text, order, or hide
-    it. Only the fields named in `changes` change."""
-    unknown = set(changes) - SITE_FIELDS
-    if unknown:
-        raise ValidationError({"detail": _("Champ inconnu : %(fields)s.") % {"fields": ", ".join(sorted(unknown))}})
-    site_product = SiteProduct.objects.select_for_update().get(pk=site_product.pk)
     before = _site_values(site_product)
     if "web_price" in changes:
         site_product.web_price = _checked_web_price(changes["web_price"])
@@ -247,24 +216,68 @@ def update_site_product(*, site_product: SiteProduct, actor: User, changes: Mapp
         site_product.position = int(changes["position"])
     site_product.save()
     audit.record(
-        organization=site_product.organization,
+        organization=organization,
         actor=actor,
         action="site_product.changed",
         target=site_product,
         before=before,
-        after=_site_values(site_product),
+        after={"product": product.name, **_site_values(site_product)},
     )
     return site_product
 
 
+# ---- How visitors reach the company (D-186) ----
+
+
+def _settings_values(site_settings: SiteSettings) -> dict[str, str]:
+    return {
+        "phone": site_settings.phone,
+        "whatsapp": site_settings.whatsapp,
+        "email": site_settings.email,
+        "address": site_settings.address,
+        "opening_hours": site_settings.opening_hours,
+    }
+
+
 @transaction.atomic
-def remove_site_product(*, site_product: SiteProduct, actor: User) -> None:
-    """Take a product off the site. The product itself, its prices and the requests already received stay."""
+def save_site_settings(
+    *,
+    organization: Organization,
+    actor: User,
+    phone: str = "",
+    whatsapp: str = "",
+    email: str = "",
+    address: str = "",
+    opening_hours: str = "",
+) -> SiteSettings:
+    """Set the phone, WhatsApp, e-mail, address and hours the public site shows. The numbers are checked and written
+    one way, like a visitor's (`normalize_phone`); an empty field hides that line on the site."""
+    errors: dict[str, str] = {}
+    numbers: dict[str, str] = {}
+    for field, value in (("phone", phone), ("whatsapp", whatsapp)):
+        if not value.strip():
+            numbers[field] = ""
+            continue
+        try:
+            numbers[field] = normalize_phone(value)
+        except ValidationError:
+            errors[field] = _("Numéro de téléphone invalide : 8 chiffres, par exemple 74 123 456.")
+    if errors:
+        raise ValidationError(errors)
+    site_settings, _created = SiteSettings.objects.select_for_update().get_or_create(organization=organization)
+    before = _settings_values(site_settings)
+    site_settings.phone = numbers["phone"]
+    site_settings.whatsapp = numbers["whatsapp"]
+    site_settings.email = email.strip()
+    site_settings.address = address.strip()
+    site_settings.opening_hours = opening_hours.strip()
+    site_settings.save()
     audit.record(
-        organization=site_product.organization,
+        organization=organization,
         actor=actor,
-        action="site_product.removed",
-        target=site_product,
-        before={"product": site_product.product.name, **_site_values(site_product)},
+        action="site_settings.changed",
+        target=site_settings,
+        before=before,
+        after=_settings_values(site_settings),
     )
-    site_product.delete()
+    return site_settings

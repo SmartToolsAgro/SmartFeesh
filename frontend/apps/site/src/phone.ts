@@ -12,3 +12,18 @@ export function normalizePhone(raw: string): string | null {
   if (/^\+\d{8,15}$/.test(value) && !value.startsWith("+216")) return value;
   return null;
 }
+
+/** "+216 74 123 456" → "74 123 456": a Tunisian visitor reads the number without the country code. */
+export function shownPhone(phone: string): string {
+  return phone.startsWith("+216 ") ? phone.slice(5) : phone;
+}
+
+/** "+216 74 123 456" → "tel:+21674123456" */
+export function telHref(phone: string): string {
+  return `tel:${phone.replace(/\s/g, "")}`;
+}
+
+/** "+216 98 123 456" → "https://wa.me/21698123456" */
+export function whatsappHref(phone: string): string {
+  return `https://wa.me/${phone.replace(/\D/g, "")}`;
+}

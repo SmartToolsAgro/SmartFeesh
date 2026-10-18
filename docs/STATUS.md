@@ -1,14 +1,15 @@
 # Project status
 
-_Last updated: 2026-10-18 (public site renumbered D-186 after main took D-184; main merged into public-site)_
+_Last updated: 2026-10-18 (public site: phone set in the office app, domain www.fruttidelmare.com, D-186)_
 
 ## Where we are
 
 - **D-186 (branch public-site, PR #198):** a public, animated site (`frontend/apps/site`, :5175; Artlist video and
   photos): catalogue with web prices, basket, order or quote request with a **required phone number**. The office gets
   a bell notification and handles requests in "Site web → Demandes du site"; "Site web → Produits du site" adds and
-  removes products, hides them, orders them and sets a **web-only price** (the day's price never changes). Main is
-  merged in (it was D-184 too; renumbered D-186). Awaits CI.
+  removes products, hides them, orders them and sets a **web-only price** (the day's price never changes);
+  "Paramètres du site" sets the **phone** (and WhatsApp, e-mail, address, hours) the site shows. Domain
+  **https://www.fruttidelmare.com** (bare name redirects; certificate expanded by the deploy). Awaits CI.
 - **D-185 (on main, #189):** a driver's day (Suivi des chauffeurs, closing) counts the load BLs delivered (sales, cash
   at the door, kg "Vendu" in "Marchandise du camion"); delivering sets `sold_at` to the delivery moment. The owner saw
   the old gap again on 2026-10-18 (4/4 delivered, "Vendu" 0 kg, "Reste" right) on a build without it. Check on staging.
@@ -51,12 +52,12 @@ _Last updated: 2026-10-18 (public site renumbered D-186 after main took D-184; m
 
 ## Next step
 
-0. D-186 (PR #198): merge after green CI (new app `storefront`, migration 0001). On staging put products on the site in
-   "Site web → Produits du site" (`seed_dev` does it for dev data), open 127.0.0.1:18083 through an SSH tunnel, add
-   2 products, send an order with a wrong then a right phone, see the bell and "Demandes du site", change a web
-   price in "Produits du site" and reload the site. To publish it: owner DNS for `www.fruttidelmare.com` (or the root), add the name to the certificate, to
-   `DJANGO_ALLOWED_HOSTS` and a host-nginx block to 127.0.0.1:18083. Ask the owner for the phone/e-mail to show and
-   to read the page's texts (D-186, provisional).
+0. D-186 (PR #198): merge after green CI (app `storefront`, migrations 0001–0002). The deploy publishes
+   https://www.fruttidelmare.com and adds www and the bare name to the certificate: read its log for "Certificate now
+   holds" (else run the runbook's certbot line). Then in the admin app: "Site web → Paramètres du site", type the
+   phone; "Produits du site", add products with a web price; on https://www.fruttidelmare.com check the phone in the
+   header and footer, send an order with a wrong then a right phone, see the bell and "Demandes du site". Then add
+   the site to the uptime watch. Ask the owner to read the page's texts (D-186, provisional).
 0. D-183: on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
    "Dorade royale" with Enter: the cursor moves to the next weight and the last cost appears.
 0. D-181: merge after green CI; on staging, on the phone type more cash than the total (the "Envoyer" button stays off

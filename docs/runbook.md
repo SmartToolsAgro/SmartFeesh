@@ -8,6 +8,7 @@ How to operate the running system. Keep it short and true; update it when a proc
 |---|---|
 | Admin app | https://app.fruttidelmare.com (D-155) |
 | Driver app | https://ch.fruttidelmare.com (D-155) |
+| Public site | https://www.fruttidelmare.com (D-186); https://fruttidelmare.com redirects to it |
 | Logins | `owner`, `driver`. Created by hand, never by a deploy: a deploy does not seed data. After the client start below, new passwords and no demo data |
 | Server login | `ssh debian@217.182.205.137` (key `~/.ssh/id_ed25519_erp_prod` on Mahmoud's machine) |
 
@@ -77,6 +78,17 @@ certificate is missing.
 4. Check: `curl -sS https://app.fruttidelmare.com/api/v1/health` and the same for `ch.`; log in on a phone.
 5. After a week on https without trouble, raise `DJANGO_SECURE_HSTS_SECONDS` in `compose.staging.yml` to 2592000
    (30 days) in a small PR.
+
+**Public site names (D-186).** `www.fruttidelmare.com` and the bare `fruttidelmare.com` point at the same server.
+The deploy adds both to the `frutti-staging` certificate by itself the first time (`remote-deploy.sh`, step 3b,
+webroot through the port-80 block of the host nginx site). If it printed a warning, run it by hand:
+```bash
+sudo certbot certonly --webroot -w /var/www/frutti-acme --cert-name frutti-staging --expand \
+  -d app.fruttidelmare.com -d ch.fruttidelmare.com -d www.fruttidelmare.com -d fruttidelmare.com \
+  --deploy-hook "/usr/sbin/nginx -t && /bin/systemctl reload nginx" --non-interactive --agree-tos
+sudo nginx -t && sudo systemctl reload nginx
+```
+Check: `curl -sS https://www.fruttidelmare.com/api/v1/site/catalog | head -c 200`.
 
 Do not run `certbot --nginx`: it rewrites the Frutti site file, which the next deploy replaces.
 

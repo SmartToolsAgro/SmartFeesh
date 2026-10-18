@@ -1,8 +1,10 @@
 import { useTranslation } from "@frutti/i18n";
-import { BRAND, BrandMark, cn, Icon } from "@frutti/ui";
+import { cn, Icon } from "@frutti/ui";
 import { useState } from "react";
 
+import { Logo, PhoneIcon } from "./Contact";
 import { useScrolledPast } from "./motion";
+import { shownPhone, telHref } from "./phone";
 
 const LINKS = [
   ["#produits", "products"],
@@ -12,7 +14,21 @@ const LINKS = [
 ] as const;
 
 /** Clear over the video, frosted once the page scrolls. The basket count pops when something is added. */
-export function Header({ basketCount, bump, onBasket }: { basketCount: number; bump: number; onBasket: () => void }) {
+export function Header({
+  basketCount,
+  bump,
+  phone,
+  logoUrl,
+  company,
+  onBasket,
+}: {
+  basketCount: number;
+  bump: number;
+  phone: string;
+  logoUrl: string | null | undefined;
+  company: string | undefined;
+  onBasket: () => void;
+}) {
   const { t } = useTranslation();
   const scrolled = useScrolledPast(40);
   const [open, setOpen] = useState(false);
@@ -26,8 +42,7 @@ export function Header({ basketCount, bump, onBasket }: { basketCount: number; b
     >
       <div className="site-container flex h-[68px] items-center gap-4 text-white">
         <a href="#top" className="flex items-center gap-2.5 font-display text-[1.15rem] font-extrabold">
-          <BrandMark className="bg-coral" />
-          {BRAND.name}
+          <Logo logoUrl={logoUrl} name={company} />
         </a>
         <nav aria-label={t("site.nav.menu")} className="ms-auto hidden items-center gap-1 md:flex">
           {LINKS.map(([href, key]) => (
@@ -40,6 +55,15 @@ export function Header({ basketCount, bump, onBasket }: { basketCount: number; b
             </a>
           ))}
         </nav>
+        {phone && (
+          <a
+            href={telHref(phone)}
+            className="ms-2 hidden items-center gap-2 rounded-full border border-white/30 px-3.5 py-2 text-[0.92rem] font-bold text-white transition hover:bg-white/10 lg:flex"
+          >
+            <PhoneIcon className="size-4" />
+            <span className="num">{shownPhone(phone)}</span>
+          </a>
+        )}
         <button
           type="button"
           onClick={onBasket}

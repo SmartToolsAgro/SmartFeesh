@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 
 import { addToCart, estimate, lineTotal, parseKilos, removeFromCart, setQuantity } from "./cart";
 import { pictureOf } from "./media";
-import { normalizePhone } from "./phone";
+import { normalizePhone, shownPhone, telHref, whatsappHref } from "./phone";
 
 test("phone numbers are written like the server writes them", () => {
   expect(normalizePhone("98123456")).toBe("+216 98 123 456");
@@ -73,4 +73,11 @@ test("each product gets a picture from its name, then from its drawing kind", ()
   expect(pictureOf({ name: "Dorade", illustration: "fish", photo_url: "/api/v1/site/products/3/photo?v=a" })).toBe(
     "/api/v1/site/products/3/photo?v=a",
   );
+});
+
+test("the company's number is shown without +216, and called or messaged with it", () => {
+  expect(shownPhone("+216 74 123 456")).toBe("74 123 456");
+  expect(shownPhone("+33612345678")).toBe("+33612345678");
+  expect(telHref("+216 74 123 456")).toBe("tel:+21674123456");
+  expect(whatsappHref("+216 98 123 456")).toBe("https://wa.me/21698123456");
 });

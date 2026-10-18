@@ -15178,14 +15178,105 @@ export const RemoveSiteProductResponse = zod.void()
 
 
 /**
- * What the public site offers: the company's name, its categories and the products the office put on the
- * site, with their web price (or none: "prix sur demande").
+ * The phone, WhatsApp, e-mail, address and hours the public site shows (empty until saved once).
+ */
+export const getSiteSettingsResponsePhoneDefault = ``;
+export const getSiteSettingsResponsePhoneMax = 30;
+
+export const getSiteSettingsResponseWhatsappDefault = ``;
+export const getSiteSettingsResponseWhatsappMax = 30;
+
+export const getSiteSettingsResponseEmailOneDefault = ``;
+export const getSiteSettingsResponseEmailTwoMax = 0;
+
+export const getSiteSettingsResponseAddressDefault = ``;
+export const getSiteSettingsResponseAddressMax = 250;
+
+export const getSiteSettingsResponseOpeningHoursDefault = ``;
+export const getSiteSettingsResponseOpeningHoursMax = 200;
+
+
+
+export const GetSiteSettingsResponse = zod.object({
+  "phone": zod.string().max(getSiteSettingsResponsePhoneMax).default(getSiteSettingsResponsePhoneDefault),
+  "whatsapp": zod.string().max(getSiteSettingsResponseWhatsappMax).default(getSiteSettingsResponseWhatsappDefault),
+  "email": zod.union([zod.email().default(getSiteSettingsResponseEmailOneDefault),zod.string().max(getSiteSettingsResponseEmailTwoMax)]).optional(),
+  "address": zod.string().max(getSiteSettingsResponseAddressMax).default(getSiteSettingsResponseAddressDefault),
+  "opening_hours": zod.string().max(getSiteSettingsResponseOpeningHoursMax).default(getSiteSettingsResponseOpeningHoursDefault)
+}).describe('The site\'s contact details as the office edits them. Every field may be empty: it is then not shown.')
+
+
+/**
+ * Replace the site's contact details. The numbers are checked and written one way ("+216 74 123 456").
+ */
+export const saveSiteSettingsBodyPhoneDefault = ``;
+export const saveSiteSettingsBodyPhoneMax = 30;
+
+export const saveSiteSettingsBodyWhatsappDefault = ``;
+export const saveSiteSettingsBodyWhatsappMax = 30;
+
+export const saveSiteSettingsBodyEmailOneDefault = ``;
+export const saveSiteSettingsBodyEmailTwoMax = 0;
+
+export const saveSiteSettingsBodyAddressDefault = ``;
+export const saveSiteSettingsBodyAddressMax = 250;
+
+export const saveSiteSettingsBodyOpeningHoursDefault = ``;
+export const saveSiteSettingsBodyOpeningHoursMax = 200;
+
+
+
+export const SaveSiteSettingsBody = zod.object({
+  "phone": zod.string().max(saveSiteSettingsBodyPhoneMax).default(saveSiteSettingsBodyPhoneDefault),
+  "whatsapp": zod.string().max(saveSiteSettingsBodyWhatsappMax).default(saveSiteSettingsBodyWhatsappDefault),
+  "email": zod.union([zod.email().default(saveSiteSettingsBodyEmailOneDefault),zod.string().max(saveSiteSettingsBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(saveSiteSettingsBodyAddressMax).default(saveSiteSettingsBodyAddressDefault),
+  "opening_hours": zod.string().max(saveSiteSettingsBodyOpeningHoursMax).default(saveSiteSettingsBodyOpeningHoursDefault)
+}).describe('The site\'s contact details as the office edits them. Every field may be empty: it is then not shown.')
+
+export const saveSiteSettingsResponsePhoneDefault = ``;
+export const saveSiteSettingsResponsePhoneMax = 30;
+
+export const saveSiteSettingsResponseWhatsappDefault = ``;
+export const saveSiteSettingsResponseWhatsappMax = 30;
+
+export const saveSiteSettingsResponseEmailOneDefault = ``;
+export const saveSiteSettingsResponseEmailTwoMax = 0;
+
+export const saveSiteSettingsResponseAddressDefault = ``;
+export const saveSiteSettingsResponseAddressMax = 250;
+
+export const saveSiteSettingsResponseOpeningHoursDefault = ``;
+export const saveSiteSettingsResponseOpeningHoursMax = 200;
+
+
+
+export const SaveSiteSettingsResponse = zod.object({
+  "phone": zod.string().max(saveSiteSettingsResponsePhoneMax).default(saveSiteSettingsResponsePhoneDefault),
+  "whatsapp": zod.string().max(saveSiteSettingsResponseWhatsappMax).default(saveSiteSettingsResponseWhatsappDefault),
+  "email": zod.union([zod.email().default(saveSiteSettingsResponseEmailOneDefault),zod.string().max(saveSiteSettingsResponseEmailTwoMax)]).optional(),
+  "address": zod.string().max(saveSiteSettingsResponseAddressMax).default(saveSiteSettingsResponseAddressDefault),
+  "opening_hours": zod.string().max(saveSiteSettingsResponseOpeningHoursMax).default(saveSiteSettingsResponseOpeningHoursDefault)
+}).describe('The site\'s contact details as the office edits them. Every field may be empty: it is then not shown.')
+
+
+/**
+ * What the public site offers: the company's name and contact details, its categories and the products
+ * the office put on the site, with their web price (or none: "prix sur demande").
  */
 export const getSiteCatalogResponseProductsItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetSiteCatalogResponse = zod.object({
   "company": zod.string(),
+  "logo_url": zod.string().nullable(),
+  "contact": zod.object({
+  "phone": zod.string(),
+  "whatsapp": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "opening_hours": zod.string()
+}).describe('How a visitor reaches the company; an empty field is not shown.'),
   "categories": zod.array(zod.object({
   "id": zod.int(),
   "name": zod.string()

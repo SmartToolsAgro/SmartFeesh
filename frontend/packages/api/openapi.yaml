@@ -7744,12 +7744,54 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/site-settings:
+    get:
+      operationId: getSiteSettings
+      description: The phone, WhatsApp, e-mail, address and hours the public site
+        shows (empty until saved once).
+      tags:
+      - site-settings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSettings'
+          description: ''
+    put:
+      operationId: saveSiteSettings
+      description: Replace the site's contact details. The numbers are checked and
+        written one way ("+216 74 123 456").
+      tags:
+      - site-settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SiteSettings'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SiteSettings'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SiteSettings'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSettings'
+          description: ''
   /api/v1/site/catalog:
     get:
       operationId: getSiteCatalog
       description: |-
-        What the public site offers: the company's name, its categories and the products the office put on the
-        site, with their web price (or none: "prix sur demande").
+        What the public site offers: the company's name and contact details, its categories and the products
+        the office put on the site, with their web price (or none: "prix sur demande").
       tags:
       - site
       security:
@@ -23246,6 +23288,11 @@ components:
       properties:
         company:
           type: string
+        logo_url:
+          type: string
+          nullable: true
+        contact:
+          $ref: '#/components/schemas/SiteContact'
         categories:
           type: array
           items:
@@ -23257,6 +23304,8 @@ components:
       required:
       - categories
       - company
+      - contact
+      - logo_url
       - products
     SiteCategory:
       type: object
@@ -23268,6 +23317,32 @@ components:
       required:
       - id
       - name
+    SiteContact:
+      type: object
+      description: How a visitor reaches the company; an empty field is not shown.
+      properties:
+        phone:
+          type: string
+          readOnly: true
+        whatsapp:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        opening_hours:
+          type: string
+          readOnly: true
+      required:
+      - address
+      - email
+      - opening_hours
+      - phone
+      - whatsapp
     SiteProduct:
       type: object
       description: 'A product as the public site shows it: its web price only, no
@@ -23413,6 +23488,34 @@ components:
       required:
       - kind
       - number
+    SiteSettings:
+      type: object
+      description: 'The site''s contact details as the office edits them. Every field
+        may be empty: it is then not shown.'
+      properties:
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+        whatsapp:
+          type: string
+          default: ''
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+          default: ''
+          maxLength: 250
+        opening_hours:
+          type: string
+          default: ''
+          maxLength: 200
     SlowLot:
       type: object
       properties:

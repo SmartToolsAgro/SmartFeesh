@@ -8,7 +8,7 @@ import { ApiError, sendSiteRequest } from "./api";
 import { type CartLine, estimate, lineTotal, parseKilos, removeFromCart, setQuantity } from "./cart";
 import { pictureOf } from "./media";
 import { useReveal } from "./motion";
-import { normalizePhone } from "./phone";
+import { normalizePhone, shownPhone, telHref } from "./phone";
 
 type Contact = {
   full_name: string;
@@ -103,12 +103,15 @@ export function RequestForm({
   cart,
   onCart,
   products,
+  phone,
 }: {
   kind: WebRequestKindEnum;
   onKind: (kind: WebRequestKindEnum) => void;
   cart: CartLine[];
   onCart: (lines: CartLine[]) => void;
   products: SiteProduct[];
+  /** The company's number, from "Paramètres du site"; empty: not shown. */
+  phone: string;
 }) {
   const { t } = useTranslation();
   const ref = useReveal<HTMLDivElement>();
@@ -207,6 +210,14 @@ export function RequestForm({
                 phone: received.phone.replaceAll(" ", "\u00a0"),
               })}
             </p>
+            {phone && (
+              <p className="mt-3 text-[0.95rem] text-ink-2">
+                {t("site.form.callUs")}{" "}
+                <a href={telHref(phone)} className="num font-bold whitespace-nowrap text-sea hover:underline">
+                  {shownPhone(phone)}
+                </a>
+              </p>
+            )}
             <button
               type="button"
               onClick={() => setReceived(null)}
@@ -364,6 +375,15 @@ export function RequestForm({
                 {errors.form && (
                   <p role="alert" className="rounded-control bg-bad-soft p-3 text-[0.9rem] font-semibold text-bad">
                     {errors.form}
+                    {phone && (
+                      <>
+                        {" "}
+                        {t("site.form.callUs")}{" "}
+                        <a href={telHref(phone)} className="num whitespace-nowrap underline">
+                          {shownPhone(phone)}
+                        </a>
+                      </>
+                    )}
                   </p>
                 )}
                 {(errors.detail ?? errors.kind) && (

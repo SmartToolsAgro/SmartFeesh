@@ -39,6 +39,7 @@ import { useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { canRecordReceipts } from "../receipts/shared";
+import { SITE_URL } from "./shared";
 
 /** "" → null ("prix sur demande"); "28,5" → "28.5"; anything else → undefined (not a price). */
 function parseWebPrice(text: string): string | null | undefined {
@@ -105,6 +106,14 @@ export function SiteProductsPage() {
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.site")} title={t("admin.siteProducts.title")}>
+        <a
+          href={SITE_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[0.9rem] font-semibold text-sea hover:underline"
+        >
+          {t("admin.siteProducts.openSite")} ↗
+        </a>
         {canEdit && (
           <Button variant="primary" onClick={() => setAdding(true)} disabled={products.isPending}>
             <Icon name="plus" />

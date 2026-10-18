@@ -6,7 +6,8 @@ from rest_framework import serializers
 
 from apps.core.money import MAX_AMOUNT, MAX_QUANTITY
 
-from ..models import SiteProduct, WebRequest, WebRequestKind, WebRequestLine, WebRequestStatus
+from ..models import SiteSettings, WebRequest, WebRequestKind, WebRequestLine, WebRequestStatus
+from ..selectors import SiteOffer
 
 if TYPE_CHECKING:
     from apps.catalog.models import Product
@@ -28,7 +29,7 @@ def _photo_url(product: "Product") -> str | None:
     return f"{reverse('site-product-photo', args=[product.pk])}?v={version}"
 
 
-class SiteProductSerializer(serializers.Serializer[SiteProduct]):
+class SiteProductSerializer(serializers.Serializer[Any]):
     """A product as the public site shows it: its web price only, no stock, no cost (D-186)."""
 
     id = serializers.IntegerField(source="product_id")
@@ -45,12 +46,24 @@ class SiteProductSerializer(serializers.Serializer[SiteProduct]):
     photo_url = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_photo_url(self, site_product: SiteProduct) -> str | None:
-        return _photo_url(site_product.product)
+    def get_photo_url(self, offer: SiteOffer) -> str | None:
+        return _photo_url(offer.product)
+
+
+class SiteContactSerializer(serializers.ModelSerializer[SiteSettings]):
+    """How a visitor reaches the company; an empty field is not shown."""
+
+    class Meta:
+        model = SiteSettings
+        fields = ("phone", "whatsapp", "email", "address", "opening_hours")
+        read_only_fields = fields
 
 
 class SiteCatalogSerializer(serializers.Serializer[Any]):
     company = serializers.CharField()
+    # The logo uploaded in the office app's Paramètres (D-125); null when there is none.
+    logo_url = serializers.CharField(allow_null=True)
+    contact = SiteContactSerializer()
     categories = SiteCategorySerializer(many=True)
     products = SiteProductSerializer(many=True)
 
@@ -151,50 +164,31 @@ class WebRequestStatusSerializer(serializers.Serializer[Any]):
 # ---- The office: what the site shows (D-186) ----
 
 
-class OfficeSiteProductSerializer(serializers.ModelSerializer[SiteProduct]):
+class OfficeSiteProductSerializer(serializers.Serializer[Any]):
+    """One active product of the application as the office sees it on the site screen: its photo, its day's price
+    for comparison, and the site's settings (defaults when the office never changed them)."""
+
     product = serializers.IntegerField(source="product_id")
     product_name = serializers.CharField(source="product.name")
     product_reference = serializers.CharField(source="product.reference")
     category_name = serializers.CharField(source="product.category.name")
     unit = serializers.CharField(source="product.base_unit.symbol")
-    # An archived product stays in the list but is not shown on the site.
-    product_active = serializers.BooleanField(source="product.is_active")
     illustration = serializers.CharField(source="product.illustration")
     photo_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = SiteProduct
-        fields = (
-            "id",
-            "product",
-            "product_name",
-            "product_reference",
-            "category_name",
-            "unit",
-            "product_active",
-            "illustration",
-            "photo_url",
-            "is_published",
-            "web_price",
-            "description",
-            "position",
-            "updated_at",
-        )
-        read_only_fields = fields
+    day_price = serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True)
+    is_published = serializers.BooleanField()
+    web_price = serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True)
+    description = serializers.CharField()
+    position = serializers.IntegerField()
 
     @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_photo_url(self, site_product: SiteProduct) -> str | None:
-        return _photo_url(site_product.product)
-
-
-class SiteProductCreateSerializer(serializers.Serializer[Any]):
-    product = serializers.IntegerField(min_value=1)
-    web_price = serializers.DecimalField(
-        max_digits=14, decimal_places=3, required=False, allow_null=True, default=None, max_value=MAX_AMOUNT
-    )
-    description = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
-    is_published = serializers.BooleanField(required=False, default=True)
-    position = serializers.IntegerField(min_value=0, required=False, allow_null=True, default=None)
+    def get_photo_url(self, offer: SiteOffer) -> str | None:
+        # The office reads the photo through the catalogue (members only), shown on the site or not.
+        product = offer.product
+        if not product.photo.name:
+            return None
+        version = product.photo.name.rsplit("/", 1)[-1].split(".", 1)[0]
+        return f"{reverse('product-photo', args=[product.pk])}?v={version}"
 
 
 class SiteProductUpdateSerializer(serializers.Serializer[Any]):
@@ -206,3 +200,17 @@ class SiteProductUpdateSerializer(serializers.Serializer[Any]):
     description = serializers.CharField(max_length=300, required=False, allow_blank=True)
     is_published = serializers.BooleanField(required=False)
     position = serializers.IntegerField(min_value=0, required=False)
+
+
+class SiteSettingsSerializer(serializers.ModelSerializer[SiteSettings]):
+    """The site's contact details as the office edits them. Every field may be empty: it is then not shown."""
+
+    phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
+    whatsapp = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
+    address = serializers.CharField(max_length=250, required=False, allow_blank=True, default="")
+    opening_hours = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+
+    class Meta:
+        model = SiteSettings
+        fields = ("phone", "whatsapp", "email", "address", "opening_hours")

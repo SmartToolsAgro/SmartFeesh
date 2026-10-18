@@ -16,7 +16,7 @@ from apps.core.models import AuditLog, Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory
 from apps.notifications.models import Notification
 from apps.storefront import services
-from apps.storefront.models import SiteProduct, WebRequest, WebRequestStatus
+from apps.storefront.models import WebRequest, WebRequestStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -28,8 +28,8 @@ def _reset_throttles():
 
 @pytest.fixture
 def shop(settings):
-    """Dorade at 29.500 DT on the site, crevette "prix sur demande", loup hidden, poulpe never put on the site, and
-    an archived product left on it."""
+    """Every active product is on the site: dorade first at 29.500 DT with a text, crevette and poulpe as they are
+    ("prix sur demande"), loup hidden by the office; the archived product never shows."""
     organization = OrganizationFactory.create(name="Frutti Del Mare")
     settings.PUBLIC_SITE_ORGANIZATION_ID = organization.pk
     owner = MembershipFactory.create(organization=organization, role=Role.OWNER)
@@ -39,11 +39,10 @@ def shop(settings):
     bass = ProductFactory.create(organization=organization, name="Loup de mer", illustration="bass")
     octopus = ProductFactory.create(organization=organization, name="Poulpe", illustration="octopus")
     archived = ProductFactory.create(organization=organization, name="Ancien produit")
-    add = functools.partial(services.add_site_product, organization=organization, actor=owner.user)
-    add(product_id=dorade.pk, web_price=Decimal("29.500"), description="Pêchée à Sfax")
-    add(product_id=shrimp.pk)
-    add(product_id=bass.pk, web_price=Decimal("31.000"), is_published=False)
-    add(product_id=archived.pk, web_price=Decimal("10.000"))
+    change = functools.partial(services.update_site_product, organization=organization, actor=owner.user)
+    change(product_id=dorade.pk, changes={"web_price": Decimal("29.500"), "description": "Pêchée à Sfax", "position": 0})
+    change(product_id=bass.pk, changes={"web_price": Decimal("31.000"), "is_published": False})
+    change(product_id=archived.pk, changes={"web_price": Decimal("10.000")})
     archived.is_active = False
     archived.save()
     return {
@@ -94,14 +93,19 @@ def test_the_catalogue_shows_the_site_products_with_their_web_price_only(shop):
     assert answer.status_code == 200
     body = answer.json()
     assert body["company"] == "Frutti Del Mare"
-    # In the site's order; the hidden, archived and never-added products are not offered.
+    # Every active product, the ones the office placed first, then by name; the hidden and archived ones are not.
     shown = [(product["name"], product["web_price"], product["description"]) for product in body["products"]]
-    assert shown == [("Dorade royale", "29.500", "Pêchée à Sfax"), ("Crevette royale", None, "")]
+    assert shown == [
+        ("Dorade royale", "29.500", "Pêchée à Sfax"),
+        ("Crevette royale", None, ""),
+        ("Poulpe", None, ""),
+    ]
     # The web price only: never the day's price (28.000), a cost or the stock.
     assert {key for product in body["products"] for key in product if "price" in key} == {"web_price"}
     assert {category["id"] for category in body["categories"]} == {
         shop["dorade"].category_id,
         shop["shrimp"].category_id,
+        shop["octopus"].category_id,
     }
 
 
@@ -149,7 +153,6 @@ def test_an_order_needs_a_product_a_quote_a_product_or_a_message(shop):
         [{"product": 999999, "quantity": "1"}],
         [{"product": "archived", "quantity": "1"}],
         [{"product": "bass", "quantity": "1"}],
-        [{"product": "octopus", "quantity": "1"}],
         [{"product": "dorade", "quantity": "0"}],
         [{"product": "dorade", "quantity": "1"}, {"product": "dorade", "quantity": "2"}],
     ],
@@ -237,62 +240,62 @@ def office_client(membership):
     return client
 
 
-def test_the_office_adds_prices_hides_and_removes_site_products(shop):
+def test_the_office_sees_every_product_and_sets_what_the_site_shows(shop):
     office = office_client(shop["owner"])
     listed = office.get(reverse("site-product-list")).json()
+    # Every active product of the application, the placed ones first, then by name; the archived one is left out.
     names = [row["product_name"] for row in listed]
-    assert names == ["Dorade royale", "Crevette royale", "Loup de mer", "Ancien produit"]
-    assert listed[3]["product_active"] is False
+    assert names == ["Dorade royale", "Crevette royale", "Loup de mer", "Poulpe"]
+    dorade, shrimp, bass, _octopus = listed
+    assert (dorade["day_price"], dorade["web_price"], dorade["is_published"]) == ("28.000", "29.500", True)
+    assert (shrimp["web_price"], shrimp["is_published"], shrimp["description"]) == (None, True, "")
+    assert bass["is_published"] is False
 
-    added = office.post(
-        reverse("site-product-list"), {"product": shop["octopus"].pk, "web_price": "18.5"}, format="json"
-    )
-    assert added.status_code == 201, added.json()
-    assert added.json()["web_price"] == "18.500"
-    assert added.json()["position"] == 4  # at the end of the list
-    again = office.post(reverse("site-product-list"), {"product": shop["octopus"].pk}, format="json")
-    assert again.status_code == 400
-
-    row = SiteProduct.objects.get(product=shop["shrimp"])
-    url = reverse("site-product-detail", args=[row.pk])
-    changed = office.patch(url, {"web_price": "42.000", "position": 0}, format="json")
-    assert changed.status_code == 200
+    url = reverse("site-product-detail", args=[shop["shrimp"].pk])
+    changed = office.patch(url, {"web_price": "42.000", "position": 1}, format="json")
+    assert changed.status_code == 200, changed.json()
     assert changed.json()["web_price"] == "42.000"
     assert changed.json()["description"] == ""  # what is not sent does not change
     assert office.patch(url, {"web_price": "0"}, format="json").status_code == 400
     assert office.patch(url, {"web_price": None}, format="json").json()["web_price"] is None
 
-    hidden = office.patch(url, {"is_published": False}, format="json")
-    assert hidden.json()["is_published"] is False
-    names = [product["name"] for product in APIClient().get(reverse("site-catalog")).json()["products"]]
-    assert names == ["Dorade royale", "Poulpe"]
+    def on_site():
+        return [product["name"] for product in APIClient().get(reverse("site-catalog")).json()["products"]]
 
-    assert office.delete(url).status_code == 204
-    assert not SiteProduct.objects.filter(pk=row.pk).exists()
+    assert office.patch(url, {"is_published": False}, format="json").json()["is_published"] is False
+    assert on_site() == ["Dorade royale", "Poulpe"]
+    office.patch(url, {"is_published": True}, format="json")
+    assert on_site() == ["Dorade royale", "Crevette royale", "Poulpe"]
     actions = set(AuditLog.objects.filter(action__startswith="site_product.").values_list("action", flat=True))
-    assert actions == {"site_product.added", "site_product.changed", "site_product.removed"}
+    assert actions == {"site_product.changed"}
+    assert office.patch(reverse("site-product-detail", args=[999999]), {}, format="json").status_code == 404
+
+
+def test_a_new_product_of_the_application_shows_on_the_site_at_once(shop):
+    ProductFactory.create(organization=shop["organization"], name="Seiche", illustration="squid")
+    names = [product["name"] for product in APIClient().get(reverse("site-catalog")).json()["products"]]
+    assert "Seiche" in names
 
 
 def test_the_web_price_never_changes_the_days_price(shop):
     office = office_client(shop["owner"])
-    row = SiteProduct.objects.get(product=shop["dorade"])
-    office.patch(reverse("site-product-detail", args=[row.pk]), {"web_price": "35"}, format="json")
-    shop["dorade"].refresh_from_db()
-    assert catalog.current_price_of(shop["dorade"]) == Decimal("28.000")
+    office.patch(reverse("site-product-detail", args=[shop["dorade"].pk]), {"web_price": "35"}, format="json")
+    # Read again through the catalogue, which gives the price in force now.
+    dorade = catalog.product_of(shop["organization"], shop["dorade"].pk)
+    assert catalog.current_price_of(dorade) == Decimal("28.000")
 
 
 def test_an_archived_product_cannot_be_put_on_the_site(shop):
     office = office_client(shop["owner"])
-    SiteProduct.objects.filter(product=shop["archived"]).delete()
-    answer = office.post(reverse("site-product-list"), {"product": shop["archived"].pk}, format="json")
+    url = reverse("site-product-detail", args=[shop["archived"].pk])
+    answer = office.patch(url, {"is_published": True}, format="json")
     assert answer.status_code == 400
     assert "product" in answer.json()
 
 
 def test_only_owners_and_managers_change_the_site(shop):
     organization = shop["organization"]
-    row = SiteProduct.objects.get(product=shop["dorade"])
-    url = reverse("site-product-detail", args=[row.pk])
+    url = reverse("site-product-detail", args=[shop["dorade"].pk])
     manager = office_client(MembershipFactory.create(organization=organization, role=Role.MANAGER))
     assert manager.patch(url, {"web_price": "30"}, format="json").status_code == 200
     accountant = office_client(MembershipFactory.create(organization=organization, role=Role.ACCOUNTANT))
@@ -302,4 +305,58 @@ def test_only_owners_and_managers_change_the_site(shop):
     assert driver.get(reverse("site-product-list")).status_code == 403
     stranger = office_client(MembershipFactory.create(role=Role.OWNER))
     assert stranger.patch(url, {"web_price": "1"}, format="json").status_code == 404
-    assert stranger.delete(url).status_code == 404
+
+
+# ---- The site's contact details, set in the office app (D-186) ----
+
+
+def test_the_office_sets_the_phone_the_site_shows(shop):
+    office = office_client(shop["owner"])
+    empty = office.get(reverse("site-settings")).json()
+    assert empty == {"phone": "", "whatsapp": "", "email": "", "address": "", "opening_hours": ""}
+    assert APIClient().get(reverse("site-catalog")).json()["contact"]["phone"] == ""
+
+    saved = office.put(
+        reverse("site-settings"),
+        {
+            "phone": "74 123 456",
+            "whatsapp": "98123456",
+            "email": "contact@fruttidelmare.com",
+            "address": "Sakiet Ezzit",
+        },
+        format="json",
+    )
+    assert saved.status_code == 200, saved.json()
+    assert saved.json()["phone"] == "+216 74 123 456"
+    assert saved.json()["whatsapp"] == "+216 98 123 456"
+    contact = APIClient().get(reverse("site-catalog")).json()["contact"]
+    assert contact == {
+        "phone": "+216 74 123 456",
+        "whatsapp": "+216 98 123 456",
+        "email": "contact@fruttidelmare.com",
+        "address": "Sakiet Ezzit",
+        "opening_hours": "",
+    }
+    assert AuditLog.objects.filter(action="site_settings.changed").count() == 1
+
+    # A wrong number is refused and nothing changes; an empty one hides the line.
+    wrong = office.put(reverse("site-settings"), {"phone": "123"}, format="json")
+    assert wrong.status_code == 400
+    assert "phone" in wrong.json()
+    assert office.get(reverse("site-settings")).json()["phone"] == "+216 74 123 456"
+    cleared = office.put(reverse("site-settings"), {"phone": ""}, format="json").json()
+    assert cleared["phone"] == ""
+    assert cleared["email"] == ""
+
+
+def test_only_owners_and_managers_change_the_site_contact(shop):
+    organization = shop["organization"]
+    manager = office_client(MembershipFactory.create(organization=organization, role=Role.MANAGER))
+    assert manager.put(reverse("site-settings"), {"phone": "74123456"}, format="json").status_code == 200
+    accountant = office_client(MembershipFactory.create(organization=organization, role=Role.ACCOUNTANT))
+    assert accountant.get(reverse("site-settings")).json()["phone"] == "+216 74 123 456"
+    assert accountant.put(reverse("site-settings"), {"phone": "74123457"}, format="json").status_code == 403
+    driver = office_client(MembershipFactory.create(organization=organization, role=Role.DRIVER))
+    assert driver.get(reverse("site-settings")).status_code == 403
+    stranger = office_client(MembershipFactory.create(role=Role.OWNER))
+    assert stranger.get(reverse("site-settings")).json()["phone"] == ""

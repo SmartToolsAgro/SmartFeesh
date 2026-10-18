@@ -1,8 +1,8 @@
-"""Demo public site (D-186): every active product is shown, at today's price rounded up to the half dinar."""
+"""Demo public site (D-186): every active product is on the site; those with a day's price get a web price, the day's
+price rounded up to the half dinar. Run again, it changes nothing."""
 
 from decimal import ROUND_CEILING, Decimal
 
-from apps.catalog import selectors as catalog
 from apps.core.models import Organization, User
 from apps.storefront import selectors, services
 
@@ -10,14 +10,14 @@ HALF_DINAR = Decimal("0.5")
 
 
 def seed_site(*, organization: Organization, actor: User) -> int:
-    """Put the products not yet on the site there. Returns how many were added."""
-    shown = set(selectors.site_products_of(organization).values_list("product_id", flat=True))
-    added = 0
-    for product in catalog.products_of(organization):
-        if product.pk in shown:
+    """Give a web price to the products the office never set up on the site. Returns how many were set."""
+    priced = 0
+    for offer in selectors.site_offers(organization, include_hidden=True):
+        if offer.settings is not None or offer.day_price is None:
             continue
-        price = catalog.current_price_of(product)
-        web_price = (price / HALF_DINAR).to_integral_value(ROUND_CEILING) * HALF_DINAR if price else None
-        services.add_site_product(organization=organization, actor=actor, product_id=product.pk, web_price=web_price)
-        added += 1
-    return added
+        web_price = (offer.day_price / HALF_DINAR).to_integral_value(ROUND_CEILING) * HALF_DINAR
+        services.update_site_product(
+            organization=organization, actor=actor, product_id=offer.product_id, changes={"web_price": web_price}
+        )
+        priced += 1
+    return priced

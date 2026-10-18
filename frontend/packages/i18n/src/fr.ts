@@ -422,6 +422,7 @@ export const fr = {
       imports: "Import de données",
       webRequests: "Demandes du site",
       siteProducts: "Produits du site",
+      siteSettings: "Paramètres du site",
     },
     // Quote requests and orders sent from the public site (D-186)
     webRequests: {
@@ -478,6 +479,27 @@ export const fr = {
       saveNote: "Enregistrer la note",
       saved: "Demande mise à jour",
       newQuote: "Créer un devis",
+    },
+    // How visitors reach the company, as the public site shows it (D-186)
+    siteSettings: {
+      title: "Paramètres du site",
+      intro:
+        "Le téléphone et les coordonnées affichés sur le site public : en haut de la page, sous les boutons, dans le pied de page et après l'envoi d'une demande. Un champ vide n'est pas affiché.",
+      readOnly: "Seuls le propriétaire et les gérants modifient le site.",
+      address: "Adresse du site",
+      contact: "Coordonnées",
+      phone: "Téléphone affiché",
+      phoneHint: "8 chiffres, ex. 74 123 456. Les visiteurs l'appellent d'un clic.",
+      whatsapp: "WhatsApp (facultatif)",
+      whatsappHint: "Le numéro qui reçoit les messages WhatsApp, s'il y en a un.",
+      email: "E-mail (facultatif)",
+      postal: "Adresse (facultatif)",
+      postalHint: "Ex. : Route de Tunis km 8, Sfax",
+      hours: "Horaires (facultatif)",
+      hoursHint: "Ex. : Du lundi au samedi, 6 h – 14 h",
+      save: "Enregistrer",
+      saved: "Paramètres du site enregistrés",
+      noPhone: "Aucun téléphone : le site n'affiche pas de numéro à appeler.",
     },
     // What the public site shows, with its own prices (D-186)
     siteProducts: {
@@ -4150,13 +4172,14 @@ export const fr = {
       menu: "Menu",
     },
     hero: {
-      eyebrow: "Port de Sakiet Ezzit · Sfax",
+      eyebrow: "Port de Sfax",
       titleA: "La mer de Sfax,",
       titleB: "livrée fraîche.",
       body: "Poissons, crustacés et céphalopodes débarqués à l'aube, triés sur glace et livrés en camion frigorifique aux restaurants, hôtels, poissonneries et particuliers.",
       order: "Commander",
       quote: "Demander un devis",
       scroll: "Découvrir",
+      callUs: "Ou appelez-nous :",
     },
     marquee: ["Dorade royale", "Loup de mer", "Crevette royale", "Poulpe", "Calamar", "Rouget", "Palourdes", "Seiche"],
     values: {
@@ -4165,17 +4188,7 @@ export const fr = {
         {
           figure: "Aube",
           label: "Arrivage au port",
-          body: "Nous achetons au débarquement, sur le quai du port de Sakiet Ezzit.",
-        },
-        {
-          figure: "0–4 °C",
-          label: "Chaîne du froid",
-          body: "Glace pilée, chambre froide et camion frigorifique, sans rupture.",
-        },
-        {
-          figure: "Lot",
-          label: "Traçabilité",
-          body: "Chaque lot est suivi de l'achat au port jusqu'à votre livraison.",
+          body: "Nous achetons au débarquement, sur le quai du port de Sfax.",
         },
         {
           figure: "Pro",
@@ -4209,7 +4222,7 @@ export const fr = {
       steps: [
         {
           title: "La pêche à l'aube",
-          body: "Les barques rentrent au port de Sakiet Ezzit : nous choisissons sur le quai.",
+          body: "Les barques rentrent au port de Sfax : nous choisissons sur le quai.",
         },
         { title: "Tri et glace", body: "Chaque lot est trié, pesé et mis sous glace pilée." },
         { title: "Chambre froide", body: "Stockage à 0–4 °C, suivi lot par lot jusqu'à la vente." },
@@ -4258,10 +4271,15 @@ export const fr = {
         "Votre commande {{number}} est enregistrée. Nous vous appelons au {{phone}} pour confirmer le prix et la livraison.",
       thanksQuote: "Votre demande {{number}} est enregistrée. Nous vous appelons au {{phone}} avec nos prix.",
       again: "Nouvelle demande",
+      callUs: "Une question ? Appelez-nous au",
+    },
+    contact: {
+      call: "Appeler le {{phone}}",
+      whatsapp: "Écrire sur WhatsApp",
     },
     footer: {
       tagline: "Grossiste en produits de la mer, Sfax.",
-      address: "Sakiet Ezzit, Sfax, Tunisie",
+      address: "Sfax, Tunisie",
       rights: "© {{year}} Frutti Del Mare",
       staff: "Espace équipe",
     },

@@ -1,7 +1,9 @@
 from typing import Any
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from django.http import FileResponse, Http404
+from django.urls import reverse
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.generics import ListAPIView
@@ -16,14 +18,14 @@ from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 
 from .. import selectors, services
-from ..models import SiteProduct, WebRequest
+from ..models import WebRequest
 from .serializers import (
     OfficeSiteProductSerializer,
     SiteCatalogSerializer,
-    SiteProductCreateSerializer,
     SiteProductUpdateSerializer,
     SiteRequestReceivedSerializer,
     SiteRequestSerializer,
+    SiteSettingsSerializer,
     WebRequestFilterSerializer,
     WebRequestSerializer,
     WebRequestStatusSerializer,
@@ -53,20 +55,45 @@ class SiteView(APIView):
         return organization
 
 
+def _logo_url(organization: Organization) -> str | None:
+    if not organization.logo.name:
+        return None
+    # The file name changes with every upload, so the address can be cached for good.
+    version = organization.logo.name.rsplit("/", 1)[-1].split(".", 1)[0]
+    return f"{reverse('site-logo')}?v={version}"
+
+
 class SiteCatalogView(SiteView):
     throttle_classes = (SiteCatalogThrottle,)
 
     @extend_schema(operation_id="getSiteCatalog", responses=SiteCatalogSerializer)
     def get(self, request: Request) -> Response:
-        """What the public site offers: the company's name, its categories and the products the office put on the
-        site, with their web price (or none: "prix sur demande")."""
+        """What the public site offers: the company's name and contact details, its categories and the products
+        the office put on the site, with their web price (or none: "prix sur demande")."""
         organization = self.site_organization()
         answer = {
             "company": organization.name,
+            "logo_url": _logo_url(organization),
+            "contact": selectors.site_settings_of(organization),
             "categories": selectors.site_categories(organization),
             "products": selectors.site_products(organization),
         }
         return Response(SiteCatalogSerializer(answer).data)
+
+
+class SiteLogoView(SiteView):
+    throttle_classes = (SiteCatalogThrottle,)
+
+    # Read by an <img> tag, not by the generated client: kept out of the API contract.
+    @extend_schema(exclude=True)
+    def get(self, request: Request) -> FileResponse:
+        """The company logo, for the site's header, footer and browser tab (D-186)."""
+        organization = self.site_organization()
+        if not organization.logo:
+            raise Http404
+        response = FileResponse(organization.logo.open("rb"), content_type="image/webp")
+        response["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
 
 
 class SiteProductPhotoView(SiteView):
@@ -75,10 +102,13 @@ class SiteProductPhotoView(SiteView):
     # Read by an <img> tag, not by the generated client: kept out of the API contract.
     @extend_schema(exclude=True)
     def get(self, request: Request, product_id: int) -> FileResponse:
-        shown = selectors.site_products(self.site_organization()).filter(product_id=product_id).first()
-        if shown is None or not shown.product.photo:
+        try:
+            offer = selectors.site_offer_of(self.site_organization(), product_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        if not offer.product.is_active or not offer.is_published or not offer.product.photo:
             raise Http404
-        response = FileResponse(shown.product.photo.open("rb"), content_type="image/webp")
+        response = FileResponse(offer.product.photo.open("rb"), content_type="image/webp")
         # The address changes with every new photo (see SiteProductSerializer.photo_url).
         response["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
@@ -184,57 +214,47 @@ class WebRequestStatusView(OfficeView):
 class SiteProductListView(OfficeView):
     @extend_schema(operation_id="listSiteProducts", responses=OfficeSiteProductSerializer(many=True))
     def get(self, request: Request) -> Response:
-        """Every product put on the public site, shown or hidden, in the site's order."""
-        rows = selectors.site_products_of(self.organization)
-        return Response(OfficeSiteProductSerializer(rows, many=True).data)
-
-    @extend_schema(
-        operation_id="addSiteProduct",
-        request=SiteProductCreateSerializer,
-        responses={201: OfficeSiteProductSerializer},
-    )
-    def post(self, request: Request) -> Response:
-        """Put an active product on the site, with its own web price. The day's price and price lists do not
-        change."""
-        serializer = SiteProductCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        site_product = services.add_site_product(
-            organization=self.organization,
-            actor=self.membership.user,
-            product_id=data["product"],
-            web_price=data["web_price"],
-            description=data["description"],
-            is_published=data["is_published"],
-            position=data["position"],
-        )
-        answer = selectors.site_product_of(self.organization, site_product.pk)
-        return Response(OfficeSiteProductSerializer(answer).data, status=status.HTTP_201_CREATED)
+        """Every active product of the application, in the site's order, with its photo, its day's price and what
+        the site shows of it. A product the office never changed is shown, without a web price."""
+        offers = selectors.site_offers(self.organization, include_hidden=True)
+        return Response(OfficeSiteProductSerializer(offers, many=True).data)
 
 
 class SiteProductDetailView(OfficeView):
-    def site_product(self, site_product_id: int) -> SiteProduct:
-        try:
-            return selectors.site_product_of(self.organization, site_product_id)
-        except SiteProduct.DoesNotExist:
-            raise Http404 from None
-
     @extend_schema(
         operation_id="updateSiteProduct", request=SiteProductUpdateSerializer, responses=OfficeSiteProductSerializer
     )
-    def patch(self, request: Request, site_product_id: int) -> Response:
-        """Change the web price (null: "prix sur demande"), the text, the order, or hide the product."""
+    def patch(self, request: Request, product_id: int) -> Response:
+        """Hide or show a product on the site, set its web price (null: "prix sur demande"), its text or its
+        place. The day's price and the price lists do not change."""
+        try:
+            selectors.site_offer_of(self.organization, product_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
         serializer = SiteProductUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         services.update_site_product(
-            site_product=self.site_product(site_product_id),
+            organization=self.organization,
             actor=self.membership.user,
+            product_id=product_id,
             changes=serializer.validated_data,
         )
-        return Response(OfficeSiteProductSerializer(self.site_product(site_product_id)).data)
+        offer = selectors.site_offer_of(self.organization, product_id)
+        return Response(OfficeSiteProductSerializer(offer).data)
 
-    @extend_schema(operation_id="removeSiteProduct", responses={204: None})
-    def delete(self, request: Request, site_product_id: int) -> Response:
-        """Take the product off the site. The product, its prices and the requests already received stay."""
-        services.remove_site_product(site_product=self.site_product(site_product_id), actor=self.membership.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class SiteSettingsView(OfficeView):
+    @extend_schema(operation_id="getSiteSettings", responses=SiteSettingsSerializer)
+    def get(self, request: Request) -> Response:
+        """The phone, WhatsApp, e-mail, address and hours the public site shows (empty until saved once)."""
+        return Response(SiteSettingsSerializer(selectors.site_settings_of(self.organization)).data)
+
+    @extend_schema(operation_id="saveSiteSettings", request=SiteSettingsSerializer, responses=SiteSettingsSerializer)
+    def put(self, request: Request) -> Response:
+        """Replace the site's contact details. The numbers are checked and written one way ("+216 74 123 456")."""
+        serializer = SiteSettingsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        saved = services.save_site_settings(
+            organization=self.organization, actor=self.membership.user, **serializer.validated_data
+        )
+        return Response(SiteSettingsSerializer(saved).data)

@@ -1,9 +1,12 @@
+import type { SiteContact } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
-import { BRAND, BrandMark, Icon, type IconName } from "@frutti/ui";
+import { Icon, type IconName } from "@frutti/ui";
 import type { CSSProperties } from "react";
 
+import { Logo, PhoneIcon, WhatsAppIcon } from "./Contact";
 import { CATCH } from "./media";
 import { useParallax, useReveal } from "./motion";
+import { shownPhone, telHref, whatsappHref } from "./phone";
 
 /** The names of the catch, running across the page. */
 export function Marquee() {
@@ -27,7 +30,7 @@ export function Marquee() {
   );
 }
 
-const VALUE_ICONS: IconName[] = ["anchor", "snow", "check", "truck"];
+const VALUE_ICONS: IconName[] = ["anchor", "truck"];
 
 function ValueCard({ figure, label, body, index }: { figure: string; label: string; body: string; index: number }) {
   const ref = useReveal<HTMLDivElement>();
@@ -59,7 +62,7 @@ export function Values() {
       >
         {t("site.values.title")}
       </h2>
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-10 grid max-w-4xl gap-5 sm:grid-cols-2">
         {items.map((item, index) => (
           <ValueCard key={item.label} {...item} index={index} />
         ))}
@@ -116,24 +119,63 @@ export function Story() {
 
 const YEAR = new Date().getFullYear();
 
-export function Footer({ company }: { company?: string }) {
+export function Footer({
+  company,
+  logoUrl,
+  contact,
+}: {
+  company?: string;
+  logoUrl?: string | null;
+  contact?: SiteContact;
+}) {
   const { t } = useTranslation();
   return (
     <footer id="contact" className="bg-[#071a23] py-14 text-white/80">
       <div className="site-container grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-2.5 font-display text-[1.2rem] font-extrabold text-white">
-            <BrandMark className="bg-coral" />
-            {company ?? BRAND.name}
+            <Logo logoUrl={logoUrl} name={company} />
           </div>
           <p className="mt-3 max-w-sm">{t("site.footer.tagline")}</p>
         </div>
         <div className="flex flex-col gap-2">
           <span className="eyebrow text-white/50">{t("site.nav.contact")}</span>
+          {contact?.phone && (
+            <a
+              href={telHref(contact.phone)}
+              className="flex items-center gap-2 font-semibold text-white hover:underline"
+            >
+              <PhoneIcon className="size-4" />
+              <span className="num">{shownPhone(contact.phone)}</span>
+            </a>
+          )}
+          {contact?.whatsapp && (
+            <a
+              href={whatsappHref(contact.whatsapp)}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 hover:text-white"
+            >
+              <WhatsAppIcon className="size-4" />
+              {t("site.contact.whatsapp")}
+            </a>
+          )}
+          {contact?.email && (
+            <a href={`mailto:${contact.email}`} className="flex items-center gap-2 hover:text-white">
+              <Icon name="receipt" className="size-4" />
+              {contact.email}
+            </a>
+          )}
           <span className="flex items-center gap-2">
             <Icon name="pin" className="size-4" />
-            {t("site.footer.address")}
+            {contact?.address || t("site.footer.address")}
           </span>
+          {contact?.opening_hours && (
+            <span className="flex items-center gap-2">
+              <Icon name="calcheck" className="size-4" />
+              {contact.opening_hours}
+            </span>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           <a href="#produits" className="hover:text-white">

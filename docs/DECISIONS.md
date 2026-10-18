@@ -2683,6 +2683,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   an order needs a product, a quote a product or a message; each line keeps the web price shown (snapshot). The office
   is told at once (notification `web_order` / `web_quote`, actor none) and closes it in "Site web → Demandes du site"
   (handled / cancelled / new again, with a note), then makes the quote or sale as usual.
-- _Provisional:_ the marketing texts of the page (values, story) are generic and must be checked by the owner; no
-  company phone or e-mail is shown until the owner gives them; the site goes live on a name (e.g. `www.`) only after
-  DNS, the certificate and `DJANGO_ALLOWED_HOSTS` include it.
+- **Owner request (2026-10-18): the phone is set in the office app.** `SiteSettings` (one row per organization:
+  phone, WhatsApp, e-mail, address, hours) in "Site web → Paramètres du site" (owner and manager write, accountant
+  reads). Numbers are checked and stored like a visitor's (`normalize_phone`). The catalogue answer carries them as
+  `contact`; the site shows the phone in the header, under the hero buttons, after a request, next to a sending error,
+  as a round call button on phones, and in the footer with WhatsApp, e-mail, address and hours. An empty field is not
+  shown. Not taken from the invoice settings' phone: the site's number may be another line.
+- **Domain (owner, 2026-10-18): https://www.fruttidelmare.com**; the bare `fruttidelmare.com` redirects to it. Host
+  nginx blocks (port 80 for the challenge and the redirect, 443 to the web container's 8083), `SITE_HOST` in
+  `DJANGO_ALLOWED_HOSTS` and the CSRF origins, and the health check of each deploy. The deploy adds both names to the
+  `frutti-staging` certificate itself the first time (certbot webroot, `--expand`); a failure only warns.
+- _Provisional:_ the marketing texts of the page (values, story) are generic and must be checked by the owner.
