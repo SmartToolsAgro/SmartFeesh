@@ -1,10 +1,12 @@
 # Project status
 
-_Last updated: 2026-10-18 (port purchase: money given capped at the purchase amount, D-181)_
+_Last updated: 2026-10-18 (new receipt: the product cell is typed and searched like in a quote or a sale, D-183)_
 
 ## Where we are
 
 - **Branch wide-closing-dialog:** the closing window of Journées des chauffeurs › Clôtures is 1 100 px wide, so the stock table fits without a side scroll bar. Awaits CI, then check on staging.
+- **D-183 (branch receipt-product-search):** in "Nouvelle réception" the product cell is an empty box: typing a code,
+  name, Arabic name or category lists the matching products, as in a quote or a sale. Awaits CI, then check on staging.
 - **D-181 (branch field-purchase-paid-limit):** a port purchase whose sums given exceed its amount is refused (server,
   phone and office form); a lot counted lighter at the office still turns the extra into an advance. Awaits CI.
 - **D-180 (on main):** the "Parcours" map and the phone's GPS tracking are switched off (flags, code kept). Check on staging.
@@ -45,6 +47,8 @@ _Last updated: 2026-10-18 (port purchase: money given capped at the purchase amo
 
 ## Next step
 
+0. D-183: merge after green CI; on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
+   "Dorade royale" with Enter: the cursor moves to the next weight and the last cost appears.
 0. D-181: merge after green CI; on staging, on the phone type more cash than the total (the "Envoyer" button stays off
    with a red line), and on the office check page lower a price below what was given (error on the last payment).
    Open owner questions from the same review: what a refused purchase does with cash already paid at the port, and
