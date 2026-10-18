@@ -199,7 +199,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   const data = closing.data;
   const handedOver = data ? handedOverOf(data.summary) : null;
   return (
-    <DialogContent>
+    <DialogContent className="w-[min(1100px,calc(100vw-2rem))] max-w-none">
       <DialogTitle>{data ? `${data.truck_name} · ${formatDate(data.date)}` : t("common.loading")}</DialogTitle>
       <DialogDescription>{data?.driver_name ?? ""}</DialogDescription>
       {data && (
