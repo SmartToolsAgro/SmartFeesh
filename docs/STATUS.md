@@ -46,7 +46,7 @@ _Last updated: 2026-10-18 (port purchase cash: sales cash and pocket no longer c
 ## Next step
 
 0. D-182: merge after green CI; on staging open the ISUZU 1 closing of 16/10/2026: "Payé avec l'argent des ventes"
-   is gone (0) and "Avancé de sa poche" shows 200 000,000 DT; the Suivi tab shows it under "Doit avoir en main".
+   is gone (0) and "Avancé de sa poche" shows 200,000 DT; the Suivi tab shows it under "Doit avoir en main".
 0. D-179: merge after green CI; on staging with a phone, check each money button opens the window and "Annuler" sends
    nothing. Then ask the owner whether the admin app's money forms need the same window.
 0. P2-T15: merge after green CI; on staging, load two clients, print both BLs (no PROVISOIRE), on the phone deliver one
