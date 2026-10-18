@@ -139,7 +139,14 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
     (typed) => typed.trim() === "" || parseDecimalInput(typed.trim(), 3) !== null,
   );
   const daysReady = terms === "cash" || (Number.isInteger(dayCount) && dayCount >= (terms === "days" ? 1 : 0));
-  const ready = supplierReady && linesReady && moneyReady && daysReady && !saving && (purchase === undefined || online);
+  const ready =
+    supplierReady &&
+    linesReady &&
+    moneyReady &&
+    !totals.overpaid &&
+    daysReady &&
+    !saving &&
+    (purchase === undefined || online);
 
   /** What the purchase says, without the `client_uuid` that only a new one carries. */
   function payload(): Omit<MyFieldPurchaseCreate, "client_uuid"> {
@@ -444,6 +451,7 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
           <span>{t("truck.purchase.rest")}</span>
           <span>{formatMoney(totals.rest)}</span>
         </p>
+        {totals.overpaid ? <p className="font-semibold text-bad">{t("truck.purchase.overpaid")}</p> : null}
       </Card>
 
       <Card className="space-y-3">

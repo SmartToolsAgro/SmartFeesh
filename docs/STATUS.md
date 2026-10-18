@@ -1,11 +1,14 @@
 # Project status
 
-_Last updated: 2026-10-17 (driver day counts delivered load BLs, D-183; money confirm, D-179; P2-T15 / D-178)_
+_Last updated: 2026-10-18 (port purchase: money given capped at the purchase amount, D-181)_
 
 ## Where we are
 
 - **D-183 (branch day-figures-load-bl):** a driver's day (Suivi des chauffeurs, closing) now counts the load BLs
   delivered (sales, cash at the door, kg sold); delivering sets `sold_at` to the delivery moment. Awaits CI.
+- **D-181 (branch field-purchase-paid-limit):** a port purchase whose sums given exceed its amount is refused (server,
+  phone and office form); a lot counted lighter at the office still turns the extra into an advance. Awaits CI.
+- **D-180 (on main):** the "Parcours" map and the phone's GPS tracking are switched off (flags, code kept). Check on staging.
 - **D-179 (branch money-confirm-popup):** every money action of the driver app (delivery, sale, payment, expense,
   purchase, opening cash and float, closing) opens an "Annuler / Confirmer" window with the amounts. Awaits CI.
   Admin money forms are not converted yet; new money screens must use `ConfirmButton`.
@@ -44,6 +47,10 @@ _Last updated: 2026-10-17 (driver day counts delivered load BLs, D-183; money co
 
 0. D-183: merge after green CI; on staging, deliver a load BL with cash from the phone and check Suivi des
    chauffeurs shows its sales and cash; a closing sent before the fix must be sent again.
+0. D-181: merge after green CI; on staging, on the phone type more cash than the total (the "Envoyer" button stays off
+   with a red line), and on the office check page lower a price below what was given (error on the last payment).
+   Open owner questions from the same review: what a refused purchase does with cash already paid at the port, and
+   whether a big gap between the driver's kg and the kg received should warn or block.
 0. D-179: merge after green CI; on staging with a phone, check each money button opens the window and "Annuler" sends
    nothing. Then ask the owner whether the admin app's money forms need the same window.
 0. P2-T15: merge after green CI; on staging, load two clients, print both BLs (no PROVISOIRE), on the phone deliver one

@@ -33,7 +33,7 @@ export function lineAmount(kilos: string, price: string): string | null {
 export function purchaseTotals(
   lines: { kilos: string; price: string }[],
   given: string[],
-): { total: string; paid: string; rest: string } {
+): { total: string; paid: string; rest: string; overpaid: boolean } {
   const total = lines.reduce((sum, line) => {
     const amount = lineAmount(line.kilos, line.price);
     return amount === null ? sum : sum + millimes(amount);
@@ -43,7 +43,8 @@ export function purchaseTotals(
     return amount === null || amount.startsWith("-") ? sum : sum + millimes(amount);
   }, 0n);
   const rest = total > paid ? total - paid : 0n;
-  return { total: fromMillimes(total), paid: fromMillimes(paid), rest: fromMillimes(rest) };
+  // More given than the purchase is worth: a typing mistake the server refuses, so it is never sent.
+  return { total: fromMillimes(total), paid: fromMillimes(paid), rest: fromMillimes(rest), overpaid: paid > total };
 }
 
 /** When the purchase is due by its deal, as the server computes it: the day itself, N days later, or the end of

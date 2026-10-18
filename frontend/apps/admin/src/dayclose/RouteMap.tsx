@@ -123,6 +123,9 @@ function StopCustomers({ stop, dayId, canSave }: { stop: RouteStop; dayId: numbe
   );
 }
 
+/** The route map is switched off on the owner's request (D-180); set to true to show it again. */
+export const ROUTE_MAP_ENABLED = false;
+
 export function RouteMap({ dayId, running }: { dayId: number; running: boolean }) {
   const { t } = useTranslation();
   const k = "admin.dayOverview.detail.route";

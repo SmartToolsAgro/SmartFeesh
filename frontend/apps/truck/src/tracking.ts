@@ -103,6 +103,9 @@ export async function sendWaitingPoints(): Promise<void> {
   }
 }
 
+/** GPS tracking is switched off with the route map (D-180); set to true to follow the day again. */
+export const TRACKING_ENABLED = false;
+
 export type TrackingState = "off" | "active" | "denied" | "unavailable";
 
 /** Follow the position while `enabled` (the day runs on the phone): keep the useful fixes and send them. */
