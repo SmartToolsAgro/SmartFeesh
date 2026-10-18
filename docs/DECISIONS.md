@@ -2609,3 +2609,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   `TRACKING_ENABLED = false` (`truck/src/tracking.ts`) stops the phone asking for and sending its position, so no GPS warning
   shows either. The backend (points, route, stops, customer places of D-164/D-172) is unchanged; set both flags to `true`
   to bring the feature back.
+
+**D-181 · Buying at the port: the money given may not exceed the purchase (changes D-176)** · accepted · 2026-10-18
+
+- **Owner request (2026-10-18):** a typo in the sums given at the port must be stopped at entry, not turned into an
+  advance. `_checked_field_purchase` refuses, on every save (phone, office, validation), sums given above the
+  purchase's amount, on `payments.<last>.amount`. The ceiling is Σ max(driver's kg, kg received) × price per line, so a
+  lot the office counts lighter keeps what was really given and the part beyond what is owed stays an advance at
+  validation (D-176). A real advance beyond the purchase is recorded as an ordinary supplier payment.
+- The phone (`purchaseTotals().overpaid`) and the office form check the same before sending, so a purchase kept
+  offline is never refused later for this.
