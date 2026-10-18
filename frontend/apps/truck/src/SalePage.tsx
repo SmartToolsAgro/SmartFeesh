@@ -19,7 +19,7 @@ import { Delivery } from "./DeliveriesPage";
 import { messagesOf } from "./messages";
 import { NewCustomerForm } from "./NewCustomerForm";
 import { useOnline } from "./offline";
-import { useTruckStock } from "./myStock";
+import { truckIsEmpty, useTruckStock } from "./myStock";
 import { PricesAsOf } from "./PriceNotice";
 import { enqueue, madeAtOf, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { ProductPhoto } from "./ProductPhoto";
@@ -72,10 +72,22 @@ export function SalePage() {
     if ("uuid" in receipt) return <QueuedReceipt sale={receipt} onNew={startNew} />;
     return <Receipt sale={receipt} onNew={startNew} />;
   }
-  if (customer === null) return <PickCustomer onPick={setCustomer} delivers />;
-
   // What the truck holds, less the sales still waiting to be sent: those kilos are already promised.
   const promised = pendingKilos(queue);
+  if (customer === null) {
+    // An empty truck shows no clients, only that there is nothing to sell (D-184). Without the stock (offline, never
+    // loaded) the list still shows, so a sale is never blocked by a missing answer.
+    if (stock.isLoading) return null;
+    if (stock.data !== undefined && truckIsEmpty(stock.data, promised)) {
+      return (
+        <EmptyState illustration="fridge" title={t("truck.sale.emptyTruck")}>
+          {t("truck.sale.emptyTruckBody")}
+        </EmptyState>
+      );
+    }
+    return <PickCustomer onPick={setCustomer} delivers />;
+  }
+
   const available = (line: MyStockLine) => Math.max(Number(line.quantity) - (promised[line.product_id] ?? 0), 0);
   const lines = (stock.data ?? []).filter((line) => Number(kilos[line.product_id] ?? 0) > 0);
   const overstock = lines.some((line) => Number(kilos[line.product_id] ?? 0) > available(line) + 0.0005);

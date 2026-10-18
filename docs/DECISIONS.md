@@ -2627,3 +2627,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   name, Arabic name or category; Enter or a click takes one and moves to the next weight (ordered, or invoiced when
   receiving against an order). Against an order, only the order's products are offered, as before.
 - The supplier, place and partner choices stay drop-downs: their lists are short.
+
+**D-184 · An empty truck shows no client in "Vente"** · accepted · 2026-10-18
+
+- **Owner request (2026-10-18):** "when nothing is loaded in the camion the driver should not see clients"; the office
+  names the clients when it loads the truck (D-174, D-178), so with nothing on board there is nobody to sell to.
+- The "Vente" tab first reads the truck's stock: when every product is gone or already promised to a sale, delivery
+  or loss waiting on the phone (`truckIsEmpty`), it shows only "Le camion est vide · Il n'y a plus rien à vendre dans
+  ce camion." Phone screen only; the server already refuses a sale beyond the stock.
+- Without an answer about the stock (offline and never loaded), the client list still shows, so a sale is not blocked.

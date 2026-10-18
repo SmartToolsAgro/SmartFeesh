@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-18 (new receipt: the product cell is typed and searched like in a quote or a sale, D-183)_
+_Last updated: 2026-10-18 (driver "Vente": an empty truck shows no client, D-184)_
 
 ## Where we are
 
+- **D-184 (branch sale-empty-truck):** the driver's "Vente" tab shows only "Le camion est vide" when nothing is left
+  on the truck, no client list. Awaits CI, then check on staging with a driver whose truck is empty.
 - **Branch wide-closing-dialog:** the closing window of Journées des chauffeurs › Clôtures is 1 100 px wide, so the stock table fits without a side scroll bar. Awaits CI, then check on staging.
 - **D-183 (branch receipt-product-search):** in "Nouvelle réception" the product cell is an empty box: typing a code,
   name, Arabic name or category lists the matching products, as in a quote or a sale. Awaits CI, then check on staging.
