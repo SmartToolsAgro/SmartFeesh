@@ -1027,7 +1027,7 @@ def deliver_sale(
         sale.version += 1
     sale.delivery_status = DeliveryStatus.PARTIAL if partial else DeliveryStatus.DELIVERED
     sale.delivered_at = timezone.now()
-    # Sold at the door, not at the load (D-183): the kilos leave the truck and count in the driver's day then.
+    # Sold at the door, not at the load (D-185): the kilos leave the truck and count in the driver's day then.
     sale.sold_at = sale.delivered_at
     sale.delivered_by = actor
     sale.delivery_note = note.strip()[:255]
@@ -1387,7 +1387,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     """
     sale = _locked_draft_sale(sale)
     organization = sale.organization
-    # A load's BL the office marks delivered is sold now, not at the load (D-183).
+    # A load's BL the office marks delivered is sold now, not at the load (D-185).
     if sale.delivery_status == DeliveryStatus.TO_DELIVER:
         sale.sold_at = timezone.now()
     errors = _sale_header_errors(organization, sale.customer, sale.location, sale.sold_at)
