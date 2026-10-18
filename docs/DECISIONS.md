@@ -2631,3 +2631,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   validation (D-176). A real advance beyond the purchase is recorded as an ordinary supplier payment.
 - The phone (`purchaseTotals().overpaid`) and the office form check the same before sending, so a purchase kept
   offline is never refused later for this.
+
+**D-183 · The receipt's product cell is typed and searched, not a drop-down (changes D-173)** · accepted · 2026-10-18
+
+- **Owner request (2026-10-18):** "an empty box, and when I start typing I see the products, like in devis or vente".
+  The product cell of `ReceiptFormPage` uses the same `Combobox` as `LinesGrid` (D-139): it finds products by code,
+  name, Arabic name or category; Enter or a click takes one and moves to the next weight (ordered, or invoiced when
+  receiving against an order). Against an order, only the order's products are offered, as before.
+- The supplier, place and partner choices stay drop-downs: their lists are short.

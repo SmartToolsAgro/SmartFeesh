@@ -25,6 +25,8 @@ import {
   Button,
   Card,
   CardTitle,
+  Combobox,
+  type ComboboxOption,
   Field,
   Icon,
   Input,
@@ -311,7 +313,17 @@ export function ReceiptFormPage() {
     lines.map((line) => line.product),
   )
     .filter((product) => !order || orderLineOf(String(product.id)) !== undefined)
-    .map((product) => ({ value: String(product.id), label: `${product.name} · ${product.reference}` }));
+    .map<ComboboxOption>((product) => ({
+      value: String(product.id),
+      label: `${product.name} · ${product.reference}`,
+      keywords: [product.name_ar, product.category.name],
+      detail: (
+        <span className="flex items-baseline justify-between gap-4">
+          <span>{product.name}</span>
+          <span className="num text-[0.8rem] text-ink-2">{product.reference}</span>
+        </span>
+      ),
+    }));
 
   const id = (name: string) => `${formId}-${name}`;
   const select = (
@@ -504,13 +516,26 @@ export function ReceiptFormPage() {
                 return (
                   <tr key={line.key}>
                     <Td className="p-0">
-                      {cellSelect(
-                        lineKey(index, "product"),
-                        t("admin.receipts.form.product"),
-                        line.product,
-                        (value) => setLine(line.key, () => ({ product: value })),
-                        productOptions,
-                      )}
+                      {/* Typed like the product cell of a quote or a sale: code, name, Arabic name or category. */}
+                      <Combobox
+                        plain
+                        id={id(lineKey(index, "product"))}
+                        aria-label={t("admin.receipts.form.product")}
+                        aria-invalid={errors[lineKey(index, "product")] ? true : undefined}
+                        size={1}
+                        placeholder={t("admin.lines.productHint")}
+                        value={line.product}
+                        onValueChange={(value) => setLine(line.key, () => ({ product: value }))}
+                        onChosen={() =>
+                          document
+                            .getElementById(id(lineKey(index, order ? "invoiced_quantity" : "ordered_quantity")))
+                            ?.focus()
+                        }
+                        options={productOptions}
+                        empty={t("admin.lines.noProduct")}
+                        className={CELL_INPUT}
+                      />
+                      {cellError(lineKey(index, "product"))}
                     </Td>
                     {order ? (
                       <Td numeric className="text-ink-2">
