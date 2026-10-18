@@ -1,9 +1,13 @@
 # Project status
 
-_Last updated: 2026-10-18 (new receipt: the product cell is typed and searched like in a quote or a sale, D-183)_
+_Last updated: 2026-10-18 (public site with orders and quote requests, site products with a web price, D-184)_
 
 ## Where we are
 
+- **D-184 (branch public-site):** a public, animated site (`frontend/apps/site`, :5175; Artlist video and photos):
+  catalogue with web prices, basket, order or quote request with a **required phone number**. The office gets a bell
+  notification and handles requests in "Site web → Demandes du site"; "Site web → Produits du site" adds and removes
+  products, hides them, orders them and sets a **web-only price** (the day's price never changes). Awaits CI.
 - **D-183 (branch receipt-product-search):** in "Nouvelle réception" the product cell is an empty box: typing a code,
   name, Arabic name or category lists the matching products, as in a quote or a sale. Awaits CI, then check on staging.
 - **D-181 (branch field-purchase-paid-limit):** a port purchase whose sums given exceed its amount is refused (server,
@@ -33,19 +37,17 @@ _Last updated: 2026-10-18 (new receipt: the product cell is typed and searched l
 - **Working rule (owner, 2026-10-16):** do not run tests locally; commit and let CI check, then fix reported failures.
   One branch and one PR per task; merge only after CI passes.
 
-- **D-161 (PR load-print-fiche):** the validated load page has a banner and a "Fiche client" button per client.
-- **P3-T14 / D-171 (PR #174, on main):** the driver app scrolls less (tiles, folding cards, sticky main action, back
-  link in the header, recent customers). Check it on staging with a phone; the decision number was D-168 in the PR.
-
-- **D-162 (PR #163):** Journées des chauffeurs has a live follow-up tab per driver, truck and day; awaits CI, then check on staging.
-- **D-163 (PR #164, branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
-  truck condition, partnership edits, XLS tables, frozen header). CI must pass before merge; then check on staging.
-
 - **P2-T14 / D-174 (branch transfer-load-grid):** transfer form as a spreadsheet grid per client, "Chambres froides
   (toutes)" as the source, driver "Vente" lists only the load's clients. CI must pass, then check on staging.
 
 ## Next step
 
+0. D-184: merge after green CI (new app `storefront`, migration 0001). On staging put products on the site in
+   "Site web → Produits du site" (`seed_dev` does it for dev data), open 127.0.0.1:18083 through an SSH tunnel, add
+   2 products, send an order with a wrong then a right phone, see the bell and "Demandes du site", change a web
+   price in "Produits du site" and reload the site. To publish it: owner DNS for `www.fruttidelmare.com` (or the root), add the name to the certificate, to
+   `DJANGO_ALLOWED_HOSTS` and a host-nginx block to 127.0.0.1:18083. Ask the owner for the phone/e-mail to show and
+   to read the page's texts (D-184, provisional).
 0. D-183: merge after green CI; on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
    "Dorade royale" with Enter: the cursor moves to the next weight and the last cost appears.
 0. D-181: merge after green CI; on staging, on the phone type more cash than the total (the "Envoyer" button stays off

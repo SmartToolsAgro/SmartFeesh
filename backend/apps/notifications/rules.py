@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from apps.partners.models import Customer
     from apps.purchasing.models import FieldPurchase
     from apps.sales.models import CustomerPayment, Sale
+    from apps.storefront.models import WebRequest
 
 
 def _name(user: User) -> str:
@@ -222,6 +223,18 @@ def _sync_resolved(entry: AuditLog) -> None:
     _driver(entry, problem.driver, "sync_resolved", {"label": problem.label})
 
 
+# ---- What a visitor of the public site sends, told to the office (D-184) ----
+
+
+def _web_request(entry: AuditLog) -> None:
+    request = cast("WebRequest", entry.target)
+    kind = "web_order" if request.kind == "order" else "web_quote"
+    params = {"number": request.number, "name": request.full_name, "phone": request.phone}
+    services.tell_office_from_site(
+        organization=entry.organization, kind=kind, params=params, link=f"/demandes-site/{request.pk}"
+    )
+
+
 RULES: dict[str, Callable[[AuditLog], None]] = {
     "driver_day.opened": _day_opened,
     "day_closing.submitted": _day_sent,
@@ -251,6 +264,7 @@ RULES: dict[str, Callable[[AuditLog], None]] = {
     "truck_assignment.created": _truck_assigned,
     "truck_assignment.changed": _truck_assigned,
     "sync_problem.resolved": _sync_resolved,
+    "web_request.received": _web_request,
 }
 
 

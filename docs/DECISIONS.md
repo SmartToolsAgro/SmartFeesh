@@ -2627,3 +2627,30 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   name, Arabic name or category; Enter or a click takes one and moves to the next weight (ordered, or invoiced when
   receiving against an order). Against an order, only the order's products are offered, as before.
 - The supplier, place and partner choices stay drop-downs: their lists are short.
+
+**D-184 · A public site with orders and quote requests, and site products with their own web price** · accepted · 2026-10-18
+
+- **Owner request (2026-10-18):** a dynamic, animated public website where a visitor asks for a quote (devis) or
+  orders products, the **phone number being required**; then "in the office application, manage the web site
+  products: change the price (only on the web site), add and remove products".
+- A third front end, `frontend/apps/site` (`@frutti/site`, port 5175, nginx port 8083 in the web image), one page in
+  French: video hero, catalogue, "du port à vous", basket and request form. Motion is CSS + IntersectionObserver
+  (`motion.ts`), no new package; it stops under "reduce motion". Media made with Artlist (free trial: two Nano Banana 2
+  stills, one Kling 2.5 Turbo image-to-video loop), compressed to WebP / H.264 + VP9 (~3.6 MB in all) under
+  `apps/site/public/media`. The site imports the generated types only and calls the API through `apiFetch`, to keep
+  the office's Zod schemas out of the visitors' download.
+- Backend app `storefront`. **No login on the site:** `GET /site/catalog`, `GET /site/products/<id>/photo`,
+  `POST /site/requests` have no session, no CSRF, and are throttled per address (120/min, 10 requests/hour) with a
+  hidden "website" field for robots. The company served is `PUBLIC_SITE_ORGANIZATION_ID`, else the oldest active one.
+- **What the site shows is chosen by the office** (`SiteProduct`: product, `is_published`, `web_price`, description,
+  position), in "Site web → Produits du site" (owner and manager write, accountant reads). The **web price is the site's
+  alone**: it never changes the day's price (D-020), the price lists or a sale; empty = "prix sur demande". Archived
+  products never show. The day's price, costs and stock are never sent to visitors.
+- A request (`WebRequest`, number `W-00012`) is a lead, not a sale: nothing moves stock or money. The phone is
+  normalised like the server's `normalize_phone` (8 Tunisian digits with or without +216, or an international number);
+  an order needs a product, a quote a product or a message; each line keeps the web price shown (snapshot). The office
+  is told at once (notification `web_order` / `web_quote`, actor none) and closes it in "Site web → Demandes du site"
+  (handled / cancelled / new again, with a note), then makes the quote or sale as usual.
+- _Provisional:_ the marketing texts of the page (values, story) are generic and must be checked by the owner; no
+  company phone or e-mail is shown until the owner gives them; the site goes live on a name (e.g. `www.`) only after
+  DNS, the certificate and `DJANGO_ALLOWED_HOSTS` include it.

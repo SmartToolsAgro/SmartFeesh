@@ -80,6 +80,9 @@ import { LossFormPage } from "./losses/LossFormPage";
 import { TransferDetailPage } from "./transfers/TransferDetailPage";
 import { TransferEditPage, TransferFormPage } from "./transfers/TransferFormPage";
 import { TransfersPage } from "./transfers/TransfersPage";
+import { SiteProductsPage } from "./webrequests/SiteProductsPage";
+import { WebRequestPage } from "./webrequests/WebRequestPage";
+import { WebRequestsPage } from "./webrequests/WebRequestsPage";
 
 const queryClient = createQueryClient();
 
@@ -127,6 +130,13 @@ function useNav(): AdminNavGroup[] {
       ],
     },
     {
+      label: t("admin.groups.site"),
+      items: [
+        { to: "/demandes-site", label: t("admin.nav.webRequests"), icon: "cart" },
+        { to: "/site-produits", label: t("admin.nav.siteProducts"), icon: "snow" },
+      ],
+    },
+    {
       label: t("admin.groups.admin"),
       items: [
         { to: "/import", label: t("admin.nav.imports"), icon: "box" },
@@ -162,6 +172,8 @@ const SCREENS: Record<string, ReactNode> = {
   ),
   "/cloture": <MonthClosingPage />,
   "/rapports": <ReportsPage />,
+  "/demandes-site": <WebRequestsPage />,
+  "/site-produits": <SiteProductsPage />,
 };
 
 const ILLUSTRATIONS: Record<string, IllustrationName> = {};
@@ -289,6 +301,7 @@ function AppRoutes() {
         <Route path="/stock/pertes/:lossId" element={<LossDetailPage />} />
         <Route path="/stock/inventaires" element={<CountsPage />} />
         <Route path="/stock/inventaires/:countId" element={<CountPage />} />
+        <Route path="/demandes-site/:requestId" element={<WebRequestPage />} />
         {nav.flatMap((group) =>
           group.items
             .filter((item) => item.to !== "/")

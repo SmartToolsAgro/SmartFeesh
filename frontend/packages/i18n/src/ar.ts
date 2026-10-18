@@ -79,6 +79,8 @@ export const ar: PartialTranslation = {
       sync_resolved: "المكتب عالج الإرسال المرفوض: {{label}}",
       bl_changed: "المكتب عدّل الإذن {{number}} لـ {{customer}} (النسخة {{version}})",
       bl_cancelled: "المكتب ألغى الإذن {{number}} لـ {{customer}}",
+      web_quote: "طلب عرض سعر {{number}} من الموقع: {{name}}، {{phone}}",
+      web_order: "طلبية {{number}} من الموقع: {{name}}، {{phone}}",
     },
   },
   truck: {

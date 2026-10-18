@@ -163,6 +163,7 @@ import type {
   ListTransfersParams,
   ListTruckAssignmentsParams,
   ListTrucksParams,
+  ListWebRequestsParams,
   LocationBatch,
   LocationPingBatch,
   LocationPingSaved,
@@ -202,6 +203,7 @@ import type {
   MySupplier,
   NotDelivered,
   NotificationList,
+  OfficeSiteProduct,
   Order,
   OrderWrite,
   Organization,
@@ -224,6 +226,7 @@ import type {
   PaginatedSupplierInvoiceList,
   PaginatedSupplierPaymentList,
   PaginatedTransferList,
+  PaginatedWebRequestList,
   PartnerBalances,
   PartnerReport,
   PatchedCategory,
@@ -237,6 +240,7 @@ import type {
   PatchedMemberRole,
   PatchedProductUpdate,
   PatchedSalaryRecordUpdate,
+  PatchedSiteProductUpdate,
   PatchedStockLocationUpdate,
   PatchedSupplierWrite,
   PatchedTruckWrite,
@@ -288,6 +292,10 @@ import type {
   SetPrice,
   SetPrices,
   SettleLot,
+  SiteCatalog,
+  SiteProductCreate,
+  SiteRequest,
+  SiteRequestReceived,
   SlowReport,
   StockCheckHealth,
   StockLocation,
@@ -319,6 +327,8 @@ import type {
   UnpaidSalaries,
   Unread,
   VoidWrite,
+  WebRequest,
+  WebRequestStatus,
   WithholdingCertificate,
   WithholdingCertificateWrite,
   WithholdingFile,
@@ -24764,6 +24774,532 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getConfirmSaleMutationOptions(options), queryClient);
     }
 
+export const getListSiteProductsUrl = () => {
+
+
+
+
+  return `/api/v1/site-products`
+}
+
+/**
+ * Every product put on the public site, shown or hidden, in the site's order.
+ */
+export const listSiteProducts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<OfficeSiteProduct[]> => {
+
+  return apiFetch<OfficeSiteProduct[]>(getListSiteProductsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSiteProductsQueryKey = () => {
+    return [
+    `/api/v1/site-products`
+    ] as const;
+    }
+
+
+export const getListSiteProductsQueryOptions = <TData = Awaited<ReturnType<typeof listSiteProducts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSiteProducts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSiteProductsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSiteProducts>>> = ({ signal }) => listSiteProducts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSiteProducts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSiteProductsQueryResult = NonNullable<Awaited<ReturnType<typeof listSiteProducts>>>
+export type ListSiteProductsQueryError = unknown
+
+
+export function useListSiteProducts<TData = Awaited<ReturnType<typeof listSiteProducts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSiteProducts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSiteProducts>>,
+          TError,
+          Awaited<ReturnType<typeof listSiteProducts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSiteProducts<TData = Awaited<ReturnType<typeof listSiteProducts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSiteProducts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSiteProducts>>,
+          TError,
+          Awaited<ReturnType<typeof listSiteProducts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSiteProducts<TData = Awaited<ReturnType<typeof listSiteProducts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSiteProducts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSiteProducts<TData = Awaited<ReturnType<typeof listSiteProducts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSiteProducts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSiteProductsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddSiteProductUrl = () => {
+
+
+
+
+  return `/api/v1/site-products`
+}
+
+/**
+ * Put an active product on the site, with its own web price. The day's price and price lists do not
+ * change.
+ */
+export const addSiteProduct = async (siteProductCreate: SiteProductCreate, options?: Parameters<typeof apiFetch>[1]): Promise<OfficeSiteProduct> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<OfficeSiteProduct>(getAddSiteProductUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(siteProductCreate)
+  }
+);}
+
+
+
+
+
+export const getAddSiteProductMutationKey = () => ['addSiteProduct'] as const;
+
+export const getAddSiteProductMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSiteProduct>>, TError,AddSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addSiteProduct>>, TError,AddSiteProductMutationVariables, TContext> => {
+
+const mutationKey = getAddSiteProductMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addSiteProduct>>, AddSiteProductMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addSiteProduct(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddSiteProductMutationResult = NonNullable<Awaited<ReturnType<typeof addSiteProduct>>>
+    export type AddSiteProductMutationBody = SiteProductCreate
+    export type AddSiteProductMutationError = unknown
+    export type AddSiteProductMutationVariables = {data: SiteProductCreate}
+
+    export const useAddSiteProduct = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSiteProduct>>, TError,AddSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addSiteProduct>>,
+        TError,
+        AddSiteProductMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddSiteProductMutationOptions(options), queryClient);
+    }
+
+export const getUpdateSiteProductUrl = (siteProductId: number,) => {
+
+
+
+
+  return `/api/v1/site-products/${siteProductId}`
+}
+
+/**
+ * Change the web price (null: "prix sur demande"), the text, the order, or hide the product.
+ */
+export const updateSiteProduct = async (siteProductId: number,
+    patchedSiteProductUpdate?: PatchedSiteProductUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<OfficeSiteProduct> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<OfficeSiteProduct>(getUpdateSiteProductUrl(siteProductId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedSiteProductUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateSiteProductMutationKey = () => ['updateSiteProduct'] as const;
+
+export const getUpdateSiteProductMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSiteProduct>>, TError,UpdateSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSiteProduct>>, TError,UpdateSiteProductMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSiteProductMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSiteProduct>>, UpdateSiteProductMutationVariables> = (props) => {
+          const {siteProductId,data} = props ?? {};
+
+          return  updateSiteProduct(siteProductId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSiteProductMutationResult = NonNullable<Awaited<ReturnType<typeof updateSiteProduct>>>
+    export type UpdateSiteProductMutationBody = PatchedSiteProductUpdate | undefined
+    export type UpdateSiteProductMutationError = unknown
+    export type UpdateSiteProductMutationVariables = {siteProductId: number;data?: PatchedSiteProductUpdate}
+
+    export const useUpdateSiteProduct = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSiteProduct>>, TError,UpdateSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSiteProduct>>,
+        TError,
+        UpdateSiteProductMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSiteProductMutationOptions(options), queryClient);
+    }
+
+export const getRemoveSiteProductUrl = (siteProductId: number,) => {
+
+
+
+
+  return `/api/v1/site-products/${siteProductId}`
+}
+
+/**
+ * Take the product off the site. The product, its prices and the requests already received stay.
+ */
+export const removeSiteProduct = async (siteProductId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getRemoveSiteProductUrl(siteProductId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveSiteProductMutationKey = () => ['removeSiteProduct'] as const;
+
+export const getRemoveSiteProductMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSiteProduct>>, TError,RemoveSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeSiteProduct>>, TError,RemoveSiteProductMutationVariables, TContext> => {
+
+const mutationKey = getRemoveSiteProductMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeSiteProduct>>, RemoveSiteProductMutationVariables> = (props) => {
+          const {siteProductId} = props ?? {};
+
+          return  removeSiteProduct(siteProductId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveSiteProductMutationResult = NonNullable<Awaited<ReturnType<typeof removeSiteProduct>>>
+
+    export type RemoveSiteProductMutationError = unknown
+    export type RemoveSiteProductMutationVariables = {siteProductId: number}
+
+    export const useRemoveSiteProduct = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSiteProduct>>, TError,RemoveSiteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeSiteProduct>>,
+        TError,
+        RemoveSiteProductMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveSiteProductMutationOptions(options), queryClient);
+    }
+
+export const getGetSiteCatalogUrl = () => {
+
+
+
+
+  return `/api/v1/site/catalog`
+}
+
+/**
+ * What the public site offers: the company's name, its categories and the products the office put on the
+ * site, with their web price (or none: "prix sur demande").
+ */
+export const getSiteCatalog = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SiteCatalog> => {
+
+  return apiFetch<SiteCatalog>(getGetSiteCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSiteCatalogQueryKey = () => {
+    return [
+    `/api/v1/site/catalog`
+    ] as const;
+    }
+
+
+export const getGetSiteCatalogQueryOptions = <TData = Awaited<ReturnType<typeof getSiteCatalog>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteCatalog>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSiteCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSiteCatalog>>> = ({ signal }) => getSiteCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSiteCatalog>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSiteCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof getSiteCatalog>>>
+export type GetSiteCatalogQueryError = unknown
+
+
+export function useGetSiteCatalog<TData = Awaited<ReturnType<typeof getSiteCatalog>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteCatalog>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSiteCatalog>>,
+          TError,
+          Awaited<ReturnType<typeof getSiteCatalog>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSiteCatalog<TData = Awaited<ReturnType<typeof getSiteCatalog>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteCatalog>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSiteCatalog>>,
+          TError,
+          Awaited<ReturnType<typeof getSiteCatalog>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSiteCatalog<TData = Awaited<ReturnType<typeof getSiteCatalog>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteCatalog>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSiteCatalog<TData = Awaited<ReturnType<typeof getSiteCatalog>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSiteCatalog>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSiteCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendSiteRequestUrl = () => {
+
+
+
+
+  return `/api/v1/site/requests`
+}
+
+/**
+ * A visitor asks for a quote or orders products. The phone number is required: the office calls back
+ * to confirm prices and delivery.
+ */
+export const sendSiteRequest = async (siteRequest: SiteRequest, options?: Parameters<typeof apiFetch>[1]): Promise<SiteRequestReceived> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SiteRequestReceived>(getSendSiteRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(siteRequest)
+  }
+);}
+
+
+
+
+
+export const getSendSiteRequestMutationKey = () => ['sendSiteRequest'] as const;
+
+export const getSendSiteRequestMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSiteRequest>>, TError,SendSiteRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendSiteRequest>>, TError,SendSiteRequestMutationVariables, TContext> => {
+
+const mutationKey = getSendSiteRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendSiteRequest>>, SendSiteRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendSiteRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendSiteRequestMutationResult = NonNullable<Awaited<ReturnType<typeof sendSiteRequest>>>
+    export type SendSiteRequestMutationBody = SiteRequest
+    export type SendSiteRequestMutationError = void
+    export type SendSiteRequestMutationVariables = {data: SiteRequest}
+
+    export const useSendSiteRequest = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSiteRequest>>, TError,SendSiteRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendSiteRequest>>,
+        TError,
+        SendSiteRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendSiteRequestMutationOptions(options), queryClient);
+    }
+
 export const getGetStockSettingsUrl = () => {
 
 
@@ -28417,6 +28953,293 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRestoreTruckMutationOptions(options), queryClient);
+    }
+
+export const getListWebRequestsUrl = (params?: ListWebRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/web-requests?${stringifiedParams}` : `/api/v1/web-requests`
+}
+
+/**
+ * Quote requests and orders sent from the public site, newest first, paginated (`limit`, `offset`).
+ * Filter by status, kind or `search` (name, phone, company, number).
+ */
+export const listWebRequests = async (params?: ListWebRequestsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedWebRequestList> => {
+
+  return apiFetch<PaginatedWebRequestList>(getListWebRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWebRequestsQueryKey = (params?: ListWebRequestsParams,) => {
+    return [
+    `/api/v1/web-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWebRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listWebRequests>>, TError = unknown>(params?: ListWebRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebRequests>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWebRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWebRequests>>> = ({ signal }) => listWebRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWebRequests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListWebRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listWebRequests>>>
+export type ListWebRequestsQueryError = unknown
+
+
+export function useListWebRequests<TData = Awaited<ReturnType<typeof listWebRequests>>, TError = unknown>(
+ params: undefined |  ListWebRequestsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebRequests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWebRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listWebRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListWebRequests<TData = Awaited<ReturnType<typeof listWebRequests>>, TError = unknown>(
+ params?: ListWebRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebRequests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWebRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listWebRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListWebRequests<TData = Awaited<ReturnType<typeof listWebRequests>>, TError = unknown>(
+ params?: ListWebRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebRequests>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListWebRequests<TData = Awaited<ReturnType<typeof listWebRequests>>, TError = unknown>(
+ params?: ListWebRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebRequests>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListWebRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetWebRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/v1/web-requests/${requestId}`
+}
+
+export const getWebRequest = async (requestId: number, options?: Parameters<typeof apiFetch>[1]): Promise<WebRequest> => {
+
+  return apiFetch<WebRequest>(getGetWebRequestUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWebRequestQueryKey = (requestId: number,) => {
+    return [
+    `/api/v1/web-requests/${requestId}`
+    ] as const;
+    }
+
+
+export const getGetWebRequestQueryOptions = <TData = Awaited<ReturnType<typeof getWebRequest>>, TError = unknown>(requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWebRequestQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWebRequest>>> = ({ signal }) => getWebRequest(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWebRequest>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWebRequestQueryResult = NonNullable<Awaited<ReturnType<typeof getWebRequest>>>
+export type GetWebRequestQueryError = unknown
+
+
+export function useGetWebRequest<TData = Awaited<ReturnType<typeof getWebRequest>>, TError = unknown>(
+ requestId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebRequest>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWebRequest>>,
+          TError,
+          Awaited<ReturnType<typeof getWebRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWebRequest<TData = Awaited<ReturnType<typeof getWebRequest>>, TError = unknown>(
+ requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebRequest>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWebRequest>>,
+          TError,
+          Awaited<ReturnType<typeof getWebRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWebRequest<TData = Awaited<ReturnType<typeof getWebRequest>>, TError = unknown>(
+ requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetWebRequest<TData = Awaited<ReturnType<typeof getWebRequest>>, TError = unknown>(
+ requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWebRequestQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetWebRequestStatusUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/v1/web-requests/${requestId}/status`
+}
+
+/**
+ * The office called the visitor back: mark the request handled or cancelled with a note, or new again.
+ */
+export const setWebRequestStatus = async (requestId: number,
+    webRequestStatus: WebRequestStatus, options?: Parameters<typeof apiFetch>[1]): Promise<WebRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<WebRequest>(getSetWebRequestStatusUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(webRequestStatus)
+  }
+);}
+
+
+
+
+
+export const getSetWebRequestStatusMutationKey = () => ['setWebRequestStatus'] as const;
+
+export const getSetWebRequestStatusMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWebRequestStatus>>, TError,SetWebRequestStatusMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setWebRequestStatus>>, TError,SetWebRequestStatusMutationVariables, TContext> => {
+
+const mutationKey = getSetWebRequestStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setWebRequestStatus>>, SetWebRequestStatusMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  setWebRequestStatus(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetWebRequestStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setWebRequestStatus>>>
+    export type SetWebRequestStatusMutationBody = WebRequestStatus
+    export type SetWebRequestStatusMutationError = unknown
+    export type SetWebRequestStatusMutationVariables = {requestId: number;data: WebRequestStatus}
+
+    export const useSetWebRequestStatus = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWebRequestStatus>>, TError,SetWebRequestStatusMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setWebRequestStatus>>,
+        TError,
+        SetWebRequestStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetWebRequestStatusMutationOptions(options), queryClient);
     }
 
 export const getAddWithholdingCertificateFileUrl = (certificateId: number,) => {

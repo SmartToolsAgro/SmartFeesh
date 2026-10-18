@@ -53,6 +53,16 @@ def tell_driver(
     )
 
 
+def tell_office_from_site(
+    *, organization: Organization, kind: str, params: dict[str, Any], link: str = ""
+) -> Notification:
+    """A visitor of the public site sent a quote request or an order (D-184): nobody of the company did it, so
+    there is no actor."""
+    return Notification.objects.create(
+        organization=organization, audience=Audience.OFFICE, actor=None, kind=kind, params=params, link=link
+    )
+
+
 @transaction.atomic
 def mark_read(*, membership: Membership, ids: Sequence[int] | None) -> int:
     """The member has seen these notifications (`None`: all they are shown). Only their own; the others' reads

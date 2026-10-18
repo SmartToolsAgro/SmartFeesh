@@ -44,6 +44,8 @@ const KINDS = [
   "delivery_cancelled",
   "bl_changed",
   "bl_cancelled",
+  "web_quote",
+  "web_order",
 ] as const;
 type Kind = (typeof KINDS)[number];
 

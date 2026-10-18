@@ -7648,6 +7648,152 @@ paths:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
           description: ''
+  /api/v1/site-products:
+    get:
+      operationId: listSiteProducts
+      description: Every product put on the public site, shown or hidden, in the site's
+        order.
+      tags:
+      - site-products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfficeSiteProduct'
+          description: ''
+    post:
+      operationId: addSiteProduct
+      description: |-
+        Put an active product on the site, with its own web price. The day's price and price lists do not
+        change.
+      tags:
+      - site-products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SiteProductCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SiteProductCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SiteProductCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficeSiteProduct'
+          description: ''
+  /api/v1/site-products/{site_product_id}:
+    patch:
+      operationId: updateSiteProduct
+      description: 'Change the web price (null: "prix sur demande"), the text, the
+        order, or hide the product.'
+      parameters:
+      - in: path
+        name: site_product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - site-products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSiteProductUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSiteProductUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSiteProductUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficeSiteProduct'
+          description: ''
+    delete:
+      operationId: removeSiteProduct
+      description: Take the product off the site. The product, its prices and the
+        requests already received stay.
+      parameters:
+      - in: path
+        name: site_product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - site-products
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/site/catalog:
+    get:
+      operationId: getSiteCatalog
+      description: |-
+        What the public site offers: the company's name, its categories and the products the office put on the
+        site, with their web price (or none: "prix sur demande").
+      tags:
+      - site
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteCatalog'
+          description: ''
+  /api/v1/site/requests:
+    post:
+      operationId: sendSiteRequest
+      description: |-
+        A visitor asks for a quote or orders products. The phone number is required: the office calls back
+        to confirm prices and delivery.
+      tags:
+      - site
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SiteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SiteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SiteRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteRequestReceived'
+          description: ''
+        '400':
+          description: A field is missing or wrong, e.g. the phone number
+        '429':
+          description: Too many requests from this address
   /api/v1/stock-settings:
     get:
       operationId: getStockSettings
@@ -8820,6 +8966,119 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/web-requests:
+    get:
+      operationId: listWebRequests
+      description: |-
+        Quote requests and orders sent from the public site, newest first, paginated (`limit`, `offset`).
+        Filter by status, kind or `search` (name, phone, company, number).
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - quote
+          - order
+          type: string
+          minLength: 1
+        description: |-
+          * `quote` - Demande de devis
+          * `order` - Commande
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+      - in: query
+        name: status
+        schema:
+          enum:
+          - new
+          - handled
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `new` - Nouvelle
+          * `handled` - Traitée
+          * `cancelled` - Annulée
+      tags:
+      - web-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWebRequestList'
+          description: ''
+  /api/v1/web-requests/{request_id}:
+    get:
+      operationId: getWebRequest
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - web-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebRequest'
+          description: ''
+  /api/v1/web-requests/{request_id}/status:
+    post:
+      operationId: setWebRequestStatus
+      description: 'The office called the visitor back: mark the request handled or
+        cancelled with a note, or new again.'
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - web-requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebRequestStatus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WebRequestStatus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WebRequestStatus'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebRequest'
           description: ''
   /api/v1/withholding-certificates/{certificate_id}/file:
     put:
@@ -17547,6 +17806,64 @@ components:
       required:
       - id
       - number
+    OfficeSiteProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          type: integer
+        product_name:
+          type: string
+        product_reference:
+          type: string
+        category_name:
+          type: string
+        unit:
+          type: string
+        product_active:
+          type: boolean
+        illustration:
+          type: string
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_published:
+          type: boolean
+          readOnly: true
+        web_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        description:
+          type: string
+          readOnly: true
+        position:
+          type: integer
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category_name
+      - description
+      - id
+      - illustration
+      - is_published
+      - photo_url
+      - position
+      - product
+      - product_active
+      - product_name
+      - product_reference
+      - unit
+      - updated_at
+      - web_price
     OpenSale:
       type: object
       description: A confirmed sale with something left to collect.
@@ -18275,6 +18592,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transfer'
+    PaginatedWebRequestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebRequest'
     PartnerBalances:
       type: object
       description: 'The three balances of a partner, kept apart: never added together
@@ -18785,6 +19125,24 @@ components:
         notes:
           type: string
           maxLength: 2000
+    PatchedSiteProductUpdate:
+      type: object
+      description: 'Only the fields sent change; `web_price: null` means "prix sur
+        demande".'
+      properties:
+        web_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        description:
+          type: string
+          maxLength: 300
+        is_published:
+          type: boolean
+        position:
+          type: integer
+          minimum: 0
     PatchedStockLocationUpdate:
       type: object
       properties:
@@ -22883,6 +23241,178 @@ components:
         * `not_closed` - Lot non clôturé
         * `ready` - À régler
         * `settled` - Réglé
+    SiteCatalog:
+      type: object
+      properties:
+        company:
+          type: string
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/SiteCategory'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/SiteProduct'
+      required:
+      - categories
+      - company
+      - products
+    SiteCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+      - id
+      - name
+    SiteProduct:
+      type: object
+      description: 'A product as the public site shows it: its web price only, no
+        stock, no cost (D-184).'
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        name_ar:
+          type: string
+        category:
+          type: integer
+        category_name:
+          type: string
+        unit:
+          type: string
+        web_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        description:
+          type: string
+        illustration:
+          type: string
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - category
+      - category_name
+      - description
+      - id
+      - illustration
+      - name
+      - name_ar
+      - photo_url
+      - unit
+      - web_price
+    SiteProductCreate:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        web_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        description:
+          type: string
+          default: ''
+          maxLength: 300
+        is_published:
+          type: boolean
+          default: true
+        position:
+          type: integer
+          minimum: 0
+          nullable: true
+      required:
+      - product
+    SiteRequest:
+      type: object
+      description: |-
+        A quote request or an order from the site. `phone` is required; `website` must stay empty (a field
+        people never see, filled only by robots).
+      properties:
+        kind:
+          $ref: '#/components/schemas/WebRequestKindEnum'
+        full_name:
+          type: string
+          maxLength: 120
+        phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+          - type: string
+            maxLength: 0
+        company:
+          type: string
+          default: ''
+          maxLength: 150
+        city:
+          type: string
+          default: ''
+          maxLength: 100
+        address:
+          type: string
+          default: ''
+          maxLength: 250
+        wanted_on:
+          type: string
+          format: date
+          nullable: true
+        message:
+          type: string
+          default: ''
+          maxLength: 2000
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SiteRequestLine'
+        website:
+          type: string
+          writeOnly: true
+          default: ''
+      required:
+      - full_name
+      - kind
+      - phone
+    SiteRequestLine:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        note:
+          type: string
+          default: ''
+          maxLength: 200
+      required:
+      - product
+      - quantity
+    SiteRequestReceived:
+      type: object
+      properties:
+        number:
+          type: string
+        kind:
+          $ref: '#/components/schemas/WebRequestKindEnum'
+      required:
+      - kind
+      - number
     SlowLot:
       type: object
       properties:
@@ -24655,6 +25185,153 @@ components:
           maxLength: 255
       required:
       - reason
+    WebRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/WebRequestKindEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/WebRequestStatusEnum'
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        company:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        wanted_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        message:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebRequestLine'
+        handled_by:
+          type: string
+          nullable: true
+          readOnly: true
+        handled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        office_note:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - address
+      - city
+      - company
+      - created_at
+      - email
+      - full_name
+      - handled_at
+      - handled_by
+      - id
+      - kind
+      - lines
+      - message
+      - number
+      - office_note
+      - phone
+      - status
+      - wanted_on
+    WebRequestKindEnum:
+      enum:
+      - quote
+      - order
+      type: string
+      description: |-
+        * `quote` - Demande de devis
+        * `order` - Commande
+    WebRequestLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          type: integer
+        product_name:
+          type: string
+        product_reference:
+          type: string
+        unit:
+          type: string
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        web_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        note:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - note
+      - product
+      - product_name
+      - product_reference
+      - quantity
+      - unit
+      - web_price
+    WebRequestStatus:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/WebRequestStatusEnum'
+        office_note:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - status
+    WebRequestStatusEnum:
+      enum:
+      - new
+      - handled
+      - cancelled
+      type: string
+      description: |-
+        * `new` - Nouvelle
+        * `handled` - Traitée
+        * `cancelled` - Annulée
     WithholdingCertificate:
       type: object
       description: The withholding certificate of an invoice (P2-T06, D-063).

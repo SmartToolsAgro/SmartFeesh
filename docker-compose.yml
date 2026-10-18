@@ -1,5 +1,6 @@
 # Development stack: `make dev` (or `docker compose up`).
-# Admin app: http://localhost:5173 · Driver app: http://localhost:5174 · API: http://localhost:8000/api/v1/health
+# Admin app: http://localhost:5173 · Driver app: http://localhost:5174 · Public site: http://localhost:5175
+# API: http://localhost:8000/api/v1/health
 name: frutti
 
 services:
@@ -48,13 +49,14 @@ services:
     environment:
       API_PROXY_TARGET: http://backend:8000
       COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
-    ports: ["5173:5173", "5174:5174"]
+    ports: ["5173:5173", "5174:5174", "5175:5175"]
     volumes:
       - ./frontend:/app/frontend
       # Keep Linux node_modules inside Docker so they never clash with the host's.
       - fe-root-modules:/app/frontend/node_modules
       - fe-admin-modules:/app/frontend/apps/admin/node_modules
       - fe-truck-modules:/app/frontend/apps/truck/node_modules
+      - fe-site-modules:/app/frontend/apps/site/node_modules
       - fe-ui-modules:/app/frontend/packages/ui/node_modules
       - fe-auth-modules:/app/frontend/packages/auth/node_modules
       - fe-i18n-modules:/app/frontend/packages/i18n/node_modules
@@ -69,6 +71,7 @@ volumes:
   fe-root-modules:
   fe-admin-modules:
   fe-truck-modules:
+  fe-site-modules:
   fe-ui-modules:
   fe-auth-modules:
   fe-i18n-modules:

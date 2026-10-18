@@ -15058,6 +15058,208 @@ export const ConfirmSaleResponse = zod.object({
 
 
 /**
+ * Every product put on the public site, shown or hidden, in the site's order.
+ */
+export const listSiteProductsResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSiteProductsResponseItem = zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "category_name": zod.string(),
+  "unit": zod.string(),
+  "product_active": zod.boolean(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "is_published": zod.boolean(),
+  "web_price": zod.stringFormat('decimal', listSiteProductsResponseWebPriceRegExp).nullable(),
+  "description": zod.string(),
+  "position": zod.int(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+export const ListSiteProductsResponse = zod.array(ListSiteProductsResponseItem)
+
+
+/**
+ * Put an active product on the site, with its own web price. The day's price and price lists do not
+ * change.
+ */
+
+export const addSiteProductBodyWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const addSiteProductBodyDescriptionDefault = ``;
+export const addSiteProductBodyDescriptionMax = 300;
+
+export const addSiteProductBodyIsPublishedDefault = true;
+export const addSiteProductBodyPositionMin = 0;
+
+
+
+export const AddSiteProductBody = zod.object({
+  "product": zod.int().min(1),
+  "web_price": zod.stringFormat('decimal', addSiteProductBodyWebPriceRegExp).nullish(),
+  "description": zod.string().max(addSiteProductBodyDescriptionMax).default(addSiteProductBodyDescriptionDefault),
+  "is_published": zod.boolean().default(addSiteProductBodyIsPublishedDefault),
+  "position": zod.int().min(addSiteProductBodyPositionMin).nullish()
+})
+
+export const addSiteProductResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AddSiteProductResponse = zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "category_name": zod.string(),
+  "unit": zod.string(),
+  "product_active": zod.boolean(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "is_published": zod.boolean(),
+  "web_price": zod.stringFormat('decimal', addSiteProductResponseWebPriceRegExp).nullable(),
+  "description": zod.string(),
+  "position": zod.int(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Change the web price (null: "prix sur demande"), the text, the order, or hide the product.
+ */
+export const UpdateSiteProductParams = zod.object({
+  "site_product_id": zod.int()
+})
+
+export const updateSiteProductBodyWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSiteProductBodyDescriptionMax = 300;
+
+export const updateSiteProductBodyPositionMin = 0;
+
+
+
+export const UpdateSiteProductBody = zod.object({
+  "web_price": zod.stringFormat('decimal', updateSiteProductBodyWebPriceRegExp).nullish(),
+  "description": zod.string().max(updateSiteProductBodyDescriptionMax).optional(),
+  "is_published": zod.boolean().optional(),
+  "position": zod.int().min(updateSiteProductBodyPositionMin).optional()
+}).describe('Only the fields sent change; `web_price: null` means "prix sur demande".')
+
+export const updateSiteProductResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateSiteProductResponse = zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "category_name": zod.string(),
+  "unit": zod.string(),
+  "product_active": zod.boolean(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "is_published": zod.boolean(),
+  "web_price": zod.stringFormat('decimal', updateSiteProductResponseWebPriceRegExp).nullable(),
+  "description": zod.string(),
+  "position": zod.int(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Take the product off the site. The product, its prices and the requests already received stay.
+ */
+export const RemoveSiteProductParams = zod.object({
+  "site_product_id": zod.int()
+})
+
+export const RemoveSiteProductResponse = zod.void()
+
+
+/**
+ * What the public site offers: the company's name, its categories and the products the office put on the
+ * site, with their web price (or none: "prix sur demande").
+ */
+export const getSiteCatalogResponseProductsItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSiteCatalogResponse = zod.object({
+  "company": zod.string(),
+  "categories": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.int(),
+  "category_name": zod.string(),
+  "unit": zod.string(),
+  "web_price": zod.stringFormat('decimal', getSiteCatalogResponseProductsItemWebPriceRegExp).nullable(),
+  "description": zod.string(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable()
+}).describe('A product as the public site shows it: its web price only, no stock, no cost (D-184).'))
+})
+
+
+/**
+ * A visitor asks for a quote or orders products. The phone number is required: the office calls back
+ * to confirm prices and delivery.
+ */
+export const sendSiteRequestBodyFullNameMax = 120;
+
+export const sendSiteRequestBodyPhoneMax = 30;
+
+export const sendSiteRequestBodyEmailOneDefault = ``;
+export const sendSiteRequestBodyEmailTwoMax = 0;
+
+export const sendSiteRequestBodyCompanyDefault = ``;
+export const sendSiteRequestBodyCompanyMax = 150;
+
+export const sendSiteRequestBodyCityDefault = ``;
+export const sendSiteRequestBodyCityMax = 100;
+
+export const sendSiteRequestBodyAddressDefault = ``;
+export const sendSiteRequestBodyAddressMax = 250;
+
+export const sendSiteRequestBodyMessageDefault = ``;
+export const sendSiteRequestBodyMessageMax = 2000;
+
+
+export const sendSiteRequestBodyLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const sendSiteRequestBodyLinesItemNoteDefault = ``;
+export const sendSiteRequestBodyLinesItemNoteMax = 200;
+
+export const sendSiteRequestBodyWebsiteDefault = ``;
+
+export const SendSiteRequestBody = zod.object({
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "full_name": zod.string().max(sendSiteRequestBodyFullNameMax),
+  "phone": zod.string().max(sendSiteRequestBodyPhoneMax),
+  "email": zod.union([zod.email().default(sendSiteRequestBodyEmailOneDefault),zod.string().max(sendSiteRequestBodyEmailTwoMax)]).optional(),
+  "company": zod.string().max(sendSiteRequestBodyCompanyMax).default(sendSiteRequestBodyCompanyDefault),
+  "city": zod.string().max(sendSiteRequestBodyCityMax).default(sendSiteRequestBodyCityDefault),
+  "address": zod.string().max(sendSiteRequestBodyAddressMax).default(sendSiteRequestBodyAddressDefault),
+  "wanted_on": zod.iso.date().nullish(),
+  "message": zod.string().max(sendSiteRequestBodyMessageMax).default(sendSiteRequestBodyMessageDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.stringFormat('decimal', sendSiteRequestBodyLinesItemQuantityRegExp),
+  "note": zod.string().max(sendSiteRequestBodyLinesItemNoteMax).default(sendSiteRequestBodyLinesItemNoteDefault)
+})).optional(),
+  "website": zod.string().default(sendSiteRequestBodyWebsiteDefault)
+}).describe('A quote request or an order from the site. `phone` is required; `website` must stay empty (a field\npeople never see, filled only by robots).')
+
+export const SendSiteRequestResponse = zod.object({
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande')
+})
+
+
+/**
  * The stock rules: above `loss_approval_threshold` kg a loss waits for the owner's approval.
  */
 export const getStockSettingsResponseLossApprovalThresholdRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -17167,6 +17369,148 @@ export const RestoreTruckResponse = zod.object({
   "is_active": zod.boolean(),
   "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Quote requests and orders sent from the public site, newest first, paginated (`limit`, `offset`).
+ * Filter by status, kind or `search` (name, phone, company, number).
+ */
+export const listWebRequestsQuerySearchDefault = ``;
+
+export const ListWebRequestsQueryParams = zod.object({
+  "kind": zod.enum(['quote', 'order']).optional().describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().default(listWebRequestsQuerySearchDefault),
+  "status": zod.enum(['new', 'handled', 'cancelled']).optional().describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée')
+})
+
+export const listWebRequestsResponseResultsItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listWebRequestsResponseResultsItemLinesItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListWebRequestsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "full_name": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "company": zod.string(),
+  "city": zod.string(),
+  "address": zod.string(),
+  "wanted_on": zod.iso.date().nullable(),
+  "message": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.stringFormat('decimal', listWebRequestsResponseResultsItemLinesItemQuantityRegExp),
+  "web_price": zod.stringFormat('decimal', listWebRequestsResponseResultsItemLinesItemWebPriceRegExp).nullable(),
+  "note": zod.string()
+})),
+  "handled_by": zod.string().nullable(),
+  "handled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "office_note": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+export const GetWebRequestParams = zod.object({
+  "request_id": zod.int()
+})
+
+export const getWebRequestResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getWebRequestResponseLinesItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetWebRequestResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "full_name": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "company": zod.string(),
+  "city": zod.string(),
+  "address": zod.string(),
+  "wanted_on": zod.iso.date().nullable(),
+  "message": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.stringFormat('decimal', getWebRequestResponseLinesItemQuantityRegExp),
+  "web_price": zod.stringFormat('decimal', getWebRequestResponseLinesItemWebPriceRegExp).nullable(),
+  "note": zod.string()
+})),
+  "handled_by": zod.string().nullable(),
+  "handled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "office_note": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * The office called the visitor back: mark the request handled or cancelled with a note, or new again.
+ */
+export const SetWebRequestStatusParams = zod.object({
+  "request_id": zod.int()
+})
+
+export const setWebRequestStatusBodyOfficeNoteDefault = ``;
+export const setWebRequestStatusBodyOfficeNoteMax = 2000;
+
+
+
+export const SetWebRequestStatusBody = zod.object({
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "office_note": zod.string().max(setWebRequestStatusBodyOfficeNoteMax).default(setWebRequestStatusBodyOfficeNoteDefault)
+})
+
+export const setWebRequestStatusResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const setWebRequestStatusResponseLinesItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetWebRequestStatusResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "full_name": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "company": zod.string(),
+  "city": zod.string(),
+  "address": zod.string(),
+  "wanted_on": zod.iso.date().nullable(),
+  "message": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.stringFormat('decimal', setWebRequestStatusResponseLinesItemQuantityRegExp),
+  "web_price": zod.stringFormat('decimal', setWebRequestStatusResponseLinesItemWebPriceRegExp).nullable(),
+  "note": zod.string()
+})),
+  "handled_by": zod.string().nullable(),
+  "handled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "office_note": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 
