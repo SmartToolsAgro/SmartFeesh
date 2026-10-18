@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-18 (new receipt: the product cell is typed and searched like in a quote or a sale, D-183)_
+_Last updated: 2026-10-18 (driver "Vente": an empty truck shows no client, D-184)_
 
 ## Where we are
 
+- **D-184 (branch sale-empty-truck):** the driver's "Vente" tab shows only "Le camion est vide" when nothing is left
+  on the truck, no client list. Awaits CI, then check on staging with a driver whose truck is empty.
 - **D-185 (branch day-figures-load-bl):** a driver's day (Suivi des chauffeurs, closing) now counts the load BLs
   delivered (sales, cash at the door, kg sold); delivering sets `sold_at` to the delivery moment. Awaits CI.
 - **D-182 (branch purchase-cash-split):** cash given at the port beyond the purchase money is split into "payé avec
