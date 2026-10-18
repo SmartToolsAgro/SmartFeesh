@@ -90,7 +90,7 @@ export const fr = {
       delivery_cancelled: "{{number}} non livré à {{customer}}. {{note}}",
       bl_changed: "Le bureau a modifié le bon {{number}} de {{customer}} (version {{version}})",
       bl_cancelled: "Le bureau a annulé le bon {{number}} de {{customer}}",
-      // The public site (D-184)
+      // The public site (D-186)
       web_quote: "Demande de devis {{number}} du site : {{name}}, {{phone}}",
       web_order: "Commande {{number}} du site : {{name}}, {{phone}}",
     },
@@ -423,7 +423,7 @@ export const fr = {
       webRequests: "Demandes du site",
       siteProducts: "Produits du site",
     },
-    // Quote requests and orders sent from the public site (D-184)
+    // Quote requests and orders sent from the public site (D-186)
     webRequests: {
       title: "Demandes du site",
       intro:
@@ -479,7 +479,7 @@ export const fr = {
       saved: "Demande mise à jour",
       newQuote: "Créer un devis",
     },
-    // What the public site shows, with its own prices (D-184)
+    // What the public site shows, with its own prices (D-186)
     siteProducts: {
       title: "Produits du site",
       intro:
@@ -4138,7 +4138,7 @@ export const fr = {
       },
     },
   },
-  // The public site (D-184): read by visitors, not by the company's staff.
+  // The public site (D-186): read by visitors, not by the company's staff.
   site: {
     skip: "Aller au contenu",
     nav: {

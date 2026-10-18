@@ -2602,6 +2602,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **From now on:** any new screen that records money (driver or admin) uses `ConfirmButton`. The admin app's existing
   money forms are not yet converted.
 
+**D-185 · A load's BL counts in the day of the driver who delivered it, at the moment of the delivery** · accepted · 2026-10-17
+
+- **Bug (owner's screenshot, 2026-10-17):** "Suivi des chauffeurs" showed 4 / 4 deliveries done but 0 DT of sales and
+  0 DT in hand. The day's figures took only sales `created_by` the driver, and a load's BL is made by the office.
+- **Now:** the day counts the confirmed BL of its truck's loads too: those the driver delivered, and those the office
+  marked delivered (unless another driver of that truck and date delivered them). Their cash at the door is in hand.
+- **Sold at the door:** delivering a load's BL (phone or office "Marquer livré") sets `sold_at` to that moment, so the
+  sale, its stock movement and the day it counts in are the delivery's, not the load's (a load validated the evening
+  before counts on the delivery day). The prices stay those of the load.
+- **Already delivered BLs** keep their `sold_at` (posted movements are not edited); a closing already sent with the
+  wrong figures shows the difference and is sent again (D-132).
 **D-180 · The route map and the phone's GPS tracking are switched off, not removed** · accepted · 2026-10-18
 
 - **Owner request (2026-10-18):** disable the map feature without deleting it.
@@ -2610,6 +2621,18 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   shows either. The backend (points, route, stops, customer places of D-164/D-172) is unchanged; set both flags to `true`
   to bring the feature back.
 
+**D-182 · Port purchases beyond the purchase money: sales cash and the driver's pocket are two parts, never both (fixes D-158)** · accepted · 2026-10-18
+
+- **Owner report (2026-10-18):** a day with 0 sales, 10 000 DT of purchase money and 10 200 DT given in cash showed
+  200 DT "Payé avec l'argent des ventes" and the same 200 DT "Avancé de sa poche": the money looked
+  counted twice. `purchases_from_sales` held all the cash beyond the purchase money.
+- Now `purchases_from_sales` is only what the sales cash really paid (`min(beyond, cash in hand)`) and
+  `owed_to_driver` the rest; the two add up to the cash beyond the purchase money. `expected_cash`, the counted cash
+  and the gaps do not change.
+- Suivi des chauffeurs: "Doit avoir en main" = caisse + ventes + règlements − dépenses − payé avec les ventes − déjà
+  remis; the pocket part is shown under it, outside the sum, as what the office owes the driver.
+- Migration `dayclose.0006` corrects only that one figure in the kept day figures (closings and undone sends) so days
+  already sent read right; no money figure that counts changes.
 **D-181 · Buying at the port: the money given may not exceed the purchase (changes D-176)** · accepted · 2026-10-18
 
 - **Owner request (2026-10-18):** a typo in the sums given at the port must be stopped at entry, not turned into an
@@ -2628,7 +2651,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   receiving against an order). Against an order, only the order's products are offered, as before.
 - The supplier, place and partner choices stay drop-downs: their lists are short.
 
-**D-184 · A public site with orders and quote requests, and site products with their own web price** · accepted · 2026-10-18
+**D-184 · An empty truck shows no client in "Vente"** · accepted · 2026-10-18
+
+- **Owner request (2026-10-18):** "when nothing is loaded in the camion the driver should not see clients"; the office
+  names the clients when it loads the truck (D-174, D-178), so with nothing on board there is nobody to sell to.
+- The "Vente" tab first reads the truck's stock: when every product is gone or already promised to a sale, delivery
+  or loss waiting on the phone (`truckIsEmpty`), it shows only "Le camion est vide · Il n'y a plus rien à vendre dans
+  ce camion." Phone screen only; the server already refuses a sale beyond the stock.
+- Without an answer about the stock (offline and never loaded), the client list still shows, so a sale is not blocked.
+
+**D-186 · A public site with orders and quote requests, and site products with their own web price** · accepted · 2026-10-18
 
 - **Owner request (2026-10-18):** a dynamic, animated public website where a visitor asks for a quote (devis) or
   orders products, the **phone number being required**; then "in the office application, manage the web site

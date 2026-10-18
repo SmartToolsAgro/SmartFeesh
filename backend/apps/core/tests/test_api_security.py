@@ -22,7 +22,7 @@ pytestmark = pytest.mark.django_db
 
 METHODS = ("get", "post", "put", "patch", "delete")
 WRITES = ("post", "put", "patch", "delete")
-# Nobody needs to be logged in: liveness, the CSRF cookie, the login itself and the public site (D-184).
+# Nobody needs to be logged in: liveness, the CSRF cookie, the login itself and the public site (D-186).
 PUBLIC = {
     "/api/v1/health",
     "/api/v1/health/stock-check",

@@ -96,7 +96,7 @@ function serverErrors(error: unknown): Record<string, string> {
   return errors;
 }
 
-/** The basket and the contact form: an order, or a quote request. The phone number is required (D-184). */
+/** The basket and the contact form: an order, or a quote request. The phone number is required (D-186). */
 export function RequestForm({
   kind,
   onKind,

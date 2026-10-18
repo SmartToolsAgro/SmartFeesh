@@ -40,7 +40,7 @@ class SiteRequestThrottle(AnonRateThrottle):
     scope = "site_request"
 
 
-# The public site (D-184): nobody is logged in, so no session and no CSRF; a few calls per address only.
+# The public site (D-186): nobody is logged in, so no session and no CSRF; a few calls per address only.
 # A comment, not a docstring: a docstring would describe every endpoint in the schema.
 class SiteView(APIView):
     authentication_classes = ()
@@ -178,7 +178,7 @@ class WebRequestStatusView(OfficeView):
         return Response(WebRequestSerializer(self.web_request(request_id)).data)
 
 
-# ---- The office: what the site shows (D-184) ----
+# ---- The office: what the site shows (D-186) ----
 
 
 class SiteProductListView(OfficeView):

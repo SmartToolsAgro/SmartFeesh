@@ -93,7 +93,7 @@ services:
     ports:
       - "127.0.0.1:18081:8081" # admin app
       - "127.0.0.1:18082:8082" # driver app
-      - "127.0.0.1:18083:8083" # public site (D-184); the host nginx gets a name for it once DNS exists
+      - "127.0.0.1:18083:8083" # public site (D-186); the host nginx gets a name for it once DNS exists
     depends_on:
       backend: { condition: service_healthy }
 

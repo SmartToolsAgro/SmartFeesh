@@ -29,7 +29,7 @@ def _photo_url(product: "Product") -> str | None:
 
 
 class SiteProductSerializer(serializers.Serializer[SiteProduct]):
-    """A product as the public site shows it: its web price only, no stock, no cost (D-184)."""
+    """A product as the public site shows it: its web price only, no stock, no cost (D-186)."""
 
     id = serializers.IntegerField(source="product_id")
     name = serializers.CharField(source="product.name")
@@ -148,7 +148,7 @@ class WebRequestStatusSerializer(serializers.Serializer[Any]):
     office_note = serializers.CharField(max_length=2000, required=False, allow_blank=True, default="")
 
 
-# ---- The office: what the site shows (D-184) ----
+# ---- The office: what the site shows (D-186) ----
 
 
 class OfficeSiteProductSerializer(serializers.ModelSerializer[SiteProduct]):

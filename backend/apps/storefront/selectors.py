@@ -1,4 +1,4 @@
-"""Reusable read queries of the public site and of its requests (D-184)."""
+"""Reusable read queries of the public site and of its requests (D-186)."""
 
 from typing import TYPE_CHECKING
 
@@ -39,7 +39,7 @@ def site_product_of(organization: Organization, site_product_id: int) -> SitePro
 
 def site_products(organization: Organization) -> QuerySet[SiteProduct]:
     """What a visitor sees and may ask for: the published rows of active products. The web price only, never the
-    day's price, a cost or the stock (D-184)."""
+    day's price, a cost or the stock (D-186)."""
     return site_products_of(organization).filter(is_published=True, product__is_active=True)
 
 

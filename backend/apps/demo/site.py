@@ -1,4 +1,4 @@
-"""Demo public site (D-184): every active product is shown, at today's price rounded up to the half dinar."""
+"""Demo public site (D-186): every active product is shown, at today's price rounded up to the half dinar."""
 
 from decimal import ROUND_CEILING, Decimal
 

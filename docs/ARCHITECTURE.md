@@ -59,13 +59,13 @@ backend/
     closing/              lot costs and results, lot settlements, monthly closing (D-040)
     reporting/            read-only report queries and exports
     notifications/        office ⇄ driver notifications, written from audit entries (D-175)
-    storefront/           public site: site products and web prices, orders and quote requests (D-184)
+    storefront/           public site: site products and web prices, orders and quote requests (D-186)
     demo/                 seed_dev: demo organization, logins and catalogue (may call every app)
   manage.py
 frontend/
   apps/admin/             owner/back-office web app
   apps/truck/             driver PWA
-  apps/site/              public site: catalogue, orders and quote requests, no login (D-184)
+  apps/site/              public site: catalogue, orders and quote requests, no login (D-186)
   packages/ui/            design tokens, icons, illustrations, shared components
   packages/api/           generated TypeScript client + Zod schemas (do not edit by hand)
   packages/monitoring/    Sentry error reporting of both apps, off without a DSN (D-140)

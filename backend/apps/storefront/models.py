@@ -7,7 +7,7 @@ from apps.core.money import QuantityField
 
 
 class SiteProduct(OrganizationScopedModel, TimeStampedModel):
-    """A product shown on the public site, with its own price (D-184).
+    """A product shown on the public site, with its own price (D-186).
 
     The web price is the site's alone: it never changes the day's price (`ProductPrice`), the price lists or a
     sale. Empty: the site shows "prix sur demande". A product leaves the site when its row is removed, or for a
@@ -50,7 +50,7 @@ class WebRequestStatus(models.TextChoices):
 
 
 class WebRequest(OrganizationScopedModel, TimeStampedModel):
-    """A quote request or an order sent from the public site (D-184).
+    """A quote request or an order sent from the public site (D-186).
 
     Nobody is logged in: the phone number is the only sure way back to the visitor, so it is required. Nothing
     here moves stock or money; the office calls back, then makes the quote or the sale as usual.

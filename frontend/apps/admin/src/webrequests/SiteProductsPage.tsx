@@ -47,7 +47,7 @@ function parseWebPrice(text: string): string | null | undefined {
   return value === null || value.startsWith("-") ? undefined : value;
 }
 
-/** The products the public site shows, with their own web price (D-184). The day's price is not touched. */
+/** The products the public site shows, with their own web price (D-186). The day's price is not touched. */
 export function SiteProductsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();

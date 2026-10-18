@@ -1,5 +1,5 @@
 """The public site: a visitor reads the catalogue and sends a quote request or an order; the office handles it
-(D-184)."""
+(D-186)."""
 
 import functools
 from decimal import Decimal
@@ -228,7 +228,7 @@ def test_another_company_never_sees_the_requests(shop):
     assert stranger.get(reverse("web-request-list")).json()["count"] == 0
 
 
-# ---- The office chooses what the site shows (D-184) ----
+# ---- The office chooses what the site shows (D-186) ----
 
 
 def office_client(membership):

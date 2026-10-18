@@ -15201,7 +15201,7 @@ export const GetSiteCatalogResponse = zod.object({
   "description": zod.string(),
   "illustration": zod.string(),
   "photo_url": zod.string().nullable()
-}).describe('A product as the public site shows it: its web price only, no stock, no cost (D-184).'))
+}).describe('A product as the public site shows it: its web price only, no stock, no cost (D-186).'))
 })
 
 

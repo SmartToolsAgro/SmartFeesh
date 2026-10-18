@@ -12,7 +12,7 @@ const PAGE_SIZE = 50;
 const FILTERS = ["new", "handled", "cancelled", "all"] as const;
 type Filter = (typeof FILTERS)[number];
 
-/** Quote requests and orders sent from the public site (D-184), the new ones first. */
+/** Quote requests and orders sent from the public site (D-186), the new ones first. */
 export function WebRequestsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();

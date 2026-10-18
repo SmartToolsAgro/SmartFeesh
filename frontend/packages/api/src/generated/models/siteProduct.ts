@@ -6,7 +6,7 @@
  */
 
 /**
- * A product as the public site shows it: its web price only, no stock, no cost (D-184).
+ * A product as the public site shows it: its web price only, no stock, no cost (D-186).
  */
 export interface SiteProduct {
   id: number;

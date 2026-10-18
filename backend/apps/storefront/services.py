@@ -1,4 +1,4 @@
-"""Every write on the public site's requests goes through these functions (ARCHITECTURE §3, D-184)."""
+"""Every write on the public site's requests goes through these functions (ARCHITECTURE §3, D-186)."""
 
 import datetime as dt
 import re
@@ -163,7 +163,7 @@ def set_web_request_status(*, request: WebRequest, actor: User, status: str, not
     return request
 
 
-# ---- What the site shows: the office chooses the products and their web price (D-184) ----
+# ---- What the site shows: the office chooses the products and their web price (D-186) ----
 
 
 def _checked_web_price(value: Decimal | None) -> Decimal | None:

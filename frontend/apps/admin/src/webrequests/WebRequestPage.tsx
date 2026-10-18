@@ -28,7 +28,7 @@ function Detail({ label, children, numeric = false }: { label: string; children:
   );
 }
 
-/** One quote request or order from the public site (D-184): call the visitor, then close it with a note. */
+/** One quote request or order from the public site (D-186): call the visitor, then close it with a note. */
 export function WebRequestPage() {
   const { t } = useTranslation();
   const { requestId } = useParams();

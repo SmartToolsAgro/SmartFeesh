@@ -1,4 +1,4 @@
-// The pictures of the site, made for it with Artlist (D-184): a dawn shot of the port (still and 10-second loop)
+// The pictures of the site, made for it with Artlist (D-186): a dawn shot of the port (still and 10-second loop)
 // and a flat-lay of the catch, cut into one tile per kind of product. A product's own photo, uploaded in the
 // office app, always comes first.
 
