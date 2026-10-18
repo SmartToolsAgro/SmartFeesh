@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-10-17 (driver day counts delivered load BLs, D-180; money confirm, D-179; P2-T15 / D-178)_
+_Last updated: 2026-10-17 (driver day counts delivered load BLs, D-183; money confirm, D-179; P2-T15 / D-178)_
 
 ## Where we are
 
-- **D-180 (branch day-figures-load-bl):** a driver's day (Suivi des chauffeurs, closing) now counts the load BLs
+- **D-183 (branch day-figures-load-bl):** a driver's day (Suivi des chauffeurs, closing) now counts the load BLs
   delivered (sales, cash at the door, kg sold); delivering sets `sold_at` to the delivery moment. Awaits CI.
 - **D-179 (branch money-confirm-popup):** every money action of the driver app (delivery, sale, payment, expense,
   purchase, opening cash and float, closing) opens an "Annuler / Confirmer" window with the amounts. Awaits CI.
@@ -42,7 +42,7 @@ _Last updated: 2026-10-17 (driver day counts delivered load BLs, D-180; money co
 
 ## Next step
 
-0. D-180: merge after green CI; on staging, deliver a load BL with cash from the phone and check Suivi des
+0. D-183: merge after green CI; on staging, deliver a load BL with cash from the phone and check Suivi des
    chauffeurs shows its sales and cash; a closing sent before the fix must be sent again.
 0. D-179: merge after green CI; on staging with a phone, check each money button opens the window and "Annuler" sends
    nothing. Then ask the owner whether the admin app's money forms need the same window.
