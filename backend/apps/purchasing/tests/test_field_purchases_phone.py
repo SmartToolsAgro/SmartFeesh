@@ -263,7 +263,8 @@ def test_cash_the_driver_paid_out_of_pocket_is_owed_back_not_a_gap(setup):
 
     figures = summary(setup)
 
-    assert figures["purchases_from_sales"] == "100.000"
+    # The 100 DT beyond the purchase money: 50 from the sales cash, 50 out of pocket, never both (D-182).
+    assert figures["purchases_from_sales"] == "50.000"
     assert figures["owed_to_driver"] == "50.000"
     assert figures["expected_cash"] == "0.000"
 

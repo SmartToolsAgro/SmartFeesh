@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-18 (route map and GPS tracking switched off, D-180)_
+_Last updated: 2026-10-18 (port purchase cash: sales cash and pocket no longer counted twice, D-182)_
 
 ## Where we are
 
+- **D-182 (branch purchase-cash-split):** cash given at the port beyond the purchase money is split into "payé avec
+  l'argent des ventes" and "avancé de sa poche", never both; old sent days are corrected by migration. Awaits CI.
 - **D-180 (branch disable-route-map):** the "Parcours" map in Journées des chauffeurs is hidden and the driver phone no
   longer tracks its position (flags `ROUTE_MAP_ENABLED` / `TRACKING_ENABLED`, code kept). Awaits CI, then check on staging.
 - **D-179 (branch money-confirm-popup):** every money action of the driver app (delivery, sale, payment, expense,
@@ -43,6 +45,8 @@ _Last updated: 2026-10-18 (route map and GPS tracking switched off, D-180)_
 
 ## Next step
 
+0. D-182: merge after green CI; on staging open the ISUZU 1 closing of 16/10/2026: "Payé avec l'argent des ventes"
+   is gone (0) and "Avancé de sa poche" shows 200 000,000 DT; the Suivi tab shows it under "Doit avoir en main".
 0. D-179: merge after green CI; on staging with a phone, check each money button opens the window and "Annuler" sends
    nothing. Then ask the owner whether the admin app's money forms need the same window.
 0. P2-T15: merge after green CI; on staging, load two clients, print both BLs (no PROVISOIRE), on the phone deliver one

@@ -2609,3 +2609,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   `TRACKING_ENABLED = false` (`truck/src/tracking.ts`) stops the phone asking for and sending its position, so no GPS warning
   shows either. The backend (points, route, stops, customer places of D-164/D-172) is unchanged; set both flags to `true`
   to bring the feature back.
+
+**D-182 · Port purchases beyond the purchase money: sales cash and the driver's pocket are two parts, never both (fixes D-158)** · accepted · 2026-10-18
+
+- **Owner report (2026-10-18):** a day with 0 sales, 10 000 000 DT of purchase money and 10 200 000 DT given in cash
+  showed 200 000 DT "Payé avec l'argent des ventes" and the same 200 000 DT "Avancé de sa poche": the money looked
+  counted twice. `purchases_from_sales` held all the cash beyond the purchase money.
+- Now `purchases_from_sales` is only what the sales cash really paid (`min(beyond, cash in hand)`) and
+  `owed_to_driver` the rest; the two add up to the cash beyond the purchase money. `expected_cash`, the counted cash
+  and the gaps do not change.
+- Suivi des chauffeurs: "Doit avoir en main" = caisse + ventes + règlements − dépenses − payé avec les ventes − déjà
+  remis; the pocket part is shown under it, outside the sum, as what the office owes the driver.
+- Migration `dayclose.0006` corrects only that one figure in the kept day figures (closings and undone sends) so days
+  already sent read right; no money figure that counts changes.
