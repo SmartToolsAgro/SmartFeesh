@@ -31,8 +31,12 @@ describe("purchaseTotals", () => {
       total: "750.000",
       paid: "600.000",
       rest: "150.000",
+      overpaid: false,
     });
-    expect(purchaseTotals([{ kilos: "10", price: "8,5" }], ["50", "100"]).rest).toBe("0.000");
+    const over = purchaseTotals([{ kilos: "10", price: "8,5" }], ["50", "100"]);
+    expect(over.rest).toBe("0.000");
+    expect(over.overpaid).toBe(true);
+    expect(purchaseTotals([{ kilos: "10", price: "8,5" }], ["85"]).overpaid).toBe(false);
   });
 });
 

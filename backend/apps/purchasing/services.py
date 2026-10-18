@@ -1163,6 +1163,23 @@ def _checked_field_purchase(organization: Organization, fields: FieldPurchaseFie
             errors[payment_error_key(index, "cash_on")] = _("Le jour d'encaissement ne peut pas précéder l'achat.")
         checked_payments.append(values)
 
+    # More given than the purchase is worth is a typing mistake, not an advance: refused. The ceiling takes the
+    # bigger of the driver's kg and the kg received per line, so a lot counted lighter at the office keeps what was
+    # really given; the part beyond what is owed then stays an advance at validation.
+    if not errors and checked_payments:
+        ceiling = sum(
+            (
+                line_total(max(line["declared_quantity"], line["received_quantity"] or ZERO), line["unit_cost"])
+                for line in checked_lines
+            ),
+            ZERO,
+        )
+        given = sum((payment["amount"] for payment in checked_payments), ZERO)
+        if given > ceiling:
+            errors[payment_error_key(len(checked_payments) - 1, "amount")] = _(
+                "L'argent donné (%(given)s DT) dépasse le montant de l'achat (%(total)s DT) : vérifiez les montants."
+            ) % {"given": given, "total": ceiling}
+
     boxes = box_services.checked_box_counts(fields.get("boxes"), errors, prefix="boxes")
     if errors:
         raise ValidationError(errors)

@@ -375,12 +375,19 @@ def test_more_given_than_owed_is_an_advance_and_a_cheque_keeps_its_cashing_day(
         product,
         payments=[
             {"method": "cash", "amount": "700"},
-            {"method": "cheque", "amount": "500", "reference": "CH-118", "cash_on": cash_on},
+            {"method": "cheque", "amount": "300", "reference": "CH-118", "cash_on": cash_on},
         ],
     )
+    # 1 000 DT given for the driver's 50 kg; the office counts 40 kg, so 800 DT are owed and 200 DT stay an advance.
+    lines: list[dict[str, Any]] = [dict(line) for line in office_fields(purchase)["lines"]]
+    lines[0]["received_quantity"] = "40"
 
     services.update_field_purchase(
-        purchase=purchase, actor=None, revision=1, fields=office_fields(purchase, location=room), validate=True
+        purchase=purchase,
+        actor=None,
+        revision=1,
+        fields=office_fields(purchase, location=room, lines=lines),
+        validate=True,
     )
 
     purchase.refresh_from_db()
@@ -393,6 +400,32 @@ def test_more_given_than_owed_is_an_advance_and_a_cheque_keeps_its_cashing_day(
     assert cheque.cash_on == cash_on
     assert cheque.unallocated_amount == Decimal("200.000")  # type: ignore[attr-defined]
     assert selectors.supplier_balance(organization, supplier.pk).balance == Decimal("-200.000")
+
+
+def test_more_given_than_the_purchase_is_worth_is_refused(organization, driver, supplier, product):
+    # 50 kg at 20 DT = 1 000 DT; 1 200 DT typed is a mistake.
+    with pytest.raises(ValidationError) as caught:
+        a_purchase(
+            organization,
+            driver,
+            supplier,
+            product,
+            payments=[{"method": "cash", "amount": "700"}, {"method": "cheque", "amount": "500"}],
+        )
+
+    assert set(caught.value.message_dict) == {"payments.1.amount"}
+    assert "1000.000" in caught.value.message_dict["payments.1.amount"][0]
+    assert not FieldPurchase.objects.exists()
+
+    # Exactly the amount is fine, and so is a lower price later as long as the money still fits.
+    purchase = a_purchase(organization, driver, supplier, product, payments=[{"method": "cash", "amount": "1000"}])
+    lines: list[dict[str, Any]] = [dict(line) for line in office_fields(purchase)["lines"]]
+    lines[0]["unit_cost"] = "19.000"
+    with pytest.raises(ValidationError) as caught:
+        services.update_field_purchase(
+            purchase=purchase, actor=None, revision=1, fields=office_fields(purchase, lines=lines)
+        )
+    assert set(caught.value.message_dict) == {"payments.0.amount"}
 
 
 def test_validating_needs_a_supplier_a_place_and_products_of_the_list(organization, driver, product):

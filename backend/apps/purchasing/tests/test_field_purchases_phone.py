@@ -248,8 +248,13 @@ def test_cash_given_at_the_port_comes_out_of_the_purchase_money(setup):
     assert figures["expected_cash"] == "50.000"
 
 
+def big_lines(setup) -> list[dict[str, Any]]:
+    """50 kg of poulpe at 25 DT = 1 250 DT: room for more cash than the purchase money."""
+    return [{"product": setup["product"].pk, "declared_quantity": "50", "unit_cost": "25.000"}]
+
+
 def test_cash_beyond_the_purchase_money_comes_from_the_sales_cash(setup):
-    send(setup, payments=[{"method": "cash", "amount": "1030"}])
+    send(setup, lines=big_lines(setup), payments=[{"method": "cash", "amount": "1030"}])
 
     figures = summary(setup)
 
@@ -259,7 +264,9 @@ def test_cash_beyond_the_purchase_money_comes_from_the_sales_cash(setup):
 
 
 def test_cash_the_driver_paid_out_of_pocket_is_owed_back_not_a_gap(setup):
-    send(setup, payments=[{"method": "cash", "amount": "1100"}])  # 100 beyond the float, 50 in hand
+    send(
+        setup, lines=big_lines(setup), payments=[{"method": "cash", "amount": "1100"}]
+    )  # 100 beyond the float, 50 in hand
 
     figures = summary(setup)
 
