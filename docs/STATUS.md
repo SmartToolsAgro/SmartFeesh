@@ -73,12 +73,11 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 
 0. Product cards (branch site-product-cards): merge after green CI, then on https://www.fruttidelmare.com check that
    5 to 6 cards fit in a row on a laptop and the quantity buttons still work.
-0. D-186 (PR #198, merged): on the staging server (app `storefront`, migrations 0001–0002). The deploy publishes
-   https://www.fruttidelmare.com and adds www and the bare name to the certificate: read its log for "Certificate now
-   holds" (else run the runbook's certbot line). Then in the admin app: "Site web → Paramètres du site", type the
-   phone; "Produits du site", set web prices and hide what should not show; on https://www.fruttidelmare.com check
-   the logo, the product photos, the phone in the header and footer, send an order with a wrong then a right phone, see the bell and "Demandes du site". Then add
-   the site to the uptime watch. Ask the owner to read the page's texts (D-186, provisional).
+0. D-186 (PR #198, merged): **live on https://www.fruttidelmare.com** (2026-10-19: certificate holds www and the
+   bare name, 41 products with 40 photos, logo; in the uptime watch). Owner, in the admin app: type the phone in
+   "Site web → Paramètres du site", set web prices and hide what should not show in "Produits du site", move the
+   products out of "À classer"; then send a test order with a wrong then a right phone and see the bell and
+   "Demandes du site". Ask the owner to read the page's texts (D-186, provisional).
 0. D-183: on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
 0. D-187: merge after green CI; on staging open Stock › Caisses: with the demo data, "À nous" shows 50 small and
    50 big (the opening stock), and "Aux fournisseurs (à rendre)" equals the Fournisseurs list added up.
