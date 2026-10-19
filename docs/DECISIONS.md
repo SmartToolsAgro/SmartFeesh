@@ -2714,3 +2714,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   in the browser from the balances the page already loads (`boxSummary` in `boxes/shared.ts`); no API change.
 - Each list has a one-line note: locations hold ours or lent ones, clients' boxes are to collect, suppliers' are to
   give back (`kindNotes`, replaces `supplierNote`).
+
+**D-188 · "Créer un devis" on a site request opens the quote in a window, its products already in** · accepted · 2026-10-19
+- Asked by Mahmoud (2026-10-19): the office's buttons (Marquer traitée, Annuler la demande, Enregistrer la note,
+  Créer un devis) sat at the bottom of the request page. They move to the top: the "Suivi du bureau" card is the
+  first card, its buttons come before the note.
+- "Créer un devis" does not leave the page. It opens the quote form in the window of D-138 (`NewDocumentDialog`), with
+  the request given as `fromRequest`: the products the visitor asked for and their kilos start the quote, to change,
+  save or send. Accepting the quote (which creates the BL, D-115) stays on the quote page.
+- Not copied: the customer (a site request has no customer link, the office picks it) and the web price (the price is
+  proposed as for any line: the customer's list, else the day's price). Saving closes the window; the request page stays.
