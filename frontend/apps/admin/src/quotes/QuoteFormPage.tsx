@@ -4,6 +4,7 @@ import {
   type QuoteDetail,
   type QuoteWrite,
   updateQuote,
+  type WebRequest,
   useGetQuote,
   useListCustomers,
   useListLocations,
@@ -67,9 +68,9 @@ function addDays(day: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** "Nouveau devis": a new draft, or one sent at once. */
-export function QuoteFormPage() {
-  return <QuoteForm />;
+/** "Nouveau devis": a new draft, or one sent at once. From a web request, its products are already in (D-186). */
+export function QuoteFormPage({ fromRequest }: { fromRequest?: WebRequest }) {
+  return <QuoteForm fromRequest={fromRequest} />;
 }
 
 /** "Modifier DV-2026-0003": a draft changed, or sent. */
@@ -90,7 +91,7 @@ export function QuoteEditPage() {
   return <QuoteForm key={quote.data.id} draft={quote.data} />;
 }
 
-function QuoteForm({ draft }: { draft?: QuoteDetail }) {
+function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: WebRequest }) {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const { embedded, leave } = useLeave();
@@ -108,17 +109,22 @@ function QuoteForm({ draft }: { draft?: QuoteDetail }) {
   // Until the validity is typed, it follows the quote's day.
   const [validTouched, setValidTouched] = useState(draft !== undefined);
   const [notes, setNotes] = useState(draft?.notes ?? "");
+  // A web request's products come in with their kilos; the price is proposed as for any line, until typed.
   const [lines, setLines] = useState<Line[]>(() =>
     withSpare(
-      (draft?.lines ?? []).map((line) =>
-        newLine({
-          product: String(line.product.id),
-          quantity: asTyped(line.quantity),
-          unit_price: asTyped(line.unit_price),
-          discount_rate: isZero(line.discount_rate) ? "" : rateAsTyped(line.discount_rate),
-          priceTouched: true,
-        }),
-      ),
+      draft
+        ? draft.lines.map((line) =>
+            newLine({
+              product: String(line.product.id),
+              quantity: asTyped(line.quantity),
+              unit_price: asTyped(line.unit_price),
+              discount_rate: isZero(line.discount_rate) ? "" : rateAsTyped(line.discount_rate),
+              priceTouched: true,
+            }),
+          )
+        : (fromRequest?.lines ?? []).map((line) =>
+            newLine({ product: String(line.product), quantity: asTyped(line.quantity) }),
+          ),
     ),
   );
   const [errors, setErrors] = useState<Errors>({});
