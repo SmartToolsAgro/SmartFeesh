@@ -1,5 +1,27 @@
 # Project status
 
+_Last updated: 2026-10-18 (public site: phone set in the office app, domain www.fruttidelmare.com, D-186)_
+
+## Where we are
+
+- **D-186 (branch public-site, PR #198):** a public, animated site (`frontend/apps/site`, :5175; Artlist video and
+  photos): catalogue with web prices, basket, order or quote request with a **required phone number**. The office gets
+  a bell notification and handles requests in "Site web → Demandes du site". **Every active product shows with its
+  photo and the company logo**; "Site web → Produits du site" hides products, orders them and sets a **web-only
+  price** (the day's price never changes);
+  "Paramètres du site" sets the **phone** (and WhatsApp, e-mail, address, hours) the site shows. Domain
+  **https://www.fruttidelmare.com** (bare name redirects; certificate expanded by the deploy). Awaits CI.
+- **D-185 (on main, #189):** a driver's day (Suivi des chauffeurs, closing) counts the load BLs delivered (sales, cash
+  at the door, kg "Vendu" in "Marchandise du camion"); delivering sets `sold_at` to the delivery moment. The owner saw
+  the old gap again on 2026-10-18 (4/4 delivered, "Vendu" 0 kg, "Reste" right) on a build without it. Check on staging.
+- **D-184 (on main, #196):** the driver's "Vente" tab shows only "Le camion est vide" when nothing is left on the
+  truck, no client list. Check on staging with a driver whose truck is empty.
+- **D-182 (on main, #192):** cash given at the port beyond the purchase money is split into "payé avec l'argent des
+  ventes" and "avancé de sa poche", never both; old sent days are corrected by migration. Check on staging.
+- **Wide closing dialog (on main, #191):** the closing window of Journées des chauffeurs › Clôtures is 1 100 px wide,
+  so the stock table fits without a side scroll bar. Check on staging.
+- **D-183 (on main, #194):** in "Nouvelle réception" the product cell is an empty box: typing a code,
+  name, Arabic name or category lists the matching products, as in a quote or a sale. Check on staging.
 _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are whose, D-187)_
 
 ## Where we are
@@ -41,19 +63,18 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 - **Working rule (owner, 2026-10-16):** do not run tests locally; commit and let CI check, then fix reported failures.
   One branch and one PR per task; merge only after CI passes.
 
-- **D-161 (PR load-print-fiche):** the validated load page has a banner and a "Fiche client" button per client.
-- **P3-T14 / D-171 (PR #174, on main):** the driver app scrolls less (tiles, folding cards, sticky main action, back
-  link in the header, recent customers). Check it on staging with a phone; the decision number was D-168 in the PR.
-
-- **D-162 (PR #163):** Journées des chauffeurs has a live follow-up tab per driver, truck and day; awaits CI, then check on staging.
-- **D-163 (PR #164, branch client-remarks-2026-10-17):** the client's 11 remarks of 2026-10-17 (shares in %, price floor, boxes,
-  truck condition, partnership edits, XLS tables, frozen header). CI must pass before merge; then check on staging.
-
 - **P2-T14 / D-174 (branch transfer-load-grid):** transfer form as a spreadsheet grid per client, "Chambres froides
   (toutes)" as the source, driver "Vente" lists only the load's clients. CI must pass, then check on staging.
 
 ## Next step
 
+0. D-186 (PR #198): merge after green CI (app `storefront`, migrations 0001–0002). The deploy publishes
+   https://www.fruttidelmare.com and adds www and the bare name to the certificate: read its log for "Certificate now
+   holds" (else run the runbook's certbot line). Then in the admin app: "Site web → Paramètres du site", type the
+   phone; "Produits du site", set web prices and hide what should not show; on https://www.fruttidelmare.com check
+   the logo, the product photos, the phone in the header and footer, send an order with a wrong then a right phone, see the bell and "Demandes du site". Then add
+   the site to the uptime watch. Ask the owner to read the page's texts (D-186, provisional).
+0. D-183: on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
 0. D-187: merge after green CI; on staging open Stock › Caisses: with the demo data, "À nous" shows 50 small and
    50 big (the opening stock), and "Aux fournisseurs (à rendre)" equals the Fournisseurs list added up.
 0. D-183: merge after green CI; on staging open Achats → Nouvelle réception, type "dor" in the product cell, take

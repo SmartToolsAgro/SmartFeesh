@@ -2660,6 +2660,47 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   ce camion." Phone screen only; the server already refuses a sale beyond the stock.
 - Without an answer about the stock (offline and never loaded), the client list still shows, so a sale is not blocked.
 
+**D-186 · A public site with orders and quote requests, and site products with their own web price** · accepted · 2026-10-18
+
+- **Owner request (2026-10-18):** a dynamic, animated public website where a visitor asks for a quote (devis) or
+  orders products, the **phone number being required**; then "in the office application, manage the web site
+  products: change the price (only on the web site), add and remove products".
+- A third front end, `frontend/apps/site` (`@frutti/site`, port 5175, nginx port 8083 in the web image), one page in
+  French: video hero, catalogue, "du port à vous", basket and request form. Motion is CSS + IntersectionObserver
+  (`motion.ts`), no new package; it stops under "reduce motion". Media made with Artlist (free trial: two Nano Banana 2
+  stills, one Kling 2.5 Turbo image-to-video loop), compressed to WebP / H.264 + VP9 (~3.6 MB in all) under
+  `apps/site/public/media`. The site imports the generated types only and calls the API through `apiFetch`, to keep
+  the office's Zod schemas out of the visitors' download.
+- Backend app `storefront`. **No login on the site:** `GET /site/catalog`, `GET /site/products/<id>/photo`,
+  `POST /site/requests` have no session, no CSRF, and are throttled per address (120/min, 10 requests/hour) with a
+  hidden "website" field for robots. The company served is `PUBLIC_SITE_ORGANIZATION_ID`, else the oldest active one.
+- **Every active product of the application is on the site, with its photo** (owner, 2026-10-18: "list all products
+  with their photo from the application"); a new product shows at once. The office's choices per product are a
+  `SiteProduct` row, made on the first change (`is_published`, `web_price`, description, position), in "Site web →
+  Produits du site", which lists every active product with its photo and day's price (owner and manager write,
+  accountant reads). Hiding replaces removing. A product without its own photo gets an Artlist picture by name/kind. The **web price is the site's
+  alone**: it never changes the day's price (D-020), the price lists or a sale; empty = "prix sur demande". Archived
+  products never show. The day's price, costs and stock are never sent to visitors.
+- A request (`WebRequest`, number `W-00012`) is a lead, not a sale: nothing moves stock or money. The phone is
+  normalised like the server's `normalize_phone` (8 Tunisian digits with or without +216, or an international number);
+  an order needs a product, a quote a product or a message; each line keeps the web price shown (snapshot). The office
+  is told at once (notification `web_order` / `web_quote`, actor none) and closes it in "Site web → Demandes du site"
+  (handled / cancelled / new again, with a note), then makes the quote or sale as usual.
+- **Owner request (2026-10-18): the phone is set in the office app.** `SiteSettings` (one row per organization:
+  phone, WhatsApp, e-mail, address, hours) in "Site web → Paramètres du site" (owner and manager write, accountant
+  reads). Numbers are checked and stored like a visitor's (`normalize_phone`). The catalogue answer carries them as
+  `contact`; the site shows the phone in the header, under the hero buttons, after a request, next to a sending error,
+  as a round call button on phones, and in the footer with WhatsApp, e-mail, address and hours. An empty field is not
+  shown. Not taken from the invoice settings' phone: the site's number may be another line.
+- **Domain (owner, 2026-10-18): https://www.fruttidelmare.com**; the bare `fruttidelmare.com` redirects to it. Host
+  nginx blocks (port 80 for the challenge and the redirect, 443 to the web container's 8083), `SITE_HOST` in
+  `DJANGO_ALLOWED_HOSTS` and the CSRF origins, and the health check of each deploy. The deploy adds both names to the
+  `frutti-staging` certificate itself the first time (certbot webroot, `--expand`); a failure only warns.
+- The site shows the **company logo** uploaded in Paramètres (D-125) in its header, footer and browser tab, through a
+  public `site/logo` (no login), on a white tile so a dark logo stays readable.
+- Owner review of the page (2026-10-18): only the "Aube" and "Pro" value cards are kept, and the site says "Sfax"
+  instead of "Sakiet Ezzit".
+- _Provisional:_ the other marketing texts of the page (story) are generic and must be checked by the owner.
 **D-187 · The Caisses page says whose boxes are whose ("Bilan des caisses")** · accepted · 2026-10-18
 
 - **Owner question (2026-10-18):** "how can I know which boxes belong to us, to the supplier, to the client: what we

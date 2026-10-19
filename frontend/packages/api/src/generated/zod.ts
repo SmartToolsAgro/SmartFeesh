@@ -15058,6 +15058,246 @@ export const ConfirmSaleResponse = zod.object({
 
 
 /**
+ * Every active product of the application, in the site's order, with its photo, its day's price and what
+ * the site shows of it. A product the office never changed is shown, without a web price.
+ */
+export const listSiteProductsResponseDayPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSiteProductsResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSiteProductsResponseItem = zod.object({
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "category_name": zod.string(),
+  "unit": zod.string(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "day_price": zod.stringFormat('decimal', listSiteProductsResponseDayPriceRegExp).nullable(),
+  "is_published": zod.boolean(),
+  "web_price": zod.stringFormat('decimal', listSiteProductsResponseWebPriceRegExp).nullable(),
+  "description": zod.string(),
+  "position": zod.int()
+}).describe('One active product of the application as the office sees it on the site screen: its photo, its day\'s price\nfor comparison, and the site\'s settings (defaults when the office never changed them).')
+export const ListSiteProductsResponse = zod.array(ListSiteProductsResponseItem)
+
+
+/**
+ * Hide or show a product on the site, set its web price (null: "prix sur demande"), its text or its
+ * place. The day's price and the price lists do not change.
+ */
+export const UpdateSiteProductParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const updateSiteProductBodyWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSiteProductBodyDescriptionMax = 300;
+
+export const updateSiteProductBodyPositionMin = 0;
+
+
+
+export const UpdateSiteProductBody = zod.object({
+  "web_price": zod.stringFormat('decimal', updateSiteProductBodyWebPriceRegExp).nullish(),
+  "description": zod.string().max(updateSiteProductBodyDescriptionMax).optional(),
+  "is_published": zod.boolean().optional(),
+  "position": zod.int().min(updateSiteProductBodyPositionMin).optional()
+}).describe('Only the fields sent change; `web_price: null` means "prix sur demande".')
+
+export const updateSiteProductResponseDayPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSiteProductResponseWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateSiteProductResponse = zod.object({
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "category_name": zod.string(),
+  "unit": zod.string(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "day_price": zod.stringFormat('decimal', updateSiteProductResponseDayPriceRegExp).nullable(),
+  "is_published": zod.boolean(),
+  "web_price": zod.stringFormat('decimal', updateSiteProductResponseWebPriceRegExp).nullable(),
+  "description": zod.string(),
+  "position": zod.int()
+}).describe('One active product of the application as the office sees it on the site screen: its photo, its day\'s price\nfor comparison, and the site\'s settings (defaults when the office never changed them).')
+
+
+/**
+ * The phone, WhatsApp, e-mail, address and hours the public site shows (empty until saved once).
+ */
+export const getSiteSettingsResponsePhoneDefault = ``;
+export const getSiteSettingsResponsePhoneMax = 30;
+
+export const getSiteSettingsResponseWhatsappDefault = ``;
+export const getSiteSettingsResponseWhatsappMax = 30;
+
+export const getSiteSettingsResponseEmailOneDefault = ``;
+export const getSiteSettingsResponseEmailTwoMax = 0;
+
+export const getSiteSettingsResponseAddressDefault = ``;
+export const getSiteSettingsResponseAddressMax = 250;
+
+export const getSiteSettingsResponseOpeningHoursDefault = ``;
+export const getSiteSettingsResponseOpeningHoursMax = 200;
+
+
+
+export const GetSiteSettingsResponse = zod.object({
+  "phone": zod.string().max(getSiteSettingsResponsePhoneMax).default(getSiteSettingsResponsePhoneDefault),
+  "whatsapp": zod.string().max(getSiteSettingsResponseWhatsappMax).default(getSiteSettingsResponseWhatsappDefault),
+  "email": zod.union([zod.email().default(getSiteSettingsResponseEmailOneDefault),zod.string().max(getSiteSettingsResponseEmailTwoMax)]).optional(),
+  "address": zod.string().max(getSiteSettingsResponseAddressMax).default(getSiteSettingsResponseAddressDefault),
+  "opening_hours": zod.string().max(getSiteSettingsResponseOpeningHoursMax).default(getSiteSettingsResponseOpeningHoursDefault)
+}).describe('The site\'s contact details as the office edits them. Every field may be empty: it is then not shown.')
+
+
+/**
+ * Replace the site's contact details. The numbers are checked and written one way ("+216 74 123 456").
+ */
+export const saveSiteSettingsBodyPhoneDefault = ``;
+export const saveSiteSettingsBodyPhoneMax = 30;
+
+export const saveSiteSettingsBodyWhatsappDefault = ``;
+export const saveSiteSettingsBodyWhatsappMax = 30;
+
+export const saveSiteSettingsBodyEmailOneDefault = ``;
+export const saveSiteSettingsBodyEmailTwoMax = 0;
+
+export const saveSiteSettingsBodyAddressDefault = ``;
+export const saveSiteSettingsBodyAddressMax = 250;
+
+export const saveSiteSettingsBodyOpeningHoursDefault = ``;
+export const saveSiteSettingsBodyOpeningHoursMax = 200;
+
+
+
+export const SaveSiteSettingsBody = zod.object({
+  "phone": zod.string().max(saveSiteSettingsBodyPhoneMax).default(saveSiteSettingsBodyPhoneDefault),
+  "whatsapp": zod.string().max(saveSiteSettingsBodyWhatsappMax).default(saveSiteSettingsBodyWhatsappDefault),
+  "email": zod.union([zod.email().default(saveSiteSettingsBodyEmailOneDefault),zod.string().max(saveSiteSettingsBodyEmailTwoMax)]).optional(),
+  "address": zod.string().max(saveSiteSettingsBodyAddressMax).default(saveSiteSettingsBodyAddressDefault),
+  "opening_hours": zod.string().max(saveSiteSettingsBodyOpeningHoursMax).default(saveSiteSettingsBodyOpeningHoursDefault)
+}).describe('The site\'s contact details as the office edits them. Every field may be empty: it is then not shown.')
+
+export const saveSiteSettingsResponsePhoneDefault = ``;
+export const saveSiteSettingsResponsePhoneMax = 30;
+
+export const saveSiteSettingsResponseWhatsappDefault = ``;
+export const saveSiteSettingsResponseWhatsappMax = 30;
+
+export const saveSiteSettingsResponseEmailOneDefault = ``;
+export const saveSiteSettingsResponseEmailTwoMax = 0;
+
+export const saveSiteSettingsResponseAddressDefault = ``;
+export const saveSiteSettingsResponseAddressMax = 250;
+
+export const saveSiteSettingsResponseOpeningHoursDefault = ``;
+export const saveSiteSettingsResponseOpeningHoursMax = 200;
+
+
+
+export const SaveSiteSettingsResponse = zod.object({
+  "phone": zod.string().max(saveSiteSettingsResponsePhoneMax).default(saveSiteSettingsResponsePhoneDefault),
+  "whatsapp": zod.string().max(saveSiteSettingsResponseWhatsappMax).default(saveSiteSettingsResponseWhatsappDefault),
+  "email": zod.union([zod.email().default(saveSiteSettingsResponseEmailOneDefault),zod.string().max(saveSiteSettingsResponseEmailTwoMax)]).optional(),
+  "address": zod.string().max(saveSiteSettingsResponseAddressMax).default(saveSiteSettingsResponseAddressDefault),
+  "opening_hours": zod.string().max(saveSiteSettingsResponseOpeningHoursMax).default(saveSiteSettingsResponseOpeningHoursDefault)
+}).describe('The site\'s contact details as the office edits them. Every field may be empty: it is then not shown.')
+
+
+/**
+ * What the public site offers: the company's name and contact details, its categories and the products
+ * the office put on the site, with their web price (or none: "prix sur demande").
+ */
+export const getSiteCatalogResponseProductsItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSiteCatalogResponse = zod.object({
+  "company": zod.string(),
+  "logo_url": zod.string().nullable(),
+  "contact": zod.object({
+  "phone": zod.string(),
+  "whatsapp": zod.string(),
+  "email": zod.email(),
+  "address": zod.string(),
+  "opening_hours": zod.string()
+}).describe('How a visitor reaches the company; an empty field is not shown.'),
+  "categories": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "name_ar": zod.string(),
+  "category": zod.int(),
+  "category_name": zod.string(),
+  "unit": zod.string(),
+  "web_price": zod.stringFormat('decimal', getSiteCatalogResponseProductsItemWebPriceRegExp).nullable(),
+  "description": zod.string(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable()
+}).describe('A product as the public site shows it: its web price only, no stock, no cost (D-186).'))
+})
+
+
+/**
+ * A visitor asks for a quote or orders products. The phone number is required: the office calls back
+ * to confirm prices and delivery.
+ */
+export const sendSiteRequestBodyFullNameMax = 120;
+
+export const sendSiteRequestBodyPhoneMax = 30;
+
+export const sendSiteRequestBodyEmailOneDefault = ``;
+export const sendSiteRequestBodyEmailTwoMax = 0;
+
+export const sendSiteRequestBodyCompanyDefault = ``;
+export const sendSiteRequestBodyCompanyMax = 150;
+
+export const sendSiteRequestBodyCityDefault = ``;
+export const sendSiteRequestBodyCityMax = 100;
+
+export const sendSiteRequestBodyAddressDefault = ``;
+export const sendSiteRequestBodyAddressMax = 250;
+
+export const sendSiteRequestBodyMessageDefault = ``;
+export const sendSiteRequestBodyMessageMax = 2000;
+
+
+export const sendSiteRequestBodyLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const sendSiteRequestBodyLinesItemNoteDefault = ``;
+export const sendSiteRequestBodyLinesItemNoteMax = 200;
+
+export const sendSiteRequestBodyWebsiteDefault = ``;
+
+export const SendSiteRequestBody = zod.object({
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "full_name": zod.string().max(sendSiteRequestBodyFullNameMax),
+  "phone": zod.string().max(sendSiteRequestBodyPhoneMax),
+  "email": zod.union([zod.email().default(sendSiteRequestBodyEmailOneDefault),zod.string().max(sendSiteRequestBodyEmailTwoMax)]).optional(),
+  "company": zod.string().max(sendSiteRequestBodyCompanyMax).default(sendSiteRequestBodyCompanyDefault),
+  "city": zod.string().max(sendSiteRequestBodyCityMax).default(sendSiteRequestBodyCityDefault),
+  "address": zod.string().max(sendSiteRequestBodyAddressMax).default(sendSiteRequestBodyAddressDefault),
+  "wanted_on": zod.iso.date().nullish(),
+  "message": zod.string().max(sendSiteRequestBodyMessageMax).default(sendSiteRequestBodyMessageDefault),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.stringFormat('decimal', sendSiteRequestBodyLinesItemQuantityRegExp),
+  "note": zod.string().max(sendSiteRequestBodyLinesItemNoteMax).default(sendSiteRequestBodyLinesItemNoteDefault)
+})).optional(),
+  "website": zod.string().default(sendSiteRequestBodyWebsiteDefault)
+}).describe('A quote request or an order from the site. `phone` is required; `website` must stay empty (a field\npeople never see, filled only by robots).')
+
+export const SendSiteRequestResponse = zod.object({
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande')
+})
+
+
+/**
  * The stock rules: above `loss_approval_threshold` kg a loss waits for the owner's approval.
  */
 export const getStockSettingsResponseLossApprovalThresholdRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
@@ -17167,6 +17407,148 @@ export const RestoreTruckResponse = zod.object({
   "is_active": zod.boolean(),
   "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Quote requests and orders sent from the public site, newest first, paginated (`limit`, `offset`).
+ * Filter by status, kind or `search` (name, phone, company, number).
+ */
+export const listWebRequestsQuerySearchDefault = ``;
+
+export const ListWebRequestsQueryParams = zod.object({
+  "kind": zod.enum(['quote', 'order']).optional().describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().default(listWebRequestsQuerySearchDefault),
+  "status": zod.enum(['new', 'handled', 'cancelled']).optional().describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée')
+})
+
+export const listWebRequestsResponseResultsItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listWebRequestsResponseResultsItemLinesItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListWebRequestsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "full_name": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "company": zod.string(),
+  "city": zod.string(),
+  "address": zod.string(),
+  "wanted_on": zod.iso.date().nullable(),
+  "message": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.stringFormat('decimal', listWebRequestsResponseResultsItemLinesItemQuantityRegExp),
+  "web_price": zod.stringFormat('decimal', listWebRequestsResponseResultsItemLinesItemWebPriceRegExp).nullable(),
+  "note": zod.string()
+})),
+  "handled_by": zod.string().nullable(),
+  "handled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "office_note": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+export const GetWebRequestParams = zod.object({
+  "request_id": zod.int()
+})
+
+export const getWebRequestResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getWebRequestResponseLinesItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetWebRequestResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "full_name": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "company": zod.string(),
+  "city": zod.string(),
+  "address": zod.string(),
+  "wanted_on": zod.iso.date().nullable(),
+  "message": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.stringFormat('decimal', getWebRequestResponseLinesItemQuantityRegExp),
+  "web_price": zod.stringFormat('decimal', getWebRequestResponseLinesItemWebPriceRegExp).nullable(),
+  "note": zod.string()
+})),
+  "handled_by": zod.string().nullable(),
+  "handled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "office_note": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * The office called the visitor back: mark the request handled or cancelled with a note, or new again.
+ */
+export const SetWebRequestStatusParams = zod.object({
+  "request_id": zod.int()
+})
+
+export const setWebRequestStatusBodyOfficeNoteDefault = ``;
+export const setWebRequestStatusBodyOfficeNoteMax = 2000;
+
+
+
+export const SetWebRequestStatusBody = zod.object({
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "office_note": zod.string().max(setWebRequestStatusBodyOfficeNoteMax).default(setWebRequestStatusBodyOfficeNoteDefault)
+})
+
+export const setWebRequestStatusResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const setWebRequestStatusResponseLinesItemWebPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetWebRequestStatusResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['quote', 'order']).describe('* `quote` - Demande de devis\n* `order` - Commande'),
+  "status": zod.enum(['new', 'handled', 'cancelled']).describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée'),
+  "full_name": zod.string(),
+  "phone": zod.string(),
+  "email": zod.email(),
+  "company": zod.string(),
+  "city": zod.string(),
+  "address": zod.string(),
+  "wanted_on": zod.iso.date().nullable(),
+  "message": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.int(),
+  "product_name": zod.string(),
+  "product_reference": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.stringFormat('decimal', setWebRequestStatusResponseLinesItemQuantityRegExp),
+  "web_price": zod.stringFormat('decimal', setWebRequestStatusResponseLinesItemWebPriceRegExp).nullable(),
+  "note": zod.string()
+})),
+  "handled_by": zod.string().nullable(),
+  "handled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "office_note": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 

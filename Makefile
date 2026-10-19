@@ -18,7 +18,7 @@ hooks:          ## Install the git pre-commit hooks (once per clone)
 backend:        ## Run the Django dev server on :8000
 	cd backend && uv run python manage.py runserver
 
-frontend:       ## Run both front ends (admin :5173, truck :5174)
+frontend:       ## Run the front ends (admin :5173, truck :5174, public site :5175)
 	cd frontend && pnpm dev
 
 migrate:        ## Apply database migrations
@@ -49,7 +49,7 @@ format:         ## Format and auto-fix backend and frontend code
 	cd backend && uv run ruff format . && uv run ruff check --fix .
 	cd frontend && pnpm format
 
-build:          ## Production build of both front ends
+build:          ## Production build of the front ends
 	cd frontend && pnpm build
 
 deploy-staging: ## Deploy the committed HEAD to the staging VPS (needs SSH access)

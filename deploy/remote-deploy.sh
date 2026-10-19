@@ -10,6 +10,9 @@ ENV_FILE="$BASE/.env"
 # One host name per app, so their login cookies stay apart (D-036, D-155). Must match nginx-host-staging.conf.
 ADMIN_HOST="app.fruttidelmare.com"
 DRIVER_HOST="ch.fruttidelmare.com"
+# The public site (D-186); the bare name only redirects to it (nginx-host-staging.conf).
+SITE_HOST="www.fruttidelmare.com"
+SITE_BARE_HOST="fruttidelmare.com"
 ACME_WEBROOT=/var/www/frutti-acme # Let's Encrypt challenge files, served by the host nginx (D-155)
 NGINX_SITE=/etc/nginx/sites-available/frutti-staging
 
@@ -38,8 +41,8 @@ chmod 600 "$ENV_FILE"
 set_env() {
   if grep -q "^$1=" "$ENV_FILE"; then sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"; else echo "$1=$2" >> "$ENV_FILE"; fi
 }
-set_env DJANGO_ALLOWED_HOSTS "$ADMIN_HOST,$DRIVER_HOST"
-set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$ADMIN_HOST,https://$DRIVER_HOST"
+set_env DJANGO_ALLOWED_HOSTS "$ADMIN_HOST,$DRIVER_HOST,$SITE_HOST"
+set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$ADMIN_HOST,https://$DRIVER_HOST,https://$SITE_HOST"
 export RELEASE
 
 # 2. Build and start. Only Frutti's own containers are touched.
@@ -63,9 +66,22 @@ if ! sudo cmp -s "$RELEASE_DIR/deploy/nginx-host-staging.conf" "$NGINX_SITE" 2>/
   fi
 fi
 
+# 3b. The public site's names in the certificate (D-186), once: the port-80 block above answers the challenge.
+#     A failure (DNS not there yet, Let's Encrypt limit) does not stop the deploy; the next deploy tries again.
+if ! sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$SITE_HOST"; then
+  if sudo certbot certonly --webroot -w "$ACME_WEBROOT" --cert-name frutti-staging --expand \
+    -d "$ADMIN_HOST" -d "$DRIVER_HOST" -d "$SITE_HOST" -d "$SITE_BARE_HOST" \
+    --deploy-hook "/usr/sbin/nginx -t && /bin/systemctl reload nginx" --non-interactive --agree-tos; then
+    sudo nginx -t && sudo systemctl reload nginx
+    echo "Certificate now holds $SITE_HOST and $SITE_BARE_HOST"
+  else
+    echo "WARNING: could not add $SITE_HOST to the certificate; see docs/runbook.md (Domain and HTTPS)" >&2
+  fi
+fi
+
 # 4. Health: each app's web container, with the host name and the https scheme the host nginx sends for it
 #    (so Django does not redirect the check; the nginx sites above are checked by the uptime watch).
-for pair in "$ADMIN_HOST:18081" "$DRIVER_HOST:18082"; do
+for pair in "$ADMIN_HOST:18081" "$DRIVER_HOST:18082" "$SITE_HOST:18083"; do
   host="${pair%:*}"
   port="${pair##*:}"
   for _ in $(seq 1 30); do
@@ -88,4 +104,4 @@ for old in $(ls -1t | tail -n +4); do
   sudo docker image rm "frutti-backend:$old" "frutti-web:$old" > /dev/null 2>&1 || true
 done
 
-echo "Deployed $RELEASE: admin https://$ADMIN_HOST  driver https://$DRIVER_HOST"
+echo "Deployed $RELEASE: admin https://$ADMIN_HOST  driver https://$DRIVER_HOST  site https://$SITE_HOST"

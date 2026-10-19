@@ -49,7 +49,7 @@ dinars (DT) with 3 decimals.
 
 | What | Command |
 |---|---|
-| Whole stack in Docker | `make dev` (admin :5173, driver :5174, API :8000) |
+| Whole stack in Docker | `make dev` (admin :5173, driver :5174, public site :5175, API :8000) |
 | Install locally | `make install` (backend: `uv sync`; frontend: `pnpm install`) |
 | Backend / frontend dev servers | `make backend`, `make frontend` (need PostgreSQL at `DATABASE_URL`) |
 | Tests | `make test` (pytest + TypeScript type checks + vitest) |

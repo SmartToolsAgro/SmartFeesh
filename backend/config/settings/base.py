@@ -19,6 +19,8 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", default="")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+# The company the public site sells for (D-186); empty: the oldest active organization.
+PUBLIC_SITE_ORGANIZATION_ID = env.int("PUBLIC_SITE_ORGANIZATION_ID", default=None)
 
 DJANGO_APPS = [
     "django.contrib.admin",
@@ -51,6 +53,7 @@ LOCAL_APPS = [
     "apps.doclist",
     "apps.dataimport",
     "apps.notifications",
+    "apps.storefront",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -163,6 +166,9 @@ REST_FRAMEWORK = {
         "login_username": "8/min",
         "admin_login": "8/min",
         "password_change": "8/min",
+        # The public site (D-186): the catalogue, and the requests a visitor sends.
+        "site_catalog": "120/min",
+        "site_request": "10/hour",
     },
 }
 
@@ -175,6 +181,9 @@ SPECTACULAR_SETTINGS = {
     # Choice sets get stable names after their model, not their field: several models have a `kind`,
     # and "status" and "method" will exist on sales documents too.
     "ENUM_NAME_OVERRIDES": {
+        # D-186 · public site
+        "WebRequestKindEnum": "apps.storefront.models.WebRequestKind",
+        "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
         "SupplierInvoiceStatusEnum": "apps.purchasing.models.SupplierInvoiceStatus",
         "PaymentMethodEnum": "apps.purchasing.models.PaymentMethod",

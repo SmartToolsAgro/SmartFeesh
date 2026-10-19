@@ -13,7 +13,7 @@ const PIXEL_PNG = Buffer.from(
 
 async function openCatalogue(page: Page) {
   await page.goto("/");
-  await page.getByRole("link", { name: "Produits" }).click();
+  await page.getByRole("link", { name: "Produits", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Produits", level: 1 })).toBeVisible();
 }
 
